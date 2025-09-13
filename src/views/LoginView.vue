@@ -86,6 +86,11 @@
               <span v-if="authStore.loading" class="loading-spinner"></span>
               {{ authStore.loading ? 'Đang đăng nhập...' : 'Đăng nhập' }}
             </button>
+
+            <button type="button" class="google-btn" @click="handleGoogleLogin" :disabled="authStore.loading">
+              <img class="google-icon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+              Đăng nhập với Google
+            </button>
           </form>
 
           <div class="form-footer">
@@ -100,70 +105,12 @@
         </div>
       </div>
     </div>
-
-    <!-- Body Section -->
-    <div class="body-section">
-      <div class="container">
-        <div class="body-content">
-          <div class="content-grid">
-            <div class="content-item">
-              <div class="content-card">
-                <div class="card-icon">
-                  <img src="/src/assets/images/ev-charging.svg" alt="EV Charging" class="service-icon">
-                </div>
-                <h3 class="card-title">Dịch vụ sạc điện</h3>
-                <p class="card-description">Hệ thống trạm sạc hiện đại với công nghệ sạc nhanh, an toàn và tiện lợi cho mọi loại xe điện.</p>
-              </div>
-            </div>
-
-            <div class="content-item">
-              <div class="content-card">
-                <div class="card-icon">
-                  <img src="/src/assets/images/maintenance.svg" alt="Maintenance" class="service-icon">
-                </div>
-                <h3 class="card-title">Bảo dưỡng chuyên nghiệp</h3>
-                <p class="card-description">Đội ngũ kỹ thuật viên chuyên nghiệp với kinh nghiệm sâu về xe điện và công nghệ hiện đại.</p>
-              </div>
-            </div>
-
-            <div class="content-item">
-              <div class="content-card">
-                <div class="card-icon">
-                  <img src="/src/assets/images/support.svg" alt="Support" class="service-icon">
-                </div>
-                <h3 class="card-title">Hỗ trợ 24/7</h3>
-                <p class="card-description">Dịch vụ hỗ trợ khách hàng 24/7 với đội ngũ tư vấn chuyên nghiệp và nhiệt tình.</p>
-              </div>
-            </div>
-
-            <div class="content-item">
-              <div class="content-card">
-                <div class="card-icon">
-                  <img src="/src/assets/images/warranty.svg" alt="Warranty" class="service-icon">
-                </div>
-                <h3 class="card-title">Bảo hành toàn diện</h3>
-                <p class="card-description">Chế độ bảo hành toàn diện với cam kết chất lượng dịch vụ và phụ tùng chính hãng.</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="cta-section">
-            <h2 class="cta-title">Trải nghiệm dịch vụ xe điện hàng đầu</h2>
-            <p class="cta-subtitle">Đăng ký ngay để nhận ưu đãi đặc biệt cho khách hàng mới</p>
-            <button class="cta-button" @click="handleRegister">
-              Đăng ký ngay
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { BaseButton, BaseInput, BaseCard } from '@/components/common'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
@@ -195,6 +142,13 @@ const handleRegister = () => {
   router.push('/register')
 }
 </script>
+
+const handleGoogleLogin = () => {
+  const base = import.meta.env.VITE_API_BASE_URL || ''
+  const googlePath = import.meta.env.VITE_GOOGLE_OAUTH_PATH || '/auth/google'
+  window.location.href = `${base}${googlePath}`
+}
+
 
 <style scoped>
 .login-page {

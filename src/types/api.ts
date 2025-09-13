@@ -22,6 +22,13 @@ export interface LoginRequest {
   password: string
 }
 
+export interface RegisterRequest {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+}
+
 export interface LoginResponse {
   token: string
   refreshToken: string

@@ -4,7 +4,7 @@
     <main class="main-content">
       <router-view />
     </main>
-    <AppFooter />
+    <AppFooter v-if="!$route.meta?.hideFooter" />
   </div>
 </template>
 

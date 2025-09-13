@@ -20,6 +20,11 @@ export class UserService {
     return response.data
   }
 
+  static async register(data: { firstName: string; lastName: string; email: string; password: string; }): Promise<ApiResponse<void>> {
+    const response = await api.post<ApiResponse<void>>('/auth/register', data)
+    return response.data
+  }
+
   static async logout(): Promise<ApiResponse<void>> {
     const response = await api.post<ApiResponse<void>>('/auth/logout')
     return response.data
