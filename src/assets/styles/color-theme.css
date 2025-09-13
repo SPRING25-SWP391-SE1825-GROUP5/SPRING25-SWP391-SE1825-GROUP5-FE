@@ -1,0 +1,262 @@
+/* EV Service Center Color Theme */
+:root {
+  /* Primary Colors */
+  --primary-color: #004030;
+  --secondary-color: #4A9782;
+  --tertiary-color: #FFF9E5;
+  --quaternary-color: #44444E;
+  
+  /* Semantic Colors */
+  --success-color: #4A9782;
+  --warning-color: #F59E0B;
+  --error-color: #EF4444;
+  --info-color: #3B82F6;
+  
+  /* Text Colors */
+  --text-primary: #44444E;
+  --text-secondary: #6B7280;
+  --text-light: #FFF9E5;
+  --text-muted: #9CA3AF;
+  
+  /* Background Colors */
+  --bg-primary: #FFF9E5;
+  --bg-secondary: #F8F9FA;
+  --bg-dark: #004030;
+  --bg-card: #FFFFFF;
+  
+  /* Border Colors */
+  --border-light: #E5E7EB;
+  --border-medium: #D1D5DB;
+  --border-dark: #4A9782;
+  
+  /* Shadow Colors */
+  --shadow-light: rgba(0, 64, 48, 0.1);
+  --shadow-medium: rgba(0, 64, 48, 0.2);
+  --shadow-dark: rgba(0, 64, 48, 0.3);
+}
+
+/* Global Overrides */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Header Styling */
+.header {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: var(--text-light);
+}
+
+.header .nav-link {
+  color: var(--text-light);
+}
+
+.header .nav-link:hover {
+  color: var(--tertiary-color);
+}
+
+/* Button Overrides */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-color: var(--primary-color);
+  color: var(--text-light);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+  border-color: var(--secondary-color);
+  box-shadow: 0 8px 25px var(--shadow-medium);
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--secondary-color);
+  color: var(--secondary-color);
+}
+
+.btn-secondary:hover {
+  background: var(--secondary-color);
+  color: var(--text-light);
+}
+
+/* Card Styling */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 12px var(--shadow-light);
+}
+
+.card-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: var(--text-light);
+  border-bottom: 1px solid var(--border-dark);
+}
+
+/* Form Styling */
+.form-control {
+  border-color: var(--border-medium);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.form-control:focus {
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 0.2rem rgba(74, 151, 130, 0.25);
+}
+
+/* Table Styling */
+.table {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.table th {
+  background: var(--primary-color);
+  color: var(--text-light);
+  border-color: var(--border-dark);
+}
+
+.table td {
+  border-color: var(--border-light);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(74, 151, 130, 0.05);
+}
+
+/* Alert Styling */
+.alert-success {
+  background-color: rgba(74, 151, 130, 0.1);
+  border-color: var(--success-color);
+  color: var(--primary-color);
+}
+
+.alert-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  border-color: var(--warning-color);
+  color: #92400E;
+}
+
+.alert-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: var(--error-color);
+  color: #991B1B;
+}
+
+/* Navigation Styling */
+.nav-tabs .nav-link {
+  color: var(--text-secondary);
+  border-color: var(--border-light);
+}
+
+.nav-tabs .nav-link.active {
+  background-color: var(--secondary-color);
+  color: var(--text-light);
+  border-color: var(--secondary-color);
+}
+
+/* Badge Styling */
+.badge-primary {
+  background-color: var(--primary-color);
+  color: var(--text-light);
+}
+
+.badge-secondary {
+  background-color: var(--secondary-color);
+  color: var(--text-light);
+}
+
+.badge-success {
+  background-color: var(--success-color);
+  color: var(--text-light);
+}
+
+/* Modal Styling */
+.modal-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: var(--text-light);
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+}
+
+/* Sidebar Styling */
+.sidebar {
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-light);
+}
+
+.sidebar .nav-link {
+  color: var(--text-primary);
+}
+
+.sidebar .nav-link:hover {
+  background-color: rgba(74, 151, 130, 0.1);
+  color: var(--secondary-color);
+}
+
+.sidebar .nav-link.active {
+  background-color: var(--secondary-color);
+  color: var(--text-light);
+}
+
+/* Progress Bar Styling */
+.progress {
+  background-color: var(--border-light);
+}
+
+.progress-bar {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+/* Dropdown Styling */
+.dropdown-menu {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 12px var(--shadow-light);
+}
+
+.dropdown-item {
+  color: var(--text-primary);
+}
+
+.dropdown-item:hover {
+  background-color: rgba(74, 151, 130, 0.1);
+  color: var(--secondary-color);
+}
+
+/* Link Styling */
+a {
+  color: var(--secondary-color);
+}
+
+a:hover {
+  color: var(--primary-color);
+}
+
+/* Text Utilities */
+.text-primary-custom {
+  color: var(--primary-color) !important;
+}
+
+.text-secondary-custom {
+  color: var(--secondary-color) !important;
+}
+
+.bg-primary-custom {
+  background-color: var(--primary-color) !important;
+}
+
+.bg-secondary-custom {
+  background-color: var(--secondary-color) !important;
+}
+
+.border-primary-custom {
+  border-color: var(--primary-color) !important;
+}
+
+.border-secondary-custom {
+  border-color: var(--secondary-color) !important;
+}

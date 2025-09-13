@@ -1,8 +1,8 @@
 <template>
   <div class="users">
     <div class="users-header">
-      <h1>User Management</h1>
-      <p>Manage system users and their permissions</p>
+      <h1>Quản lý người dùng</h1>
+      <p>Quản lý người dùng hệ thống và quyền</p>
     </div>
 
     <div class="users-actions">
@@ -63,7 +63,7 @@
       </div>
 
       <div v-else class="no-users">
-        <p>No users found</p>
+        <p>Không tìm thấy người dùng</p>
       </div>
     </div>
   </div>
