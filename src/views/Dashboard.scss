@@ -1,0 +1,10 @@
+/* Scoped styles for Dashboard page */
+.dashboard-page {
+  /* Example placeholder for future tweaks */
+  .btn.btn-outline:hover:not(:disabled) { transform: translateY(-2px); }
+
+  @media (max-width: 768px) {
+    /* Add dashboard-specific responsive rules here when needed */
+  }
+}
+

@@ -1,0 +1,107 @@
+/* Booking page styles (scoped) */
+.booking-page {
+  .booking-content { border-radius: 16px; background: rgba(255,255,255,0.7); backdrop-filter: blur(6px); padding: 16px; }
+
+  .booking-step { background: #fff; border: 1px solid var(--border-primary); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); }
+  .booking-step h2 { margin: 0 0 12px; color: var(--text-primary); font-size: 20px; }
+
+  /* Confirm step layout */
+  .confirm-step { padding: 0; overflow: hidden; }
+  .confirm-step > h2 { padding: 16px; border-bottom: 1px solid var(--border-primary); }
+  .confirm-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 0; }
+  @media (max-width: 1024px) { .confirm-grid { grid-template-columns: 1fr; } }
+  .confirm-actions { display: flex; justify-content: space-between; padding: 16px; border-top: 1px solid var(--border-primary); }
+
+  /* Ticket */
+  .ticket { padding: 16px; border-right: 1px solid var(--border-primary); background: linear-gradient(180deg, #fff, #fafafa); }
+  @media (max-width: 1024px) { .ticket { border-right: none; border-bottom: 1px solid var(--border-primary); } }
+  .ticket-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .ticket-brand { font-weight: 800; color: #0B6B50; letter-spacing: 0.3px; }
+  .ticket-status { font-size: 12px; padding: 4px 8px; border-radius: 999px; background: var(--primary-50); border: 1px solid var(--primary-200); color: var(--primary-700); }
+  .ticket-body { display: grid; gap: 10px; }
+  .ticket .row { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: start; }
+  .ticket .label { color: var(--text-secondary); font-weight: 600; }
+  .ticket .value .bold { font-weight: 700; }
+  .ticket .value .muted { color: var(--text-tertiary); font-size: 12px; }
+
+  .map-embed { margin-top: 12px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-primary); background: #fff; }
+  .map-embed iframe { width: 100%; height: 260px; border: 0; }
+  .map-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--border-primary); background: #fff; }
+  .map-actions .distance { font-size: 12px; color: var(--text-secondary); }
+  .map-actions .btn-open-map { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--primary-300); color: var(--primary-700); background: var(--primary-50); font-weight: 700; text-decoration: none; }
+  .map-actions .btn-open-map:hover { background: var(--primary-100); }
+
+  /* Summary panel with table */
+  .summary-panel { padding: 16px; }
+  .summary-panel h3 { margin: 0 0 10px; }
+  .service-table-wrapper { border: 1px solid var(--border-primary); border-radius: 12px; overflow: hidden; background: #fff; }
+  .service-table { width: 100%; border-collapse: collapse; }
+  .service-table thead th { background: var(--bg-secondary); color: var(--text-secondary); text-align: left; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid var(--border-primary); }
+  .service-table tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border-primary); }
+  .service-table tfoot td { padding: 10px 12px; background: #fff; }
+  .notes-block { margin-top: 12px; display: grid; gap: 6px; }
+
+  /* Vehicle cards */
+  .vehicle-card { transition: .2s ease; }
+  .vehicle-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .vehicle-card.selected { outline: 2px solid var(--primary-400); box-shadow: 0 0 0 4px var(--primary-50); }
+  .vehicle-info h3 { margin: 0 0 4px; font-size: 16px; }
+  .vehicle-details { color: var(--text-secondary); margin: 0; }
+  .vehicle-vin { color: var(--text-tertiary); font-size: 12px; margin: 4px 0 8px; }
+  .vehicle-status { display: flex; gap: 8px; }
+  .vehicle-status .mileage, .vehicle-status .last-service { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 999px; padding: 4px 8px; font-size: 12px; }
+
+  /* Step indicator */
+  .step { transition: background .2s ease, border-color .2s ease; }
+  .step.active { border-color: var(--primary-400); }
+  .step.completed { opacity: .9; }
+
+  /* Service filter + list */
+  .service-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .service-toolbar label { display: inline-flex; flex-direction: column; gap: 6px; font-weight: 600; color: var(--text-secondary); }
+  .select-control { padding: 10px 12px; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-input); color: var(--text-primary); outline: none; transition: .2s ease; }
+  .select-control:focus { border-color: var(--primary-400); box-shadow: 0 0 0 3px var(--primary-50); }
+
+  .input-control { padding: 10px 12px; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-input); color: var(--text-primary); outline: none; transition: .2s ease; }
+  .input-control:focus { border-color: var(--primary-400); box-shadow: 0 0 0 3px var(--primary-50); }
+
+  .service-categories { display: grid; gap: 12px; }
+  .service-category { border: 1px solid var(--border-primary); border-radius: 12px; background: var(--bg-card); padding: 12px; }
+  .service-category h3 { margin: 0 0 8px; font-size: 16px; color: var(--text-primary); }
+  .service-list { display: grid; gap: 8px; }
+
+  .service-item { display: grid; grid-template-columns: 20px 1fr; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-primary); border-radius: 10px; background: #fff; cursor: pointer; transition: .2s ease; }
+  .service-item:hover { border-color: var(--primary-300); background: var(--primary-25, #F5FBF9); }
+  .service-item.selected { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-50); }
+  .service-item input[type="checkbox"] { margin-top: 2px; }
+  .service-info h4 { margin: 0 0 4px; font-size: 15px; color: var(--text-primary); }
+  .service-info p { margin: 0 0 8px; color: var(--text-secondary); font-size: 13px; }
+  .service-details { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--border-primary); font-size: 12px; color: var(--text-secondary); }
+  .price { font-weight: 700; color: var(--success-600, #0E7A3E); }
+
+  /* Date & time */
+  .time-selection h3 { margin: 0 0 6px; font-size: 14px; color: var(--text-secondary); }
+  .center-selection, .date-selection { display: flex; flex-direction: column; gap: 8px; }
+  .staff-selection { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+
+  .slots-grid { margin-top: 8px; }
+  .time-slot { padding: 10px 12px; border: 1px solid var(--border-primary); border-radius: 8px; background: #fff; transition: .2s ease; cursor: pointer; }
+  .time-slot:hover:not(:disabled) { border-color: var(--primary-300); background: var(--primary-50); }
+  .time-slot.selected { background: var(--primary-500); color: var(--text-inverse); border-color: var(--primary-500); }
+  .time-slot:disabled { background: var(--bg-secondary); color: var(--text-disabled); cursor: not-allowed; }
+
+  /* Summary */
+  .booking-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 768px) { .booking-summary { grid-template-columns: 1fr; } }
+  .summary-section { background: #fff; border: 1px solid var(--border-primary); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); }
+  .summary-section h3 { margin: 0 0 10px; font-size: 16px; color: var(--text-primary); }
+  .selected-services-list { margin: 0; padding-left: 16px; }
+  .total-price { margin-top: 10px; font-size: 18px; color: var(--text-primary); }
+
+  .notes-input { width: 100%; min-height: 110px; padding: 12px 14px; border: 1px solid var(--border-primary); border-radius: 10px; resize: vertical; background: var(--bg-input); color: var(--text-primary); }
+  .notes-input:focus { outline: none; border-color: var(--primary-400); box-shadow: 0 0 0 3px var(--primary-50); }
+
+  /* Nearest hint */
+  .nearest-hint { margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
+}
