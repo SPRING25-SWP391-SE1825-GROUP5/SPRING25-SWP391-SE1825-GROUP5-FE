@@ -1,87 +1,65 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosResponse, AxiosError } from 'axios'
+import { store } from '@/store'
+import { refreshAuthToken, logout } from '@/store/authSlice'
 
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7001/api'
-
-// Create axios instance
-const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  withCredentials: true,
 })
 
-// Request interceptor
-apiClient.interceptors.request.use(
-  (config) => {
-    // Add auth token if available
-    const token = localStorage.getItem('authToken')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+api.interceptors.request.use((config) => {
+  const state = store.getState()
+  const token = state.auth.token
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+let isRefreshing = false
+let queuedRequests: Array<(token: string | null) => void> = []
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config
+    if (error?.response?.status === 401 && !original._retry) {
+      original._retry = true
+      if (!isRefreshing) {
+        isRefreshing = true
+        try {
+          const state = store.getState()
+          const currentRefresh = state.auth.refreshToken
+          if (!currentRefresh) throw new Error('No refresh token')
+          const result = await store.dispatch(refreshAuthToken(currentRefresh))
+          const newToken = (result as any)?.payload?.token || null
+          queuedRequests.forEach((cb) => cb(newToken))
+          queuedRequests = []
+          return api(original)
+        } catch (e) {
+          store.dispatch(logout())
+          queuedRequests = []
+          return Promise.reject(error)
+        } finally {
+          isRefreshing = false
+        }
+      }
+      return new Promise((resolve, reject) => {
+        queuedRequests.push((token) => {
+          if (!token) {
+            reject(error)
+            return
+          }
+          original.headers = original.headers || {}
+          original.headers.Authorization = `Bearer ${token}`
+          resolve(api(original))
+        })
+      })
     }
-    return config
-  },
-  (error) => {
     return Promise.reject(error)
   }
 )
 
-// Response interceptor
-apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response
-  },
-  (error: AxiosError) => {
-    // Handle common errors
-    if (error.response?.status === 401) {
-      // Unauthorized - redirect to login
-      localStorage.removeItem('authToken')
-      window.location.href = '/login'
-    }
-    
-    if (error.response?.status === 403) {
-      // Forbidden
-      console.error('Access denied')
-    }
-    
-    if (error.response?.status >= 500) {
-      // Server error
-      console.error('Server error:', error.response.data)
-    }
-    
-    return Promise.reject(error)
-  }
-)
+export default api
 
-// Generic API methods
-export const api = {
-  // GET request
-  get: <T>(url: string, params?: any): Promise<AxiosResponse<T>> => {
-    return apiClient.get(url, { params })
-  },
-
-  // POST request
-  post: <T>(url: string, data?: any): Promise<AxiosResponse<T>> => {
-    return apiClient.post(url, data)
-  },
-
-  // PUT request
-  put: <T>(url: string, data?: any): Promise<AxiosResponse<T>> => {
-    return apiClient.put(url, data)
-  },
-
-  // DELETE request
-  delete: <T>(url: string): Promise<AxiosResponse<T>> => {
-    return apiClient.delete(url)
-  },
-
-  // PATCH request
-  patch: <T>(url: string, data?: any): Promise<AxiosResponse<T>> => {
-    return apiClient.patch(url, data)
-  }
-}
-
-export default apiClient

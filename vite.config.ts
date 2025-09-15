@@ -1,82 +1,58 @@
 import { defineConfig, loadEnv } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
-import { resolve } from 'path'
-import { fileURLToPath, URL } from 'node:url'
+import react from '@vitejs/plugin-react-swc'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-/**
- * Vite Configuration for EV Service Center Management System
- * - Vue 3 + TypeScript + JSX Support
- * - Path aliases for better imports
- * - Development server configuration
- */
+const srcPath = fileURLToPath(new URL('./src', import.meta.url))
+
+// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
+  // Load all envs (no prefix filter) so we can read VITE_HOST, VITE_PORT, VITE_API_BASE_URL
   const env = loadEnv(mode, process.cwd(), '')
 
+  const host = env.VITE_HOST || 'localhost'
+  const port = Number(env.VITE_PORT || 5173)
+
+  // Optional dev proxy to backend to avoid CORS; will proxy the path part from VITE_API_BASE_URL
+  // Example: VITE_API_BASE_URL=https://localhost:7001/api -> proxy '/api' to 'https://localhost:7001'
+  let proxy: Record<string, any> | undefined
+  const apiBase = env.VITE_API_BASE_URL
+  if (apiBase) {
+    try {
+      const u = new URL(apiBase)
+      const target = `${u.protocol}//${u.host}`
+      let apiPath = u.pathname || '/api'
+      if (!apiPath.startsWith('/')) apiPath = `/${apiPath}`
+      if (apiPath.endsWith('/') && apiPath !== '/') apiPath = apiPath.slice(0, -1)
+
+      proxy = {
+        [apiPath]: {
+          target,
+          changeOrigin: true,
+          secure: false, // allow self-signed certs in dev
+        },
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
   return {
-    plugins: [
-      vue({
-        // Enable script setup sugar for better TypeScript support
-        script: {
-          defineModel: true,
-          propsDestructure: true
-        }
-      }),
-      vueJsx({
-        // Enable JSX/TSX support for Vue components
-        optimize: true,
-        isCustomElement: (tag) => tag.startsWith('ion-')
-      })
-    ],
+    plugins: [react()],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-        '@/components': fileURLToPath(new URL('./src/components', import.meta.url)),
-        '@/views': fileURLToPath(new URL('./src/views', import.meta.url)),
-        '@/stores': fileURLToPath(new URL('./src/stores', import.meta.url)),
-        '@/types': fileURLToPath(new URL('./src/types', import.meta.url)),
-        '@/utils': fileURLToPath(new URL('./src/utils', import.meta.url)),
-        '@/constants': fileURLToPath(new URL('./src/constants', import.meta.url)),
-        '@/services': fileURLToPath(new URL('./src/services', import.meta.url)),
-        '@/layouts': fileURLToPath(new URL('./src/layouts', import.meta.url))
-      }
+        '@': path.resolve(srcPath),
+      },
     },
-    // TypeScript configuration
-    esbuild: {
-      target: 'es2020',
-      keepNames: true
-    },
-
-    // Build configuration
-    build: {
-      target: 'es2020',
-      sourcemap: true,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vue-vendor': ['vue', 'vue-router', 'pinia'],
-            'ui-vendor': ['axios']
-          }
-        }
-      }
-    },
-
     server: {
-      port: parseInt(env.VITE_PORT) || 3000,
-      host: env.VITE_HOST || 'localhost',
-      open: true, // Automatically open browser
+      host,
+      port,
+      proxy,
     },
+    // Keep preview same host/port for convenience
     preview: {
-      port: parseInt(env.VITE_PORT) || 3000,
-      host: env.VITE_HOST || 'localhost',
+      host,
+      port,
     },
-
-    // Define global constants for TypeScript
-    define: {
-      __VUE_OPTIONS_API__: true,
-      __VUE_PROD_DEVTOOLS__: false,
-      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false
-    }
   }
 })

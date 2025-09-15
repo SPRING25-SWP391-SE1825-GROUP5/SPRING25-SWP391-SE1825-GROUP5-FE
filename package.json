@@ -1,30 +1,40 @@
 {
-  "name": "ev-service-center-frontend",
+  "name": "react-app",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
-  "description": "EV Service Center Management System - Frontend (Vue 3 + TypeScript)",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "type-check": "vue-tsc --noEmit",
-    "lint:ts": "vue-tsc --noEmit --skipLibCheck"
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.12.0",
-    "pinia": "^3.0.3",
-    "vue": "^3.5.18",
-    "vue-router": "^4.5.1"
+    "@reduxjs/toolkit": "^2.9.0",
+    "axios": "^1.12.2",
+    "leaflet": "^1.9.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.9.1"
   },
   "devDependencies": {
-    "@types/node": "^24.3.1",
-    "@vitejs/plugin-vue": "^6.0.1",
-    "@vitejs/plugin-vue-jsx": "^4.2.0",
-    "@vue/tsconfig": "^0.7.0",
+    "@eslint/js": "^9.33.0",
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^24.4.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react-swc": "^4.0.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
     "sass": "^1.92.1",
+    "tailwindcss": "^4.1.13",
     "typescript": "~5.8.3",
-    "vite": "^7.1.2",
-    "vue-tsc": "^3.0.5"
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
   }
 }

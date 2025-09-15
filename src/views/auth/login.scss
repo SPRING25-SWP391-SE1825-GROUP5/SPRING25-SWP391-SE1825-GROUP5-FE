@@ -1,0 +1,23 @@
+/* Scoped styles for Login page */
+.auth-page {
+  .login-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 151, 130, 0.4);
+  }
+
+  .google-btn:hover {
+    background: #f9fafb;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .login-container { display: flex; flex-direction: column; }
+    .login-brand { padding: 2rem 1rem; min-height: 40vh; }
+    .features-list { display: none; }
+    .login-form-section { padding: 1rem; }
+  }
+  @media (max-width: 480px) {
+    .login-brand { padding: 1.5rem 1rem; min-height: 30vh; }
+  }
+}
+
