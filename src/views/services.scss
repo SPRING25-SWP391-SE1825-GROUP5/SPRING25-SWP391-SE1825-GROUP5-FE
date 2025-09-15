@@ -1,0 +1,40 @@
+/* Scoped styles for Services page */
+.services-page {
+  .services-header h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+  }
+  .services-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+  }
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  .service-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 12px var(--shadow-light);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .service-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+  .service-title { font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .service-desc { color: var(--text-secondary); margin-bottom: 0.75rem; }
+  .service-cta { display: flex; gap: 0.5rem; }
+  .cta-buttons { display: flex; gap: 1rem; }
+
+  /* Responsive grid */
+  @media (max-width: 1024px) { .services-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 768px) {
+    .services-grid { grid-template-columns: 1fr; }
+    .services-header h1 { font-size: 2.5rem; }
+    .cta-buttons { flex-direction: column; align-items: center; }
+  }
+}
+

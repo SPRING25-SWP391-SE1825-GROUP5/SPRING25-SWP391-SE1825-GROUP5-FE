@@ -1,0 +1,28 @@
+/* BaseInput styles */
+.input-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.input-label { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; }
+.input-required { color: var(--error-500); margin-left: 4px; }
+
+.input-wrapper { position: relative; }
+
+.input {
+  width: 100%;
+  border: 1px solid var(--border-primary);
+  background: #fff;
+  color: var(--text-primary);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.input--sm { padding: 0.5rem 0.75rem; font-size: 0.9rem; }
+.input--md { padding: 0.75rem 1rem; font-size: 1rem; }
+.input--lg { padding: 1rem 1.25rem; font-size: 1.1rem; }
+
+.input:focus { outline: none; border-color: var(--primary-400); box-shadow: 0 0 0 4px var(--primary-100); }
+
+.input--disabled { background: var(--bg-secondary); color: var(--text-tertiary); cursor: not-allowed; }
+
+.input--error { border-color: var(--error-400); box-shadow: 0 0 0 4px rgba(244, 67, 54, 0.08); }
+.input-error { color: var(--error-600); font-size: 0.85rem; }
+.input-hint { color: var(--text-tertiary); font-size: 0.85rem; }
+

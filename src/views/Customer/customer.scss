@@ -1,0 +1,13 @@
+/* Scoped styles for Customer pages */
+.customer-page {
+  /* Generic selectable/card hover helpers already in legacy.scss, keep page-level overrides if needed */
+
+  /* MaintenanceHistory: responsive tweaks */
+  @media (max-width: 768px) {
+    .filters-section { grid-template-columns: 1fr; }
+    .summary-stats { grid-template-columns: repeat(2, 1fr); }
+    .record-header { flex-direction: column; gap: 1rem; }
+    .record-meta { flex-direction: column; gap: 0.5rem; }
+  }
+}
+
