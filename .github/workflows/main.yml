@@ -1,12 +1,13 @@
-name: Build and Deploy to GitHub Pages
+name: CI/CD - Build and Deploy to GitHub Pages
 
 # Khi nào workflow sẽ chạy
 on:
-  # Chạy khi có push vào branch main hoặc dev
+  # CI: Build và test khi push vào branch main hoặc dev
+  # CD: Deploy chỉ khi push vào branch main
   push:
     branches: [ main, dev ]
   
-  # Chạy khi có pull request vào branch main hoặc dev  
+  # CI: Build và test khi có pull request  
   pull_request:
     branches: [ main, dev ]
 
@@ -25,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Job để build dự án
+  # CI Job: Build dự án (chạy trên tất cả branches)
   build:
     runs-on: ubuntu-latest
     
@@ -36,7 +37,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         
     - name: Install dependencies
@@ -45,17 +46,22 @@ jobs:
     - name: Build project
       run: npm run build
       
+    # Chỉ setup và upload khi cần deploy (branch main)
     - name: Setup Pages
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: actions/configure-pages@v4
       
     - name: Upload artifact
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: actions/upload-pages-artifact@v3
       with:
         # Upload thư mục dist sau khi build
         path: './dist'
 
-  # Job để deploy lên GitHub Pages
+  # CD Job: Deploy lên GitHub Pages (chỉ từ branch main)
   deploy:
+    # CD: Chỉ deploy khi push vào branch main (không deploy từ PR hoặc dev)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
