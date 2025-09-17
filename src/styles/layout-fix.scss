@@ -1,0 +1,33 @@
+/* Global layout fix for fixed header */
+
+/* Add padding-top to main content when header is fixed */
+body {
+  padding-top: 0px; /* Height of fixed header */
+}
+
+/* Ensure AppLayout content doesn't get hidden under header */
+.app-layout {
+  main {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* Fix for all pages to account for fixed header */
+#root > div > main,
+.main-content,
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure dropdown is always visible */
+.dropdown-menu {
+  z-index: 999999 !important;
+  position: absolute !important;
+}
+
+/* Prevent any element from overlapping dropdown */
+*:not(.modern-header):not(.dropdown-menu):not(.dropdown-content):not(.dropdown-section):not(.nav-item-wrapper) {
+  max-z-index: 99997;
+}

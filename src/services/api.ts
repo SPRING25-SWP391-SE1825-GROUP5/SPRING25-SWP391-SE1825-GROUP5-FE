@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
   const state = store.getState()
   const token = state.auth.token
   if (token) {
-    config.headers = config.headers || {}
+    config.headers = config.headers || {} as any
     config.headers.Authorization = `Bearer ${token}`
   }
   return config

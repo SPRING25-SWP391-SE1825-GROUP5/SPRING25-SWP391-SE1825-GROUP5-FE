@@ -1,0 +1,433 @@
+/* Order Success Page - Nike Inspired Black & White */
+.order-success-page {
+  background: #ffffff;
+  min-height: calc(100vh - 64px);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Utility classes */
+  .w-4 { width: 16px; }
+  .h-4 { height: 16px; }
+  .w-5 { width: 20px; }
+  .h-5 { height: 20px; }
+  .w-6 { width: 24px; }
+  .h-6 { height: 24px; }
+  .w-20 { width: 80px; }
+  .h-20 { height: 80px; }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 48px 96px;
+
+    @media (max-width: 1200px) {
+      padding: 36px 36px 72px;
+    }
+
+    @media (max-width: 768px) {
+      padding: 24px 24px 48px;
+    }
+  }
+
+  /* Success Header */
+  .success-header {
+    text-align: center;
+    margin-bottom: 48px;
+
+    .success-icon {
+      margin-bottom: 24px;
+      color: #22c55e;
+    }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 500;
+      color: #111111;
+      margin: 0 0 16px 0;
+
+      @media (max-width: 768px) {
+        font-size: 28px;
+      }
+    }
+
+    p {
+      font-size: 18px;
+      color: #757575;
+      margin: 0;
+      max-width: 500px;
+      margin: 0 auto;
+
+      @media (max-width: 768px) {
+        font-size: 16px;
+      }
+    }
+  }
+
+  /* Order Content */
+  .order-content {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 48px;
+    margin-bottom: 48px;
+
+    @media (max-width: 1024px) {
+      grid-template-columns: 1fr 350px;
+      gap: 32px;
+    }
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+
+  /* Order Summary Card */
+  .order-summary-card {
+    background: #f9f9f9;
+    border-radius: 8px;
+    overflow: hidden;
+
+    .card-header {
+      padding: 24px;
+      border-bottom: 1px solid #e5e5e5;
+      background: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      h2 {
+        font-size: 20px;
+        font-weight: 500;
+        color: #111111;
+        margin: 0;
+      }
+
+      .order-id {
+        font-size: 14px;
+        font-weight: 500;
+        color: #757575;
+        padding: 6px 12px;
+        background: #f5f5f5;
+        border-radius: 16px;
+      }
+    }
+
+    .order-items {
+      padding: 24px;
+
+      h3 {
+        font-size: 16px;
+        font-weight: 500;
+        color: #111111;
+        margin: 0 0 20px 0;
+      }
+
+      .order-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e5e5e5;
+
+        &:last-child {
+          margin-bottom: 0;
+          padding-bottom: 0;
+          border-bottom: none;
+        }
+
+        .item-image {
+          width: 60px;
+          height: 60px;
+          background: white;
+          border-radius: 8px;
+          overflow: hidden;
+          flex-shrink: 0;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .item-info {
+          flex: 1;
+
+          .item-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #111111;
+            margin-bottom: 4px;
+          }
+
+          .item-brand {
+            font-size: 12px;
+            color: #757575;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+
+          .item-quantity {
+            font-size: 12px;
+            color: #757575;
+          }
+        }
+
+        .item-price {
+          font-size: 14px;
+          font-weight: 500;
+          color: #111111;
+        }
+      }
+    }
+
+    .order-totals {
+      padding: 24px;
+      background: white;
+      border-top: 1px solid #e5e5e5;
+
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        font-size: 14px;
+
+        &.final {
+          font-size: 18px;
+          font-weight: 600;
+          color: #111111;
+          margin-bottom: 0;
+        }
+      }
+
+      .total-divider {
+        height: 1px;
+        background: #e5e5e5;
+        margin: 16px 0;
+      }
+    }
+  }
+
+  /* Info Cards */
+  .info-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+
+    .info-card {
+      background: white;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      overflow: hidden;
+
+      .info-header {
+        padding: 20px;
+        border-bottom: 1px solid #e5e5e5;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        svg {
+          color: #111111;
+          flex-shrink: 0;
+        }
+
+        h3 {
+          font-size: 16px;
+          font-weight: 500;
+          color: #111111;
+          margin: 0;
+        }
+      }
+
+      .info-content {
+        padding: 20px;
+
+        .info-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          font-size: 14px;
+          color: #757575;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          strong {
+            color: #111111;
+          }
+
+          svg {
+            color: #757575;
+            flex-shrink: 0;
+          }
+        }
+
+        .delivery-estimate {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+
+          svg {
+            color: #22c55e;
+            flex-shrink: 0;
+          }
+
+          div {
+            strong {
+              display: block;
+              font-size: 14px;
+              font-weight: 500;
+              color: #111111;
+              margin-bottom: 4px;
+            }
+
+            span {
+              font-size: 14px;
+              color: #757575;
+            }
+          }
+        }
+
+        .delivery-note {
+          font-size: 12px;
+          color: #757575;
+          font-style: italic;
+        }
+
+        .payment-method {
+          font-size: 14px;
+          font-weight: 500;
+          color: #111111;
+          margin-bottom: 8px;
+        }
+
+        .payment-status {
+          font-size: 12px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-weight: 500;
+
+          &.success {
+            background: #dcfce7;
+            color: #16a34a;
+          }
+        }
+      }
+    }
+  }
+
+  /* Action Section */
+  .action-section {
+    text-align: center;
+
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 48px;
+
+      @media (max-width: 768px) {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .continue-shopping-btn,
+      .track-order-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 24px;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        min-width: 180px;
+        justify-content: center;
+      }
+
+      .continue-shopping-btn {
+        background: #111111;
+        color: white;
+
+        &:hover {
+          background: #333333;
+        }
+      }
+
+      .track-order-btn {
+        background: white;
+        color: #111111;
+        border: 1px solid #e5e5e5;
+
+        &:hover {
+          border-color: #111111;
+          background: #f5f5f5;
+        }
+      }
+    }
+
+    .contact-support {
+      p {
+        font-size: 16px;
+        color: #757575;
+        margin: 0 0 16px 0;
+      }
+
+      .contact-info {
+        display: flex;
+        justify-content: center;
+        gap: 32px;
+
+        @media (max-width: 768px) {
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        a {
+          color: #111111;
+          text-decoration: none;
+          font-size: 14px;
+          font-weight: 500;
+          transition: color 0.2s ease;
+
+          &:hover {
+            color: #757575;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.order-success-page {
+  animation: fadeInUp 0.6s ease;
+}
+
+.success-icon {
+  animation: fadeInUp 0.8s ease 0.2s both;
+}
+
+.order-summary-card,
+.info-card {
+  animation: fadeInUp 0.6s ease 0.3s both;
+}

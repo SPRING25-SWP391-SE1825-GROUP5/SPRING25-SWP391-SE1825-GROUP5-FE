@@ -1,15 +1,29 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import logo from '@/assets/images/logo-black.webp'
 import './register.scss'
+import { GoogleIconWhite } from './AuthIcons'
+import { Eye, EyeOff, X } from 'lucide-react'
 
 export default function Register() {
   const location = useLocation()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState(0)
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false
+  })
+  const [showPasswordPopup, setShowPasswordPopup] = useState(false)
 
   const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard'
 
@@ -22,114 +36,276 @@ export default function Register() {
     window.location.href = googleAuthUrl + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
   }
 
+  function validatePassword(password: string) {
+    const requirements = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    }
+    
+    const strength = Object.values(requirements).filter(Boolean).length
+    setPasswordRequirements(requirements)
+    setPasswordStrength(strength)
+  }
+
+  function getPasswordStrengthText() {
+    if (passwordStrength === 0) return ''
+    if (passwordStrength <= 2) return 'Weak'
+    if (passwordStrength <= 3) return 'Fair'
+    if (passwordStrength <= 4) return 'Good'
+    return 'Strong'
+  }
+
+  function getPasswordStrengthColor() {
+    if (passwordStrength === 0) return '#E5E7EB'
+    if (passwordStrength <= 2) return '#EF4444'
+    if (passwordStrength <= 3) return '#F59E0B'
+    if (passwordStrength <= 4) return '#10B981'
+    return '#059669'
+  }
+
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    // TODO: wire to real register API when backend is ready
-    // For now just basic client validate
-    if (password !== confirm) {
+    
+    // Validate full name
+    if (fullName.trim().length < 2) {
+      alert('Vui lòng nhập họ tên đầy đủ')
+      return
+    }
+    
+    // Validate email confirmation
+    if (email !== confirmEmail) {
+      alert('Email xác nhận không khớp')
+      return
+    }
+    
+    // Validate password confirmation
+    if (password !== confirmPassword) {
       alert('Mật khẩu xác nhận không khớp')
       return
     }
+    
+    // Validate password strength
+    if (password.length < 6) {
+      alert('Mật khẩu phải có ít nhất 6 ký tự')
+      return
+    }
+    
+    // TODO: wire to real register API when backend is ready
     alert('Đăng ký thành công (mock). Vui lòng đăng nhập!')
   }
 
   return (
-    <section className="container py-4 register-page" style={{ minHeight: 'calc(100vh + 60px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="login-container" style={{ width: '100%', maxWidth: 960, display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 24 }}>
-        {/* Left card form */}
-        <div className="auth-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: 16, padding: '2rem', boxShadow: '0 10px 25px var(--shadow-light)' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>Tạo tài khoản</h1>
+    <div className="register">
+      {/* Logo Header */}
+      <div className="register__header">
+        <Link to="/" className="register__logo-link">
+          <img src={logo} alt="EV Service Logo" className="register__logo" />
+        </Link>
+      </div>
+      
+      <div className="register__container">
+        <h1 className="register__title">Sign Up</h1>
+        <p className="register__subtitle">
+          Already have an account?{' '}
+          <Link to="/auth/login" className="register__login-link">
+            Log In
+          </Link>
+        </p>
 
-          <button type="button" onClick={loginWithGoogle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, padding: '0.75rem 1rem', border: '1px solid var(--border-primary)', background: '#fff', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <img alt="Google" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: 20, height: 20 }} />
-            <span>Đăng ký bằng Google</span>
-          </button>
+        <div className="register__grid">
+          {/* Left Column - Form */}
+          <div className="register__form">
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '1rem 0 1.25rem' }}>
-            <div style={{ height: 1, background: 'var(--border-primary)', flex: 1 }} />
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>hoặc</span>
-            <div style={{ height: 1, background: 'var(--border-primary)', flex: 1 }} />
-          </div>
-
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div style={{ marginBottom: 12 }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>Họ và tên</label>
-              <input
-                className="form-input"
-                style={{ width: '100%', borderRadius: 8, padding: '0.75rem 0.9rem' }}
-                type="text"
-                placeholder="Nguyễn Văn A"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>Email</label>
-              <input
-                className="form-input"
-                style={{ width: '100%', borderRadius: 8, padding: '0.75rem 0.9rem' }}
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div style={{ marginBottom: 6 }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>Mật khẩu</label>
-              <div style={{ position: 'relative' }}>
+            <form onSubmit={onSubmit}>
+              <div className="form-group">
                 <input
-                  className="form-input"
-                  style={{ width: '100%', borderRadius: 8, padding: '0.75rem 2.75rem 0.75rem 0.9rem' }}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="text"
+                  id="fullName"
+                  className="form-group__input"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder=" "
                   required
                 />
-                <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label="Toggle password" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                  {showPassword ? 'Ẩn' : 'Hiện'}
-                </button>
+                <label htmlFor="fullName" className="form-group__label">Full Name</label>
               </div>
-            </div>
 
-            <div style={{ marginBottom: 6 }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: 6, fontSize: 14 }}>Xác nhận mật khẩu</label>
-              <input
-                className="form-input"
-                style={{ width: '100%', borderRadius: 8, padding: '0.75rem 0.9rem' }}
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                required
-              />
-            </div>
+              <div className="form-group">
+                <input
+                  type="email"
+                  id="email"
+                  className="form-group__input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder=" "
+                  required
+                />
+                <label htmlFor="email" className="form-group__label">Email</label>
+              </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 8 }}>
-              Tạo tài khoản
+              <div className="form-group">
+                <input
+                  type="email"
+                  id="confirmEmail"
+                  className="form-group__input"
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  placeholder=" "
+                  required
+                />
+                <label htmlFor="confirmEmail" className="form-group__label">Confirm email</label>
+              </div>
+
+              <div className="form-group password-field">
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    className="form-group__input"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      validatePassword(e.target.value)
+                    }}
+                    onFocus={() => setShowPasswordPopup(true)}
+                    placeholder=" "
+                    required
+                  />
+                  <label htmlFor="password" className="form-group__label">Choose a password</label>
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+                
+                {/* Password Requirements Popup */}
+                {showPasswordPopup && (
+                  <div className="password-popup">
+                    <div className="password-popup-header">
+                      <h4>Strong Password</h4>
+                      <button 
+                        className="password-popup-close"
+                        onClick={() => setShowPasswordPopup(false)}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    
+                    <div className="password-strength-indicator">
+                      <div className="strength-dots">
+                        {[...Array(4)].map((_, i) => (
+                          <div 
+                            key={i}
+                            className={`strength-dot ${i < passwordStrength ? 'active' : ''}`}
+                            style={{ 
+                              backgroundColor: i < passwordStrength ? getPasswordStrengthColor() : '#E5E7EB'
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="password-popup-requirements">
+                      <p>It's better to have:</p>
+                      <div className="requirement-item">
+                        <div className={`requirement-icon ${passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}`}>
+                          {passwordRequirements.uppercase && passwordRequirements.lowercase ? '✓' : '•'}
+                        </div>
+                        <span className={passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}>
+                          Upper & lower case letters
+                        </span>
+                      </div>
+                      <div className="requirement-item">
+                        <div className={`requirement-icon ${passwordRequirements.special ? 'met' : ''}`}>
+                          {passwordRequirements.special ? '✓' : '•'}
+                        </div>
+                        <span className={passwordRequirements.special ? 'met' : ''}>
+                          Symbols (#$&)
+                        </span>
+                      </div>
+                      <div className="requirement-item">
+                        <div className={`requirement-icon ${passwordRequirements.length ? 'met' : ''}`}>
+                          {passwordRequirements.length ? '✓' : '•'}
+                        </div>
+                        <span className={passwordRequirements.length ? 'met' : ''}>
+                          A longer password
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <div className="password-input-wrapper">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    id="confirmPassword"
+                    className="form-group__input"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder=" "
+                    required
+                  />
+                  <label htmlFor="confirmPassword" className="form-group__label">Confirm password</label>
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+                {confirmPassword && password !== confirmPassword && (
+                  <div className="password-error">Passwords do not match</div>
+                )}
+              </div>
+
+              <button type="submit" className="btn btn--primary">
+                Sign Up
+              </button>
+            </form>
+          </div>
+
+          {/* Divider */}
+          <div className="register__divider">
+            <div className="register__divider-line"></div>
+            <span className="register__divider-text">or</span>
+          </div>
+
+          {/* Right Column - Social Login */}
+          <div className="register__social">
+            <button
+              type="button"
+              className="btn btn--google"
+              onClick={loginWithGoogle}
+            >
+              <div className="btn__icon">
+                <GoogleIconWhite />
+              </div>
+              <span className="btn__text">Continue with Google</span>
             </button>
-          </form>
+          </div>
+        </div>
 
-          <p style={{ marginTop: 16, fontSize: 14, color: 'var(--text-secondary)' }}>
-            Đã có tài khoản? <Link to={`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} style={{ color: 'var(--text-link)' }}>Đăng nhập</Link>
+        {/* Footer */}
+        <div className="register__footer">
+          <div className="register__footer-links">
+            <a href="#">Terms of Use</a>
+            <span>•</span>
+            <a href="#">Privacy Policy</a>
+          </div>
+          <p className="register__footer-text">
+            This site is protected by reCAPTCHA Enterprise. Google's Privacy Policy and Terms of Service apply.
           </p>
         </div>
-
-        {/* Right promo panel */}
-        <div className="auth-left" style={{ background: 'linear-gradient(135deg, var(--primary-500), var(--secondary-500))', borderRadius: 16, padding: '2rem', color: 'var(--text-inverse)', boxShadow: '0 10px 30px var(--shadow-medium)' }}>
-          <h2 style={{ color : 'white', fontSize: '2rem', fontWeight: 800, marginBottom: '0.75rem' }}>Gia nhập cộng đồng EV</h2>
-          <p style={{ color : 'white',opacity: 0.9, lineHeight: 1.6 }}>Tạo tài khoản để nhận ưu đãi, lưu lịch sử bảo dưỡng và quản lý phương tiện của bạn.</p>
-          <ul style={{ marginTop: '1.25rem', paddingLeft: '1.25rem' }}>
-            <li>• Lưu thông tin xe và hồ sơ</li>
-            <li>• Nhắc lịch bảo dưỡng định kỳ</li>
-            <li>• Nhận tin khuyến mãi sớm</li>
-          </ul>
-        </div>
       </div>
-    </section>
+    </div>
   )
 }
