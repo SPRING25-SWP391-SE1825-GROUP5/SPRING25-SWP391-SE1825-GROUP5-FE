@@ -7,5 +7,8 @@
 .main-content {
   flex: 1;
   min-height: calc(100vh - 120px);
+  padding-top: 57px; /* Offset cho fixed header - tách biệt header và content */
+  position: relative;
+  z-index: 1; /* Below header and dropdown */
 }
 

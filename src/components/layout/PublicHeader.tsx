@@ -22,7 +22,7 @@ export default function PublicHeader() {
           </nav>
 
           <div className="auth-buttons">
-            <NavLink to="/login" className="btn-login">Đăng Nhập</NavLink>
+            <NavLink to="/auth/login" className="btn-login">Đăng Nhập</NavLink>
           </div>
         </div>
       </div>

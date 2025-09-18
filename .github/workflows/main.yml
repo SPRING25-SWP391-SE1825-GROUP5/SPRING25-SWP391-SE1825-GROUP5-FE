@@ -1,0 +1,73 @@
+name: CI/CD - Build and Deploy to GitHub Pages
+
+# Khi nào workflow sẽ chạy
+on:
+  # CI: Build và test khi push vào branch main hoặc dev
+  # CD: Deploy chỉ khi push vào branch main
+  push:
+    branches: [ main, dev ]
+  
+  # CI: Build và test khi có pull request  
+  pull_request:
+    branches: [ main, dev ]
+
+  # Cho phép chạy manual từ Actions tab
+  workflow_dispatch:
+
+# Quyền cần thiết để deploy GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Chỉ cho phép 1 deployment chạy cùng lúc
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # CI Job: Build dự án (chạy trên tất cả branches)
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
+    # Chỉ setup và upload khi cần deploy (branch main)
+    - name: Setup Pages
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        # Upload thư mục dist sau khi build
+        path: './dist'
+
+  # CD Job: Deploy lên GitHub Pages (chỉ từ branch main)
+  deploy:
+    # CD: Chỉ deploy khi push vào branch main (không deploy từ PR hoặc dev)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

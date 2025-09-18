@@ -2,6 +2,11 @@ import { lazy, Suspense } from 'react'
 import type { ReactElement } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
+import AuthLayout from '@/components/layout/AuthLayout'
+import AdminLayout from '@/components/layout/AdminLayout'
+import TechnicianLayout from '@/components/layout/TechnicianLayout'
+import StaffLayout from '@/components/layout/StaffLayout'
+import ManagerLayout from '@/components/layout/ManagerLayout'
 import RequireAuth from '@/components/routes/RequireAuth'
 
 // Lazy pages
@@ -9,6 +14,9 @@ const SavartHomepage = lazy(() => import('@/views/SavartHomepage'))
 const About = lazy(() => import('@/views/About'))
 const Services = lazy(() => import('@/views/Services'))
 const Contact = lazy(() => import('@/views/Contact'))
+const Products = lazy(() => import('@/views/Products'))
+const Promotions = lazy(() => import('@/views/Promotions'))
+const Packages = lazy(() => import('@/views/Packages'))
 const Booking = lazy(() => import('@/views/booking/Booking'))
 const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
@@ -23,9 +31,14 @@ const StaffServiceOrders = lazy(() => import('@/views/Staff/ServiceOrders'))
 const TechnicianWorkQueue = lazy(() => import('@/views/Technician/WorkQueue'))
 const TechnicianChecklists = lazy(() => import('@/views/Technician/Checklists'))
 const TechnicianPartsRequest = lazy(() => import('@/views/Technician/PartsRequest'))
-const AdminPartsManagement = lazy(() => import('@/views/Admin/PartsManagement'))
+const AdminDashboard = lazy(() => import('@/views/Admin/Dashboard'))
 const AdminReports = lazy(() => import('@/views/Admin/Reports'))
 const AdminStaffManagement = lazy(() => import('@/views/Admin/StaffManagement'))
+const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
+const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
+const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
+const HeaderDropdownTest = lazy(() => import('@/components/layout/HeaderDropdownTest'))
+const TestDropdown = lazy(() => import('@/components/layout/TestDropdown'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
@@ -38,35 +51,77 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<SavartHomepage />) },
       { path: 'about', element: suspense(<About />) },
       { path: 'services', element: suspense(<Services />) },
+      { path: 'products', element: suspense(<Products />) },
+      { path: 'promotions', element: suspense(<Promotions />) },
+      { path: 'packages', element: suspense(<Packages />) },
       { path: 'contact', element: suspense(<Contact />) },
       { path: 'booking', element: suspense(<Booking />) },
-      { path: 'login', element: suspense(<Login />) },
-      { path: 'register', element: suspense(<Register />) },
 
       { path: 'dashboard', element: <RequireAuth>{suspense(<Dashboard />)}</RequireAuth> },
-      { path: 'profile', element: <RequireAuth>{suspense(<Profile />)}</RequireAuth> },
+      { path: 'profile', element: suspense(<Profile />) },
 
       // Customer
       { path: 'my-vehicles', element: <RequireAuth>{suspense(<MyVehicles />)}</RequireAuth> },
       { path: 'maintenance-history', element: <RequireAuth>{suspense(<MaintenanceHistory />)}</RequireAuth> },
 
-      // Staff
-      { path: 'customers', element: <RequireAuth>{suspense(<StaffCustomers />)}</RequireAuth> },
-      { path: 'appointments', element: <RequireAuth>{suspense(<StaffAppointments />)}</RequireAuth> },
-      { path: 'service-orders', element: <RequireAuth>{suspense(<StaffServiceOrders />)}</RequireAuth> },
 
-      // Technician
-      { path: 'work-queue', element: <RequireAuth>{suspense(<TechnicianWorkQueue />)}</RequireAuth> },
-      { path: 'checklists', element: <RequireAuth>{suspense(<TechnicianChecklists />)}</RequireAuth> },
-      { path: 'parts-request', element: <RequireAuth>{suspense(<TechnicianPartsRequest />)}</RequireAuth> },
 
-      // Admin
-      { path: 'users', element: <RequireAuth>{suspense(<Users />)}</RequireAuth> },
-      { path: 'parts-management', element: <RequireAuth>{suspense(<AdminPartsManagement />)}</RequireAuth> },
-      { path: 'reports', element: <RequireAuth>{suspense(<AdminReports />)}</RequireAuth> },
-      { path: 'staff-management', element: <RequireAuth>{suspense(<AdminStaffManagement />)}</RequireAuth> },
+
+      // Test route for dropdown functionality
+      { path: 'test-dropdown', element: suspense(<HeaderDropdownTest />) },
+      { path: 'test-dropdown-simple', element: suspense(<TestDropdown />) },
 
       { path: '*', element: suspense(<NotFound />) },
+    ],
+  },
+  // Staff routes with staff layout (no global header)
+  {
+    path: '/staff',
+    element: <StaffLayout />,
+    children: [
+      { index: true, element: suspense(<StaffDashboard />) },
+      { path: 'customers', element: suspense(<StaffCustomers />) },
+      { path: 'appointments', element: suspense(<StaffAppointments />) },
+      { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
+    ],
+  },
+  // Manager routes with manager layout (no global header)
+  {
+    path: '/manager',
+    element: <ManagerLayout />,
+    children: [
+      { index: true, element: suspense(<ManagerDashboard />) },
+    ],
+  },
+  // Technician routes with technician layout (no global header)
+  {
+    path: '/technician',
+    element: <TechnicianLayout />,
+    children: [
+      { index: true, element: suspense(<TechnicianDashboard />) },
+      { path: 'work-queue', element: suspense(<TechnicianWorkQueue />) },
+      { path: 'checklists', element: suspense(<TechnicianChecklists />) },
+      { path: 'parts-request', element: suspense(<TechnicianPartsRequest />) },
+    ],
+  },
+  // Admin routes with admin layout (no global header)
+  {
+    path: '/admin',
+    element: <AdminLayout />,
+    children: [
+      { index: true, element: suspense(<AdminDashboard />) },
+      { path: 'users', element: suspense(<Users />) },
+      { path: 'reports', element: suspense(<AdminReports />) },
+      { path: 'staff-management', element: suspense(<AdminStaffManagement />) },
+    ],
+  },
+  // Auth routes without header/footer
+  {
+    path: '/auth',
+    element: <AuthLayout />,
+    children: [
+      { path: 'login', element: suspense(<Login />) },
+      { path: 'register', element: suspense(<Register />) },
     ],
   },
 ])

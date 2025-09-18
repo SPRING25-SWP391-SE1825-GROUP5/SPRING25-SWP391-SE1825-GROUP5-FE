@@ -1,8 +1,252 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import Color Scheme Variables */
+:root {
+  /* Primary */
+  --primary-50: #e6f2f0;
+  --primary-100: #cce5e0;
+  --primary-200: #99ccc1;
+  --primary-300: #66b2a1;
+  --primary-400: #4A9782;
+  --primary-500: #004030;
+  --primary-600: #003629;
+  --primary-700: #002d22;
+  --primary-800: #00241b;
+  --primary-900: #001a14;
+
+  /* Secondary */
+  --secondary-50: #FFF9E5;
+  --secondary-100: #fff6d6;
+  --secondary-200: #ffedac;
+  --secondary-300: #ffe483;
+  --secondary-400: #4A9782;
+  --secondary-500: #4A9782;
+  --secondary-600: #3d7a6a;
+  --secondary-700: #305c52;
+  --secondary-800: #44444E;
+  --secondary-900: #44444E;
+
+  /* Success */
+  --success-50: #ecfdf5;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --success-700: #047857;
+
+  /* Warning */
+  --warning-50: #fffbeb;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+
+  /* Error */
+  --error-50: #fef2f2;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  --error-700: #b91c1c;
+
+  /* Info */
+  --info-50: #e6f2f0;
+  --info-500: #004030;
+  --info-600: #003629;
+  --info-700: #002d22;
+
+  /* Text Colors */
+  --text-primary: #44444E;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --text-inverse: #FFF9E5;
+  --text-link: #4A9782;
+  --text-link-hover: #004030;
+
+  /* Background Colors */
+  --bg-primary: #FFF9E5;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #f3f4f6;
+  --bg-overlay: rgba(0, 64, 48, 0.5);
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+
+  /* Border Colors */
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --border-focus: #4A9782;
+  --border-error: #ef4444;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Admin Layout - Override global styles */
+.admin-layout {
+  background: var(--bg-secondary);
+  min-height: 100vh;
+  
+  // Ensure no global header interference
+  .admin-dashboard {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* Admin Dashboard Responsive Styles */
+.admin-dashboard {
+  /* Admin Header responsive */
+  .mobile-menu-btn {
+    @media (max-width: 768px) {
+      display: flex !important;
+    }
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .admin-sidebar {
+      position: fixed;
+      left: -280px;
+      width: 280px;
+      transition: left 0.3s ease;
+      z-index: 1001;
+      
+      &.mobile-open {
+        left: 0;
+      }
+      
+      &.collapsed {
+        left: -80px;
+        width: 80px;
+        
+        &.mobile-open {
+          left: 0;
+        }
+      }
+    }
+    
+    .admin-main-content {
+      margin-left: 0 !important;
+      width: 100% !important;
+      padding: 16px;
+      padding-top: 80px !important; // Space for header on mobile
+    }
+    
+    // Admin header mobile styles
+    .admin-header {
+      left: 0 !important;
+      padding: 0 16px !important;
+    }
+    
+    .admin-stats-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    
+    .charts-grid {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .content-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+  
+  /* Tablet responsive */
+  @media (max-width: 1024px) {
+    .admin-stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .admin-main-content {
+      padding: 24px;
+      width: calc(100% - 280px) !important;
+    }
+    
+    .admin-sidebar {
+      width: 280px !important;
+    }
+  }
+}
+
 /* Scoped styles for Admin pages */
 .admin-page {
   /* Placeholder for future admin-specific responsive rules */
   @media (max-width: 768px) {
-    /* Add admin responsive tweaks as needed */
+    padding: 16px;
   }
 }
 
+/* Custom Scrollbar for Admin Pages */
+.admin-layout,
+.admin-dashboard,
+.admin-page {
+  /* Webkit scrollbar */
+  &::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+    border-radius: 2px !important;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #4CAF50 !important;
+    border-radius: 2px !important;
+    border: none !important;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #2e7d32 !important;
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: #f1f1f1 !important;
+  }
+
+  /* Hide scrollbar arrows */
+  &::-webkit-scrollbar-button {
+    display: none !important;
+  }
+
+  /* Firefox scrollbar */
+  scrollbar-width: thin !important;
+  scrollbar-color: #4CAF50 #f1f1f1 !important;
+}
+
+/* Apply to all child elements */
+.admin-layout *,
+.admin-dashboard *,
+.admin-page * {
+  scrollbar-width: thin !important;
+  scrollbar-color: #4CAF50 #f1f1f1 !important;
+}
+
+.admin-layout *::-webkit-scrollbar,
+.admin-dashboard *::-webkit-scrollbar,
+.admin-page *::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+.admin-layout *::-webkit-scrollbar-track,
+.admin-dashboard *::-webkit-scrollbar-track,
+.admin-page *::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 2px !important;
+}
+
+.admin-layout *::-webkit-scrollbar-thumb,
+.admin-dashboard *::-webkit-scrollbar-thumb,
+.admin-page *::-webkit-scrollbar-thumb {
+  background: #4CAF50 !important;
+  border-radius: 2px !important;
+  border: none !important;
+}
+
+.admin-layout *::-webkit-scrollbar-thumb:hover,
+.admin-dashboard *::-webkit-scrollbar-thumb:hover,
+.admin-page *::-webkit-scrollbar-thumb:hover {
+  background: #2e7d32 !important;
+}
