@@ -1,0 +1,396 @@
+// Pixel-perfect Wix Login Page Styles
+// Colors, sizes, spacing match the reference image exactly
+
+// Override body background for login page
+body {
+  background-color: #FFFFFF !important;
+  color: #111111 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  place-items: unset !important;
+}
+
+// Ensure root element doesn't interfere
+#root {
+  background-color: #FFFFFF !important;
+  min-height: 100vh !important;
+}
+
+// Login Header with Logo
+.login__header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.login__logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: opacity 0.3s ease;
+}
+
+.login__logo-link:hover {
+  opacity: 0.8;
+}
+
+.login__logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.login {
+  min-height: 100vh;
+  background: #FFFFFF;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 1;
+
+  &__container {
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+  }
+
+  &__title {
+    font-size: 48px;
+    font-weight: 700;
+    color: #111111;
+    margin: 0 0 32px 0;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  &__subtitle {
+    font-size: 16px;
+    color: #6B7280;
+    margin: 0 0 48px 0;
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  &__signup-link {
+    color: #1A73E8;
+    text-decoration: none;
+    font-weight: 400;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 280px 40px 280px;
+    gap: 0;
+    align-items: start;
+    justify-content: center;
+    margin-bottom: 80px;
+    width: 100%;
+  }
+
+  &__form {
+    text-align: left;
+    padding-right: 20px;
+  }
+
+  &__divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 240px;
+    width: 40px;
+  }
+
+  &__divider-line {
+    position: absolute;
+    width: 1px;
+    height: 240px;
+    background: #E5E7EB;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  &__divider-text {
+    background: #FFFFFF;
+    color: #6B7280;
+    font-size: 14px;
+    padding: 8px 16px;
+    position: relative;
+    z-index: 1;
+    font-weight: 400;
+  }
+
+  &__social {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 20px;
+  }
+
+
+  &__error {
+    color: #DC2626;
+    font-size: 14px;
+    margin: 16px 0;
+    text-align: center;
+    font-weight: 400;
+  }
+
+  &__footer {
+    text-align: center;
+  }
+
+  &__footer-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  &__footer-link {
+    font-size: 14px;
+    color: #6B7280;
+    text-decoration: none;
+    font-weight: 400;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__footer-separator {
+    color: #6B7280;
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  &__recaptcha {
+    font-size: 12px;
+    color: #9CA3AF;
+    margin: 0;
+    line-height: 1.5;
+    font-weight: 400;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  &__recaptcha-link {
+    color: #9CA3AF;
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// Form Groups
+.form-group {
+  margin-bottom: 32px;
+  text-align: left;
+  position: relative;
+
+  &__label {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    font-size: 16px;
+    color: #9CA3AF;
+    font-weight: 400;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    background: #FFFFFF;
+    padding: 0 4px;
+    transform-origin: left center;
+  }
+
+  &__input {
+    width: 100%;
+    height: 48px;
+    font-size: 16px;
+    border: none;
+    border-bottom: 1px solid #E5E7EB;
+    background: transparent;
+    padding: 12px 0;
+    outline: none;
+    font-weight: 400;
+
+    &:focus {
+      border-bottom: 2px solid #1A73E8;
+    }
+
+    &:focus-visible {
+      outline: none;
+    }
+
+    // Floating label animation
+    &:focus + .form-group__label,
+    &:not(:placeholder-shown) + .form-group__label,
+    &:valid + .form-group__label {
+      transform: translateY(-24px) scale(0.875);
+      color: #374151;
+    }
+
+    &:focus + .form-group__label {
+      color: #1A73E8;
+    }
+  }
+
+  &__forgot-link {
+    display: block;
+    font-size: 14px;
+    color: #1A73E8;
+    text-decoration: none;
+    margin-top: 8px;
+    font-weight: 400;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// Buttons
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 48px;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid #1A73E8;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &__icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  &--primary {
+    width: 100%;
+    max-width: 260px;
+    border-radius: 9999px;
+    border: 1px solid #C9D7FF;
+    background: transparent;
+    color: #1A73E8;
+    margin: 32px auto 0;
+    
+    &:hover:not(:disabled) {
+      border-color: #1557B8;
+      color: #1557B8;
+    }
+  }
+
+  &--google {
+    width: 100%;
+    background: #4285F4;
+    color: white;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+    justify-content: flex-start;
+    border: 2px solid #4285F4;
+
+    .btn__icon {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 48px;
+      height: 48px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0;
+      border-right: none;
+    }
+
+    .btn__text {
+      margin-left: 60px;
+      padding: 0 16px;
+    }
+
+    &:hover {
+      background: #3367D6;
+
+      .btn__icon {
+        border-right: none;
+      }
+    }
+  }
+
+  // Enhanced Google Button
+  .btn--google-enhanced {
+    background: #ffffff !important;
+    border: 1px solid #dadce0 !important;
+    color: #3c4043 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    padding: 12px 24px !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    min-height: 48px !important;
+    width: 100% !important;
+  }
+
+  .btn--google-enhanced:hover {
+    background: #f8f9fa !important;
+    border-color: #dadce0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  .btn--google-enhanced:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .btn--google-enhanced .btn__icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .btn--google-enhanced .btn__text {
+    font-weight: 500 !important;
+    color: #3c4043 !important;
+  }
+
+}

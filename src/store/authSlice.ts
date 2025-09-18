@@ -36,7 +36,7 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginRequest, { rejectWithValue }) => {
     try {
-      const data = await UserService.login(credentials)
+      const data = await (UserService as any).login(credentials)
       return data
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Login failed'
@@ -47,7 +47,7 @@ export const login = createAsyncThunk(
 
 export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, { rejectWithValue }) => {
   try {
-    const user = await UserService.getCurrentUser()
+    const user = await (UserService as any).getCurrentUser()
     return user
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Failed to get current user'
@@ -57,7 +57,7 @@ export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, 
 
 export const refreshAuthToken = createAsyncThunk('auth/refreshToken', async (refreshToken: string, { rejectWithValue }) => {
   try {
-    const data = await UserService.refresh(refreshToken)
+    const data = await (UserService as any).refresh(refreshToken)
     return data
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Refresh token failed'

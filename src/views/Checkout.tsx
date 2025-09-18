@@ -1,0 +1,644 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { clearCart, addToCart } from '@/store/cartSlice'
+import { applyPromotion, removePromotion, type Promotion } from '@/store/promoSlice'
+import {
+  ArrowLeftIcon,
+  CreditCardIcon,
+  BuildingLibraryIcon,
+  DevicePhoneMobileIcon,
+  TruckIcon,
+  MapPinIcon,
+  UserIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CheckCircleIcon,
+  TagIcon,
+  XMarkIcon,
+  PlusIcon
+} from '@heroicons/react/24/outline'
+import './checkout.scss'
+
+interface ShippingInfo {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  district: string
+  ward: string
+  postalCode: string
+}
+
+interface PaymentMethod {
+  id: string
+  name: string
+  icon: any
+  description: string
+}
+
+const paymentMethods: PaymentMethod[] = [
+  {
+    id: 'card',
+    name: 'Thẻ tín dụng/ghi nợ',
+    icon: CreditCardIcon,
+    description: 'Visa, MasterCard, JCB'
+  },
+  {
+    id: 'bank',
+    name: 'Chuyển khoản ngân hàng',
+    icon: BuildingLibraryIcon,
+    description: 'Vietcombank, BIDV, VPBank'
+  },
+  {
+    id: 'momo',
+    name: 'Ví MoMo',
+    icon: DevicePhoneMobileIcon,
+    description: 'Thanh toán qua ví điện tử'
+  },
+  {
+    id: 'cod',
+    name: 'Thanh toán khi nhận hàng',
+    icon: TruckIcon,
+    description: 'Tiền mặt hoặc thẻ'
+  }
+]
+
+export default function Checkout() {
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const cart = useAppSelector((state) => state.cart)
+  const user = useAppSelector((state) => state.auth.user)
+  const promo = useAppSelector((state) => state.promo)
+
+  const [selectedPayment, setSelectedPayment] = useState('card')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: '',
+    address: '',
+    city: '',
+    district: '',
+    ward: '',
+    postalCode: ''
+  })
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price)
+  }
+
+  // Calculate promotion discount
+  const calculatePromoDiscount = (): number => {
+    if (!promo.appliedPromo) return 0
+    
+    const promotion = promo.appliedPromo
+    
+    // Check if order meets minimum requirement
+    if (promotion.minOrder && cart.total < promotion.minOrder) return 0
+    
+    switch (promotion.type) {
+      case 'percentage':
+        const percentageDiscount = Math.round(cart.total * (promotion.value / 100))
+        return promotion.maxDiscount 
+          ? Math.min(percentageDiscount, promotion.maxDiscount)
+          : percentageDiscount
+      
+      case 'fixed':
+        return Math.min(promotion.value, cart.total)
+      
+      case 'shipping':
+        return Math.min(promotion.value, 200000) // Max shipping cost
+      
+      default:
+        return 0
+    }
+  }
+
+  const promoDiscount = calculatePromoDiscount()
+  const subtotalAfterPromo = cart.total - promoDiscount
+  
+  // Calculate shipping (free if promo covers shipping or order >= 10M)
+  const shipping = (promo.appliedPromo?.type === 'shipping' && promoDiscount > 0) || 
+                   cart.total >= 10000000 ? 0 : 200000
+  
+  const tax = Math.round(subtotalAfterPromo * 0.1) // 10% VAT on discounted amount
+  const finalTotal = subtotalAfterPromo + shipping + tax
+
+  const handleInputChange = (field: keyof ShippingInfo, value: string) => {
+    setShippingInfo(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleApplyPromotion = (promotion: Promotion) => {
+    // Check if promotion is valid for current cart
+    if (promotion.minOrder && cart.total < promotion.minOrder) {
+      alert(`Đơn hàng tối thiểu ${formatPrice(promotion.minOrder)} để áp dụng khuyến mãi này`)
+      return
+    }
+
+    // Check if already applied
+    if (promo.appliedPromo?.id === promotion.id) {
+      return
+    }
+
+    dispatch(applyPromotion(promotion))
+  }
+
+  const handleRemovePromotion = () => {
+    dispatch(removePromotion())
+  }
+
+  const getEligiblePromotions = (): Promotion[] => {
+    console.log('All saved promotions:', promo.savedPromotions)
+    
+    // For debugging - always show some promotions
+    if (!promo.savedPromotions || promo.savedPromotions.length === 0) {
+      console.log('No saved promotions found, using demo promotions')
+      return []
+    }
+    
+    // For demo purposes, show all active promotions regardless of other conditions
+    const eligible = promo.savedPromotions.filter(promotion => {
+      console.log('Checking promotion:', promotion.code, promotion)
+      
+      // Only check if active for now
+      return promotion.isActive
+    })
+    
+    console.log('Eligible promotions:', eligible)
+    return eligible
+  }
+
+  const eligiblePromotions = getEligiblePromotions()
+
+  const validateForm = () => {
+    const required = ['firstName', 'lastName', 'email', 'phone', 'address', 'city']
+    return required.every(field => shippingInfo[field as keyof ShippingInfo].trim() !== '')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc')
+      return
+    }
+
+    if (cart.items.length === 0) {
+      alert('Giỏ hàng trống')
+      return
+    }
+
+    setIsProcessing(true)
+
+    try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // Simulate random success/failure for demo
+      const isSuccess = Math.random() > 0.3 // 70% success rate
+      
+      if (isSuccess) {
+        // Clear cart after successful payment
+        dispatch(clearCart())
+        
+        // Navigate to success page
+        navigate('/order-success', {
+          state: {
+            orderData: {
+              items: cart.items,
+              shipping: shippingInfo,
+              payment: selectedPayment,
+              total: finalTotal
+            }
+          }
+        })
+      } else {
+        // Navigate to failure page
+        const failureCodes = ['INSUFFICIENT_FUNDS', 'CARD_DECLINED', 'EXPIRED_CARD', 'NETWORK_ERROR']
+        const randomFailure = failureCodes[Math.floor(Math.random() * failureCodes.length)]
+        
+        navigate('/order-failure', {
+          state: {
+            failureCode: randomFailure,
+            orderData: {
+              items: cart.items,
+              shipping: shippingInfo,
+              payment: selectedPayment,
+              total: finalTotal
+            }
+          }
+        })
+      }
+    } catch (error) {
+      // Navigate to failure page on error
+      navigate('/order-failure', {
+        state: {
+          failureCode: 'NETWORK_ERROR',
+          orderData: {
+            items: cart.items,
+            shipping: shippingInfo,
+            payment: selectedPayment,
+            total: finalTotal
+          }
+        }
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  if (cart.items.length === 0) {
+    return (
+      <div className="checkout-page">
+        <div className="container">
+          <div className="empty-checkout">
+            <h1>Giỏ hàng trống</h1>
+            <p>Không có sản phẩm nào để thanh toán</p>
+            <button 
+              className="continue-shopping-btn"
+              onClick={() => navigate('/products')}
+            >
+              Tiếp tục mua sắm
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="checkout-page">
+      <div className="container">
+        {/* Page Header */}
+        <div className="page-header">
+          <button 
+            className="back-btn"
+            onClick={() => navigate('/cart')}
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+            Quay lại giỏ hàng
+          </button>
+          <h1 className="page-title">Thanh toán</h1>
+        </div>
+
+        <form onSubmit={handleSubmit} className="checkout-form">
+          <div className="checkout-content">
+            {/* Left Column - Forms */}
+            <div className="checkout-forms">
+              {/* Shipping Information */}
+              <div className="form-section">
+                <div className="section-header">
+                  <MapPinIcon className="w-6 h-6" />
+                  <h2>Thông tin giao hàng</h2>
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label htmlFor="firstName">Họ *</label>
+                    <div className="input-wrapper">
+                      <UserIcon className="input-icon" />
+                      <input
+                        type="text"
+                        id="firstName"
+                        value={shippingInfo.firstName}
+                        onChange={(e) => handleInputChange('firstName', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="lastName">Tên *</label>
+                    <div className="input-wrapper">
+                      <UserIcon className="input-icon" />
+                      <input
+                        type="text"
+                        id="lastName"
+                        value={shippingInfo.lastName}
+                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="email">Email *</label>
+                    <div className="input-wrapper">
+                      <EnvelopeIcon className="input-icon" />
+                      <input
+                        type="email"
+                        id="email"
+                        value={shippingInfo.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="phone">Số điện thoại *</label>
+                    <div className="input-wrapper">
+                      <PhoneIcon className="input-icon" />
+                      <input
+                        type="tel"
+                        id="phone"
+                        value={shippingInfo.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label htmlFor="address">Địa chỉ *</label>
+                    <div className="input-wrapper">
+                      <MapPinIcon className="input-icon" />
+                      <input
+                        type="text"
+                        id="address"
+                        value={shippingInfo.address}
+                        onChange={(e) => handleInputChange('address', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="city">Tỉnh/Thành phố *</label>
+                    <select
+                      id="city"
+                      value={shippingInfo.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      required
+                    >
+                      <option value="">Chọn tỉnh/thành phố</option>
+                      <option value="hanoi">Hà Nội</option>
+                      <option value="hcm">TP. Hồ Chí Minh</option>
+                      <option value="danang">Đà Nẵng</option>
+                      <option value="haiphong">Hải Phòng</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="district">Quận/Huyện</label>
+                    <select
+                      id="district"
+                      value={shippingInfo.district}
+                      onChange={(e) => handleInputChange('district', e.target.value)}
+                    >
+                      <option value="">Chọn quận/huyện</option>
+                      <option value="district1">Quận 1</option>
+                      <option value="district3">Quận 3</option>
+                      <option value="district7">Quận 7</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="ward">Phường/Xã</label>
+                    <input
+                      type="text"
+                      id="ward"
+                      value={shippingInfo.ward}
+                      onChange={(e) => handleInputChange('ward', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="postalCode">Mã bưu điện</label>
+                    <input
+                      type="text"
+                      id="postalCode"
+                      value={shippingInfo.postalCode}
+                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div className="form-section">
+                <div className="section-header">
+                  <CreditCardIcon className="w-6 h-6" />
+                  <h2>Phương thức thanh toán</h2>
+                </div>
+
+                <div className="payment-methods">
+                  {paymentMethods.map(method => {
+                    const IconComponent = method.icon
+                    return (
+                      <label key={method.id} className="payment-method">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value={method.id}
+                          checked={selectedPayment === method.id}
+                          onChange={(e) => setSelectedPayment(e.target.value)}
+                        />
+                        <div className="payment-content">
+                          <div className="payment-icon">
+                            <IconComponent className="w-6 h-6" />
+                          </div>
+                          <div className="payment-info">
+                            <div className="payment-name">{method.name}</div>
+                            <div className="payment-description">{method.description}</div>
+                          </div>
+                          <div className="payment-radio"></div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Order Summary */}
+            <div className="order-summary">
+              <div className="summary-card">
+                <h3>Đơn hàng của bạn</h3>
+
+                <div className="order-items">
+                  {cart.items.map(item => (
+                    <div key={item.id} className="order-item">
+                      <div className="item-image">
+                        <img src={item.image} alt={item.name} />
+                        <span className="item-quantity">{item.quantity}</span>
+                      </div>
+                      <div className="item-info">
+                        <div className="item-name">{item.name}</div>
+                        <div className="item-brand">{item.brand}</div>
+                      </div>
+                      <div className="item-price">
+                        {formatPrice(item.price * item.quantity)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="order-totals">
+                  <div className="total-row">
+                    <span>Tạm tính</span>
+                    <span>{formatPrice(cart.total)}</span>
+                  </div>
+                  
+                  {promoDiscount > 0 && (
+                    <div className="total-row discount">
+                      <span>
+                        Khuyến mãi ({promo.appliedPromo?.code})
+                        <button 
+                          className="remove-promo-btn"
+                          onClick={handleRemovePromotion}
+                          title="Hủy khuyến mãi"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </span>
+                      <span>-{formatPrice(promoDiscount)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="total-row">
+                    <span>Phí vận chuyển</span>
+                    <span className={shipping === 0 ? 'free' : ''}>
+                      {shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}
+                    </span>
+                  </div>
+                  <div className="total-row">
+                    <span>VAT (10%)</span>
+                    <span>{formatPrice(tax)}</span>
+                  </div>
+                  <div className="total-divider"></div>
+                  <div className="total-row final">
+                    <span>Tổng cộng</span>
+                    <span>{formatPrice(finalTotal)}</span>
+                  </div>
+                </div>
+
+                {/* Debug info */}
+                <div style={{padding: '10px', background: '#f0f0f0', margin: '10px 0', fontSize: '12px'}}>
+                  <div>Cart total: {formatPrice(cart.total)}</div>
+                  <div>Cart items: {cart.items?.length || 0}</div>
+                  <div>Promo store: {promo ? 'loaded' : 'not loaded'}</div>
+                  <div>Saved promotions: {promo.savedPromotions?.length || 0}</div>
+                  <div>Eligible promotions: {eligiblePromotions.length}</div>
+                  
+                  {/* Test button to add item to cart */}
+                  {cart.items?.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => dispatch(addToCart({
+                        id: 'test-product',
+                        name: 'Test Product for Promo',
+                        price: 2000000,
+                        image: 'https://via.placeholder.com/100',
+                        brand: 'Test Brand',
+                        category: 'test',
+                        inStock: true
+                      }))}
+                      style={{
+                        background: '#22c55e',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 12px',
+                        borderRadius: '4px',
+                        marginTop: '10px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Thêm sản phẩm test (2M) để xem khuyến mãi
+                    </button>
+                  )}
+                </div>
+
+                {/* Saved Promotions */}
+                {eligiblePromotions.length > 0 ? (
+                  <div className="saved-promotions">
+                    <h4>
+                      <TagIcon className="w-5 h-5" />
+                      Khuyến mãi đã lưu ({eligiblePromotions.length})
+                    </h4>
+                    <div className="promotions-list">
+                      {eligiblePromotions.map(promotion => (
+                        <div 
+                          key={promotion.id}
+                          className={`promotion-card ${promo.appliedPromo?.id === promotion.id ? 'applied' : ''}`}
+                        >
+                          <div className="promotion-image">
+                            <img src={promotion.image} alt={promotion.title} />
+                          </div>
+                          <div className="promotion-info">
+                            <div className="promotion-title">{promotion.title}</div>
+                            <div className="promotion-code">Mã: {promotion.code}</div>
+                            <div className="promotion-description">{promotion.description}</div>
+                            {promotion.minOrder && cart.total < promotion.minOrder && (
+                              <div className="promotion-requirement">
+                                Mua thêm {formatPrice(promotion.minOrder - cart.total)} để áp dụng
+                              </div>
+                            )}
+                          </div>
+                          <div className="promotion-action">
+                            {promo.appliedPromo?.id === promotion.id ? (
+                              <button 
+                                className="applied-btn"
+                                onClick={handleRemovePromotion}
+                              >
+                                <CheckCircleIcon className="w-4 h-4" />
+                                Đã áp dụng
+                              </button>
+                            ) : (
+                              <button 
+                                className="apply-btn"
+                                onClick={() => handleApplyPromotion(promotion)}
+                                disabled={promotion.minOrder ? cart.total < promotion.minOrder : false}
+                              >
+                                <PlusIcon className="w-4 h-4" />
+                                Áp dụng
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="no-promotions" style={{padding: '20px', textAlign: 'center', background: '#f9f9f9', margin: '10px 0'}}>
+                    <p>Không có khuyến mãi khả dụng</p>
+                    <small>Debug: Cart={cart.items?.length || 0} items, Total={formatPrice(cart.total || 0)}</small>
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  className="place-order-btn"
+                  disabled={isProcessing || !validateForm()}
+                >
+                  {isProcessing ? (
+                    'Đang xử lý...'
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="w-5 h-5" />
+                      Đặt hàng - {formatPrice(finalTotal)}
+                    </>
+                  )}
+                </button>
+
+                <div className="security-notice">
+                  <p>Thông tin của bạn được bảo mật an toàn</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

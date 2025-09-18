@@ -39,6 +39,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Cấu hình base path cho GitHub Pages
+    // Thay 'your-repository-name' bằng tên repository của bạn
+    base: process.env.NODE_ENV === 'production' ? '/SPRING25-SWP391-SE1825-GROUP5-FE/' : '/',
     resolve: {
       alias: {
         '@': path.resolve(srcPath),
