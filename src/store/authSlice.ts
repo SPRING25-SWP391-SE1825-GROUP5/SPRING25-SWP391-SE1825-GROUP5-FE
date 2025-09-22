@@ -1,17 +1,18 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { UserService } from '@/services/userService'
+import { AuthService } from '@/services/authService'
 
 export type User = {
-  id: string
-  firstName: string
-  lastName: string
-  role?: string
-  email?: string
+  id: number
+  fullName: string
+  email: string
+  role: string
+  emailVerified: boolean
+  avatar?: string | null
 }
 
 export type LoginRequest = {
-  email: string
+  emailOrPhone: string
   password: string
 }
 
@@ -31,13 +32,12 @@ const initialState: AuthState = {
   error: null,
 }
 
-// Async thunks wired to real API service
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginRequest, { rejectWithValue }) => {
     try {
-      const data = await (UserService as any).login(credentials)
-      return data
+      const resp = await AuthService.login(credentials)
+      return resp
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Login failed'
       return rejectWithValue(msg)
@@ -47,20 +47,10 @@ export const login = createAsyncThunk(
 
 export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, { rejectWithValue }) => {
   try {
-    const user = await (UserService as any).getCurrentUser()
-    return user
+    const resp = await AuthService.getProfile()
+    return resp.data
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Failed to get current user'
-    return rejectWithValue(msg)
-  }
-})
-
-export const refreshAuthToken = createAsyncThunk('auth/refreshToken', async (refreshToken: string, { rejectWithValue }) => {
-  try {
-    const data = await (UserService as any).refresh(refreshToken)
-    return data
-  } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || 'Refresh token failed'
     return rejectWithValue(msg)
   }
 })
@@ -81,6 +71,9 @@ const slice = createSlice({
         localStorage.removeItem('authToken')
         localStorage.removeItem('refreshToken')
       }
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('loginToasted')
+      }
     },
   },
   extraReducers: (builder) => {
@@ -89,16 +82,26 @@ const slice = createSlice({
         state.loading = true
         state.error = null
       })
-      .addCase(login.fulfilled, (state, action: PayloadAction<{ token: string; refreshToken: string; user: User }>) => {
-        state.loading = false
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        state.user = action.payload.user
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('authToken', action.payload.token)
-          localStorage.setItem('refreshToken', action.payload.refreshToken)
+      .addCase(
+        login.fulfilled,
+        (state, action: PayloadAction<any>) => {
+          state.loading = false
+          const payload: any = action.payload || {}
+          const data = payload.data ?? payload
+          const token = data?.token ?? null
+          const refreshToken = data?.refreshToken ?? null
+          const user = data?.user ?? null
+
+          state.token = token
+          state.refreshToken = refreshToken
+          state.user = user
+
+          if (typeof localStorage !== 'undefined') {
+            if (token) localStorage.setItem('authToken', token)
+            if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+          }
         }
-      })
+      )
       .addCase(login.rejected, (state, action) => {
         state.loading = false
         state.error = (action.payload as string) || 'Login failed'
@@ -114,14 +117,6 @@ const slice = createSlice({
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.loading = false
         state.error = (action.payload as string) || 'Failed to get user'
-      })
-      .addCase(refreshAuthToken.fulfilled, (state, action: PayloadAction<{ token: string; refreshToken: string }>) => {
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('authToken', action.payload.token)
-          localStorage.setItem('refreshToken', action.payload.refreshToken)
-        }
       })
   },
 })

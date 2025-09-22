@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { 
   BellIcon, 
   ShoppingCartIcon,
@@ -26,11 +26,14 @@ import './SimpleDropdown.scss'
 // import DropdownDebug from './DropdownDebug'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { removeFromCart, setCartOpen } from '@/store/cartSlice'
+import { logout } from '@/store/authSlice'
+import toast from 'react-hot-toast'
 
 export function AppHeader() {
   const [notificationOpen, setNotificationOpen] = useState(false)
-  
+
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const user = useAppSelector((state) => state.auth.user)
   const cart = useAppSelector((state) => state.cart)
   const cartOpen = cart?.isOpen || false
@@ -435,14 +438,34 @@ export function AppHeader() {
 
             {/* User Profile / Login Button */}
             {user ? (
-              <Link to="/profile" className="user-pill" title={`${user.firstName} ${user.lastName}`}>
-              <div className="user-avatar" aria-hidden>
-                  {(user?.firstName?.[0] || 'U').toUpperCase()}
+              <div className="user-profile-section" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Link to="/profile" className="user-pill" title={user.fullName}>
+                  <div className="user-avatar" aria-hidden>
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.fullName} className="avatar-image" />
+                    ) : (
+                      <span className="avatar-initials">
+                        {user.fullName.split(' ').map(name => name[0]).join('').toUpperCase().slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="user-info">
+                    <span className="user-name">{user.fullName}</span>
+                    <span className="user-role">{String(user.role).toLowerCase()}</span>
+                  </div>
+                </Link>
+                <button
+                  className="login-btn"
+                  onClick={() => {
+                    dispatch(logout())
+                    toast.success('Đã đăng xuất')
+                    navigate('/')
+                  }}
+                  style={{ marginLeft: 4 }}
+                >
+                  Đăng xuất
+                </button>
               </div>
-              <span className="user-name">
-                  {user.firstName} {user.lastName}
-              </span>
-            </Link>
             ) : (
               <>
                         <Link to="/auth/login" className="login-btn">

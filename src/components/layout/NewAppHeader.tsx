@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { 
-  ShoppingCart, 
-  User, 
+import { NavLink, useNavigate } from 'react-router-dom'
+import {
+  ShoppingCart,
+  User,
   Search,
   Wrench,
   Package,
@@ -16,9 +16,15 @@ import {
 } from 'lucide-react'
 import HeaderDropdown, { type MenuItem } from './HeaderDropdown'
 import logo from '@/assets/images/logo-black.webp'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { logout } from '@/store/authSlice'
+import toast from 'react-hot-toast'
 
 const NewAppHeader: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const user = useAppSelector((s) => s.auth.user)
 
   const menuItems: MenuItem[] = [
     {
@@ -232,39 +238,56 @@ const NewAppHeader: React.FC = () => {
 
   const rightItems = (
     <>
-      <button 
+      <button
         className="header-icon-btn hide-mobile"
         aria-label="Search"
       >
         <Search size={20} />
       </button>
-      
-      <NavLink 
-        to="/cart" 
+
+      <NavLink
+        to="/cart"
         className="header-icon-btn"
         aria-label="Shopping cart"
       >
         <ShoppingCart size={20} />
         <span className="cart-badge">3</span>
       </NavLink>
-      
-      <NavLink 
-        to="/profile" 
-        className="header-icon-btn"
-        aria-label="User profile"
-      >
-        <User size={20} />
-      </NavLink>
-      
-      <NavLink 
-        to="/auth/login" 
-        className="login-btn hide-mobile"
-      >
-        Đăng nhập
-      </NavLink>
-      
-      <NavLink 
-        to="/booking" 
+
+      {user ? (
+        <>
+          <NavLink
+            to="/profile"
+            className="header-icon-btn"
+            aria-label="User profile"
+            title={user.fullName}
+          >
+            <User size={20} />
+          </NavLink>
+          <button
+            className="login-btn hide-mobile"
+            onClick={() => {
+              dispatch(logout())
+              toast.success('Đã đăng xuất')
+              navigate('/')
+            }}
+          >
+            Đăng xuất
+          </button>
+        </>
+      ) : (
+        <>
+          <NavLink
+            to="/auth/login"
+            className="login-btn hide-mobile"
+          >
+            Đăng nhập
+          </NavLink>
+        </>
+      )}
+
+      <NavLink
+        to="/booking"
         className="booking-btn"
       >
         Đặt chỗ ngay

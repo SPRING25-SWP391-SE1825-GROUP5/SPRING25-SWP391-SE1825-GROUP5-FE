@@ -14,23 +14,26 @@ export default defineConfig(({ mode }) => {
   const port = Number(env.VITE_PORT || 5173)
 
   // Optional dev proxy to backend to avoid CORS; will proxy the path part from VITE_API_BASE_URL
-  // Example: VITE_API_BASE_URL=https://localhost:7001/api -> proxy '/api' to 'https://localhost:7001'
+  // Example: VITE_API_BASE_URL=http://localhost:5000/api -> proxy '/api' to 'http://localhost:5000'
+  // SAFETY: never proxy root '/' to avoid hijacking the dev server.
   let proxy: Record<string, any> | undefined
   const apiBase = env.VITE_API_BASE_URL
   if (apiBase) {
     try {
       const u = new URL(apiBase)
       const target = `${u.protocol}//${u.host}`
-      let apiPath = u.pathname || '/api'
+      let apiPath = u.pathname && u.pathname !== '/' ? u.pathname : '/api'
       if (!apiPath.startsWith('/')) apiPath = `/${apiPath}`
       if (apiPath.endsWith('/') && apiPath !== '/') apiPath = apiPath.slice(0, -1)
 
-      proxy = {
-        [apiPath]: {
-          target,
-          changeOrigin: true,
-          secure: false, // allow self-signed certs in dev
-        },
+      if (apiPath !== '/') {
+        proxy = {
+          [apiPath]: {
+            target,
+            changeOrigin: true,
+            secure: u.protocol === 'https:', // respect https when explicitly set; can be false if self-signed
+          },
+        }
       }
     } catch {
       // ignore invalid URL

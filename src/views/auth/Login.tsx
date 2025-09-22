@@ -1,40 +1,140 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useLocation, Link, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { login } from '@/store/authSlice'
+import { login, clearError } from '@/store/authSlice'
 import logo from '@/assets/images/logo-black.webp'
 import './LoginPage.scss'
+import { validateLoginFormV2, validateEmail, validateVNPhone10, validatePassword } from '@/utils/validation'
+import toast from 'react-hot-toast'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
-  const { loading, error, token } = useAppSelector((s) => s.auth)
-  const navigate = useNavigate()
+  const { loading, error, token, user } = useAppSelector((s) => s.auth)
   const location = useLocation()
 
-  const [email, setEmail] = useState('')
+  const [emailOrPhone, setEmailOrPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [formError, setFormError] = useState<Record<string, string>>({})
+  const [serverError, setServerError] = useState<string | null>(null)
 
-  const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard'
+  function handleEmailOrPhoneChange(v: string) {
+    setEmailOrPhone(v)
+    if (formError.emailOrPhone) setFormError({ ...formError, emailOrPhone: '' })
+    if (serverError) setServerError(null)
+    dispatch(clearError())
+  }
+
+  function handlePasswordChange(v: string) {
+    setPassword(v)
+    if (formError.password) setFormError({ ...formError, password: '' })
+    if (serverError) setServerError(null)
+    dispatch(clearError())
+  }
+
+  // Debounced inline validation (2s after user stops typing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Validate emailOrPhone
+      if (emailOrPhone.trim()) {
+        const isEmail = emailOrPhone.includes('@')
+        const v = isEmail ? validateEmail(emailOrPhone) : validateVNPhone10(emailOrPhone)
+        setFormError((prev) => ({ ...prev, emailOrPhone: v.isValid ? '' : (v.error || 'Thông tin không hợp lệ') }))
+      } else {
+        setFormError((prev) => ({ ...prev, emailOrPhone: '' }))
+      }
+
+      // Validate password
+      if (password) {
+        const pv = validatePassword(password)
+        setFormError((prev) => ({ ...prev, password: pv.isValid ? '' : (pv.error || 'Mật khẩu không hợp lệ') }))
+      } else {
+        setFormError((prev) => ({ ...prev, password: '' }))
+      }
+
+      // Clear server error when user edits
+      if (serverError) setServerError(null)
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [emailOrPhone, password])
+  const redirect = new URLSearchParams(location.search).get('redirect')
+  // Prevent redirect loop back to login
+  const safeRedirect = redirect && !redirect.startsWith('/auth/login') ? redirect : null
+
+  // Function to determine redirect path based on user role
+  const getRedirectPath = useCallback((userRole: any) => {
+    if (safeRedirect) return safeRedirect
+
+    const role = (typeof userRole === 'string' ? userRole : String(userRole || 'customer')).toLowerCase()
+
+    switch (role) {
+      case 'admin':
+        return '/admin'
+      case 'staff':
+        return '/staff'
+      case 'technician':
+        return '/technician'
+      case 'manager':
+        return '/manager'
+      case 'customer':
+      default:
+        return '/dashboard'
+    }
+  }, [safeRedirect])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    const result = await dispatch(login({ email, password }))
-    if ((result as any).meta.requestStatus === 'fulfilled') {
-      navigate(redirect, { replace: true })
+    setServerError(null)
+    dispatch(clearError())
+
+    const v = validateLoginFormV2({ emailOrPhone, password })
+    if (!v.isValid) {
+      setFormError(v.errors)
+      return
+    }
+
+    const loadingId = toast.loading('Đang đăng nhập...')
+    const result = await dispatch(login({ emailOrPhone, password }))
+    const status = (result as any)?.meta?.requestStatus
+
+    toast.dismiss(loadingId)
+
+    if (status === 'fulfilled') {
+      // Success toast is handled globally by LoginToastWatcher to avoid duplication
+      // Do not navigate here; handled by <Navigate /> below
+    } else if (status === 'rejected') {
+      const payload = (result as any)?.payload
+      const fallbackMsg = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
+      const errMsg = typeof payload === 'string' ? payload : (payload?.message || fallbackMsg)
+      const fieldErrors = Array.isArray(payload?.errors) ? payload.errors : []
+
+      // Bind server field errors if available
+      const nextFormError: Record<string, string> = { ...formError }
+      fieldErrors.forEach((msg: string) => {
+        const m = msg.toLowerCase()
+        if (m.includes('email') || m.includes('phone')) nextFormError.emailOrPhone = msg
+        if (m.includes('password')) nextFormError.password = msg
+      })
+      setFormError(nextFormError)
+      setServerError(errMsg)
+
+      toast.error(errMsg)
     }
   }
 
   function loginWithGoogle() {
     const base = import.meta.env.VITE_API_BASE_URL || '/api'
-    const googleAuthUrl = `${base}/auth/google`
+    const googleAuthUrl = `${base}/auth/login-google`
     window.location.href = googleAuthUrl + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
   }
 
-
-  if (token) {
-    navigate(redirect, { replace: true })
-    return null
+  // If already logged in, redirect out of login page
+  if (token && user && user.role) {
+    const redirectPath = getRedirectPath(user.role)
+    if (redirectPath && redirectPath !== location.pathname) {
+      return <Navigate to={redirectPath} replace />
+    }
   }
 
   return (
@@ -45,12 +145,12 @@ export default function LoginPage() {
           <img src={logo} alt="EV Service Logo" className="login__logo" />
         </Link>
       </div>
-      
+
       <div className="login__container">
         <h1 className="login__title">Log In</h1>
         <p className="login__subtitle">
           Don't have an account?{' '}
-          <Link to="/register" className="login__signup-link">
+          <Link to="/auth/register" className="login__signup-link">
             Sign Up
           </Link>
         </p>
@@ -61,17 +161,19 @@ export default function LoginPage() {
             <form onSubmit={onSubmit}>
               <div className="form-group">
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="emailOrPhone"
+                  type="text"
+                  value={emailOrPhone}
+                  onChange={(e) => handleEmailOrPhoneChange(e.target.value)}
                   className="form-group__input"
                   placeholder=" "
+                  aria-invalid={!!formError.emailOrPhone}
                   required
                 />
-                <label htmlFor="email" className="form-group__label">
-                  Email
+                <label htmlFor="emailOrPhone" className="form-group__label">
+                  Email hoặc số điện thoại
                 </label>
+                {formError.emailOrPhone && <p className="login__error">{formError.emailOrPhone}</p>}
               </div>
 
               <div className="form-group">
@@ -90,16 +192,17 @@ export default function LoginPage() {
                 <Link to="/forgot-password" className="form-group__forgot-link">
                   Forgot Password?
                 </Link>
+                {formError.password && <p className="login__error">{formError.password}</p>}
               </div>
 
-              {error && <p className="login__error">{error}</p>}
+              {(error && !formError.password && !formError.emailOrPhone) && <p className="login__error">{error}</p>}
 
               <button
                 type="submit"
                 className="btn btn--primary"
                 disabled={loading}
               >
-                {loading ? 'Logging in...' : 'Continue with Email'}
+                {loading ? 'Logging in...' : 'Continue'}
               </button>
             </form>
           </div>
