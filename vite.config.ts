@@ -31,7 +31,8 @@ export default defineConfig(({ mode }) => {
           [apiPath]: {
             target,
             changeOrigin: true,
-            secure: u.protocol === 'https:', // respect https when explicitly set; can be false if self-signed
+            // For local https with self-signed certs, disable SSL verify
+            secure: !(u.hostname === 'localhost' && u.protocol === 'https:'),
           },
         }
       }

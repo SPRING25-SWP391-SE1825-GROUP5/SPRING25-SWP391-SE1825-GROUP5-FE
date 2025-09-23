@@ -45,6 +45,19 @@ export const login = createAsyncThunk(
   }
 )
 
+export const loginWithGoogle = createAsyncThunk(
+  'auth/loginWithGoogle',
+  async (token: string, { rejectWithValue }) => {
+    try {
+      const resp = await AuthService.loginWithGoogle({ token })
+      return resp
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Google login failed'
+      return rejectWithValue(msg)
+    }
+  }
+)
+
 export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, { rejectWithValue }) => {
   try {
     const resp = await AuthService.getProfile()
@@ -105,6 +118,31 @@ const slice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.loading = false
         state.error = (action.payload as string) || 'Login failed'
+      })
+      .addCase(loginWithGoogle.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(loginWithGoogle.fulfilled, (state, action: PayloadAction<any>) => {
+        state.loading = false
+        const payload: any = action.payload || {}
+        const data = payload.data ?? payload
+        const token = data?.token ?? null
+        const refreshToken = data?.refreshToken ?? null
+        const user = data?.user ?? null
+
+        state.token = token
+        state.refreshToken = refreshToken
+        state.user = user
+
+        if (typeof localStorage !== 'undefined') {
+          if (token) localStorage.setItem('authToken', token)
+          if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+        }
+      })
+      .addCase(loginWithGoogle.rejected, (state, action) => {
+        state.loading = false
+        state.error = (action.payload as string) || 'Google login failed'
       })
       .addCase(getCurrentUser.pending, (state) => {
         state.loading = true

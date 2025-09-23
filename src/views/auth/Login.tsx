@@ -1,12 +1,19 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, Link, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { login, clearError } from '@/store/authSlice'
+import { login, clearError, loginWithGoogle as loginWithGoogleThunk } from '@/store/authSlice'
 import logo from '@/assets/images/logo-black.webp'
 import './LoginPage.scss'
 import { validateLoginFormV2, validateEmail, validateVNPhone10, validatePassword } from '@/utils/validation'
 import toast from 'react-hot-toast'
+import { LOGIN_INPUT_DEBOUNCE_MS, LOADING_MESSAGES } from '@/config/ui'
+
+declare global {
+  interface Window {
+    google?: any
+  }
+}
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
@@ -17,6 +24,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState<string | null>(null)
+
+  const googleInitedRef = useRef(false)
+  const googleBtnRef = useRef<HTMLDivElement | null>(null)
+
 
   function handleEmailOrPhoneChange(v: string) {
     setEmailOrPhone(v)
@@ -32,32 +43,48 @@ export default function LoginPage() {
     dispatch(clearError())
   }
 
-  // Debounced inline validation (2s after user stops typing)
+  // Init Google Identity Services once
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Validate emailOrPhone
-      if (emailOrPhone.trim()) {
-        const isEmail = emailOrPhone.includes('@')
-        const v = isEmail ? validateEmail(emailOrPhone) : validateVNPhone10(emailOrPhone)
-        setFormError((prev) => ({ ...prev, emailOrPhone: v.isValid ? '' : (v.error || 'Thông tin không hợp lệ') }))
-      } else {
-        setFormError((prev) => ({ ...prev, emailOrPhone: '' }))
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (!clientId) return
+
+    const tryInit = () => {
+      if (googleInitedRef.current) return
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredential,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          context: 'signin',
+        })
+        if (googleBtnRef.current) {
+          window.google.accounts.id.renderButton(googleBtnRef.current, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            shape: 'rectangular',
+            text: 'signin_with',
+            logo_alignment: 'left',
+            width: 280,
+          })
+        }
+        googleInitedRef.current = true
       }
+    }
 
-      // Validate password
-      if (password) {
-        const pv = validatePassword(password)
-        setFormError((prev) => ({ ...prev, password: pv.isValid ? '' : (pv.error || 'Mật khẩu không hợp lệ') }))
-      } else {
-        setFormError((prev) => ({ ...prev, password: '' }))
-      }
+    // In case script loads a bit later
+    const timer = setInterval(() => {
+      tryInit()
+      if (googleInitedRef.current) clearInterval(timer)
+    }, 300)
 
-      // Clear server error when user edits
-      if (serverError) setServerError(null)
-    }, 2000)
+    // Try immediately too
+    tryInit()
 
-    return () => clearTimeout(timer)
-  }, [emailOrPhone, password])
+    return () => clearInterval(timer)
+  }, [])
+
   const redirect = new URLSearchParams(location.search).get('redirect')
   // Prevent redirect loop back to login
   const safeRedirect = redirect && !redirect.startsWith('/auth/login') ? redirect : null
@@ -94,7 +121,7 @@ export default function LoginPage() {
       return
     }
 
-    const loadingId = toast.loading('Đang đăng nhập...')
+    const loadingId = toast.loading(LOADING_MESSAGES.loggingIn)
     const result = await dispatch(login({ emailOrPhone, password }))
     const status = (result as any)?.meta?.requestStatus
 
@@ -123,7 +150,17 @@ export default function LoginPage() {
     }
   }
 
-  function loginWithGoogle() {
+  function handleGoogleCredential(response: any) {
+    const idToken = response?.credential
+    if (!idToken) return
+    const loadingId = toast.loading('Đang xác thực Google...')
+    dispatch(loginWithGoogleThunk(idToken)).finally(() => {
+      toast.dismiss(loadingId)
+    })
+  }
+
+  function onGoogleButtonClick() {
+    // Always use backend OAuth redirect flow for maximum compatibility on localhost/FedCM
     const base = import.meta.env.VITE_API_BASE_URL || '/api'
     const googleAuthUrl = `${base}/auth/login-google`
     window.location.href = googleAuthUrl + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
@@ -218,7 +255,7 @@ export default function LoginPage() {
             <button
               type="button"
               className="btn btn--google btn--google-enhanced"
-              onClick={loginWithGoogle}
+              onClick={onGoogleButtonClick}
             >
               <div className="btn__icon">
                 <svg viewBox="0 0 24 24" width="20" height="20">
