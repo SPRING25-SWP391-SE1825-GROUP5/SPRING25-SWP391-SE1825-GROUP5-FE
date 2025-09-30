@@ -70,6 +70,7 @@ export default function Register() {
       dateOfBirth,
       gender: gender as 'MALE' | 'FEMALE',
       address,
+      avatarUrl: ''
     })
     if (!v.isValid) {
       setErrors(v.errors)
@@ -87,6 +88,7 @@ export default function Register() {
         dateOfBirth,
         gender: gender as 'MALE' | 'FEMALE',
         address,
+        avatarUrl: ''
       })
       alert('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
       navigate(redirect, { replace: true })

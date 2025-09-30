@@ -18,6 +18,7 @@ export type RegisterRequest = {
   dateOfBirth: string // YYYY-MM-DD
   gender: 'MALE' | 'FEMALE'
   address?: string
+  avatarUrl?: string
 }
 
 export type AuthSuccess = {

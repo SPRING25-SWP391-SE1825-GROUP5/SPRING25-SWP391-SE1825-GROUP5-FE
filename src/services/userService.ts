@@ -15,8 +15,8 @@ export type GetUsersRequest = {
   limit?: number
   search?: string
   role?: string
-  sortBy?: string
-  sortOrder?: 'asc' | 'desc'
+  // sortBy?: string
+  // sortOrder?: 'asc' | 'desc'
 }
 
 export type CreateUserRequest = {
