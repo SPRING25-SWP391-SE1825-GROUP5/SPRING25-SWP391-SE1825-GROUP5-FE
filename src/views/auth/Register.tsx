@@ -129,7 +129,7 @@ export default function Register() {
                   id="fullName"
                   className="form-group__input"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => setFullName(e.target.value)} 
                   placeholder=" "
                   required
                 />

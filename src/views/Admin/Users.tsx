@@ -1,13 +1,10 @@
-import { useState } from 'react'
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  MoreVertical,
-  User,
+import { useState, useEffect } from "react";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
   Mail,
   Phone,
   MapPin,
@@ -15,746 +12,498 @@ import {
   Shield,
   UserCheck,
   UserX,
-  Clock
-} from 'lucide-react'
+  Clock,
+} from "lucide-react";
+
+import type { User } from "@/store/authSlice";
+import { UserService } from "@/services";
 
 export default function Users() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterRole, setFilterRole] = useState('all')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [showUserModal, setShowUserModal] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
 
-  // Mock data for users
-  const users = [
-    {
-      id: 1,
-      name: 'Nguyễn Văn An',
-      email: 'nguyenvanan@email.com',
-      phone: '0123456789',
-      role: 'admin',
-      status: 'active',
-      joinDate: '2024-01-15',
-      lastLogin: '2024-12-20',
-      address: '123 Nguyễn Huệ, Q1, TP.HCM',
-      avatar: null
-    },
-    {
-      id: 2,
-      name: 'Trần Thị Bình',
-      email: 'tranthibinh@email.com',
-      phone: '0987654321',
-      role: 'manager',
-      status: 'active',
-      joinDate: '2024-02-20',
-      lastLogin: '2024-12-19',
-      address: '456 Lê Văn Sỹ, Q3, TP.HCM',
-      avatar: null
-    },
-    {
-      id: 3,
-      name: 'Lê Văn Cường',
-      email: 'levancuong@email.com',
-      phone: '0369852147',
-      role: 'staff',
-      status: 'active',
-      joinDate: '2024-03-10',
-      lastLogin: '2024-12-20',
-      address: '789 Nguyễn Thị Thập, Q7, TP.HCM',
-      avatar: null
-    },
-    {
-      id: 4,
-      name: 'Phạm Thị Dung',
-      email: 'phamthidung@email.com',
-      phone: '0741852963',
-      role: 'technician',
-      status: 'inactive',
-      joinDate: '2024-04-05',
-      lastLogin: '2024-12-15',
-      address: '321 Cách Mạng Tháng 8, Q10, TP.HCM',
-      avatar: null
-    },
-    {
-      id: 5,
-      name: 'Hoàng Văn Em',
-      email: 'hoangvanem@email.com',
-      phone: '0852741963',
-      role: 'customer',
-      status: 'active',
-      joinDate: '2024-05-12',
-      lastLogin: '2024-12-20',
-      address: '654 Điện Biên Phủ, Bình Thạnh, TP.HCM',
-      avatar: null
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [statsData, setStatsData] = useState({
+    totalUsers: 0,
+    active: 0,
+    inactive: 0,
+    admins: 0,
+  });
+
+  useEffect(() => {
+    fetchUsers();
+  }, [pageNumber, pageSize, searchTerm, filterRole, filterStatus]);
+
+  useEffect(() => {
+    fetchStats();
+  }, []); 
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await UserService.getUsers({
+        pageNumber,
+        pageSize,
+        searchTerm: searchTerm || undefined,
+        role: filterRole !== "all" ? filterRole : undefined,
+      });
+
+      setUsers(res.data?.users || []);
+      setTotalPages(res.data?.totalPages || 1);
+    } catch (err: any) {
+      setError(err.message || "Không thể tải danh sách người dùng");
+    } finally {
+      setLoading(false);
     }
-  ]
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await UserService.getUsers({ pageNumber: 1, pageSize: 100 });
+      const allUsers = res.data?.users || [];
+      console.log("All users for stats:", allUsers);
+      
+
+      setStatsData({
+        totalUsers: allUsers.length,
+        active: allUsers.filter((u) => u.isActive).length,
+        inactive: allUsers.filter((u) => !u.isActive).length,
+        admins: allUsers.filter((u) => u.role === "ADMIN").length,
+      });
+    } catch (err) {
+      console.error("Không thể tải thống kê:", err);
+    }
+  };
 
   const roles = [
-    { value: 'all', label: 'Tất cả vai trò' },
-    { value: 'admin', label: 'Quản trị viên' },
-    { value: 'manager', label: 'Quản lý' },
-    { value: 'staff', label: 'Nhân viên' },
-    { value: 'technician', label: 'Kỹ thuật viên' },
-    { value: 'customer', label: 'Khách hàng' }
-  ]
+    { value: "all", label: "Tất cả vai trò" },
+    { value: "ADMIN", label: "Quản trị viên" },
+    { value: "STAFF", label: "Nhân viên" },
+    { value: "CUSTOMER", label: "Khách hàng" },
+    { value: "TECHNICIAN", label: "Kỹ thuật viên" },
+  ];
 
   const statuses = [
-    { value: 'all', label: 'Tất cả trạng thái' },
-    { value: 'active', label: 'Hoạt động' },
-    { value: 'inactive', label: 'Không hoạt động' },
-    { value: 'pending', label: 'Chờ duyệt' }
-  ]
+    { value: "all", label: "Tất cả trạng thái" },
+    { value: "active", label: "Hoạt động" },
+    { value: "inactive", label: "Không hoạt động" },
+  ];
 
-  const getRoleLabel = (role) => {
-    const roleMap = {
-      admin: 'Quản trị viên',
-      manager: 'Quản lý',
-      staff: 'Nhân viên',
-      technician: 'Kỹ thuật viên',
-      customer: 'Khách hàng'
-    }
-    return roleMap[role] || role
-  }
+  const getRoleLabel = (role: string) => {
+    const map: Record<string, string> = {
+      ADMIN: "Quản trị viên",
+      STAFF: "Nhân viên",
+      CUSTOMER: "Khách hàng",
+      TECHNICIAN: "Kỹ thuật viên",
+    };
+    return map[role] || role;
+  };
 
-  const getRoleColor = (role) => {
-    const colorMap = {
-      admin: 'var(--error-500)',
-      manager: 'var(--primary-500)',
-      staff: 'var(--info-500)',
-      technician: 'var(--warning-500)',
-      customer: 'var(--success-500)'
-    }
-    return colorMap[role] || 'var(--text-secondary)'
-  }
+  const getStatusLabel = (isActive: boolean) =>
+    isActive ? "Hoạt động" : "Không hoạt động";
 
-  const getStatusColor = (status) => {
-    const colorMap = {
-      active: 'var(--success-500)',
-      inactive: 'var(--error-500)',
-      pending: 'var(--warning-500)'
-    }
-    return colorMap[status] || 'var(--text-secondary)'
-  }
+  const getRoleColor = (role: string) => {
+    const colors: Record<string, string> = {
+      ADMIN: "var(--error-500)",
+      TEACHER: "var(--primary-500)",
+      CUSTOMER: "var(--info-500)",
+      TECHNICIAN: "var(--warning-500)",
+    };
+    return colors[role] || "var(--text-secondary)";
+  };
 
-  const getStatusLabel = (status) => {
-    const statusMap = {
-      active: 'Hoạt động',
-      inactive: 'Không hoạt động',
-      pending: 'Chờ duyệt'
-    }
-    return statusMap[status] || status
-  }
+  const stats = [
+    {
+      label: "Tổng người dùng",
+      value: statsData.totalUsers,
+      color: "var(--primary-500)",
+    },
+    {
+      label: "Hoạt động",
+      value: statsData.active,
+      color: "var(--success-500)",
+    },
+    {
+      label: "Không hoạt động",
+      value: statsData.inactive,
+      color: "var(--error-500)",
+    },
+    {
+      label: "Admin",
+      value: statsData.admins,
+      color: "var(--warning-500)",
+    },
+  ];
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm)
-    const matchesRole = filterRole === 'all' || user.role === filterRole
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus
-    return matchesSearch && matchesRole && matchesStatus
-  })
+  const handleViewUser = (user: User) => {
+    setSelectedUser(user);
+    setShowUserModal(true);
+  };
 
-  const handleViewUser = (user) => {
-    setSelectedUser(user)
-    setShowUserModal(true)
-  }
+  const handleEditUser = (user: User) => {
+    console.log("Edit user:", user);
+  };
 
-  const handleEditUser = (user) => {
-    console.log('Edit user:', user)
-  }
+  const handleDeleteUser = (user: User) => {
+    console.log("Delete user:", user);
+  };
 
-  const handleDeleteUser = (user) => {
-    console.log('Delete user:', user)
-  }
+  if (loading) return <div style={{ padding: 24 }}>Đang tải dữ liệu...</div>;
+  if (error) return <div style={{ padding: 24, color: "red" }}>{error}</div>;
 
   return (
-    <div style={{ padding: '24px', background: 'var(--bg-secondary)', minHeight: '100vh' }}>
+    <div
+      style={{
+        padding: 24,
+        background: "var(--bg-secondary)",
+        minHeight: "100vh",
+      }}
+    >
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ 
-          fontSize: '32px', 
-          fontWeight: '700', 
-          color: 'var(--text-primary)',
-          margin: '0 0 8px 0'
-        }}>
-          Quản lý người dùng
-        </h1>
-        <p style={{ 
-          fontSize: '16px', 
-          color: 'var(--text-secondary)',
-          margin: '0'
-        }}>
-          Quản lý tài khoản và quyền hạn người dùng trong hệ thống
-        </p>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        <h2 style={{ fontSize: 24, fontWeight: 600 }}>Quản lý người dùng</h2>
+        <button
+          style={{
+            background: "var(--primary-500)",
+            color: "#fff",
+            padding: "8px 12px",
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Plus size={18} /> Thêm người dùng
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '24px', 
-        marginBottom: '32px' 
-      }}>
-        {[
-          { title: 'Tổng người dùng', value: users.length, icon: User, color: 'var(--primary-500)' },
-          { title: 'Đang hoạt động', value: users.filter(u => u.status === 'active').length, icon: UserCheck, color: 'var(--success-500)' },
-          { title: 'Không hoạt động', value: users.filter(u => u.status === 'inactive').length, icon: UserX, color: 'var(--error-500)' },
-          { title: 'Chờ duyệt', value: users.filter(u => u.status === 'pending').length, icon: Clock, color: 'var(--warning-500)' }
-        ].map((stat, index) => (
-          <div 
-            key={index}
+      {/* Stats cards */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 16,
+          marginBottom: 20,
+        }}
+      >
+        {stats.map((s, i) => (
+          <div
+            key={i}
             style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)',
-              boxShadow: 'var(--shadow-sm)'
+              background: "#fff",
+              padding: 16,
+              borderRadius: 12,
+              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: stat.color,
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white'
-              }}>
-                <stat.icon size={20} />
-              </div>
-              <h3 style={{ 
-                fontSize: '14px', 
-                color: 'var(--text-secondary)',
-                margin: '0',
-                fontWeight: '500'
-              }}>
-                {stat.title}
-              </h3>
+            <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+              {s.label}
             </div>
-            <div style={{ 
-              fontSize: '28px', 
-              fontWeight: '700', 
-              color: 'var(--text-primary)'
-            }}>
-              {stat.value}
+            <div style={{ fontSize: 24, fontWeight: 600, color: s.color }}>
+              {s.value}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Filters and Search */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '12px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Search */}
-          <div style={{ position: 'relative', flex: '1', minWidth: '300px' }}>
-            <Search size={20} style={{ 
-              position: 'absolute', 
-              left: '12px', 
-              top: '50%', 
-              transform: 'translateY(-50%)',
-              color: 'var(--text-tertiary)'
-            }} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên, email hoặc số điện thoại..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 12px 12px 44px',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '8px',
-                fontSize: '14px',
-                background: 'var(--bg-input)',
-                color: 'var(--text-primary)'
-              }}
-            />
-          </div>
-
-          {/* Role Filter */}
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
+      {/* Bộ lọc */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+        <div style={{ flex: 1, position: "relative" }}>
+          <Search
+            size={18}
             style={{
-              padding: '12px 16px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              background: 'var(--bg-input)',
-              color: 'var(--text-primary)',
-              minWidth: '150px'
+              position: "absolute",
+              top: "50%",
+              left: 10,
+              transform: "translateY(-50%)",
+              color: "var(--text-secondary)",
             }}
-          >
-            {roles.map(role => (
-              <option key={role.value} value={role.value}>{role.label}</option>
-            ))}
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tên, email, SĐT..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPageNumber(1);
+            }}
             style={{
-              padding: '12px 16px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              background: 'var(--bg-input)',
-              color: 'var(--text-primary)',
-              minWidth: '150px'
+              width: "100%",
+              padding: "8px 12px 8px 36px",
+              border: "1px solid var(--border-color)",
+              borderRadius: 8,
             }}
-          >
-            {statuses.map(status => (
-              <option key={status.value} value={status.value}>{status.label}</option>
-            ))}
-          </select>
-
-          {/* Add User Button */}
-          <button
-            onClick={() => console.log('Add user')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              background: 'var(--primary-500)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'background 0.2s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--primary-600)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary-500)'}
-          >
-            <Plus size={16} />
-            Thêm người dùng
-          </button>
+          />
         </div>
+        <select
+          value={filterRole}
+          onChange={(e) => {
+            setFilterRole(e.target.value);
+            setPageNumber(1);
+          }}
+          style={{ padding: "8px 12px", borderRadius: 8 }}
+        >
+          {roles.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => {
+            setFilterStatus(e.target.value);
+            setPageNumber(1);
+          }}
+          style={{ padding: "8px 12px", borderRadius: 8 }}
+        >
+          {statuses.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Users Table */}
-      <div style={{
-        background: 'var(--bg-card)',
-        borderRadius: '12px',
-        border: '1px solid var(--border-primary)',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border-primary)',
-          background: 'var(--bg-tertiary)'
-        }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
-            color: 'var(--text-primary)',
-            margin: '0'
-          }}>
-            Danh sách người dùng ({filteredUsers.length})
-          </h3>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-tertiary)' }}>
-                <th style={{ 
-                  padding: '16px 24px', 
-                  textAlign: 'left', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border-primary)'
-                }}>
-                  Người dùng
-                </th>
-                <th style={{ 
-                  padding: '16px 24px', 
-                  textAlign: 'left', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border-primary)'
-                }}>
-                  Vai trò
-                </th>
-                <th style={{ 
-                  padding: '16px 24px', 
-                  textAlign: 'left', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border-primary)'
-                }}>
-                  Trạng thái
-                </th>
-                <th style={{ 
-                  padding: '16px 24px', 
-                  textAlign: 'left', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border-primary)'
-                }}>
-                  Ngày tham gia
-                </th>
-                <th style={{ 
-                  padding: '16px 24px', 
-                  textAlign: 'left', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border-primary)'
-                }}>
-                  Đăng nhập cuối
-                </th>
-                <th style={{ 
-                  padding: '16px 24px', 
-                  textAlign: 'center', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border-primary)'
-                }}>
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user, index) => (
-                <tr 
-                  key={user.id}
-                  style={{ 
-                    borderBottom: index < filteredUsers.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                    transition: 'background 0.2s ease'
+      {/* Bảng user */}
+      <div
+        style={{
+          overflowX: "auto",
+          background: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+        }}
+      >
+        <table
+          style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
+        >
+          <thead>
+            <tr style={{ background: "var(--bg-tertiary)" }}>
+              <th style={{ padding: "14px 12px", textAlign: "left" }}>Tên</th>
+              <th style={{ padding: "14px 12px", textAlign: "left" }}>Email</th>
+              <th style={{ padding: "14px 12px", textAlign: "left" }}>
+                Số điện thoại
+              </th>
+              <th style={{ padding: "14px 12px", textAlign: "left" }}>
+                Vai trò
+              </th>
+              <th style={{ padding: "14px 12px", textAlign: "left" }}>
+                Trạng thái
+              </th>
+              <th style={{ padding: "14px 12px", textAlign: "left" }}>
+                Ngày tạo
+              </th>
+              <th style={{ padding: "14px 12px", textAlign: "center" }}>
+                Hành động
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u, i) => (
+              <tr
+                key={u.userId}
+                style={{
+                  borderTop: "1px solid var(--border-color)",
+                  background: i % 2 === 0 ? "#fafafa" : "#fff",
+                }}
+              >
+                <td style={{ padding: "12px" }}>{u.fullName}</td>
+                <td style={{ padding: "12px" }}>{u.email}</td>
+                <td style={{ padding: "12px" }}>{u.phoneNumber}</td>
+                <td style={{ padding: "12px" }}>
+                  <span
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      background: `${getRoleColor(u.role)}22`,
+                      color: getRoleColor(u.role),
+                    }}
+                  >
+                    {getRoleLabel(u.role)}
+                  </span>
+                </td>
+                <td style={{ padding: "12px" }}>
+                  <span
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      background: u.isActive
+                        ? "rgba(0,200,100,0.1)"
+                        : "rgba(200,0,0,0.1)",
+                      color: u.isActive ? "green" : "red",
+                    }}
+                  >
+                    {getStatusLabel(u.isActive)}
+                  </span>
+                </td>
+                <td style={{ padding: "12px" }}>
+                  {new Date(u.createdAt).toLocaleDateString()}
+                </td>
+                <td
+                  style={{
+                    padding: "12px",
+                    textAlign: "center",
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 8,
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--primary-50)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '16px 24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: 'var(--primary-500)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '16px',
-                        fontWeight: '600'
-                      }}>
-                        {user.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div style={{ 
-                          fontSize: '14px', 
-                          fontWeight: '600', 
-                          color: 'var(--text-primary)',
-                          marginBottom: '2px'
-                        }}>
-                          {user.name}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}>
-                          <Mail size={12} />
-                          {user.email}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          marginTop: '2px'
-                        }}>
-                          <Phone size={12} />
-                          {user.phone}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      background: `${getRoleColor(user.role)}20`,
-                      color: getRoleColor(user.role)
-                    }}>
-                      {getRoleLabel(user.role)}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      background: `${getStatusColor(user.status)}20`,
-                      color: getStatusColor(user.status)
-                    }}>
-                      {getStatusLabel(user.status)}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-                    {new Date(user.joinDate).toLocaleDateString('vi-VN')}
-                  </td>
-                  <td style={{ padding: '16px 24px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-                    {new Date(user.lastLogin).toLocaleDateString('vi-VN')}
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      <button
-                        onClick={() => handleViewUser(user)}
-                        style={{
-                          padding: '8px',
-                          background: 'var(--info-50)',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: 'var(--info-500)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="Xem chi tiết"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        style={{
-                          padding: '8px',
-                          background: 'var(--warning-50)',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: 'var(--warning-500)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="Chỉnh sửa"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user)}
-                        style={{
-                          padding: '8px',
-                          background: 'var(--error-50)',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: 'var(--error-500)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  <button
+                    onClick={() => handleViewUser(u)}
+                    style={{
+                      padding: 6,
+                      borderRadius: 6,
+                      border: "none",
+                      background: "#e3f2fd",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Eye size={16} color="#1976d2" />
+                  </button>
+                  <button
+                    onClick={() => handleEditUser(u)}
+                    style={{
+                      padding: 6,
+                      borderRadius: 6,
+                      border: "none",
+                      background: "#fff3e0",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Edit size={16} color="#fb8c00" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(u)}
+                    style={{
+                      padding: 6,
+                      borderRadius: 6,
+                      border: "none",
+                      background: "#ffebee",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Trash2 size={16} color="#e53935" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* User Detail Modal */}
+      {/* Pagination */}
+      <div
+        style={{
+          marginTop: 16,
+          display: "flex",
+          justifyContent: "center",
+          gap: 8,
+        }}
+      >
+        <button
+          disabled={pageNumber === 1}
+          onClick={() => setPageNumber((p) => p - 1)}
+          style={{ padding: "6px 12px", borderRadius: 8 }}
+        >
+          Trang trước
+        </button>
+        <span>
+          Trang {pageNumber} / {totalPages}
+        </span>
+        <button
+          disabled={pageNumber === totalPages}
+          onClick={() => setPageNumber((p) => p + 1)}
+          style={{ padding: "6px 12px", borderRadius: 8 }}
+        >
+          Trang sau
+        </button>
+      </div>
+
       {showUserModal && selectedUser && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ 
-                fontSize: '20px', 
-                fontWeight: '600', 
-                color: 'var(--text-primary)',
-                margin: '0'
-              }}>
-                Chi tiết người dùng
-              </h3>
-              <button
-                onClick={() => setShowUserModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer'
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: 'var(--primary-500)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '24px',
-                fontWeight: '600'
-              }}>
-                {selectedUser.name.charAt(0)}
-              </div>
-              <div>
-                <h4 style={{ 
-                  fontSize: '18px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-primary)',
-                  margin: '0 0 4px 0'
-                }}>
-                  {selectedUser.name}
-                </h4>
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)',
-                  margin: '0'
-                }}>
-                  {selectedUser.email}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Phone size={16} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Số điện thoại:</span>
-                <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{selectedUser.phone}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <MapPin size={16} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Địa chỉ:</span>
-                <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{selectedUser.address}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Shield size={16} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Vai trò:</span>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  background: `${getRoleColor(selectedUser.role)}20`,
-                  color: getRoleColor(selectedUser.role)
-                }}>
-                  {getRoleLabel(selectedUser.role)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <UserCheck size={16} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Trạng thái:</span>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  background: `${getStatusColor(selectedUser.status)}20`,
-                  color: getStatusColor(selectedUser.status)
-                }}>
-                  {getStatusLabel(selectedUser.status)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Calendar size={16} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Ngày tham gia:</span>
-                <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
-                  {new Date(selectedUser.joinDate).toLocaleDateString('vi-VN')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Clock size={16} style={{ color: 'var(--text-secondary)' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Đăng nhập cuối:</span>
-                <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
-                  {new Date(selectedUser.lastLogin).toLocaleDateString('vi-VN')}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-              <button
-                onClick={() => handleEditUser(selectedUser)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'var(--primary-500)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Chỉnh sửa
-              </button>
-              <button
-                onClick={() => setShowUserModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Đóng
-              </button>
-            </div>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: 24,
+              borderRadius: 12,
+              width: 500,
+            }}
+          >
+            <h3 style={{ marginBottom: 12 }}>Thông tin chi tiết</h3>
+            <p>
+              <Mail size={16} /> {selectedUser.fullName}
+            </p>
+            <p>
+              <Mail size={16} /> {selectedUser.email}
+            </p>
+            <p>
+              <Phone size={16} /> {selectedUser.phoneNumber}
+            </p>
+            <p>
+              <MapPin size={16} /> {selectedUser.address || "Chưa cập nhật"}
+            </p>
+            <p>
+              <Calendar size={16} />{" "}
+              {selectedUser.dateOfBirth || "Chưa cập nhật"}
+            </p>
+            <p>
+              <Shield size={16} /> {getRoleLabel(selectedUser.role)}
+            </p>
+            <p>
+              {selectedUser.isActive ? (
+                <UserCheck size={16} />
+              ) : (
+                <UserX size={16} />
+              )}{" "}
+              {getStatusLabel(selectedUser.isActive)}
+            </p>
+            <p>
+              <Clock size={16} /> Ngày tạo:{" "}
+              {new Date(selectedUser.createdAt).toLocaleString()}
+            </p>
+            <button
+              onClick={() => setShowUserModal(false)}
+              style={{
+                marginTop: 16,
+                padding: "6px 12px",
+                borderRadius: 8,
+                background: "var(--primary-500)",
+                color: "#fff",
+              }}
+            >
+              Đóng
+            </button>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
