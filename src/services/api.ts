@@ -3,6 +3,11 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://localhost:5001/api',
   withCredentials: false,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 })
 
 let tokenGetter: (() => string | null) | null = null

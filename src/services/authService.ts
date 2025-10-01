@@ -120,8 +120,25 @@ export const AuthService = {
   },
 
   async getProfile() {
-    const { data } = await api.get<BasicSuccess<User>>('/auth/profile')
-    return data
+    const { data } = await api.get<any>('/Auth/profile')
+    const src = data || {}
+    const d = src.data ?? src
+    const user: User = {
+      id: d.userId ?? d.id ?? null,
+      fullName: d.fullName ?? '',
+      email: d.email ?? '',
+      role: d.role ?? 'customer',
+      emailVerified: Boolean(d.emailVerified ?? false),
+      avatar: d.avatar ?? d.avatarUrl ?? d.imageUrl ?? null,
+      address: d.address ?? null,
+      dateOfBirth: d.dateOfBirth ?? d.dob ?? null,
+      gender: d.gender ?? null,
+    }
+    return {
+      success: src.success !== false,
+      message: src.message ?? 'OK',
+      data: user,
+    }
   },
 
   async updateProfile(payload: Partial<{
@@ -130,12 +147,12 @@ export const AuthService = {
     gender: 'MALE' | 'FEMALE'
     address?: string
   }>) {
-    const { data } = await api.put<BasicSuccess<User>>('/auth/profile', payload)
+    const { data } = await api.put<BasicSuccess<User>>('/Auth/profile', payload)
     return data
   },
 
   async changePassword(payload: { currentPassword: string; newPassword: string; confirmNewPassword: string }) {
-    const { data } = await api.post<BasicSuccess<{}>>('/auth/change-password', payload)
+    const { data } = await api.post<BasicSuccess<{}>>('/Auth/change-password', payload)
     return data
   },
 
@@ -161,8 +178,10 @@ export const AuthService = {
 
   async uploadAvatar(file: File) {
     const form = new FormData()
+    // Append common field names to maximize compatibility with backend expectation
     form.append('file', file)
-    const { data } = await api.post<BasicSuccess<{ url: string }>>('/auth/upload-avatar', form, {
+    form.append('avatar', file)
+    const { data } = await api.post<any>('/Auth/upload-avatar', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     return data

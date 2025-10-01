@@ -9,6 +9,9 @@ export type User = {
   role: string
   emailVerified: boolean
   avatar?: string | null
+  address?: string | null
+  dateOfBirth?: string | null
+  gender?: string | null
 }
 
 export type LoginRequest = {
