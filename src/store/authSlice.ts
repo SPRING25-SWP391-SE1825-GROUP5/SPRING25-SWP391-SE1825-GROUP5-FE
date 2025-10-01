@@ -3,12 +3,18 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import { AuthService } from '@/services/authService'
 
 export type User = {
-  id: number
+  userId: number
   fullName: string
   email: string
+  phoneNumber: string
+  address?: string
+  dateOfBirth?: string 
   role: string
   emailVerified: boolean
   avatar?: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export type LoginRequest = {
