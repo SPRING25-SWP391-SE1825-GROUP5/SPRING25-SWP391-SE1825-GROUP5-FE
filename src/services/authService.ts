@@ -18,6 +18,7 @@ export type RegisterRequest = {
   dateOfBirth: string // YYYY-MM-DD
   gender: 'MALE' | 'FEMALE'
   address?: string
+  avatarUrl?: string
 }
 
 export type AuthSuccess = {
@@ -47,6 +48,24 @@ export type BasicError = {
   success: false
   message: string
   errors?: string[]
+}
+
+
+export type LoginResponse = ReturnType<typeof AuthService.login> extends Promise<infer R> ? R : never
+
+export type RefreshTokenResponse = {
+  token: string
+  refreshToken: string | null
+}
+
+export type ResetPasswordRequest = {
+  email: string
+}
+
+export type ChangePasswordRequest = {
+  currentPassword: string
+  newPassword: string
+  confirmNewPassword: string
 }
 
 export const AuthService = {

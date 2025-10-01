@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   const host = env.VITE_HOST || 'localhost'
-  const port = Number(env.VITE_PORT || 5173)
+  const port = Number(env.VITE_PORT || 3000)
 
   // Optional dev proxy to backend to avoid CORS; will proxy the path part from VITE_API_BASE_URL
   // Example: VITE_API_BASE_URL=http://localhost:5000/api -> proxy '/api' to 'http://localhost:5000'
