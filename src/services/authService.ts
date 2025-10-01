@@ -91,7 +91,7 @@ export const AuthService = {
     const refreshToken = d.refreshToken ?? null
 
     const user = {
-      id: d.userId ?? d.user?.id ?? null,
+      id: d.userId ?? d.user?.id ?? d.id ?? null,
       fullName: d.fullName ?? d.user?.fullName ?? '',
       email: d.email ?? d.user?.email ?? '',
       role: (d.role ?? d.user?.role ?? 'customer'),
