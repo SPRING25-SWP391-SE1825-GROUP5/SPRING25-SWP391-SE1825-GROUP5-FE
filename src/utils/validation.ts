@@ -360,6 +360,7 @@ export const validateRegisterFormStrict = (data: {
   dateOfBirth: string
   gender: 'MALE' | 'FEMALE'
   address?: string
+  avatarUrl?: string
 }): ValidationResult => {
   const errors: Record<string, string> = {}
   const nameV = validateFullName(data.fullName); if (!nameV.isValid) errors.fullName = nameV.error!
@@ -370,5 +371,6 @@ export const validateRegisterFormStrict = (data: {
   const dobV = validateDOB16(data.dateOfBirth); if (!dobV.isValid) errors.dateOfBirth = dobV.error!
   const genderV = validateGender(data.gender); if (!genderV.isValid) errors.gender = genderV.error!
   const addrV = validateAddress255(data.address); if (!addrV.isValid) errors.address = addrV.error!
+  const avatarUrlV = validateAddress255(data.address); if (!avatarUrlV.isValid) errors.address = addrV.error!
   return { isValid: Object.keys(errors).length === 0, errors }
 }
