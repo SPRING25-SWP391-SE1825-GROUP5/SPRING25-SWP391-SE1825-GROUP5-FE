@@ -2,9 +2,67 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/images/10.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>AutoEV - EV Service Center Maintenance Management System
+    </title>
+    <!-- Font Awesome for Tailwind CSS Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" crossorigin="anonymous" />
+    <style>
+      /* Custom Scrollbar Styles - Ultra Thin */
+      ::-webkit-scrollbar {
+        width: 2px !important;
+        height: 2px !important;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #4CAF50 !important;
+        border-radius: 1px !important;
+        border: none !important;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #2e7d32 !important;
+      }
+
+      ::-webkit-scrollbar-corner {
+        background: transparent !important;
+      }
+
+      /* Completely hide scrollbar arrows and buttons */
+      ::-webkit-scrollbar-button {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+
+      ::-webkit-scrollbar-button:start:decrement,
+      ::-webkit-scrollbar-button:end:increment {
+        display: none !important;
+      }
+
+      /* Firefox scrollbar - ultra thin */
+      * {
+        scrollbar-width: none !important;
+      }
+
+      /* Show scrollbar only on hover for webkit */
+      *:not(:hover)::-webkit-scrollbar {
+        width: 0px !important;
+        height: 0px !important;
+      }
+
+      *:hover::-webkit-scrollbar {
+        width: 2px !important;
+        height: 2px !important;
+      }
+    </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   </head>
   <body>
     <div id="root"></div>

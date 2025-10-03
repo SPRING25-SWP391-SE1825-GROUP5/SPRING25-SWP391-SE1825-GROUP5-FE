@@ -1,0 +1,140 @@
+/* Custom Scrollbar Styles - Ultra Thin */
+::-webkit-scrollbar {
+  width: 2px !important;
+  height: 2px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4CAF50 !important;
+  border-radius: 1px !important;
+  border: none !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2e7d32 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+/* Completely hide scrollbar arrows and buttons */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment {
+  display: none !important;
+}
+
+/* Firefox scrollbar - ultra thin */
+* {
+  scrollbar-width: none !important;
+}
+
+/* Show scrollbar only on hover for webkit */
+*:not(:hover)::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+}
+
+*:hover::-webkit-scrollbar {
+  width: 2px !important;
+  height: 2px !important;
+}
+
+/* Apply to all elements */
+html, body, div, section, main, aside, article, ul, ol, li, p, span, a, button, input, textarea, select {
+  scrollbar-width: none !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+div::-webkit-scrollbar,
+section::-webkit-scrollbar,
+main::-webkit-scrollbar,
+aside::-webkit-scrollbar,
+article::-webkit-scrollbar,
+ul::-webkit-scrollbar,
+ol::-webkit-scrollbar,
+li::-webkit-scrollbar,
+p::-webkit-scrollbar,
+span::-webkit-scrollbar,
+a::-webkit-scrollbar,
+button::-webkit-scrollbar,
+input::-webkit-scrollbar,
+textarea::-webkit-scrollbar,
+select::-webkit-scrollbar {
+  width: 2px !important;
+  height: 2px !important;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+div::-webkit-scrollbar-track,
+section::-webkit-scrollbar-track,
+main::-webkit-scrollbar-track,
+aside::-webkit-scrollbar-track,
+article::-webkit-scrollbar-track,
+ul::-webkit-scrollbar-track,
+ol::-webkit-scrollbar-track,
+li::-webkit-scrollbar-track,
+p::-webkit-scrollbar-track,
+span::-webkit-scrollbar-track,
+a::-webkit-scrollbar-track,
+button::-webkit-scrollbar-track,
+input::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track,
+select::-webkit-scrollbar-track {
+  background: transparent !important;
+  border-radius: 1px !important;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+div::-webkit-scrollbar-thumb,
+section::-webkit-scrollbar-thumb,
+main::-webkit-scrollbar-thumb,
+aside::-webkit-scrollbar-thumb,
+article::-webkit-scrollbar-thumb,
+ul::-webkit-scrollbar-thumb,
+ol::-webkit-scrollbar-thumb,
+li::-webkit-scrollbar-thumb,
+p::-webkit-scrollbar-thumb,
+span::-webkit-scrollbar-thumb,
+a::-webkit-scrollbar-thumb,
+button::-webkit-scrollbar-thumb,
+input::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb,
+select::-webkit-scrollbar-thumb {
+  background: #4CAF50 !important;
+  border-radius: 1px !important;
+  border: none !important;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+div::-webkit-scrollbar-thumb:hover,
+section::-webkit-scrollbar-thumb:hover,
+main::-webkit-scrollbar-thumb:hover,
+aside::-webkit-scrollbar-thumb:hover,
+article::-webkit-scrollbar-thumb:hover,
+ul::-webkit-scrollbar-thumb:hover,
+ol::-webkit-scrollbar-thumb:hover,
+li::-webkit-scrollbar-thumb:hover,
+p::-webkit-scrollbar-thumb:hover,
+span::-webkit-scrollbar-thumb:hover,
+a::-webkit-scrollbar-thumb:hover,
+button::-webkit-scrollbar-thumb:hover,
+input::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-thumb:hover,
+select::-webkit-scrollbar-thumb:hover {
+  background: #2e7d32 !important;
+}

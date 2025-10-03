@@ -4,3 +4,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 10px !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4CAF50 !important;
+  border-radius: 10px !important;
+  border: none !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2e7d32 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: #f1f1f1 !important;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin !important;
+  scrollbar-color: #4CAF50 #f1f1f1 !important;
+}
+
+/* Apply to all elements */
+html, body, div, section, main, aside, article, ul, ol, li {
+  scrollbar-width: thin !important;
+  scrollbar-color: #4CAF50 #f1f1f1 !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+div::-webkit-scrollbar,
+section::-webkit-scrollbar,
+main::-webkit-scrollbar,
+aside::-webkit-scrollbar,
+article::-webkit-scrollbar,
+ul::-webkit-scrollbar,
+ol::-webkit-scrollbar,
+li::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+div::-webkit-scrollbar-track,
+section::-webkit-scrollbar-track,
+main::-webkit-scrollbar-track,
+aside::-webkit-scrollbar-track,
+article::-webkit-scrollbar-track,
+ul::-webkit-scrollbar-track,
+ol::-webkit-scrollbar-track,
+li::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 10px !important;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+div::-webkit-scrollbar-thumb,
+section::-webkit-scrollbar-thumb,
+main::-webkit-scrollbar-thumb,
+aside::-webkit-scrollbar-thumb,
+article::-webkit-scrollbar-thumb,
+ul::-webkit-scrollbar-thumb,
+ol::-webkit-scrollbar-thumb,
+li::-webkit-scrollbar-thumb {
+  background: #4CAF50 !important;
+  border-radius: 10px !important;
+  border: none !important;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+div::-webkit-scrollbar-thumb:hover,
+section::-webkit-scrollbar-thumb:hover,
+main::-webkit-scrollbar-thumb:hover,
+aside::-webkit-scrollbar-thumb:hover,
+article::-webkit-scrollbar-thumb:hover,
+ul::-webkit-scrollbar-thumb:hover,
+ol::-webkit-scrollbar-thumb:hover,
+li::-webkit-scrollbar-thumb:hover {
+  background: #2e7d32 !important;
+}
+

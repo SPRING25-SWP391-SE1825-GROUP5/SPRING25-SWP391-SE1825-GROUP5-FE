@@ -48,16 +48,14 @@ export default function SavartHomepage() {
   }, [])
 
   return (
-    <div className="savart-homepage" style={{ fontFamily: 'Montserrat, sans-serif', margin: 0, padding: 0, background: 'var(--tertiary-color)' }}>
+    <div className="savart-homepage" style={{ fontFamily: 'Montserrat, sans-serif', margin: 0, padding: 0, background: '#ffffff' }}>
       <main id="main" style={{ width: '100%', overflowX: 'hidden' }}>
         <div id="content" role="main" style={{ position: 'relative' }}>
           {/* Hero Banner Desktop */}
-          <div className="hide-for-small" id="banner-desktop" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', background: 'var(--tertiary-color)' }}>
+          <div className="hide-for-small" id="banner-desktop" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden', background: '#ffffff' }}>
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 as number }}>
                 <div className="hero-bg-image" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity: 0.1, backgroundImage: bannerBgImage }} />
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%)', opacity: 0.05 }} />
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: 'radial-gradient(circle at 25% 25%, var(--secondary-color) 2px, transparent 2px), radial-gradient(circle at 75% 75%, var(--primary-color) 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.03 }} />
               </div>
 
               <div style={{ position: 'relative', zIndex: 2 as number, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center', minHeight: '100vh', padding: '2rem 0', maxWidth: 1200, margin: '0 auto', paddingLeft: 20, paddingRight: 20 }}>

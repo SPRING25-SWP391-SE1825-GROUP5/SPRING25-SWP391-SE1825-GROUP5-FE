@@ -11,26 +11,30 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   const host = env.VITE_HOST || 'localhost'
-  const port = Number(env.VITE_PORT || 5173)
+  const port = Number(env.VITE_PORT || 3000)
 
   // Optional dev proxy to backend to avoid CORS; will proxy the path part from VITE_API_BASE_URL
-  // Example: VITE_API_BASE_URL=https://localhost:7001/api -> proxy '/api' to 'https://localhost:7001'
+  // Example: VITE_API_BASE_URL=http://localhost:5000/api -> proxy '/api' to 'http://localhost:5000'
+  // SAFETY: never proxy root '/' to avoid hijacking the dev server.
   let proxy: Record<string, any> | undefined
   const apiBase = env.VITE_API_BASE_URL
   if (apiBase) {
     try {
       const u = new URL(apiBase)
       const target = `${u.protocol}//${u.host}`
-      let apiPath = u.pathname || '/api'
+      let apiPath = u.pathname && u.pathname !== '/' ? u.pathname : '/api'
       if (!apiPath.startsWith('/')) apiPath = `/${apiPath}`
       if (apiPath.endsWith('/') && apiPath !== '/') apiPath = apiPath.slice(0, -1)
 
-      proxy = {
-        [apiPath]: {
-          target,
-          changeOrigin: true,
-          secure: false, // allow self-signed certs in dev
-        },
+      if (apiPath !== '/') {
+        proxy = {
+          [apiPath]: {
+            target,
+            changeOrigin: true,
+            // For local https with self-signed certs, disable SSL verify
+            secure: !(u.hostname === 'localhost' && u.protocol === 'https:'),
+          },
+        }
       }
     } catch {
       // ignore invalid URL
@@ -39,6 +43,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Cấu hình base path cho GitHub Pages
+    // Thay 'your-repository-name' bằng tên repository của bạn
+    base: process.env.NODE_ENV === 'production' ? '/SPRING25-SWP391-SE1825-GROUP5-FE/' : '/',
     resolve: {
       alias: {
         '@': path.resolve(srcPath),

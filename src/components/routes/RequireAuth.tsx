@@ -7,7 +7,7 @@ export default function RequireAuth({ children }: { children: ReactElement }) {
   const location = useLocation()
 
   if (!token) {
-    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />
+    return <Navigate to={`/auth/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />
   }
   return children
 }

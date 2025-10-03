@@ -1,0 +1,131 @@
+/* FINAL DROPDOWN FIX - Override all other styles */
+
+/* Remove all transitions temporarily to debug */
+* {
+  transition: none !important;
+}
+
+/* Header must be on top but below dropdown */
+.modern-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+}
+
+/* Navigation wrapper */
+.center-nav {
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Nav item wrapper - container for dropdown */
+.nav-item-wrapper {
+  position: relative !important;
+  z-index: 10001 !important;
+}
+
+/* Dropdown menu - FORCE VISIBILITY ON HOVER */
+.dropdown-menu {
+  display: none !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: white !important;
+  border: 2px solid #000 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+  padding: 1.5rem !important;
+  width: max-content !important;
+  max-width: 800px !important;
+  z-index: 999999 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Show dropdown on hover - DESKTOP ONLY */
+@media (min-width: 1025px) {
+  .nav-item-wrapper:hover .dropdown-menu {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    z-index: 999999 !important;
+  }
+  
+  /* Keep visible when hovering dropdown itself */
+  .dropdown-menu:hover {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    z-index: 999999 !important;
+  }
+}
+
+/* Ensure dropdown content is visible */
+.dropdown-content {
+  position: relative !important;
+  z-index: 999999 !important;
+  display: grid !important;
+  grid-auto-flow: column !important;
+  gap: 1.5rem 3rem !important;
+  pointer-events: auto !important;
+}
+
+.dropdown-section {
+  position: relative !important;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+  
+  h4 {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: #333 !important;
+    margin: 0 0 0.75rem 0 !important;
+  }
+  
+  a {
+    display: block !important;
+    color: #666 !important;
+    text-decoration: none !important;
+    font-size: 0.9rem !important;
+    padding: 0.25rem 0 !important;
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 999999 !important;
+    
+    &:hover {
+      color: #000 !important;
+      background: transparent !important;
+    }
+  }
+}
+
+/* Force homepage content below */
+.savart-homepage,
+.savart-homepage *,
+#banner-desktop,
+#banner-mobile,
+.hero-section,
+.floating-card {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Debug styles - remove after testing */
+.dropdown-menu {
+  background: yellow !important; /* Temporary bright color for visibility */
+}
+
+/* Restore transitions after testing */
+.nav-arrow {
+  transition: transform 0.3s ease !important;
+}
+
+.nav-item-wrapper:hover .nav-arrow {
+  transform: rotate(180deg) !important;
+}
