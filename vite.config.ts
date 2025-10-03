@@ -16,7 +16,17 @@ export default defineConfig(({ mode }) => {
   // Optional dev proxy to backend to avoid CORS; will proxy the path part from VITE_API_BASE_URL
   // Example: VITE_API_BASE_URL=http://localhost:5000/api -> proxy '/api' to 'http://localhost:5000'
   // SAFETY: never proxy root '/' to avoid hijacking the dev server.
-  let proxy: Record<string, any> | undefined
+  // Define proxy map shape explicitly for linting safety
+  let proxy:
+    | Record<
+        string,
+        {
+          target: string
+          changeOrigin: boolean
+          secure: boolean
+        }
+      >
+    | undefined
   const apiBase = env.VITE_API_BASE_URL
   if (apiBase) {
     try {
@@ -45,7 +55,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     // Cấu hình base path cho GitHub Pages
     // Thay 'your-repository-name' bằng tên repository của bạn
-    base: process.env.NODE_ENV === 'production' ? '/SPRING25-SWP391-SE1825-GROUP5-FE/' : '/',
+    // Render serves from root, GitHub Pages needs repository base. Prefer root when running on Render.
+    base: process.env.RENDER ? '/' : (process.env.NODE_ENV === 'production' ? '/SPRING25-SWP391-SE1825-GROUP5-FE/' : '/'),
     resolve: {
       alias: {
         '@': path.resolve(srcPath),
