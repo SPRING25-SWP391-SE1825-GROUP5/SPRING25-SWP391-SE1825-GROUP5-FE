@@ -1,6 +1,50 @@
 import api from './api'
 import type { User } from '@/store/authSlice'
 
+// Google Auth Types
+export interface GoogleCredentialResponse {
+  credential: string
+}
+
+export interface GooglePromptNotification {
+  isNotDisplayed(): boolean
+  isSkippedMoment(): boolean
+}
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: GoogleConfig) => void
+          renderButton: (element: HTMLElement, options: GoogleButtonOptions) => void
+          prompt: (callback?: (notification: GooglePromptNotification) => void) => void
+        }
+      }
+    }
+  }
+}
+
+interface GoogleConfig {
+  client_id: string
+  callback: (response: GoogleCredentialResponse) => void
+  auto_select: boolean
+  cancel_on_tap_outside: boolean
+  context: string
+  use_fedcm_for_prompt: boolean
+  itp_support: boolean
+}
+
+interface GoogleButtonOptions {
+  type: string
+  theme: string
+  size: string
+  shape: string
+  text: string
+  logo_alignment: string
+  width: number
+}
+
 // Types aligned with backend docs
 export type LoginRequest = {
   emailOrPhone: string
@@ -111,8 +155,8 @@ export const AuthService = {
   },
 
   async loginWithGoogle(payload: GoogleLoginRequest) {
-    const { data } = await api.post<AuthSuccess>('/auth/login-google', payload)
-    return data
+    const response = await api.post<AuthSuccess>('/auth/login-google', payload)
+    return response.data
   },
 
   async logout(): Promise<void> {
@@ -187,3 +231,146 @@ export const AuthService = {
     return data
   },
 }
+
+// Google Auth Service
+export class GoogleAuthService {
+  private static instance: GoogleAuthService
+  private initialized = false
+  private clientId: string
+
+  constructor() {
+    this.clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  }
+
+  static getInstance(): GoogleAuthService {
+    if (!GoogleAuthService.instance) {
+      GoogleAuthService.instance = new GoogleAuthService()
+    }
+    return GoogleAuthService.instance
+  }
+
+  async initialize(callback: (response: GoogleCredentialResponse) => void): Promise<boolean> {
+    if (this.initialized) return true
+
+    return new Promise((resolve) => {
+      let attempts = 0
+      const maxAttempts = 10
+      const retryDelay = 500
+
+      const tryInit = () => {
+        attempts++
+        
+        if (window.google?.accounts?.id) {
+          try {
+            window.google.accounts.id.initialize({
+              client_id: this.clientId,
+              callback,
+              auto_select: false,
+              cancel_on_tap_outside: true,
+              context: 'signin',
+              use_fedcm_for_prompt: true,
+              itp_support: true,
+            })
+            this.initialized = true
+            resolve(true)
+          } catch (error) {
+            resolve(false)
+          }
+        } else {
+          if (attempts < maxAttempts) {
+            setTimeout(tryInit, retryDelay)
+          } else {
+            resolve(false)
+          }
+        }
+      }
+
+      tryInit()
+
+      setTimeout(() => {
+        if (!this.initialized) {
+          resolve(false)
+        }
+      }, 10000)
+    })
+  }
+
+  renderButton(element: HTMLElement): boolean {
+    if (!this.initialized || !window.google?.accounts?.id) {
+      return false
+    }
+
+    try {
+      window.google.accounts.id.renderButton(element, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        shape: 'rectangular',
+        text: 'signin_with',
+        logo_alignment: 'left',
+        width: 280,
+      })
+      return true
+    } catch (error) {
+      this.showFallbackButton()
+      return false
+    }
+  }
+
+  async prompt(): Promise<boolean> {
+    if (!this.initialized || !window.google?.accounts?.id) {
+      return false
+    }
+
+    return new Promise((resolve) => {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            resolve(false)
+          } else if (notification.isSkippedMoment()) {
+            resolve(false)
+          } else {
+            resolve(true)
+          }
+        })
+      } catch (error) {
+        resolve(false)
+      }
+    })
+  }
+
+  getGoogleAuthUrl(redirect?: string): string {
+    const base = import.meta.env.VITE_API_BASE_URL
+    if (!base) {
+      throw new Error('VITE_API_BASE_URL not configured')
+    }
+    const url = new URL('/auth/google', base)
+    if (redirect) {
+      url.searchParams.set('redirect', redirect)
+    }
+    return url.toString()
+  }
+
+  async loginWithGoogle(idToken: string) {
+    return AuthService.loginWithGoogle({ token: idToken })
+  }
+
+  private showFallbackButton(): void {
+    const fallbackButton = document.querySelector('.btn--google-enhanced') as HTMLElement
+    if (fallbackButton) {
+      fallbackButton.style.display = 'flex'
+    }
+  }
+
+  redirectToGoogleAuth(redirect?: string): void {
+    try {
+      const url = this.getGoogleAuthUrl(redirect)
+      window.location.href = url
+    } catch (error) {
+      console.error('Failed to redirect to Google Auth:', error)
+    }
+  }
+}
+
+// Export singleton instance
+export const googleAuthService = GoogleAuthService.getInstance()

@@ -21,7 +21,7 @@ export const ROLE_ROUTE_MAP: Record<string, string> = {
   staff: '/staff',
   technician: '/technician',
   manager: '/manager',
-  customer: '/dashboard',
+  customer: '/',
 }
-export const DEFAULT_AFTER_LOGIN = '/dashboard'
+export const DEFAULT_AFTER_LOGIN = '/'
 

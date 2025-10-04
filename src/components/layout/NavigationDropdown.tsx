@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronDown, Menu, X } from 'lucide-react'
-import './HeaderDropdown.scss'
+import './NavigationDropdown.scss'
 
 // Types for dropdown content
 export interface DropdownItem {

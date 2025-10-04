@@ -39,7 +39,7 @@ export default function Register() {
   const redirect = new URLSearchParams(location.search).get('redirect') || '/auth/login'
 
   const googleAuthUrl = useMemo(() => {
-    const base = import.meta.env.VITE_API_BASE_URL || '/api'
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
     return `${base}/auth/login-google`
   }, [])
 

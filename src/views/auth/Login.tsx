@@ -1,99 +1,55 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, Link, Navigate } from 'react-router-dom'
+import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { login, clearError, loginWithGoogle as loginWithGoogleThunk } from '@/store/authSlice'
+import { syncFromLocalStorage } from '@/store/authSlice'
+import { AuthService, googleAuthService } from '@/services/authService'
+import { validateLoginFormV2 } from '@/utils/validation'
+import { LOADING_MESSAGES } from '@/config/ui'
 import logo from '@/assets/images/logo-black.webp'
 import './LoginPage.scss'
-import { validateLoginFormV2, validateEmail, validateVNPhone10, validatePassword } from '@/utils/validation'
 import toast from 'react-hot-toast'
-import { LOGIN_INPUT_DEBOUNCE_MS, LOADING_MESSAGES } from '@/config/ui'
-
-declare global {
-  interface Window {
-    google?: any
-  }
-}
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
-  const { loading, error, token, user } = useAppSelector((s) => s.auth)
+  const navigate = useNavigate()
   const location = useLocation()
+  const authState = useAppSelector((state) => state.auth)
 
   const [emailOrPhone, setEmailOrPhone] = useState('')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const googleInitedRef = useRef(false)
   const googleBtnRef = useRef<HTMLDivElement | null>(null)
 
 
-  function handleEmailOrPhoneChange(v: string) {
-    setEmailOrPhone(v)
-    if (formError.emailOrPhone) setFormError({ ...formError, emailOrPhone: '' })
-    if (serverError) setServerError(null)
-    dispatch(clearError())
-  }
-
-  function handlePasswordChange(v: string) {
-    setPassword(v)
-    if (formError.password) setFormError({ ...formError, password: '' })
-    if (serverError) setServerError(null)
-    dispatch(clearError())
-  }
-
-  // Init Google Identity Services once
-  useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!clientId) return
-
-    const tryInit = () => {
-      if (googleInitedRef.current) return
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleCredential,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-          context: 'signin',
-        })
-        if (googleBtnRef.current) {
-          window.google.accounts.id.renderButton(googleBtnRef.current, {
-            type: 'standard',
-            theme: 'outline',
-            size: 'large',
-            shape: 'rectangular',
-            text: 'signin_with',
-            logo_alignment: 'left',
-            width: 280,
-          })
-        }
-        googleInitedRef.current = true
-      }
+  const handleEmailOrPhoneChange = useCallback((value: string) => {
+    setEmailOrPhone(value)
+    if (formError.emailOrPhone) {
+      setFormError(prev => ({ ...prev, emailOrPhone: '' }))
     }
+    if (serverError) setServerError(null)
+  }, [formError.emailOrPhone, serverError])
 
-    // In case script loads a bit later
-    const timer = setInterval(() => {
-      tryInit()
-      if (googleInitedRef.current) clearInterval(timer)
-    }, 300)
-
-    // Try immediately too
-    tryInit()
-
-    return () => clearInterval(timer)
-  }, [])
+  const handlePasswordChange = useCallback((value: string) => {
+    setPassword(value)
+    if (formError.password) {
+      setFormError(prev => ({ ...prev, password: '' }))
+    }
+    if (serverError) setServerError(null)
+  }, [formError.password, serverError])
 
   const redirect = new URLSearchParams(location.search).get('redirect')
   // Prevent redirect loop back to login
   const safeRedirect = redirect && !redirect.startsWith('/auth/login') ? redirect : null
 
   // Function to determine redirect path based on user role
-  const getRedirectPath = useCallback((userRole: any) => {
+  const getRedirectPath = useCallback((userRole: string | undefined) => {
     if (safeRedirect) return safeRedirect
 
-    const role = (typeof userRole === 'string' ? userRole : String(userRole || 'customer')).toLowerCase()
+    // Default to customer if role is undefined or null
+    const role = (userRole || 'customer').toLowerCase()
 
     switch (role) {
       case 'admin':
@@ -106,73 +62,148 @@ export default function LoginPage() {
         return '/manager'
       case 'customer':
       default:
-        return '/dashboard'
+        return '/'
     }
   }, [safeRedirect])
 
-  async function onSubmit(e: FormEvent) {
+  const handleGoogleCredential = useCallback(async (response: { credential: string }) => {
+    const idToken = response?.credential
+    if (!idToken) {
+      return
+    }
+
+    const loadingId = toast.loading('Đang xác thực Google...')
+    
+    try {
+      const result = await AuthService.loginWithGoogle({ token: idToken })
+      
+      if (result.success) {
+        toast.success('Đăng nhập Google thành công!')
+        
+        // Store token and user data in localStorage
+        localStorage.setItem('token', result.data.token)
+        localStorage.setItem('user', JSON.stringify(result.data.user))
+        
+        // Sync Redux state with localStorage
+        dispatch(syncFromLocalStorage())
+        
+        // Navigate based on user role
+        const userRole = result.data.user?.role || 'customer'
+        const redirectPath = getRedirectPath(userRole)
+        navigate(redirectPath, { replace: true })
+      } else {
+        toast.error('Đăng nhập Google thất bại')
+      }
+    } catch (error) {
+      toast.error('Đăng nhập Google thất bại')
+    } finally {
+      toast.dismiss(loadingId)
+    }
+  }, [getRedirectPath, navigate, authState, dispatch])
+
+  // Initialize Google Auth Service
+  useEffect(() => {
+    const initGoogleAuth = async () => {
+      const success = await googleAuthService.initialize(handleGoogleCredential)
+      if (success && googleBtnRef.current) {
+        googleAuthService.renderButton(googleBtnRef.current)
+      }
+    }
+    
+    initGoogleAuth()
+  }, [handleGoogleCredential])
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        if (user && user.role) {
+          // Sync Redux state with localStorage
+          dispatch(syncFromLocalStorage())
+          
+          const redirectPath = getRedirectPath(user.role)
+          navigate(redirectPath, { replace: true })
+        }
+      } catch (error) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
+    }
+  }, [navigate, getRedirectPath, dispatch])
+
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setServerError(null)
-    dispatch(clearError())
+    setFormError({})
 
-    const v = validateLoginFormV2({ emailOrPhone, password })
-    if (!v.isValid) {
-      setFormError(v.errors)
+    const validation = validateLoginFormV2({ emailOrPhone, password })
+    if (!validation.isValid) {
+      setFormError(validation.errors)
       return
     }
 
     const loadingId = toast.loading(LOADING_MESSAGES.loggingIn)
-    const result = await dispatch(login({ emailOrPhone, password }))
-    const status = (result as any)?.meta?.requestStatus
-
-    toast.dismiss(loadingId)
-
-    if (status === 'fulfilled') {
-      // Success toast is handled globally by LoginToastWatcher to avoid duplication
-      // Do not navigate here; handled by <Navigate /> below
-    } else if (status === 'rejected') {
-      const payload = (result as any)?.payload
-      const fallbackMsg = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
-      const errMsg = typeof payload === 'string' ? payload : (payload?.message || fallbackMsg)
-      const fieldErrors = Array.isArray(payload?.errors) ? payload.errors : []
-
-      // Bind server field errors if available
-      const nextFormError: Record<string, string> = { ...formError }
-      fieldErrors.forEach((msg: string) => {
-        const m = msg.toLowerCase()
-        if (m.includes('email') || m.includes('phone')) nextFormError.emailOrPhone = msg
-        if (m.includes('password')) nextFormError.password = msg
-      })
-      setFormError(nextFormError)
-      setServerError(errMsg)
-
-      toast.error(errMsg)
-    }
-  }
-
-  function handleGoogleCredential(response: any) {
-    const idToken = response?.credential
-    if (!idToken) return
-    const loadingId = toast.loading('Đang xác thực Google...')
-    dispatch(loginWithGoogleThunk(idToken)).finally(() => {
+    
+    try {
+      const result = await AuthService.login({ emailOrPhone, password })
+      console.log('Login result:', result)
+      
+      if (result.success) {
+        toast.success('Đăng nhập thành công!')
+        
+        // Store token and user data in localStorage
+        localStorage.setItem('token', result.data.token)
+        localStorage.setItem('user', JSON.stringify(result.data.user))
+        
+        // Sync Redux state with localStorage
+        dispatch(syncFromLocalStorage())
+        
+        // Navigate based on user role
+        console.log('User role:', result.data.user?.role)
+        const redirectPath = getRedirectPath(result.data.user?.role)
+        console.log('Redirect path:', redirectPath)
+        navigate(redirectPath, { replace: true })
+      } else {
+        toast.error(result.message || 'Đăng nhập thất bại')
+        setServerError(result.message || 'Đăng nhập thất bại')
+      }
+    } catch (error: unknown) {
+      console.error('Login error:', error)
+      const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Đăng nhập thất bại'
+      toast.error(errorMessage)
+      setServerError(errorMessage)
+      
+      // Handle field-specific errors
+      if ((error as any)?.response?.data?.errors) {
+        const fieldErrors = (error as any).response.data.errors
+        const nextFormError: Record<string, string> = {}
+        fieldErrors.forEach((msg: string) => {
+          const m = msg.toLowerCase()
+          if (m.includes('email') || m.includes('phone')) nextFormError.emailOrPhone = msg
+          if (m.includes('password')) nextFormError.password = msg
+        })
+        setFormError(nextFormError)
+      }
+    } finally {
       toast.dismiss(loadingId)
-    })
-  }
-
-  function onGoogleButtonClick() {
-    // Always use backend OAuth redirect flow for maximum compatibility on localhost/FedCM
-    const base = import.meta.env.VITE_API_BASE_URL || '/api'
-    const googleAuthUrl = `${base}/auth/login-google`
-    window.location.href = googleAuthUrl + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
-  }
-
-  // If already logged in, redirect out of login page
-  if (token && user && user.role) {
-    const redirectPath = getRedirectPath(user.role)
-    if (redirectPath && redirectPath !== location.pathname) {
-      return <Navigate to={redirectPath} replace />
     }
   }
+
+  const onGoogleButtonClick = useCallback(async () => {
+    try {
+      const success = await googleAuthService.prompt()
+      if (!success) {
+        toast.error('Vui lòng đăng nhập Google trước hoặc thử lại sau.')
+      }
+    } catch (error) {
+      toast.error('Lỗi Google Authentication. Vui lòng thử lại.')
+    }
+  }, [])
+
 
   return (
     <div className="login">
@@ -218,7 +249,7 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
                   className="form-group__input"
                   placeholder=" "
                   required
@@ -232,14 +263,13 @@ export default function LoginPage() {
                 {formError.password && <p className="login__error">{formError.password}</p>}
               </div>
 
-              {(error && !formError.password && !formError.emailOrPhone) && <p className="login__error">{error}</p>}
+              {(serverError && !formError.password && !formError.emailOrPhone) && <p className="login__error">{serverError}</p>}
 
               <button
                 type="submit"
                 className="btn btn--primary"
-                disabled={loading}
               >
-                {loading ? 'Logging in...' : 'Continue'}
+                Continue
               </button>
             </form>
           </div>
@@ -252,10 +282,15 @@ export default function LoginPage() {
 
           {/* Right Column - Social Login */}
           <div className="login__social">
+            {/* Google Identity Services Button */}
+            <div ref={googleBtnRef} className="google-button-container"></div>
+            
+            {/* Fallback button if Google button doesn't render */}
             <button
               type="button"
               className="btn btn--google btn--google-enhanced"
               onClick={onGoogleButtonClick}
+              style={{ display: 'none' }}
             >
               <div className="btn__icon">
                 <svg viewBox="0 0 24 24" width="20" height="20">

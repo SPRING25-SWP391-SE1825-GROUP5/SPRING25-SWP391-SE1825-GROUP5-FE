@@ -32,13 +32,42 @@ type AuthState = {
   error: string | null
 }
 
-const initialState: AuthState = {
-  user: null,
-  token: typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null,
-  refreshToken: typeof localStorage !== 'undefined' ? localStorage.getItem('refreshToken') : null,
-  loading: false,
-  error: null,
+// Load initial state from localStorage
+const loadInitialState = (): AuthState => {
+  if (typeof localStorage === 'undefined') {
+    return {
+      user: null,
+      token: null,
+      refreshToken: null,
+      loading: false,
+      error: null,
+    }
+  }
+
+  const token = localStorage.getItem('token')
+  const userStr = localStorage.getItem('user')
+  let user = null
+
+  if (userStr && userStr !== 'undefined' && userStr !== 'null') {
+    try {
+      user = JSON.parse(userStr)
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error)
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+    }
+  }
+
+  return {
+    user,
+    token,
+    refreshToken: localStorage.getItem('refreshToken'),
+    loading: false,
+    error: null,
+  }
 }
+
+const initialState: AuthState = loadInitialState()
 
 export const login = createAsyncThunk(
   'auth/login',
@@ -83,12 +112,34 @@ const slice = createSlice({
     clearError(state) {
       state.error = null
     },
+    syncFromLocalStorage(state) {
+      if (typeof localStorage !== 'undefined') {
+        const token = localStorage.getItem('token')
+        const userStr = localStorage.getItem('user')
+        
+        if (token && userStr && userStr !== 'undefined' && userStr !== 'null') {
+          try {
+            const user = JSON.parse(userStr)
+            if (user && typeof user === 'object') {
+              state.user = user
+              state.token = token
+            }
+          } catch (error) {
+            console.error('Error parsing user from localStorage:', error)
+            localStorage.removeItem('user')
+            localStorage.removeItem('token')
+          }
+        }
+      }
+    },
     logout(state) {
       state.user = null
       state.token = null
       state.refreshToken = null
       state.error = null
       if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
         localStorage.removeItem('authToken')
         localStorage.removeItem('refreshToken')
       }
@@ -132,12 +183,23 @@ const slice = createSlice({
         state.error = null
       })
       .addCase(loginWithGoogle.fulfilled, (state, action: PayloadAction<any>) => {
+        console.log('AuthReducer - loginWithGoogle.fulfilled payload:', action.payload)
         state.loading = false
         const payload: any = action.payload || {}
+        console.log('AuthReducer - parsed payload:', payload)
         const data = payload.data ?? payload
-        const token = data?.token ?? null
+        console.log('AuthReducer - extracted data:', data)
+        const token = data?.accessToken ?? data?.token ?? null
         const refreshToken = data?.refreshToken ?? null
-        const user = data?.user ?? null
+        const user = data?.user ?? data?.userId ? { 
+          id: data.userId, 
+          fullName: data.fullName, 
+          email: data.email, 
+          role: data.role,
+          emailVerified: data.emailVerified ?? false
+        } : null
+        
+        console.log('AuthReducer - final values:', { token, refreshToken, user })
 
         state.token = token
         state.refreshToken = refreshToken
@@ -147,6 +209,8 @@ const slice = createSlice({
           if (token) localStorage.setItem('authToken', token)
           if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
         }
+        
+        console.log('AuthReducer - final state:', { token: state.token, user: state.user })
       })
       .addCase(loginWithGoogle.rejected, (state, action) => {
         state.loading = false
@@ -167,6 +231,6 @@ const slice = createSlice({
   },
 })
 
-export const { clearError, logout } = slice.actions
+export const { clearError, logout, syncFromLocalStorage } = slice.actions
 export default slice.reducer
 
