@@ -1,4 +1,7 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { getCurrentUser } from '@/store/authSlice'
+import { AuthService } from '@/services/authService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { 
   UserIcon, 
@@ -33,6 +36,8 @@ interface ChangePasswordData {
 }
 
 export default function Profile() {
+  const dispatch = useAppDispatch()
+  const auth = useAppSelector((s) => s.auth)
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences' | 'maintenance-history' | 'purchase-history' | 'saved-promotions' | 'notifications' | 'cart'>('profile')
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -40,12 +45,12 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [profileData, setProfileData] = useState<UserProfile>({
-    fullName: 'Nguyễn Văn A',
-    email: 'user@autoev.com',
-    phone: '0123456789',
-    address: 'Hà Nội, Việt Nam',
-    dateOfBirth: '1990-01-01',
-    gender: 'Male',
+    fullName: '',
+    email: '',
+    phone: '',
+    address: '',
+    dateOfBirth: '',
+    gender: '',
     avatarUrl: '👤'
   })
 
@@ -56,6 +61,42 @@ export default function Profile() {
   })
 
   const [originalData, setOriginalData] = useState(profileData)
+
+  useEffect(() => {
+    // Load current user from API when page mounts, but only if we have a token
+    if (auth.token) {
+      dispatch(getCurrentUser())
+    }
+  }, [dispatch, auth.token])
+
+  useEffect(() => {
+    // Map auth.user to local profile UI state
+    if (auth.user) {
+      setProfileData((prev) => ({
+        ...prev,
+        fullName: auth.user.fullName || '',
+        email: auth.user.email || '',
+        // Map optional fields from backend if available
+        address: (auth.user as any).address ?? prev.address,
+        dateOfBirth: (auth.user as any).dateOfBirth ?? prev.dateOfBirth,
+        gender: (auth.user as any).gender
+          ? ((auth.user as any).gender === 'MALE' ? 'Male' : (auth.user as any).gender === 'FEMALE' ? 'Female' : prev.gender)
+          : prev.gender,
+        avatarUrl: auth.user.avatar || prev.avatarUrl || '👤',
+      }))
+      setOriginalData((prev) => ({
+        ...prev,
+        fullName: auth.user.fullName || '',
+        email: auth.user.email || '',
+        address: (auth.user as any).address ?? prev.address,
+        dateOfBirth: (auth.user as any).dateOfBirth ?? prev.dateOfBirth,
+        gender: (auth.user as any).gender
+          ? ((auth.user as any).gender === 'MALE' ? 'Male' : (auth.user as any).gender === 'FEMALE' ? 'Female' : prev.gender)
+          : prev.gender,
+        avatarUrl: auth.user.avatar || prev.avatarUrl || '👤',
+      }))
+    }
+  }, [auth.user])
 
   const handleInputChange = (field: keyof UserProfile, value: string) => {
     setProfileData(prev => ({
@@ -76,10 +117,38 @@ export default function Profile() {
 
   const handleSave = async () => {
     setIsSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsSaving(false)
-    setIsEditing(false)
+    try {
+      // Basic validation to avoid 400 from backend
+      const errors: string[] = []
+      if (!profileData.fullName?.trim()) errors.push('Họ và tên không được để trống')
+      const dob = profileData.dateOfBirth?.trim()
+      if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) errors.push('Ngày sinh phải có định dạng YYYY-MM-DD')
+      if (profileData.gender !== 'Male' && profileData.gender !== 'Female') errors.push('Vui lòng chọn giới tính')
+      if (!profileData.address?.trim()) errors.push('Địa chỉ không được để trống')
+
+      if (errors.length) {
+        alert(errors.join('\n'))
+        return
+      }
+
+      const payload: any = {
+        fullName: profileData.fullName.trim(),
+        dateOfBirth: dob,
+        gender: profileData.gender === 'Male' ? 'MALE' : 'FEMALE',
+        address: profileData.address.trim(),
+      }
+
+      await AuthService.updateProfile(payload)
+
+      await dispatch(getCurrentUser())
+      setOriginalData(profileData)
+      setIsEditing(false)
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Cập nhật hồ sơ thất bại'
+      alert(msg)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleAvatarClick = () => {
@@ -88,17 +157,50 @@ export default function Profile() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setProfileData(prev => ({
-          ...prev,
-          avatarUrl: result
-        }))
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+
+    // Optional: validate file type/size quickly on FE
+    const isImage = file.type.startsWith('image/')
+    if (!isImage) {
+      alert('Vui lòng chọn tệp hình ảnh hợp lệ')
+      return
     }
+
+    setIsSaving(true)
+    AuthService.uploadAvatar(file)
+      .then(async (resp) => {
+        const rawUrl = resp?.data?.url || resp?.url || resp?.data?.avatarUrl
+        const url = rawUrl ? `${rawUrl}${rawUrl.includes('?') ? '&' : '?'}_=${Date.now()}` : ''
+        if (url) {
+          setProfileData(prev => ({
+            ...prev,
+            avatarUrl: url
+          }))
+          // Always refresh current user to persist new avatar across reloads
+          try {
+            await dispatch(getCurrentUser()).unwrap()
+          } catch {
+            // ignore, UI still shows local url
+          }
+          return
+        }
+        // Fallback: refetch profile to get updated avatar
+        try {
+          const me = await dispatch(getCurrentUser()).unwrap()
+          if (me && (me as any).avatar) {
+            setProfileData(prev => ({ ...prev, avatarUrl: (me as any).avatar }))
+            return
+          }
+          throw new Error('Upload avatar thành công nhưng thiếu URL trả về')
+        } catch (e) {
+          throw new Error('Upload avatar thành công nhưng không lấy được URL mới')
+        }
+      })
+      .catch((error: any) => {
+        const msg = error?.response?.data?.message || error?.message || 'Tải ảnh đại diện thất bại'
+        alert(msg)
+      })
+      .finally(() => setIsSaving(false))
   }
 
   const handlePasswordChange = (field: keyof ChangePasswordData, value: string) => {
@@ -115,16 +217,26 @@ export default function Profile() {
     }
     
     setIsSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsSaving(false)
-    setShowPasswordModal(false)
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
-    alert('Đổi mật khẩu thành công!')
+    try {
+      await AuthService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmNewPassword: passwordData.confirmPassword,
+      })
+
+      setShowPasswordModal(false)
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+      alert('Đổi mật khẩu thành công!')
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Đổi mật khẩu thất bại'
+      alert(msg)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleRemoveCartItem = (itemId: string) => {
@@ -164,7 +276,7 @@ export default function Profile() {
             <div className="user-info">
               <div className="user-avatar-wrapper">
                 <div className="user-avatar" onClick={handleAvatarClick}>
-                  {profileData.avatarUrl.startsWith('data:') ? (
+                  {profileData.avatarUrl && (/^data:/.test(profileData.avatarUrl) || /^https?:\/\//.test(profileData.avatarUrl)) ? (
                     <img src={profileData.avatarUrl} alt="Avatar" />
                   ) : (
                     profileData.avatarUrl
@@ -238,7 +350,7 @@ export default function Profile() {
                     <label className="form-label">Họ và tên</label>
                     <BaseInput
                       value={profileData.fullName}
-                      onChange={(e: any) => handleInputChange('fullName', e.target.value)}
+                      onChange={(value) => handleInputChange('fullName', value)}
                       disabled={!isEditing}
                       placeholder="Nhập họ và tên"
                     />
@@ -247,7 +359,7 @@ export default function Profile() {
                     <label className="form-label">Email</label>
                     <BaseInput
                       value={profileData.email}
-                      onChange={(e: any) => handleInputChange('email', e.target.value)}
+                      onChange={(value) => handleInputChange('email', value)}
                       disabled={true}
                       type="email"
                       placeholder="Không thể thay đổi email"
@@ -260,7 +372,7 @@ export default function Profile() {
                     <label className="form-label">Số điện thoại</label>
                     <BaseInput
                       value={profileData.phone}
-                      onChange={(e: any) => handleInputChange('phone', e.target.value)}
+                      onChange={(value) => handleInputChange('phone', value)}
                       disabled={true}
                       placeholder="Không thể thay đổi số điện thoại"
                     />
@@ -285,7 +397,7 @@ export default function Profile() {
                     <label className="form-label">Ngày sinh</label>
                     <BaseInput
                       value={profileData.dateOfBirth}
-                      onChange={(e: any) => handleInputChange('dateOfBirth', e.target.value)}
+                      onChange={(value) => handleInputChange('dateOfBirth', value)}
                       disabled={!isEditing}
                       type="date"
                     />
@@ -294,7 +406,7 @@ export default function Profile() {
                     <label className="form-label">Địa chỉ</label>
                     <BaseInput
                       value={profileData.address}
-                      onChange={(e: any) => handleInputChange('address', e.target.value)}
+                      onChange={(value) => handleInputChange('address', value)}
                       disabled={!isEditing}
                       placeholder="Nhập địa chỉ"
                     />
@@ -708,7 +820,7 @@ export default function Profile() {
                   <BaseInput
                     type="password"
                     value={passwordData.currentPassword}
-                    onChange={(e: any) => handlePasswordChange('currentPassword', e.target.value)}
+                    onChange={(value) => handlePasswordChange('currentPassword', value)}
                     placeholder="Nhập mật khẩu hiện tại"
                   />
                 </div>
@@ -718,7 +830,7 @@ export default function Profile() {
                   <BaseInput
                     type="password"
                     value={passwordData.newPassword}
-                    onChange={(e: any) => handlePasswordChange('newPassword', e.target.value)}
+                    onChange={(value) => handlePasswordChange('newPassword', value)}
                     placeholder="Nhập mật khẩu mới"
                   />
                 </div>
@@ -728,7 +840,7 @@ export default function Profile() {
                   <BaseInput
                     type="password"
                     value={passwordData.confirmPassword}
-                    onChange={(e: any) => handlePasswordChange('confirmPassword', e.target.value)}
+                    onChange={(value) => handlePasswordChange('confirmPassword', value)}
                     placeholder="Nhập lại mật khẩu mới"
                   />
                 </div>

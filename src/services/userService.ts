@@ -11,12 +11,12 @@ export type UpdateUserProfileRequest = {
 }
 
 export type GetUsersRequest = {
-  page?: number
-  limit?: number
-  search?: string
+  pageNumber?: number
+  pageSize?: number
+  searchTerm?: string
   role?: string
-  sortBy?: string
-  sortOrder?: 'asc' | 'desc'
+  // sortBy?: string
+  // sortOrder?: 'asc' | 'desc'
 }
 
 export type CreateUserRequest = {
@@ -29,12 +29,17 @@ export type CreateUserRequest = {
 }
 
 export type UserListResponse = {
-  users: User[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
+  success: boolean
+  message: string
+  data: {
+    users: User[]
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
 }
+
 
 /**
  * User Service
@@ -72,14 +77,16 @@ export const UserService = {
   /**
    * Get paginated list of users (Admin only)
    * 
-   * @param params - Query parameters for filtering and pagination
+   * @param params - Query parameters for filtering and pagination        
    * @returns Promise with user list and pagination info
    * @throws {Error} When request fails or unauthorized
    */
   async getUsers(params: GetUsersRequest = {}): Promise<UserListResponse> {
-    const { data } = await api.get<UserListResponse>('/users', { params })
-    return data
-  },
+  const defaultParams = { pageNumber: 1, pageSize: 100, ...params }
+  const { data } = await api.get<UserListResponse>('/user', { params: defaultParams })
+  return data
+},
+
 
   /**
    * Create new user (Admin only)

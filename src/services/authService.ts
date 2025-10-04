@@ -1,36 +1,105 @@
 import api from './api'
 import type { User } from '@/store/authSlice'
 
-export type LoginRequest = { 
-  email: string; 
-  password: string 
+// Google Auth Types
+export interface GoogleCredentialResponse {
+  credential: string
 }
 
-export type GoogleLoginRequest = {
-  token: string // Google ID token from GIS
+export interface GooglePromptNotification {
+  isNotDisplayed(): boolean
+  isSkippedMoment(): boolean
 }
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: GoogleConfig) => void
+          renderButton: (element: HTMLElement, options: GoogleButtonOptions) => void
+          prompt: (callback?: (notification: GooglePromptNotification) => void) => void
+        }
+      }
+    }
+  }
+}
+
+interface GoogleConfig {
+  client_id: string
+  callback: (response: GoogleCredentialResponse) => void
+  auto_select: boolean
+  cancel_on_tap_outside: boolean
+  context: string
+  use_fedcm_for_prompt: boolean
+  itp_support: boolean
+}
+
+interface GoogleButtonOptions {
+  type: string
+  theme: string
+  size: string
+  shape: string
+  text: string
+  logo_alignment: string
+  width: number
+}
+
+// Types aligned with backend docs
+export type LoginRequest = {
+  emailOrPhone: string
+  password: string
+}
+
+export type GoogleLoginRequest = { token: string }
 
 export type RegisterRequest = {
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-  phone?: string
-}
-
-export type LoginResponse = {
-  id: string
   fullName: string
   email: string
-  role: string
-  emailVerified: boolean
-  avatar?: string
-  accessToken: string
-  refreshToken: string
+  password: string
+  confirmPassword: string
+  phoneNumber: string
+  dateOfBirth: string // YYYY-MM-DD
+  gender: 'MALE' | 'FEMALE'
+  address?: string
+  avatarUrl?: string
 }
 
+export type AuthSuccess = {
+  success: true
+  message: string
+  data: {
+    token: string
+    refreshToken?: string | null
+    user: {
+      id: number
+      fullName: string
+      email: string
+      role: string
+      emailVerified: boolean
+      avatar?: string | null
+    }
+  }
+}
+
+export type BasicSuccess<T> = {
+  success: true
+  message: string
+  data: T
+}
+
+export type BasicError = {
+  success: false
+  message: string
+  errors?: string[]
+}
+
+
+export type LoginResponse = ReturnType<typeof AuthService.login> extends Promise<infer R> ? R : never
+
 export type RefreshTokenResponse = {
-  accessToken: string
+  token: string
+  refreshToken: string | null
 }
 
 export type ResetPasswordRequest = {
@@ -40,142 +109,268 @@ export type ResetPasswordRequest = {
 export type ChangePasswordRequest = {
   currentPassword: string
   newPassword: string
+  confirmNewPassword: string
 }
 
-/**
- * Authentication Service
- * Handles all authentication-related operations
- * 
- * @class AuthService
- * @description Service responsible for authentication operations including
- * login, logout, registration, token refresh, and password management
- */
 export const AuthService = {
-  /**
-   * Authenticate user with email and password
-   * 
-   * @param payload - Login credentials
-   * @returns Promise with authentication response
-   * @throws {Error} When login fails
-   */
-  async login(payload: LoginRequest): Promise<LoginResponse> {
-    const { data } = await api.post<LoginResponse>('/auth/login', payload)
+  async register(payload: RegisterRequest) {
+    const { data } = await api.post<BasicSuccess<{ email: string; fullName: string; registeredAt: string }>>(
+      '/auth/register',
+      payload
+    )
     return data
   },
 
-  /**
-   * Authenticate user with Google ID token
-   * 
-   * @param payload - Google ID token
-   * @returns Promise with authentication response
-   * @throws {Error} When Google login fails
-   */
-  async loginWithGoogle(payload: GoogleLoginRequest): Promise<LoginResponse> {
-    const { data } = await api.post<LoginResponse>('/auth/login-google', payload)
+  async login(payload: LoginRequest) {
+    const { data } = await api.post<any>('/auth/login', payload)
+
+    // Normalize backend response into FE-standard shape
+    // Accepted backend shapes (examples):
+    // 1) { success, message, data: { accessToken, refreshToken, userId, fullName, role, emailVerified, ... } }
+    // 2) { token, refreshToken, user: { ... } }
+    const src = data || {}
+    const d = src.data ?? src
+
+    const token = d.accessToken ?? d.token ?? null
+    const refreshToken = d.refreshToken ?? null
+
+    const user = {
+      id: d.userId ?? d.user?.id ?? d.id ?? null,
+      fullName: d.fullName ?? d.user?.fullName ?? '',
+      email: d.email ?? d.user?.email ?? '',
+      role: (d.role ?? d.user?.role ?? 'customer'),
+      emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
+      avatar: d.avatar ?? d.user?.avatar ?? null,
+    }
+
+    return {
+      success: src.success !== false,
+      message: src.message ?? 'Login success',
+      data: {
+        token,
+        refreshToken,
+        user,
+      },
+    }
+  },
+
+  async loginWithGoogle(payload: GoogleLoginRequest) {
+    const response = await api.post<AuthSuccess>('/auth/login-google', payload)
+    return response.data
+  },
+
+  async logout(): Promise<void> {
+    await api.post('/auth/logout')
+  },
+
+  async getProfile() {
+    const { data } = await api.get<any>('/Auth/profile')
+    const src = data || {}
+    const d = src.data ?? src
+    const user: User = {
+      id: d.userId ?? d.id ?? null,
+      fullName: d.fullName ?? '',
+      email: d.email ?? '',
+      role: d.role ?? 'customer',
+      emailVerified: Boolean(d.emailVerified ?? false),
+      avatar: d.avatar ?? d.avatarUrl ?? d.imageUrl ?? null,
+      address: d.address ?? null,
+      dateOfBirth: d.dateOfBirth ?? d.dob ?? null,
+      gender: d.gender ?? null,
+    }
+    return {
+      success: src.success !== false,
+      message: src.message ?? 'OK',
+      data: user,
+    }
+  },
+
+  async updateProfile(payload: Partial<{
+    fullName: string
+    dateOfBirth: string
+    gender: 'MALE' | 'FEMALE'
+    address?: string
+  }>) {
+    const { data } = await api.put<BasicSuccess<User>>('/Auth/profile', payload)
     return data
   },
 
-  /**
-   * Register new user account
-   * 
-   * @param payload - Registration data
-   * @returns Promise with authentication response
-   * @throws {Error} When registration fails
-   */
-  async register(payload: RegisterRequest): Promise<LoginResponse> {
-    const { data } = await api.post<LoginResponse>('/auth/register', payload)
+  async changePassword(payload: { currentPassword: string; newPassword: string; confirmNewPassword: string }) {
+    const { data } = await api.post<BasicSuccess<{}>>('/Auth/change-password', payload)
     return data
   },
 
-  /**
-   * Logout current user
-   * Invalidates refresh token on server
-   * 
-   * @param refreshToken - Refresh token to invalidate
-   * @returns Promise that resolves when logout completes
-   * @throws {Error} When logout fails
-   */
-  async logout(refreshToken: string): Promise<void> {
-    await api.post('/auth/logout', { refreshToken })
+  async requestResetPassword(email: string) {
+    const { data } = await api.post<BasicSuccess<{}>>('/auth/reset-password/request', { email })
+    return data
   },
 
-  /**
-   * Refresh access token using refresh token
-   * 
-   * @param refreshToken - Valid refresh token
-   * @returns Promise with new access token
-   * @throws {Error} When refresh fails
-   */
-  async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
-    const { data } = await api.post<RefreshTokenResponse>('/auth/refresh-token', { 
-      refreshToken 
+  async confirmResetPassword(payload: { email: string; otpCode: string; newPassword: string; confirmPassword: string }) {
+    const { data } = await api.post<BasicSuccess<{}>>('/auth/reset-password/confirm', payload)
+    return data
+  },
+
+  async verifyEmail(payload: { userId: number; otpCode: string }) {
+    const { data } = await api.post<BasicSuccess<{}>>('/auth/verify-email', payload)
+    return data
+  },
+
+  async resendVerification(email: string) {
+    const { data } = await api.post<BasicSuccess<{}>>('/auth/resend-verification', { email })
+    return data
+  },
+
+  async uploadAvatar(file: File) {
+    const form = new FormData()
+    // Append common field names to maximize compatibility with backend expectation
+    form.append('file', file)
+    form.append('avatar', file)
+    const { data } = await api.post<any>('/Auth/upload-avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     })
     return data
   },
+}
 
-  /**
-   * Get current authenticated user profile
-   * 
-   * @returns Promise with user data
-   * @throws {Error} When request fails or user not authenticated
-   */
-  async getCurrentUser(): Promise<User> {
-    const { data } = await api.get<User>('/auth/me')
-    return data
-  },
+// Google Auth Service
+export class GoogleAuthService {
+  private static instance: GoogleAuthService
+  private initialized = false
+  private clientId: string
 
-  /**
-   * Request password reset email
-   * 
-   * @param payload - Email for password reset
-   * @returns Promise that resolves when email sent
-   * @throws {Error} When request fails
-   */
-  async forgotPassword(payload: ResetPasswordRequest): Promise<void> {
-    await api.post('/auth/forgot-password', payload)
-  },
+  constructor() {
+    this.clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  }
 
-  /**
-   * Reset password with token from email
-   * 
-   * @param token - Reset token from email
-   * @param newPassword - New password
-   * @returns Promise that resolves when password reset
-   * @throws {Error} When reset fails
-   */
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    await api.post('/auth/reset-password', { token, newPassword })
-  },
+  static getInstance(): GoogleAuthService {
+    if (!GoogleAuthService.instance) {
+      GoogleAuthService.instance = new GoogleAuthService()
+    }
+    return GoogleAuthService.instance
+  }
 
-  /**
-   * Change password for authenticated user
-   * 
-   * @param payload - Current and new passwords
-   * @returns Promise that resolves when password changed
-   * @throws {Error} When change fails
-   */
-  async changePassword(payload: ChangePasswordRequest): Promise<void> {
-    await api.put('/auth/change-password', payload)
-  },
+  async initialize(callback: (response: GoogleCredentialResponse) => void): Promise<boolean> {
+    if (this.initialized) return true
 
-  /**
-   * Verify email with token
-   * 
-   * @param token - Email verification token
-   * @returns Promise that resolves when email verified
-   * @throws {Error} When verification fails
-   */
-  async verifyEmail(token: string): Promise<void> {
-    await api.post('/auth/verify-email', { token })
-  },
+    return new Promise((resolve) => {
+      let attempts = 0
+      const maxAttempts = 10
+      const retryDelay = 500
 
-  /**
-   * Resend email verification
-   * 
-   * @returns Promise that resolves when verification email sent
-   * @throws {Error} When request fails
-   */
-  async resendVerification(): Promise<void> {
-    await api.post('/auth/resend-verification')
+      const tryInit = () => {
+        attempts++
+        
+        if (window.google?.accounts?.id) {
+          try {
+            window.google.accounts.id.initialize({
+              client_id: this.clientId,
+              callback,
+              auto_select: false,
+              cancel_on_tap_outside: true,
+              context: 'signin',
+              use_fedcm_for_prompt: true,
+              itp_support: true,
+            })
+            this.initialized = true
+            resolve(true)
+          } catch (error) {
+            resolve(false)
+          }
+        } else {
+          if (attempts < maxAttempts) {
+            setTimeout(tryInit, retryDelay)
+          } else {
+            resolve(false)
+          }
+        }
+      }
+
+      tryInit()
+
+      setTimeout(() => {
+        if (!this.initialized) {
+          resolve(false)
+        }
+      }, 10000)
+    })
+  }
+
+  renderButton(element: HTMLElement): boolean {
+    if (!this.initialized || !window.google?.accounts?.id) {
+      return false
+    }
+
+    try {
+      window.google.accounts.id.renderButton(element, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        shape: 'rectangular',
+        text: 'signin_with',
+        logo_alignment: 'left',
+        width: 280,
+      })
+      return true
+    } catch (error) {
+      this.showFallbackButton()
+      return false
+    }
+  }
+
+  async prompt(): Promise<boolean> {
+    if (!this.initialized || !window.google?.accounts?.id) {
+      return false
+    }
+
+    return new Promise((resolve) => {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            resolve(false)
+          } else if (notification.isSkippedMoment()) {
+            resolve(false)
+          } else {
+            resolve(true)
+          }
+        })
+      } catch (error) {
+        resolve(false)
+      }
+    })
+  }
+
+  getGoogleAuthUrl(redirect?: string): string {
+    const base = import.meta.env.VITE_API_BASE_URL
+    if (!base) {
+      throw new Error('VITE_API_BASE_URL not configured')
+    }
+    const url = new URL('/auth/google', base)
+    if (redirect) {
+      url.searchParams.set('redirect', redirect)
+    }
+    return url.toString()
+  }
+
+  async loginWithGoogle(idToken: string) {
+    return AuthService.loginWithGoogle({ token: idToken })
+  }
+
+  private showFallbackButton(): void {
+    const fallbackButton = document.querySelector('.btn--google-enhanced') as HTMLElement
+    if (fallbackButton) {
+      fallbackButton.style.display = 'flex'
+    }
+  }
+
+  redirectToGoogleAuth(redirect?: string): void {
+    try {
+      const url = this.getGoogleAuthUrl(redirect)
+      window.location.href = url
+    } catch (error) {
+      console.error('Failed to redirect to Google Auth:', error)
+    }
   }
 }
+
+// Export singleton instance
+export const googleAuthService = GoogleAuthService.getInstance()

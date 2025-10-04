@@ -1,16 +1,25 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logo from '@/assets/images/logo-black.webp'
 import './register.scss'
 import { GoogleIconWhite } from './AuthIcons'
 import { Eye, EyeOff, X } from 'lucide-react'
+import { AuthService } from '@/services/authService'
+import {
+  validateRegisterFormStrict,
+  validatePassword,
+} from '@/utils/validation'
 
 export default function Register() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [confirmEmail, setConfirmEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | ''>('')
+  const [address, setAddress] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -24,77 +33,71 @@ export default function Register() {
     special: false
   })
   const [showPasswordPopup, setShowPasswordPopup] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
 
-  const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard'
+  const redirect = new URLSearchParams(location.search).get('redirect') || '/auth/login'
 
   const googleAuthUrl = useMemo(() => {
-    const base = import.meta.env.VITE_API_BASE_URL || '/api'
-    return `${base}/auth/google`
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
+    return `${base}/auth/login-google`
   }, [])
 
   function loginWithGoogle() {
-    window.location.href = googleAuthUrl + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
+    window.location.href = googleAuthUrl
   }
 
-  function validatePassword(password: string) {
-    const requirements = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /\d/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  function updatePasswordStrength(pw: string) {
+    const req = {
+      length: pw.length >= 8,
+      uppercase: /[A-Z]/.test(pw),
+      lowercase: /[a-z]/.test(pw),
+      number: /\d/.test(pw),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(pw)
     }
-    
-    const strength = Object.values(requirements).filter(Boolean).length
-    setPasswordRequirements(requirements)
-    setPasswordStrength(strength)
+    setPasswordRequirements(req)
+    setPasswordStrength(Object.values(req).filter(Boolean).length)
   }
 
-  function getPasswordStrengthText() {
-    if (passwordStrength === 0) return ''
-    if (passwordStrength <= 2) return 'Weak'
-    if (passwordStrength <= 3) return 'Fair'
-    if (passwordStrength <= 4) return 'Good'
-    return 'Strong'
-  }
-
-  function getPasswordStrengthColor() {
-    if (passwordStrength === 0) return '#E5E7EB'
-    if (passwordStrength <= 2) return '#EF4444'
-    if (passwordStrength <= 3) return '#F59E0B'
-    if (passwordStrength <= 4) return '#10B981'
-    return '#059669'
-  }
-
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    
-    // Validate full name
-    if (fullName.trim().length < 2) {
-      alert('Vui lòng nhập họ tên đầy đủ')
+    const v = validateRegisterFormStrict({
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      phoneNumber,
+      dateOfBirth,
+      gender: gender as 'MALE' | 'FEMALE',
+      address,
+      avatarUrl: ''
+    })
+    if (!v.isValid) {
+      setErrors(v.errors)
       return
     }
-    
-    // Validate email confirmation
-    if (email !== confirmEmail) {
-      alert('Email xác nhận không khớp')
-      return
+
+    setSubmitting(true)
+    try {
+      await AuthService.register({
+        fullName,
+        email,
+        password,
+        confirmPassword,
+        phoneNumber,
+        dateOfBirth,
+        gender: gender as 'MALE' | 'FEMALE',
+        address,
+        avatarUrl: ''
+      })
+      alert('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
+      navigate(redirect, { replace: true })
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Đăng ký thất bại'
+      alert(msg)
+    } finally {
+      setSubmitting(false)
     }
-    
-    // Validate password confirmation
-    if (password !== confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp')
-      return
-    }
-    
-    // Validate password strength
-    if (password.length < 6) {
-      alert('Mật khẩu phải có ít nhất 6 ký tự')
-      return
-    }
-    
-    // TODO: wire to real register API when backend is ready
-    alert('Đăng ký thành công (mock). Vui lòng đăng nhập!')
   }
 
   return (
@@ -105,7 +108,7 @@ export default function Register() {
           <img src={logo} alt="EV Service Logo" className="register__logo" />
         </Link>
       </div>
-      
+
       <div className="register__container">
         <h1 className="register__title">Sign Up</h1>
         <p className="register__subtitle">
@@ -126,11 +129,12 @@ export default function Register() {
                   id="fullName"
                   className="form-group__input"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => setFullName(e.target.value)} 
                   placeholder=" "
                   required
                 />
                 <label htmlFor="fullName" className="form-group__label">Full Name</label>
+                {errors.fullName && <p className="register__error">{errors.fullName}</p>}
               </div>
 
               <div className="form-group">
@@ -144,19 +148,66 @@ export default function Register() {
                   required
                 />
                 <label htmlFor="email" className="form-group__label">Email</label>
+                {errors.email && <p className="register__error">{errors.email}</p>}
               </div>
 
               <div className="form-group">
                 <input
-                  type="email"
-                  id="confirmEmail"
+                  type="tel"
+                  id="phoneNumber"
                   className="form-group__input"
-                  value={confirmEmail}
-                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder=" "
                   required
                 />
-                <label htmlFor="confirmEmail" className="form-group__label">Confirm email</label>
+                <label htmlFor="phoneNumber" className="form-group__label">Phone Number</label>
+                {errors.phoneNumber && <p className="register__error">{errors.phoneNumber}</p>}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <input
+                    type="date"
+                    id="dateOfBirth"
+                    className="form-group__input"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    placeholder=" "
+                    required
+                  />
+                  <label htmlFor="dateOfBirth" className="form-group__label">Date of Birth</label>
+                  {errors.dateOfBirth && <p className="register__error">{errors.dateOfBirth}</p>}
+                </div>
+
+                <div className="form-group">
+                  <select
+                    id="gender"
+                    className="form-group__input"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as any)}
+                    required
+                  >
+                    <option value="" disabled>Gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                  </select>
+                  <label htmlFor="gender" className="form-group__label">Gender</label>
+                  {errors.gender && <p className="register__error">{errors.gender}</p>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <input
+                  type="text"
+                  id="address"
+                  className="form-group__input"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder=" "
+                />
+                <label htmlFor="address" className="form-group__label">Address (optional)</label>
+                {errors.address && <p className="register__error">{errors.address}</p>}
               </div>
 
               <div className="form-group password-field">
@@ -168,7 +219,7 @@ export default function Register() {
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value)
-                      validatePassword(e.target.value)
+                      updatePasswordStrength(e.target.value)
                     }}
                     onFocus={() => setShowPasswordPopup(true)}
                     placeholder=" "
@@ -183,34 +234,35 @@ export default function Register() {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
-                
+                {errors.password && <p className="register__error">{errors.password}</p>}
+
                 {/* Password Requirements Popup */}
                 {showPasswordPopup && (
                   <div className="password-popup">
                     <div className="password-popup-header">
                       <h4>Strong Password</h4>
-                      <button 
+                      <button
                         className="password-popup-close"
                         onClick={() => setShowPasswordPopup(false)}
                       >
                         <X size={16} />
                       </button>
                     </div>
-                    
+
                     <div className="password-strength-indicator">
                       <div className="strength-dots">
                         {[...Array(4)].map((_, i) => (
-                          <div 
+                          <div
                             key={i}
                             className={`strength-dot ${i < passwordStrength ? 'active' : ''}`}
-                            style={{ 
-                              backgroundColor: i < passwordStrength ? getPasswordStrengthColor() : '#E5E7EB'
+                            style={{
+                              backgroundColor: i < passwordStrength ? (passwordStrength <= 2 ? '#EF4444' : passwordStrength <= 3 ? '#F59E0B' : '#10B981') : '#E5E7EB'
                             }}
                           />
                         ))}
                       </div>
                     </div>
-                    
+
                     <div className="password-popup-requirements">
                       <p>It's better to have:</p>
                       <div className="requirement-item">
@@ -262,13 +314,11 @@ export default function Register() {
                     {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
-                {confirmPassword && password !== confirmPassword && (
-                  <div className="password-error">Passwords do not match</div>
-                )}
+                {errors.confirmPassword && <div className="password-error">{errors.confirmPassword}</div>}
               </div>
 
-              <button type="submit" className="btn btn--primary">
-                Sign Up
+              <button type="submit" className="btn btn--primary" disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Sign Up'}
               </button>
             </form>
           </div>

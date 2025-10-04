@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { clearCart, addToCart } from '@/store/cartSlice'
@@ -21,8 +21,7 @@ import {
 import './checkout.scss'
 
 interface ShippingInfo {
-  firstName: string
-  lastName: string
+  fullName: string
   email: string
   phone: string
   address: string
@@ -42,27 +41,27 @@ interface PaymentMethod {
 const paymentMethods: PaymentMethod[] = [
   {
     id: 'card',
-    name: 'Thẻ tín dụng/ghi nợ',
+    name: 'Tháº» tÃ­n dá»¥ng/ghi ná»£',
     icon: CreditCardIcon,
     description: 'Visa, MasterCard, JCB'
   },
   {
     id: 'bank',
-    name: 'Chuyển khoản ngân hàng',
+    name: 'Chuyá»ƒn khoáº£n ngÃ¢n hÃ ng',
     icon: BuildingLibraryIcon,
     description: 'Vietcombank, BIDV, VPBank'
   },
   {
     id: 'momo',
-    name: 'Ví MoMo',
+    name: 'VÃ­ MoMo',
     icon: DevicePhoneMobileIcon,
-    description: 'Thanh toán qua ví điện tử'
+    description: 'Thanh toÃ¡n qua vÃ­ Ä‘iá»‡n tá»­'
   },
   {
     id: 'cod',
-    name: 'Thanh toán khi nhận hàng',
+    name: 'Thanh toÃ¡n khi nháº­n hÃ ng',
     icon: TruckIcon,
-    description: 'Tiền mặt hoặc thẻ'
+    description: 'Tiá»n máº·t hoáº·c tháº»'
   }
 ]
 
@@ -76,8 +75,7 @@ export default function Checkout() {
   const [selectedPayment, setSelectedPayment] = useState('card')
   const [isProcessing, setIsProcessing] = useState(false)
   const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
+    fullName: user?.fullName || '',
     email: user?.email || '',
     phone: '',
     address: '',
@@ -141,7 +139,7 @@ export default function Checkout() {
   const handleApplyPromotion = (promotion: Promotion) => {
     // Check if promotion is valid for current cart
     if (promotion.minOrder && cart.total < promotion.minOrder) {
-      alert(`Đơn hàng tối thiểu ${formatPrice(promotion.minOrder)} để áp dụng khuyến mãi này`)
+      alert(`ÄÆ¡n hÃ ng tá»‘i thiá»ƒu ${formatPrice(promotion.minOrder)} Ä‘á»ƒ Ã¡p dá»¥ng khuyáº¿n mÃ£i nÃ y`)
       return
     }
 
@@ -181,20 +179,20 @@ export default function Checkout() {
   const eligiblePromotions = getEligiblePromotions()
 
   const validateForm = () => {
-    const required = ['firstName', 'lastName', 'email', 'phone', 'address', 'city']
-    return required.every(field => shippingInfo[field as keyof ShippingInfo].trim() !== '')
+    const required = ['fullName', 'email', 'phone', 'address', 'city']
+    return required.every(field => (shippingInfo[field as keyof ShippingInfo] as string).trim() !== '')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc')
+      alert('Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c')
       return
     }
 
     if (cart.items.length === 0) {
-      alert('Giỏ hàng trống')
+      alert('Giá» hÃ ng trá»‘ng')
       return
     }
 
@@ -262,13 +260,13 @@ export default function Checkout() {
       <div className="checkout-page">
         <div className="container">
           <div className="empty-checkout">
-            <h1>Giỏ hàng trống</h1>
-            <p>Không có sản phẩm nào để thanh toán</p>
+            <h1>Giá» hÃ ng trá»‘ng</h1>
+            <p>KhÃ´ng cÃ³ sáº£n pháº©m nÃ o Ä‘á»ƒ thanh toÃ¡n</p>
             <button 
               className="continue-shopping-btn"
               onClick={() => navigate('/products')}
             >
-              Tiếp tục mua sắm
+              Tiáº¿p tá»¥c mua sáº¯m
             </button>
           </div>
         </div>
@@ -286,9 +284,9 @@ export default function Checkout() {
             onClick={() => navigate('/cart')}
           >
             <ArrowLeftIcon className="w-5 h-5" />
-            Quay lại giỏ hàng
+            Quay láº¡i giá» hÃ ng
           </button>
-          <h1 className="page-title">Thanh toán</h1>
+          <h1 className="page-title">Thanh toÃ¡n</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="checkout-form">
@@ -299,33 +297,19 @@ export default function Checkout() {
               <div className="form-section">
                 <div className="section-header">
                   <MapPinIcon className="w-6 h-6" />
-                  <h2>Thông tin giao hàng</h2>
+                  <h2>ThÃ´ng tin giao hÃ ng</h2>
                 </div>
 
                 <div className="form-grid">
                   <div className="form-group">
-                    <label htmlFor="firstName">Họ *</label>
+                    <label htmlFor="fullName">Há» vÃ  tÃªn *</label>
                     <div className="input-wrapper">
                       <UserIcon className="input-icon" />
                       <input
                         type="text"
-                        id="firstName"
-                        value={shippingInfo.firstName}
-                        onChange={(e) => handleInputChange('firstName', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="lastName">Tên *</label>
-                    <div className="input-wrapper">
-                      <UserIcon className="input-icon" />
-                      <input
-                        type="text"
-                        id="lastName"
-                        value={shippingInfo.lastName}
-                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                        id="fullName"
+                        value={shippingInfo.fullName}
+                        onChange={(e) => handleInputChange('fullName', e.target.value)}
                         required
                       />
                     </div>
@@ -346,7 +330,7 @@ export default function Checkout() {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="phone">Số điện thoại *</label>
+                    <label htmlFor="phone">Sá»‘ Ä‘iá»‡n thoáº¡i *</label>
                     <div className="input-wrapper">
                       <PhoneIcon className="input-icon" />
                       <input
@@ -360,7 +344,7 @@ export default function Checkout() {
                   </div>
 
                   <div className="form-group full-width">
-                    <label htmlFor="address">Địa chỉ *</label>
+                    <label htmlFor="address">Äá»‹a chá»‰ *</label>
                     <div className="input-wrapper">
                       <MapPinIcon className="input-icon" />
                       <input
@@ -374,37 +358,37 @@ export default function Checkout() {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="city">Tỉnh/Thành phố *</label>
+                    <label htmlFor="city">Tá»‰nh/ThÃ nh phá»‘ *</label>
                     <select
                       id="city"
                       value={shippingInfo.city}
                       onChange={(e) => handleInputChange('city', e.target.value)}
                       required
                     >
-                      <option value="">Chọn tỉnh/thành phố</option>
-                      <option value="hanoi">Hà Nội</option>
-                      <option value="hcm">TP. Hồ Chí Minh</option>
-                      <option value="danang">Đà Nẵng</option>
-                      <option value="haiphong">Hải Phòng</option>
+                      <option value="">Chá»n tá»‰nh/thÃ nh phá»‘</option>
+                      <option value="hanoi">HÃ  Ná»™i</option>
+                      <option value="hcm">TP. Há»“ ChÃ­ Minh</option>
+                      <option value="danang">ÄÃ  Náºµng</option>
+                      <option value="haiphong">Háº£i PhÃ²ng</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="district">Quận/Huyện</label>
+                    <label htmlFor="district">Quáº­n/Huyá»‡n</label>
                     <select
                       id="district"
                       value={shippingInfo.district}
                       onChange={(e) => handleInputChange('district', e.target.value)}
                     >
-                      <option value="">Chọn quận/huyện</option>
-                      <option value="district1">Quận 1</option>
-                      <option value="district3">Quận 3</option>
-                      <option value="district7">Quận 7</option>
+                      <option value="">Chá»n quáº­n/huyá»‡n</option>
+                      <option value="district1">Quáº­n 1</option>
+                      <option value="district3">Quáº­n 3</option>
+                      <option value="district7">Quáº­n 7</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="ward">Phường/Xã</label>
+                    <label htmlFor="ward">PhÆ°á»ng/XÃ£</label>
                     <input
                       type="text"
                       id="ward"
@@ -414,7 +398,7 @@ export default function Checkout() {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="postalCode">Mã bưu điện</label>
+                    <label htmlFor="postalCode">MÃ£ bÆ°u Ä‘iá»‡n</label>
                     <input
                       type="text"
                       id="postalCode"
@@ -429,7 +413,7 @@ export default function Checkout() {
               <div className="form-section">
                 <div className="section-header">
                   <CreditCardIcon className="w-6 h-6" />
-                  <h2>Phương thức thanh toán</h2>
+                  <h2>PhÆ°Æ¡ng thá»©c thanh toÃ¡n</h2>
                 </div>
 
                 <div className="payment-methods">
@@ -464,7 +448,7 @@ export default function Checkout() {
             {/* Right Column - Order Summary */}
             <div className="order-summary">
               <div className="summary-card">
-                <h3>Đơn hàng của bạn</h3>
+                <h3>ÄÆ¡n hÃ ng cá»§a báº¡n</h3>
 
                 <div className="order-items">
                   {cart.items.map(item => (
@@ -486,18 +470,18 @@ export default function Checkout() {
 
                 <div className="order-totals">
                   <div className="total-row">
-                    <span>Tạm tính</span>
+                    <span>Táº¡m tÃ­nh</span>
                     <span>{formatPrice(cart.total)}</span>
                   </div>
                   
                   {promoDiscount > 0 && (
                     <div className="total-row discount">
                       <span>
-                        Khuyến mãi ({promo.appliedPromo?.code})
+                        Khuyáº¿n mÃ£i ({promo.appliedPromo?.code})
                         <button 
                           className="remove-promo-btn"
                           onClick={handleRemovePromotion}
-                          title="Hủy khuyến mãi"
+                          title="Há»§y khuyáº¿n mÃ£i"
                         >
                           <XMarkIcon className="w-4 h-4" />
                         </button>
@@ -507,9 +491,9 @@ export default function Checkout() {
                   )}
                   
                   <div className="total-row">
-                    <span>Phí vận chuyển</span>
+                    <span>PhÃ­ váº­n chuyá»ƒn</span>
                     <span className={shipping === 0 ? 'free' : ''}>
-                      {shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}
+                      {shipping === 0 ? 'Miá»…n phÃ­' : formatPrice(shipping)}
                     </span>
                   </div>
                   <div className="total-row">
@@ -518,7 +502,7 @@ export default function Checkout() {
                   </div>
                   <div className="total-divider"></div>
                   <div className="total-row final">
-                    <span>Tổng cộng</span>
+                    <span>Tá»•ng cá»™ng</span>
                     <span>{formatPrice(finalTotal)}</span>
                   </div>
                 </div>
@@ -554,7 +538,7 @@ export default function Checkout() {
                         cursor: 'pointer'
                       }}
                     >
-                      Thêm sản phẩm test (2M) để xem khuyến mãi
+                      ThÃªm sáº£n pháº©m test (2M) Ä‘á»ƒ xem khuyáº¿n mÃ£i
                     </button>
                   )}
                 </div>
@@ -564,7 +548,7 @@ export default function Checkout() {
                   <div className="saved-promotions">
                     <h4>
                       <TagIcon className="w-5 h-5" />
-                      Khuyến mãi đã lưu ({eligiblePromotions.length})
+                      Khuyáº¿n mÃ£i Ä‘Ã£ lÆ°u ({eligiblePromotions.length})
                     </h4>
                     <div className="promotions-list">
                       {eligiblePromotions.map(promotion => (
@@ -577,11 +561,11 @@ export default function Checkout() {
                           </div>
                           <div className="promotion-info">
                             <div className="promotion-title">{promotion.title}</div>
-                            <div className="promotion-code">Mã: {promotion.code}</div>
+                            <div className="promotion-code">MÃ£: {promotion.code}</div>
                             <div className="promotion-description">{promotion.description}</div>
                             {promotion.minOrder && cart.total < promotion.minOrder && (
                               <div className="promotion-requirement">
-                                Mua thêm {formatPrice(promotion.minOrder - cart.total)} để áp dụng
+                                Mua thÃªm {formatPrice(promotion.minOrder - cart.total)} Ä‘á»ƒ Ã¡p dá»¥ng
                               </div>
                             )}
                           </div>
@@ -592,7 +576,7 @@ export default function Checkout() {
                                 onClick={handleRemovePromotion}
                               >
                                 <CheckCircleIcon className="w-4 h-4" />
-                                Đã áp dụng
+                                ÄÃ£ Ã¡p dá»¥ng
                               </button>
                             ) : (
                               <button 
@@ -601,7 +585,7 @@ export default function Checkout() {
                                 disabled={promotion.minOrder ? cart.total < promotion.minOrder : false}
                               >
                                 <PlusIcon className="w-4 h-4" />
-                                Áp dụng
+                                Ãp dá»¥ng
                               </button>
                             )}
                           </div>
@@ -611,7 +595,7 @@ export default function Checkout() {
                   </div>
                 ) : (
                   <div className="no-promotions" style={{padding: '20px', textAlign: 'center', background: '#f9f9f9', margin: '10px 0'}}>
-                    <p>Không có khuyến mãi khả dụng</p>
+                    <p>KhÃ´ng cÃ³ khuyáº¿n mÃ£i kháº£ dá»¥ng</p>
                     <small>Debug: Cart={cart.items?.length || 0} items, Total={formatPrice(cart.total || 0)}</small>
                   </div>
                 )}
@@ -622,17 +606,17 @@ export default function Checkout() {
                   disabled={isProcessing || !validateForm()}
                 >
                   {isProcessing ? (
-                    'Đang xử lý...'
+                    'Äang xá»­ lÃ½...'
                   ) : (
                     <>
                       <CheckCircleIcon className="w-5 h-5" />
-                      Đặt hàng - {formatPrice(finalTotal)}
+                      Äáº·t hÃ ng - {formatPrice(finalTotal)}
                     </>
                   )}
                 </button>
 
                 <div className="security-notice">
-                  <p>Thông tin của bạn được bảo mật an toàn</p>
+                  <p>ThÃ´ng tin cá»§a báº¡n Ä‘Æ°á»£c báº£o máº­t an toÃ n</p>
                 </div>
               </div>
             </div>

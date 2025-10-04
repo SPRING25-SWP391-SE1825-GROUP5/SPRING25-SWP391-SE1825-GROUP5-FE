@@ -25,7 +25,8 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
-.env.example
+# Cho phép commit .env.example để hướng dẫn cấu hình
+!.env.example
 
 # Cache directories
 .cache

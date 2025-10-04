@@ -1,41 +1,209 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { login } from '@/store/authSlice'
+import { syncFromLocalStorage } from '@/store/authSlice'
+import { AuthService, googleAuthService } from '@/services/authService'
+import { validateLoginFormV2 } from '@/utils/validation'
+import { LOADING_MESSAGES } from '@/config/ui'
 import logo from '@/assets/images/logo-black.webp'
 import './LoginPage.scss'
+import toast from 'react-hot-toast'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
-  const { loading, error, token } = useAppSelector((s) => s.auth)
   const navigate = useNavigate()
   const location = useLocation()
+  const authState = useAppSelector((state) => state.auth)
 
-  const [email, setEmail] = useState('')
+  const [emailOrPhone, setEmailOrPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [formError, setFormError] = useState<Record<string, string>>({})
+  const [serverError, setServerError] = useState<string | null>(null)
 
-  const redirect = new URLSearchParams(location.search).get('redirect') || '/dashboard'
+  const googleBtnRef = useRef<HTMLDivElement | null>(null)
 
-  async function onSubmit(e: FormEvent) {
+
+  const handleEmailOrPhoneChange = useCallback((value: string) => {
+    setEmailOrPhone(value)
+    if (formError.emailOrPhone) {
+      setFormError(prev => ({ ...prev, emailOrPhone: '' }))
+    }
+    if (serverError) setServerError(null)
+  }, [formError.emailOrPhone, serverError])
+
+  const handlePasswordChange = useCallback((value: string) => {
+    setPassword(value)
+    if (formError.password) {
+      setFormError(prev => ({ ...prev, password: '' }))
+    }
+    if (serverError) setServerError(null)
+  }, [formError.password, serverError])
+
+  const redirect = new URLSearchParams(location.search).get('redirect')
+  // Prevent redirect loop back to login
+  const safeRedirect = redirect && !redirect.startsWith('/auth/login') ? redirect : null
+
+  // Function to determine redirect path based on user role
+  const getRedirectPath = useCallback((userRole: string | undefined) => {
+    if (safeRedirect) return safeRedirect
+
+    // Default to customer if role is undefined or null
+    const role = (userRole || 'customer').toLowerCase()
+
+    switch (role) {
+      case 'admin':
+        return '/admin'
+      case 'staff':
+        return '/staff'
+      case 'technician':
+        return '/technician'
+      case 'manager':
+        return '/manager'
+      case 'customer':
+      default:
+        return '/'
+    }
+  }, [safeRedirect])
+
+  const handleGoogleCredential = useCallback(async (response: { credential: string }) => {
+    const idToken = response?.credential
+    if (!idToken) {
+      return
+    }
+
+    const loadingId = toast.loading('Đang xác thực Google...')
+    
+    try {
+      const result = await AuthService.loginWithGoogle({ token: idToken })
+      
+      if (result.success) {
+        toast.success('Đăng nhập Google thành công!')
+        
+        // Store token and user data in localStorage
+        localStorage.setItem('token', result.data.token)
+        localStorage.setItem('user', JSON.stringify(result.data.user))
+        
+        // Sync Redux state with localStorage
+        dispatch(syncFromLocalStorage())
+        
+        // Navigate based on user role
+        const userRole = result.data.user?.role || 'customer'
+        const redirectPath = getRedirectPath(userRole)
+        navigate(redirectPath, { replace: true })
+      } else {
+        toast.error('Đăng nhập Google thất bại')
+      }
+    } catch (error) {
+      toast.error('Đăng nhập Google thất bại')
+    } finally {
+      toast.dismiss(loadingId)
+    }
+  }, [getRedirectPath, navigate, authState, dispatch])
+
+  // Initialize Google Auth Service
+  useEffect(() => {
+    const initGoogleAuth = async () => {
+      const success = await googleAuthService.initialize(handleGoogleCredential)
+      if (success && googleBtnRef.current) {
+        googleAuthService.renderButton(googleBtnRef.current)
+      }
+    }
+    
+    initGoogleAuth()
+  }, [handleGoogleCredential])
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        if (user && user.role) {
+          // Sync Redux state with localStorage
+          dispatch(syncFromLocalStorage())
+          
+          const redirectPath = getRedirectPath(user.role)
+          navigate(redirectPath, { replace: true })
+        }
+      } catch (error) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
+    }
+  }, [navigate, getRedirectPath, dispatch])
+
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const result = await dispatch(login({ email, password }))
-    if ((result as any).meta.requestStatus === 'fulfilled') {
-      navigate(redirect, { replace: true })
+    setServerError(null)
+    setFormError({})
+
+    const validation = validateLoginFormV2({ emailOrPhone, password })
+    if (!validation.isValid) {
+      setFormError(validation.errors)
+      return
+    }
+
+    const loadingId = toast.loading(LOADING_MESSAGES.loggingIn)
+    
+    try {
+      const result = await AuthService.login({ emailOrPhone, password })
+      console.log('Login result:', result)
+      
+      if (result.success) {
+        toast.success('Đăng nhập thành công!')
+        
+        // Store token and user data in localStorage
+        localStorage.setItem('token', result.data.token)
+        localStorage.setItem('user', JSON.stringify(result.data.user))
+        
+        // Sync Redux state with localStorage
+        dispatch(syncFromLocalStorage())
+        
+        // Navigate based on user role
+        console.log('User role:', result.data.user?.role)
+        const redirectPath = getRedirectPath(result.data.user?.role)
+        console.log('Redirect path:', redirectPath)
+        navigate(redirectPath, { replace: true })
+      } else {
+        toast.error(result.message || 'Đăng nhập thất bại')
+        setServerError(result.message || 'Đăng nhập thất bại')
+      }
+    } catch (error: unknown) {
+      console.error('Login error:', error)
+      const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Đăng nhập thất bại'
+      toast.error(errorMessage)
+      setServerError(errorMessage)
+      
+      // Handle field-specific errors
+      if ((error as any)?.response?.data?.errors) {
+        const fieldErrors = (error as any).response.data.errors
+        const nextFormError: Record<string, string> = {}
+        fieldErrors.forEach((msg: string) => {
+          const m = msg.toLowerCase()
+          if (m.includes('email') || m.includes('phone')) nextFormError.emailOrPhone = msg
+          if (m.includes('password')) nextFormError.password = msg
+        })
+        setFormError(nextFormError)
+      }
+    } finally {
+      toast.dismiss(loadingId)
     }
   }
 
-  function loginWithGoogle() {
-    const base = import.meta.env.VITE_API_BASE_URL || '/api'
-    const googleAuthUrl = `${base}/auth/google`
-    window.location.href = googleAuthUrl + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '')
-  }
+  const onGoogleButtonClick = useCallback(async () => {
+    try {
+      const success = await googleAuthService.prompt()
+      if (!success) {
+        toast.error('Vui lòng đăng nhập Google trước hoặc thử lại sau.')
+      }
+    } catch (error) {
+      toast.error('Lỗi Google Authentication. Vui lòng thử lại.')
+    }
+  }, [])
 
-
-  if (token) {
-    navigate(redirect, { replace: true })
-    return null
-  }
 
   return (
     <div className="login">
@@ -45,12 +213,12 @@ export default function LoginPage() {
           <img src={logo} alt="EV Service Logo" className="login__logo" />
         </Link>
       </div>
-      
+
       <div className="login__container">
         <h1 className="login__title">Log In</h1>
         <p className="login__subtitle">
           Don't have an account?{' '}
-          <Link to="/register" className="login__signup-link">
+          <Link to="/auth/register" className="login__signup-link">
             Sign Up
           </Link>
         </p>
@@ -61,17 +229,19 @@ export default function LoginPage() {
             <form onSubmit={onSubmit}>
               <div className="form-group">
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="emailOrPhone"
+                  type="text"
+                  value={emailOrPhone}
+                  onChange={(e) => handleEmailOrPhoneChange(e.target.value)}
                   className="form-group__input"
                   placeholder=" "
+                  aria-invalid={!!formError.emailOrPhone}
                   required
                 />
-                <label htmlFor="email" className="form-group__label">
-                  Email
+                <label htmlFor="emailOrPhone" className="form-group__label">
+                  Email hoặc số điện thoại
                 </label>
+                {formError.emailOrPhone && <p className="login__error">{formError.emailOrPhone}</p>}
               </div>
 
               <div className="form-group">
@@ -79,7 +249,7 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
                   className="form-group__input"
                   placeholder=" "
                   required
@@ -90,16 +260,16 @@ export default function LoginPage() {
                 <Link to="/forgot-password" className="form-group__forgot-link">
                   Forgot Password?
                 </Link>
+                {formError.password && <p className="login__error">{formError.password}</p>}
               </div>
 
-              {error && <p className="login__error">{error}</p>}
+              {(serverError && !formError.password && !formError.emailOrPhone) && <p className="login__error">{serverError}</p>}
 
               <button
                 type="submit"
                 className="btn btn--primary"
-                disabled={loading}
               >
-                {loading ? 'Logging in...' : 'Continue with Email'}
+                Continue
               </button>
             </form>
           </div>
@@ -112,10 +282,15 @@ export default function LoginPage() {
 
           {/* Right Column - Social Login */}
           <div className="login__social">
+            {/* Google Identity Services Button */}
+            <div ref={googleBtnRef} className="google-button-container"></div>
+            
+            {/* Fallback button if Google button doesn't render */}
             <button
               type="button"
               className="btn btn--google btn--google-enhanced"
-              onClick={loginWithGoogle}
+              onClick={onGoogleButtonClick}
+              style={{ display: 'none' }}
             >
               <div className="btn__icon">
                 <svg viewBox="0 0 24 24" width="20" height="20">

@@ -1,17 +1,26 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { UserService } from '@/services/userService'
+import { AuthService } from '@/services/authService'
 
 export type User = {
-  id: string
-  firstName: string
-  lastName: string
-  role?: string
-  email?: string
+  id: number | null
+  userId?: number | null
+  fullName: string
+  email: string
+  role: string
+  emailVerified: boolean
+  avatar?: string | null
+  phoneNumber?: string | null
+  address?: string | null
+  dateOfBirth?: string | null
+  gender?: string | null
+  isActive?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type LoginRequest = {
-  email: string
+  emailOrPhone: string
   password: string
 }
 
@@ -23,21 +32,49 @@ type AuthState = {
   error: string | null
 }
 
-const initialState: AuthState = {
-  user: null,
-  token: typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null,
-  refreshToken: typeof localStorage !== 'undefined' ? localStorage.getItem('refreshToken') : null,
-  loading: false,
-  error: null,
+// Load initial state from localStorage
+const loadInitialState = (): AuthState => {
+  if (typeof localStorage === 'undefined') {
+    return {
+      user: null,
+      token: null,
+      refreshToken: null,
+      loading: false,
+      error: null,
+    }
+  }
+
+  const token = localStorage.getItem('token')
+  const userStr = localStorage.getItem('user')
+  let user = null
+
+  if (userStr && userStr !== 'undefined' && userStr !== 'null') {
+    try {
+      user = JSON.parse(userStr)
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error)
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+    }
+  }
+
+  return {
+    user,
+    token,
+    refreshToken: localStorage.getItem('refreshToken'),
+    loading: false,
+    error: null,
+  }
 }
 
-// Async thunks wired to real API service
+const initialState: AuthState = loadInitialState()
+
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials: LoginRequest, { rejectWithValue }) => {
     try {
-      const data = await (UserService as any).login(credentials)
-      return data
+      const resp = await AuthService.login(credentials)
+      return resp
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Login failed'
       return rejectWithValue(msg)
@@ -45,22 +82,25 @@ export const login = createAsyncThunk(
   }
 )
 
+export const loginWithGoogle = createAsyncThunk(
+  'auth/loginWithGoogle',
+  async (token: string, { rejectWithValue }) => {
+    try {
+      const resp = await AuthService.loginWithGoogle({ token })
+      return resp
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Google login failed'
+      return rejectWithValue(msg)
+    }
+  }
+)
+
 export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, { rejectWithValue }) => {
   try {
-    const user = await (UserService as any).getCurrentUser()
-    return user
+    const resp = await AuthService.getProfile()
+    return resp.data
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Failed to get current user'
-    return rejectWithValue(msg)
-  }
-})
-
-export const refreshAuthToken = createAsyncThunk('auth/refreshToken', async (refreshToken: string, { rejectWithValue }) => {
-  try {
-    const data = await (UserService as any).refresh(refreshToken)
-    return data
-  } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || 'Refresh token failed'
     return rejectWithValue(msg)
   }
 })
@@ -72,14 +112,39 @@ const slice = createSlice({
     clearError(state) {
       state.error = null
     },
+    syncFromLocalStorage(state) {
+      if (typeof localStorage !== 'undefined') {
+        const token = localStorage.getItem('token')
+        const userStr = localStorage.getItem('user')
+        
+        if (token && userStr && userStr !== 'undefined' && userStr !== 'null') {
+          try {
+            const user = JSON.parse(userStr)
+            if (user && typeof user === 'object') {
+              state.user = user
+              state.token = token
+            }
+          } catch (error) {
+            console.error('Error parsing user from localStorage:', error)
+            localStorage.removeItem('user')
+            localStorage.removeItem('token')
+          }
+        }
+      }
+    },
     logout(state) {
       state.user = null
       state.token = null
       state.refreshToken = null
       state.error = null
       if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
         localStorage.removeItem('authToken')
         localStorage.removeItem('refreshToken')
+      }
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('loginToasted')
       }
     },
   },
@@ -89,19 +154,67 @@ const slice = createSlice({
         state.loading = true
         state.error = null
       })
-      .addCase(login.fulfilled, (state, action: PayloadAction<{ token: string; refreshToken: string; user: User }>) => {
-        state.loading = false
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        state.user = action.payload.user
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('authToken', action.payload.token)
-          localStorage.setItem('refreshToken', action.payload.refreshToken)
+      .addCase(
+        login.fulfilled,
+        (state, action: PayloadAction<any>) => {
+          state.loading = false
+          const payload: any = action.payload || {}
+          const data = payload.data ?? payload
+          const token = data?.token ?? null
+          const refreshToken = data?.refreshToken ?? null
+          const user = data?.user ?? null
+
+          state.token = token
+          state.refreshToken = refreshToken
+          state.user = user
+
+          if (typeof localStorage !== 'undefined') {
+            if (token) localStorage.setItem('authToken', token)
+            if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+          }
         }
-      })
+      )
       .addCase(login.rejected, (state, action) => {
         state.loading = false
         state.error = (action.payload as string) || 'Login failed'
+      })
+      .addCase(loginWithGoogle.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(loginWithGoogle.fulfilled, (state, action: PayloadAction<any>) => {
+        console.log('AuthReducer - loginWithGoogle.fulfilled payload:', action.payload)
+        state.loading = false
+        const payload: any = action.payload || {}
+        console.log('AuthReducer - parsed payload:', payload)
+        const data = payload.data ?? payload
+        console.log('AuthReducer - extracted data:', data)
+        const token = data?.accessToken ?? data?.token ?? null
+        const refreshToken = data?.refreshToken ?? null
+        const user = data?.user ?? data?.userId ? { 
+          id: data.userId, 
+          fullName: data.fullName, 
+          email: data.email, 
+          role: data.role,
+          emailVerified: data.emailVerified ?? false
+        } : null
+        
+        console.log('AuthReducer - final values:', { token, refreshToken, user })
+
+        state.token = token
+        state.refreshToken = refreshToken
+        state.user = user
+
+        if (typeof localStorage !== 'undefined') {
+          if (token) localStorage.setItem('authToken', token)
+          if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+        }
+        
+        console.log('AuthReducer - final state:', { token: state.token, user: state.user })
+      })
+      .addCase(loginWithGoogle.rejected, (state, action) => {
+        state.loading = false
+        state.error = (action.payload as string) || 'Google login failed'
       })
       .addCase(getCurrentUser.pending, (state) => {
         state.loading = true
@@ -115,17 +228,9 @@ const slice = createSlice({
         state.loading = false
         state.error = (action.payload as string) || 'Failed to get user'
       })
-      .addCase(refreshAuthToken.fulfilled, (state, action: PayloadAction<{ token: string; refreshToken: string }>) => {
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('authToken', action.payload.token)
-          localStorage.setItem('refreshToken', action.payload.refreshToken)
-        }
-      })
   },
 })
 
-export const { clearError, logout } = slice.actions
+export const { clearError, logout, syncFromLocalStorage } = slice.actions
 export default slice.reducer
 
