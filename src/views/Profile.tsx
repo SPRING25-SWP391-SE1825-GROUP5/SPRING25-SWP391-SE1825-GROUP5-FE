@@ -63,9 +63,11 @@ export default function Profile() {
   const [originalData, setOriginalData] = useState(profileData)
 
   useEffect(() => {
-    // Load current user from API when page mounts
-    dispatch(getCurrentUser())
-  }, [dispatch])
+    // Load current user from API when page mounts, but only if we have a token
+    if (auth.token) {
+      dispatch(getCurrentUser())
+    }
+  }, [dispatch, auth.token])
 
   useEffect(() => {
     // Map auth.user to local profile UI state

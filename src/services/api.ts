@@ -24,8 +24,10 @@ export function attachUnauthorizedHandler(handler: () => void) {
 api.interceptors.request.use((config) => {
   const token = tokenGetter ? tokenGetter() : null
   if (token) {
-    config.headers = (config.headers || {}) as any
-    ;(config.headers as any).Authorization = `Bearer ${token}`
+    if (!config.headers) {
+      config.headers = {} as any
+    }
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })

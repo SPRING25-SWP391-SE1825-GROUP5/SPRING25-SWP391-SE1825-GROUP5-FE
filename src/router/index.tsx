@@ -37,8 +37,6 @@ const AdminStaffManagement = lazy(() => import('@/views/Admin/StaffManagement'))
 const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
-const HeaderDropdownTest = lazy(() => import('@/components/layout/HeaderDropdownTest'))
-const TestDropdown = lazy(() => import('@/components/layout/TestDropdown'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
@@ -63,13 +61,6 @@ const router = createBrowserRouter([
       // Customer
       { path: 'my-vehicles', element: <RequireAuth>{suspense(<MyVehicles />)}</RequireAuth> },
       { path: 'maintenance-history', element: <RequireAuth>{suspense(<MaintenanceHistory />)}</RequireAuth> },
-
-
-
-
-      // Test route for dropdown functionality
-      { path: 'test-dropdown', element: suspense(<HeaderDropdownTest />) },
-      { path: 'test-dropdown-simple', element: suspense(<TestDropdown />) },
 
       { path: '*', element: suspense(<NotFound />) },
     ],
