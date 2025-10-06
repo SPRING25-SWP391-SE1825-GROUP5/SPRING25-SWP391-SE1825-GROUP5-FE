@@ -5,7 +5,6 @@ import { AuthService } from '@/services/authService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { 
   UserIcon, 
-  LockClosedIcon, 
   CogIcon, 
   WrenchScrewdriverIcon,
   ShoppingCartIcon, 
@@ -38,7 +37,7 @@ interface ChangePasswordData {
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences' | 'maintenance-history' | 'purchase-history' | 'saved-promotions' | 'notifications' | 'cart'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'maintenance-history' | 'purchase-history' | 'saved-promotions' | 'notifications' | 'cart'>('profile')
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -54,13 +53,14 @@ export default function Profile() {
     avatarUrl: '👤'
   })
 
+
+  const [originalData, setOriginalData] = useState(profileData)
+
   const [passwordData, setPasswordData] = useState<ChangePasswordData>({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
-
-  const [originalData, setOriginalData] = useState(profileData)
 
   useEffect(() => {
     // Load current user from API when page mounts, but only if we have a token
@@ -77,6 +77,7 @@ export default function Profile() {
         fullName: auth.user.fullName || '',
         email: auth.user.email || '',
         // Map optional fields from backend if available
+        phone: (auth.user as any).phoneNumber || (auth.user as any).phone || prev.phone,
         address: (auth.user as any).address ?? prev.address,
         dateOfBirth: (auth.user as any).dateOfBirth ?? prev.dateOfBirth,
         gender: (auth.user as any).gender
@@ -88,6 +89,7 @@ export default function Profile() {
         ...prev,
         fullName: auth.user.fullName || '',
         email: auth.user.email || '',
+        phone: (auth.user as any).phoneNumber || (auth.user as any).phone || prev.phone,
         address: (auth.user as any).address ?? prev.address,
         dateOfBirth: (auth.user as any).dateOfBirth ?? prev.dateOfBirth,
         gender: (auth.user as any).gender
@@ -118,13 +120,39 @@ export default function Profile() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // Basic validation to avoid 400 from backend
+      // Enhanced validation
       const errors: string[] = []
-      if (!profileData.fullName?.trim()) errors.push('Họ và tên không được để trống')
+      
+      // Required fields validation
+      if (!profileData.fullName?.trim()) {
+        errors.push('Họ và tên không được để trống')
+      }
+      
+      if (!profileData.address?.trim()) {
+        errors.push('Địa chỉ không được để trống')
+      }
+      
+      // Date validation
       const dob = profileData.dateOfBirth?.trim()
-      if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) errors.push('Ngày sinh phải có định dạng YYYY-MM-DD')
-      if (profileData.gender !== 'Male' && profileData.gender !== 'Female') errors.push('Vui lòng chọn giới tính')
-      if (!profileData.address?.trim()) errors.push('Địa chỉ không được để trống')
+      if (!dob) {
+        errors.push('Ngày sinh không được để trống')
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+        errors.push('Ngày sinh phải có định dạng YYYY-MM-DD')
+      } else {
+        const date = new Date(dob)
+        const today = new Date()
+        if (date > today) {
+          errors.push('Ngày sinh không thể là ngày trong tương lai')
+        }
+        if (today.getFullYear() - date.getFullYear() < 13) {
+          errors.push('Bạn phải ít nhất 13 tuổi')
+        }
+      }
+      
+      // Gender validation
+      if (!profileData.gender) {
+        errors.push('Vui lòng chọn giới tính')
+      }
 
       if (errors.length) {
         alert(errors.join('\n'))
@@ -143,6 +171,7 @@ export default function Profile() {
       await dispatch(getCurrentUser())
       setOriginalData(profileData)
       setIsEditing(false)
+      alert('Cập nhật thông tin thành công!')
     } catch (error: any) {
       const msg = error?.response?.data?.message || error?.message || 'Cập nhật hồ sơ thất bại'
       alert(msg)
@@ -203,6 +232,17 @@ export default function Profile() {
       .finally(() => setIsSaving(false))
   }
 
+
+  const handleRemoveCartItem = (itemId: string) => {
+    console.log('Removing cart item:', itemId)
+    // Logic to remove item from cart
+  }
+
+  const handleMarkAsRead = (notificationId: string) => {
+    console.log('Marking notification as read:', notificationId)
+    // Logic to mark notification as read
+  }
+
   const handlePasswordChange = (field: keyof ChangePasswordData, value: string) => {
     setPasswordData(prev => ({
       ...prev,
@@ -213,6 +253,11 @@ export default function Profile() {
   const handleChangePassword = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       alert('Mật khẩu xác nhận không khớp!')
+      return
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      alert('Mật khẩu mới phải có ít nhất 6 ký tự!')
       return
     }
     
@@ -239,19 +284,8 @@ export default function Profile() {
     }
   }
 
-  const handleRemoveCartItem = (itemId: string) => {
-    console.log('Removing cart item:', itemId)
-    // Logic to remove item from cart
-  }
-
-  const handleMarkAsRead = (notificationId: string) => {
-    console.log('Marking notification as read:', notificationId)
-    // Logic to mark notification as read
-  }
-
   const tabOptions = [
     { key: 'profile', label: 'Thông tin cá nhân', icon: UserIcon },
-    { key: 'security', label: 'Bảo mật', icon: LockClosedIcon },
     { key: 'preferences', label: 'Tùy chọn', icon: CogIcon },
     { key: 'notifications', label: 'Thông báo', icon: BellIcon },
     { key: 'cart', label: 'Giỏ hàng', icon: ShoppingCartIcon },
@@ -263,27 +297,25 @@ export default function Profile() {
   return (
     <div className="profile-page">
       <div className="container">
-        {/* Page Header */}
-        <div className="page-header">
-          <h1 className="page-title">Hồ sơ cá nhân</h1>
-          <p className="page-description">Quản lý thông tin cá nhân và cài đặt tài khoản</p>
-        </div>
 
         {/* Profile Layout with Sidebar */}
         <div className="profile-layout">
           {/* Sidebar Navigation */}
           <div className="profile-sidebar">
-            <div className="user-info">
-              <div className="user-avatar-wrapper">
+            {/* User Profile Card */}
+            <div className="user-profile-card">
+              <div className="user-avatar-section">
                 <div className="user-avatar" onClick={handleAvatarClick}>
                   {profileData.avatarUrl && (/^data:/.test(profileData.avatarUrl) || /^https?:\/\//.test(profileData.avatarUrl)) ? (
                     <img src={profileData.avatarUrl} alt="Avatar" />
                   ) : (
-                    profileData.avatarUrl
+                    <div className="avatar-placeholder">
+                      {profileData.fullName ? profileData.fullName.charAt(0).toUpperCase() : 'U'}
+                    </div>
                   )}
                 </div>
                 <button className="avatar-edit-btn" onClick={handleAvatarClick}>
-                  <PencilIcon className="w-3 h-3" />
+                  <PencilIcon className="w-4 h-4" />
                 </button>
                 <input
                   ref={fileInputRef}
@@ -293,22 +325,24 @@ export default function Profile() {
                   style={{ display: 'none' }}
                 />
               </div>
-              <div className="user-details">
-                <h3 className="user-name">{profileData.fullName}</h3>
+              
+              <div className="user-info">
+                <h2 className="user-name">{profileData.fullName || 'Người dùng'}</h2>
                 <p className="user-email">{profileData.email}</p>
               </div>
             </div>
 
-            <nav className="sidebar-nav">
-                     {tabOptions.map(tab => {
-                       const IconComponent = tab.icon
+            {/* Navigation Menu */}
+            <nav className="sidebar-navigation">
+              {tabOptions.map((tab) => {
+                const Icon = tab.icon
   return (
                          <button
                            key={tab.key}
                            className={`nav-item ${activeTab === tab.key ? 'active' : ''}`}
-                           onClick={() => setActiveTab(tab.key)}
+                    onClick={() => setActiveTab(tab.key as any)}
                          >
-                           <IconComponent className="nav-icon" />
+                    <Icon className="nav-icon" />
                            <span className="nav-label">{tab.label}</span>
                          </button>
                        )
@@ -319,9 +353,10 @@ export default function Profile() {
           {/* Main Content */}
           <div className="profile-content">
           {activeTab === 'profile' && (
+              <div className="profile-form-container">
             <BaseCard className="profile-form-card">
               <div className="card-header">
-                <h3 className="card-title">Thông tin cá nhân</h3>
+                      <h3 className="card-title">Chỉnh sửa thông tin</h3>
                 <div className="card-actions">
                   {!isEditing ? (
                     <BaseButton variant="outline" onClick={handleEdit}>
@@ -347,43 +382,57 @@ export default function Profile() {
               <div className="profile-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Họ và tên</label>
+                    <label className="form-label">Họ và tên *</label>
                     <BaseInput
                       value={profileData.fullName}
                       onChange={(value) => handleInputChange('fullName', value)}
                       disabled={!isEditing}
                       placeholder="Nhập họ và tên"
+                      required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Email</label>
+                    <label className="form-label">
+                      Email 
+                      <span className="disabled-hint" title="Không thể thay đổi email">
+                        <XMarkIcon className="w-4 h-4" />
+                      </span>
+                    </label>
                     <BaseInput
                       value={profileData.email}
                       onChange={(value) => handleInputChange('email', value)}
                       disabled={true}
                       type="email"
-                      placeholder="Không thể thay đổi email"
+                      placeholder="Email không thể thay đổi"
+                      className="disabled-field"
                     />
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Số điện thoại</label>
+                    <label className="form-label">
+                      Số điện thoại
+                      <span className="disabled-hint" title="Không thể thay đổi số điện thoại">
+                        <XMarkIcon className="w-4 h-4" />
+                      </span>
+                    </label>
                     <BaseInput
-                      value={profileData.phone}
+                      value={profileData.phone || 'Chưa cập nhật'}
                       onChange={(value) => handleInputChange('phone', value)}
                       disabled={true}
-                      placeholder="Không thể thay đổi số điện thoại"
+                      placeholder="Số điện thoại không thể thay đổi"
+                      className="disabled-field"
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Giới tính</label>
+                    <label className="form-label">Giới tính *</label>
                     <select
                       className="form-select"
                       value={profileData.gender}
                       onChange={(e) => handleInputChange('gender', e.target.value)}
                       disabled={!isEditing}
+                      required
                     >
                       <option value="">Chọn giới tính</option>
                       <option value="Male">Nam</option>
@@ -394,63 +443,32 @@ export default function Profile() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Ngày sinh</label>
+                    <label className="form-label">Ngày sinh *</label>
                     <BaseInput
                       value={profileData.dateOfBirth}
                       onChange={(value) => handleInputChange('dateOfBirth', value)}
                       disabled={!isEditing}
                       type="date"
+                      required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Địa chỉ</label>
+                    <label className="form-label">Địa chỉ *</label>
                     <BaseInput
                       value={profileData.address}
                       onChange={(value) => handleInputChange('address', value)}
                       disabled={!isEditing}
                       placeholder="Nhập địa chỉ"
+                      required
                     />
                   </div>
                 </div>
               </div>
             </BaseCard>
-          )}
-
-          {activeTab === 'security' && (
-            <BaseCard className="security-card">
-              <div className="card-header">
-                <h3 className="card-title">Cài đặt bảo mật</h3>
               </div>
+            )}
 
-              <div className="security-content">
-                <div className="security-item">
-                  <div className="security-info">
-                    <h4>Đổi mật khẩu</h4>
-                    <p>Cập nhật mật khẩu để bảo vệ tài khoản</p>
-                  </div>
-                  <BaseButton variant="outline" onClick={() => setShowPasswordModal(true)}>
-                    Đổi mật khẩu
-                  </BaseButton>
-                </div>
 
-                <div className="security-item">
-                  <div className="security-info">
-                    <h4>Xác thực 2 lớp</h4>
-                    <p>Tăng cường bảo mật với xác thực 2 lớp</p>
-                  </div>
-                  <BaseButton variant="outline">Kích hoạt</BaseButton>
-                </div>
-
-                <div className="security-item">
-                  <div className="security-info">
-                    <h4>Thiết bị đăng nhập</h4>
-                    <p>Quản lý các thiết bị đã đăng nhập</p>
-                  </div>
-                  <BaseButton variant="outline">Xem chi tiết</BaseButton>
-                </div>
-              </div>
-            </BaseCard>
-          )}
 
           {activeTab === 'preferences' && (
             <BaseCard className="preferences-card">
@@ -461,47 +479,14 @@ export default function Profile() {
               <div className="preferences-content">
                 <div className="preference-item">
                   <div className="preference-info">
-                    <h4>Thông báo Email</h4>
-                    <p>Nhận thông báo qua email</p>
+                    <h4>Đổi mật khẩu</h4>
+                    <p>Cập nhật mật khẩu để bảo vệ tài khoản</p>
                   </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" defaultChecked />
-                    <span className="slider"></span>
-                  </label>
+                  <BaseButton variant="outline" onClick={() => setShowPasswordModal(true)}>
+                    Đổi mật khẩu
+                  </BaseButton>
                 </div>
 
-                <div className="preference-item">
-                  <div className="preference-info">
-                    <h4>Thông báo SMS</h4>
-                    <p>Nhận thông báo qua tin nhắn</p>
-                  </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" defaultChecked />
-                    <span className="slider"></span>
-                  </label>
-                </div>
-
-                <div className="preference-item">
-                  <div className="preference-info">
-                    <h4>Ngôn ngữ hiển thị</h4>
-                    <p>Chọn ngôn ngữ giao diện</p>
-                  </div>
-                  <select className="preference-select">
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
-
-                <div className="preference-item">
-                  <div className="preference-info">
-                    <h4>Chế độ tối</h4>
-                    <p>Chuyển đổi giao diện tối/sáng</p>
-                  </div>
-                  <label className="toggle-switch">
-                    <input type="checkbox" />
-                    <span className="slider"></span>
-                  </label>
-                </div>
               </div>
             </BaseCard>
           )}
@@ -861,8 +846,11 @@ export default function Profile() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   )
 }
+
+
 

@@ -125,9 +125,9 @@ export default function LoginPage() {
           // Sync Redux state with localStorage
           dispatch(syncFromLocalStorage())
           
-          const redirectPath = getRedirectPath(user.role)
-          navigate(redirectPath, { replace: true })
-        }
+      const redirectPath = getRedirectPath(user.role)
+      navigate(redirectPath, { replace: true })
+    }
       } catch (error) {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
@@ -181,12 +181,12 @@ export default function LoginPage() {
       if ((error as any)?.response?.data?.errors) {
         const fieldErrors = (error as any).response.data.errors
         const nextFormError: Record<string, string> = {}
-        fieldErrors.forEach((msg: string) => {
-          const m = msg.toLowerCase()
-          if (m.includes('email') || m.includes('phone')) nextFormError.emailOrPhone = msg
-          if (m.includes('password')) nextFormError.password = msg
-        })
-        setFormError(nextFormError)
+      fieldErrors.forEach((msg: string) => {
+        const m = msg.toLowerCase()
+        if (m.includes('email') || m.includes('phone')) nextFormError.emailOrPhone = msg
+        if (m.includes('password')) nextFormError.password = msg
+      })
+      setFormError(nextFormError)
       }
     } finally {
       toast.dismiss(loadingId)
@@ -199,7 +199,7 @@ export default function LoginPage() {
       if (!success) {
         toast.error('Vui lòng đăng nhập Google trước hoặc thử lại sau.')
       }
-    } catch (error) {
+      } catch (error) {
       toast.error('Lỗi Google Authentication. Vui lòng thử lại.')
     }
   }, [])
