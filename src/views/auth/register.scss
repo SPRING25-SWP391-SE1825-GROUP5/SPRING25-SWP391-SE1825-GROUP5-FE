@@ -1,303 +1,251 @@
 // Register Page Styles - Matching Login Layout
 // Override body background for register page
 body {
-  background-color: #FFFFFF !important;
-  color: #111111 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  display: block !important;
-  place-items: unset !important;
-}
-
-// Ensure root element doesn't interfere
-#root {
-  background-color: #FFFFFF !important;
-  min-height: 100vh !important;
-}
-
-// Register Header with Logo
-.register__header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: white;
-  padding: 1rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.register__logo-link {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  transition: opacity 0.3s ease;
-}
-
-.register__logo-link:hover {
-  opacity: 0.8;
-}
-
-.register__logo {
-  height: 32px;
-  width: auto;
-  object-fit: contain;
-}
-
-.register {
-  min-height: 100vh;
-  background: #FFFFFF;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(145deg, #f8fbf7, #ffffff);
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 20px;
-  position: relative;
-  z-index: 1;
+  font-family: "Poppins", sans-serif;
+}
+
+#root {
+  background: transparent !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ===== Header with Logo ===== */
+// .register__header {
+//   position: fixed;
+//   top: 0;
+//   left: 0;
+//   right: 0;
+//   z-index: 1000;
+//   background: rgba(255, 255, 255, 0.95);
+//   padding: 1rem 2rem;
+//   display: flex;
+//   align-items: center;
+//   justify-content: flex-start;
+//   border-bottom: 1px solid rgba(0, 169, 110, 0.2);
+//   backdrop-filter: blur(12px);
+// }
+
+// .register__logo-link {
+//   display: flex;
+//   align-items: center;
+//   text-decoration: none;
+//   transition: opacity 0.3s ease;
+// }
+
+// .register__logo-link:hover {
+//   opacity: 0.85;
+// }
+
+// .register__logo {
+//   height: 34px;
+//   width: auto;
+//   object-fit: contain;
+// }
+
+/* ===== Main Layout ===== */
+.register {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+  box-sizing: border-box;
+  margin-top: 600px;
 
   &__container {
     width: 100%;
     max-width: 600px;
     text-align: center;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-radius: 28px;
+    padding: 56px 64px;
+    box-shadow: 0 16px 40px rgba(0, 169, 110, 0.15);
+    animation: fadeIn 0.7s ease;
+    border: 1px solid rgba(0, 169, 110, 0.1);
+
+    @media (max-width: 480px) {
+      padding: 36px 24px;
+      border-radius: 18px;
+    }
   }
 
   &__title {
-    font-size: 48px;
+    font-size: 34px;
     font-weight: 700;
-    color: #111111;
-    margin: 0 0 16px 0;
-    line-height: 1.1;
+    color: #1a3c1f;
+    margin-bottom: 8px;
   }
 
   &__subtitle {
-    font-size: 16px;
-    color: #6B7280;
-    margin: 0 0 48px 0;
+    font-size: 15px;
+    color: #4a5c4a;
+    margin: 0 0 36px 0;
     line-height: 1.5;
   }
 
   &__login-link {
-    color: #1A73E8;
+    color: #00a96e;
     text-decoration: none;
     font-weight: 500;
-    transition: color 0.2s ease;
+    transition: color 0.25s ease;
 
     &:hover {
+      color: #008a5c;
       text-decoration: underline;
     }
   }
 
   &__grid {
     display: grid;
-    grid-template-columns: 280px 40px 280px;
-    gap: 0;
+    grid-template-columns: 1fr;
+    gap: 32px;
     align-items: start;
     justify-content: center;
-    margin-bottom: 80px;
+    margin-bottom: 48px;
     width: 100%;
   }
 
   &__form {
     text-align: left;
-    padding-right: 20px;
   }
 
   &__divider {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    height: 240px;
-    width: 40px;
+    color: #6b8e6b;
+    font-size: 14px;
+    margin: 30px 0;
+    opacity: 0.9;
+    &::before,
+    &::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #e0f0e5, transparent);
+      margin: 0 12px;
+    }
   }
 
-  &__divider-line {
-    position: absolute;
-    width: 1px;
-    height: 240px;
-    background: #E5E7EB;
-    left: 50%;
-    transform: translateX(-50%);
-  }
 
   &__divider-text {
-    background: #FFFFFF;
-    color: #6B7280;
+    background: #ffffff;
+    color: #6b8e6b;
     font-size: 14px;
     font-weight: 500;
     padding: 0 8px;
-    position: relative;
-    z-index: 1;
   }
 
   &__social {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding-left: 20px;
+    gap: 14px;
+  }
+
+  &__error {
+    color: #e63946;
+    font-size: 14px;
+    background: rgba(230, 57, 70, 0.05);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border-left: 4px solid #e63946;
+    font-weight: 500;
+    margin-top: 10px;
   }
 
   &__footer {
     text-align: center;
-    margin-top: 2rem;
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid rgba(224, 240, 229, 0.6);
   }
 
   &__footer-links {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-size: 14px;
-    color: #6B7280;
+    color: #6b8e6b;
 
     a {
-      color: #1A73E8;
+      color: #00a96e;
+      font-weight: 500;
       text-decoration: none;
       transition: color 0.2s ease;
 
       &:hover {
+        color: #008a5c;
         text-decoration: underline;
       }
     }
 
     span {
-      color: #6B7280;
+      color: #6b8e6b;
     }
   }
 
   &__footer-text {
     font-size: 12px;
-    color: #9CA3AF;
-    margin: 0;
-    line-height: 1.4;
+    color: #9ca3af;
   }
 }
 
-// Form Styles
+/* ===== Form Fields ===== */
 .form-group {
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   text-align: left;
   position: relative;
 
   &__label {
-    position: absolute;
-    left: 0;
-    top: 16px;
-    font-size: 16px;
-    color: #9CA3AF;
-    font-weight: 400;
-    transition: all 0.2s ease;
-    pointer-events: none;
-    background: #FFFFFF;
-    padding: 0 4px;
-    transform-origin: left center;
-    z-index: 1;
+    display: block;
+    font-size: 14px;
+    color: #2d4a2d;
+    margin-bottom: 8px;
+    font-weight: 500;
   }
 
   &__input {
     width: 100%;
-    height: 48px;
-    font-size: 16px;
-    border: none;
-    border-bottom: 1px solid #E5E7EB;
-    background: transparent;
-    padding: 12px 0;
-    outline: none;
-    font-weight: 400;
-    position: relative;
-    z-index: 2;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: block;
+    border: 1.5px solid #e0f0e5;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 15px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 169, 110, 0.05);
+    transition: all 0.3s ease;
 
     &:focus {
-      border-bottom: 2px solid #1A73E8;
+      border-color: #00a96e;
+      box-shadow: 0 0 0 3px rgba(0, 169, 110, 0.15);
     }
 
-    &:focus-visible {
-      outline: none;
-    }
-
-    // Floating label animation - label moves up when focused or has value
     &:focus + .form-group__label,
-    &:not(:placeholder-shown) + .form-group__label,
-    &:valid + .form-group__label {
-      transform: translateY(-24px) scale(0.875);
-      color: #374151;
-    }
-
-    &:focus + .form-group__label {
-      color: #1A73E8;
-    }
-
-    // When input has value, keep label up
     &:not(:placeholder-shown) + .form-group__label {
-      transform: translateY(-24px) scale(0.875);
-      color: #374151;
-    }
-  }
-
-  // Floating Label Styles (for backward compatibility)
-  &.floating-label {
-    position: relative;
-
-    label {
-      position: absolute;
-      left: 0;
-      top: 16px;
-      font-size: 16px;
-      color: #9CA3AF;
-      font-weight: 400;
-      transition: all 0.2s ease;
-      pointer-events: none;
-      background: #FFFFFF;
-      padding: 0 4px;
-      transform-origin: left center;
-      z-index: 1;
+      transform: translateY(-120%) scale(0.9);
+      color: #00a96e;
     }
 
-    input {
-      width: 100%;
-      height: 48px;
-      font-size: 16px;
-      border: none;
-      border-bottom: 1px solid #E5E7EB;
-      background: transparent;
-      padding: 12px 0;
-      outline: none;
-      font-weight: 400;
-      position: relative;
-      z-index: 2;
-
-      &:focus {
-        border-bottom: 2px solid #1A73E8;
-      }
-
-      &:focus-visible {
-        outline: none;
-      }
-
-      // Floating label animation
-      &:focus + label,
-      &:not(:placeholder-shown) + label,
-      &:valid + label {
-        transform: translateY(-24px) scale(0.875);
-        color: #374151;
-      }
-
-      &:focus + label {
-        color: #1A73E8;
-      }
-
-      // When input has value, keep label up
-      &:not(:placeholder-shown) + label {
-        transform: translateY(-24px) scale(0.875);
-        color: #374151;
-      }
+    &:not(:placeholder-shown) + .form-group__label {
+      color: #2d4a2d;
     }
   }
 }
 
+/* ===== Password Field & Popup ===== */
 // Password Strength Indicator
 .password-strength {
   display: flex;
@@ -369,12 +317,6 @@ body {
 // Password Field with Eye Icon
 .password-field {
   position: relative;
-}
-
-.password-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
 }
 
 .password-toggle {
@@ -539,29 +481,41 @@ body {
   }
 }
 
-// Buttons
+/* ===== Buttons ===== */
 .btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  height: 48px;
-  border-radius: 0;
+  height: 52px;
+  width: 100%;
+  border-radius: 12px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   border: none;
-  text-decoration: none;
+  position: relative;
+  transition: all 0.3s ease;
+  overflow: hidden;
 
-  &:focus-visible {
-    outline: 2px solid #1A73E8;
-    outline-offset: 2px;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    transition: left 0.6s ease;
   }
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  &:hover::before {
+    left: 100%;
   }
 
   &__icon {
@@ -570,186 +524,91 @@ body {
     flex-shrink: 0;
   }
 
-  &__text {
-    flex: 1;
-    text-align: center;
-  }
-
   &--primary {
-    width: 100%;
-    max-width: 260px;
-    border-radius: 9999px;
-    border: 1px solid #C9D7FF;
-    background: transparent;
-    color: #1A73E8;
-    margin: 32px auto 0;
-    
-    &:hover:not(:disabled) {
-      border-color: #1557B8;
-      color: #1557B8;
-    }
-  }
-
-  &--google {
-    width: 100%;
-    background: #1A73E8;
-    color: white;
-    padding: 12px 24px;
-    border: 2px solid #1A73E8;
-    border-radius: 8px;
-    justify-content: center;
-    gap: 12px;
-    font-weight: 500;
-    font-size: 16px;
-    transition: all 0.2s ease;
-
-    .btn__icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      flex-shrink: 0;
-    }
-
-    .btn__text {
-      font-weight: 500;
-      color: white;
-    }
+    background: linear-gradient(135deg, #00a96e, #2ec66b);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(0, 169, 110, 0.3);
 
     &:hover {
-      background: #1557B8;
-      border-color: #1557B8;
-      color: white;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15);
+      background: linear-gradient(135deg, #008a5c, #00a96e);
+      transform: translateY(-2px);
     }
 
     &:active {
       transform: translateY(0);
-      box-shadow: 0 1px 3px rgba(26, 115, 232, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 169, 110, 0.25);
     }
   }
 
-  &--facebook {
-    width: 100%;
-    background: #1877F2;
-    color: white;
-    padding: 0;
-    position: relative;
-    overflow: hidden;
-    justify-content: flex-start;
-    border: 2px solid #1877F2;
-
-    .btn__icon {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 48px;
-      height: 48px;
-      background: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 0;
-      border-right: none;
-    }
-
-    .btn__text {
-      margin-left: 48px;
-      color: white;
-    }
+  &--google {
+    background: white;
+    color: #2d3748;
+    border: 1.5px solid #e0f0e5;
+    box-shadow: 0 2px 8px rgba(0, 169, 110, 0.05);
 
     &:hover {
-      background: #166FE5;
+      background: #f8fbf7;
+      border-color: #00a96e;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 169, 110, 0.15);
+    }
 
-      .btn__icon {
-        border-right: none;
-      }
+    .btn__icon {
+      background: conic-gradient(
+          from -45deg,
+          #ea4335 110deg,
+          #4285f4 90deg 180deg,
+          #34a853 180deg 270deg,
+          #fbbc05 270deg
+        )
+        73% 55%/150% 150% no-repeat;
+      border-radius: 4px;
+    }
+  }
+}
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 360px) {
+  .register {
+    padding: 20px 16px;
+
+    &__container {
+      padding: 32px 20px;
+    }
+
+    &__title {
+      font-size: 28px;
     }
   }
 
-  // Enhanced Google Button
-  &--google-enhanced {
-    background: #ffffff !important;
-    border: 1px solid #dadce0 !important;
-    color: #3c4043 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.3s ease !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 12px !important;
-    padding: 12px 24px !important;
-    border-radius: 8px !important;
-    font-weight: 500 !important;
-    font-size: 14px !important;
-    min-height: 48px !important;
-    width: 100% !important;
+  .form-group__input {
+    height: 48px;
   }
 
-  &--google-enhanced:hover {
-    background: #f8f9fa !important;
-    border-color: #dadce0 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-    transform: translateY(-1px) !important;
-  }
-
-  &--google-enhanced:active {
-    transform: translateY(0) !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-  }
-
-  &--google-enhanced .btn__icon {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  &--google-enhanced .btn__text {
-    font-weight: 500 !important;
-    color: #3c4043 !important;
-  }
-
-  // Enhanced Facebook Button
-  &--facebook-enhanced {
-    background: #1877F2 !important;
-    border: 1px solid #1877F2 !important;
-    color: white !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.3s ease !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 12px !important;
-    padding: 12px 24px !important;
-    border-radius: 8px !important;
-    font-weight: 500 !important;
-    font-size: 14px !important;
-    min-height: 48px !important;
-    width: 100% !important;
-  }
-
-  &--facebook-enhanced:hover {
-    background: #166FE5 !important;
-    border-color: #166FE5 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-    transform: translateY(-1px) !important;
-  }
-
-  &--facebook-enhanced:active {
-    transform: translateY(0) !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-  }
-
-  &--facebook-enhanced .btn__icon {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  &--facebook-enhanced .btn__text {
-    font-weight: 500 !important;
-    color: white !important;
+  .btn {
+    height: 48px;
   }
 }

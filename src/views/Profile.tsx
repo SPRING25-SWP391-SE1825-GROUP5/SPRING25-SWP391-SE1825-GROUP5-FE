@@ -404,7 +404,7 @@ export default function Profile() {
                       disabled={true}
                       type="email"
                       placeholder="Email không thể thay đổi"
-                      className="disabled-field"
+                      // className="disabled-field"
                     />
                   </div>
                 </div>
@@ -422,7 +422,7 @@ export default function Profile() {
                       onChange={(value) => handleInputChange('phone', value)}
                       disabled={true}
                       placeholder="Số điện thoại không thể thay đổi"
-                      className="disabled-field"
+                      // className="disabled-field"
                     />
                   </div>
                   <div className="form-group">
