@@ -102,11 +102,12 @@ export default function Checkout() {
     if (promotion.minOrder && cart.total < promotion.minOrder) return 0
     
     switch (promotion.type) {
-      case 'percentage':
+      case 'percentage': {
         const percentageDiscount = Math.round(cart.total * (promotion.value / 100))
         return promotion.maxDiscount 
           ? Math.min(percentageDiscount, promotion.maxDiscount)
           : percentageDiscount
+      }
       
       case 'fixed':
         return Math.min(promotion.value, cart.total)
