@@ -135,13 +135,11 @@ body {
       background: linear-gradient(90deg, #00a96e, #38c172);
       color: #ffffff;
       box-shadow: 0 8px 18px rgba(0, 169, 110, 0.35);
-
       &:hover {
         background: linear-gradient(90deg, #008a5c, #00a96e);
         box-shadow: 0 10px 24px rgba(0, 169, 110, 0.4);
         transform: translateY(-1px);
       }
-
       &:active {
         transform: translateY(0);
       }
