@@ -14,14 +14,21 @@ import {
   ClockIcon,
   XMarkIcon,
   BoltIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  TruckIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  KeyIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline'
 import './profile.scss'
 
 interface UserProfile {
   fullName: string
   email: string
-  phone: string
+  phoneNumber: string
   address: string
   dateOfBirth: string
   gender: 'Male' | 'Female' | ''
@@ -37,7 +44,7 @@ interface ChangePasswordData {
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'maintenance-history' | 'purchase-history' | 'saved-promotions' | 'notifications' | 'cart'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'maintenance-history' | 'purchase-history' | 'saved-promotions' | 'notifications' | 'cart' | 'my-vehicle'>('profile')
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -46,13 +53,14 @@ export default function Profile() {
   const [profileData, setProfileData] = useState<UserProfile>({
     fullName: '',
     email: '',
-    phone: '',
+    phoneNumber: '',
     address: '',
     dateOfBirth: '',
     gender: '',
     avatarUrl: '👤'
   })
-
+  console.log({profileData});
+  
 
   const [originalData, setOriginalData] = useState(profileData)
 
@@ -62,22 +70,31 @@ export default function Profile() {
     confirmPassword: ''
   })
 
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('')
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false
+  })
+
   useEffect(() => {
-    // Load current user from API when page mounts, but only if we have a token
     if (auth.token) {
       dispatch(getCurrentUser())
     }
   }, [dispatch, auth.token])
 
   useEffect(() => {
-    // Map auth.user to local profile UI state
     if (auth.user) {
       setProfileData((prev) => ({
         ...prev,
         fullName: auth.user.fullName || '',
         email: auth.user.email || '',
-        // Map optional fields from backend if available
-        phone: (auth.user as any).phoneNumber || (auth.user as any).phone || prev.phone,
+        phoneNumber: (auth.user as any).phoneNumber || (auth.user as any).phoneNumber || prev.phoneNumber,
         address: (auth.user as any).address ?? prev.address,
         dateOfBirth: (auth.user as any).dateOfBirth ?? prev.dateOfBirth,
         gender: (auth.user as any).gender
@@ -89,7 +106,7 @@ export default function Profile() {
         ...prev,
         fullName: auth.user.fullName || '',
         email: auth.user.email || '',
-        phone: (auth.user as any).phoneNumber || (auth.user as any).phone || prev.phone,
+        phoneNumber: (auth.user as any).phoneNumber || (auth.user as any).phoneNumber || prev.phoneNumber,
         address: (auth.user as any).address ?? prev.address,
         dateOfBirth: (auth.user as any).dateOfBirth ?? prev.dateOfBirth,
         gender: (auth.user as any).gender
@@ -120,38 +137,34 @@ export default function Profile() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      // Enhanced validation
       const errors: string[] = []
       
-      // Required fields validation
       if (!profileData.fullName?.trim()) {
-        errors.push('Họ và tên không được để trống')
+        errors.push('Full name is required')
       }
       
       if (!profileData.address?.trim()) {
-        errors.push('Địa chỉ không được để trống')
+        errors.push('Address is required')
       }
       
-      // Date validation
       const dob = profileData.dateOfBirth?.trim()
       if (!dob) {
-        errors.push('Ngày sinh không được để trống')
+        errors.push('Date of birth is required')
       } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
-        errors.push('Ngày sinh phải có định dạng YYYY-MM-DD')
+        errors.push('Date of birth must be in YYYY-MM-DD format')
       } else {
         const date = new Date(dob)
         const today = new Date()
         if (date > today) {
-          errors.push('Ngày sinh không thể là ngày trong tương lai')
+          errors.push('Date of birth cannot be in the future')
         }
         if (today.getFullYear() - date.getFullYear() < 13) {
-          errors.push('Bạn phải ít nhất 13 tuổi')
+          errors.push('You must be at least 13 years old')
         }
       }
       
-      // Gender validation
       if (!profileData.gender) {
-        errors.push('Vui lòng chọn giới tính')
+        errors.push('Please select gender')
       }
 
       if (errors.length) {
@@ -171,9 +184,9 @@ export default function Profile() {
       await dispatch(getCurrentUser())
       setOriginalData(profileData)
       setIsEditing(false)
-      alert('Cập nhật thông tin thành công!')
+      alert('Profile updated successfully!')
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Cập nhật hồ sơ thất bại'
+      const msg = error?.response?.data?.message || error?.message || 'Profile update failed'
       alert(msg)
     } finally {
       setIsSaving(false)
@@ -188,10 +201,9 @@ export default function Profile() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Optional: validate file type/size quickly on FE
     const isImage = file.type.startsWith('image/')
     if (!isImage) {
-      alert('Vui lòng chọn tệp hình ảnh hợp lệ')
+      alert('Please select a valid image file')
       return
     }
 
@@ -205,7 +217,6 @@ export default function Profile() {
             ...prev,
             avatarUrl: url
           }))
-          // Always refresh current user to persist new avatar across reloads
           try {
             await dispatch(getCurrentUser()).unwrap()
           } catch {
@@ -213,34 +224,48 @@ export default function Profile() {
           }
           return
         }
-        // Fallback: refetch profile to get updated avatar
         try {
           const me = await dispatch(getCurrentUser()).unwrap()
           if (me && (me as any).avatar) {
             setProfileData(prev => ({ ...prev, avatarUrl: (me as any).avatar }))
             return
           }
-          throw new Error('Upload avatar thành công nhưng thiếu URL trả về')
+          throw new Error('Avatar uploaded successfully but missing return URL')
         } catch (e) {
-          throw new Error('Upload avatar thành công nhưng không lấy được URL mới')
+          throw new Error('Avatar uploaded successfully but failed to get new URL')
         }
       })
       .catch((error: any) => {
-        const msg = error?.response?.data?.message || error?.message || 'Tải ảnh đại diện thất bại'
+        const msg = error?.response?.data?.message || error?.message || 'Avatar upload failed'
         alert(msg)
       })
       .finally(() => setIsSaving(false))
   }
 
-
   const handleRemoveCartItem = (itemId: string) => {
     console.log('Removing cart item:', itemId)
-    // Logic to remove item from cart
   }
 
   const handleMarkAsRead = (notificationId: string) => {
     console.log('Marking notification as read:', notificationId)
-    // Logic to mark notification as read
+  }
+
+  const checkPasswordStrength = (password: string) => {
+    const requirements = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    }
+    
+    setPasswordRequirements(requirements)
+    
+    const metCount = Object.values(requirements).filter(Boolean).length
+    if (metCount >= 4) return 'strong'
+    if (metCount >= 3) return 'medium'
+    if (password.length > 0) return 'weak'
+    return ''
   }
 
   const handlePasswordChange = (field: keyof ChangePasswordData, value: string) => {
@@ -248,16 +273,20 @@ export default function Profile() {
       ...prev,
       [field]: value
     }))
+    
+    if (field === 'newPassword') {
+      setPasswordStrength(checkPasswordStrength(value))
+    }
   }
 
   const handleChangePassword = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp!')
+      alert('Password confirmation does not match!')
       return
     }
     
     if (passwordData.newPassword.length < 6) {
-      alert('Mật khẩu mới phải có ít nhất 6 ký tự!')
+      alert('New password must be at least 6 characters!')
       return
     }
     
@@ -275,9 +304,17 @@ export default function Profile() {
         newPassword: '',
         confirmPassword: ''
       })
-      alert('Đổi mật khẩu thành công!')
+      setPasswordStrength('')
+      setPasswordRequirements({
+        length: false,
+        uppercase: false,
+        lowercase: false,
+        number: false,
+        special: false
+      })
+      alert('Password changed successfully!')
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Đổi mật khẩu thất bại'
+      const msg = error?.response?.data?.message || error?.message || 'Password change failed'
       alert(msg)
     } finally {
       setIsSaving(false)
@@ -285,24 +322,21 @@ export default function Profile() {
   }
 
   const tabOptions = [
-    { key: 'profile', label: 'Thông tin cá nhân', icon: UserIcon },
-    { key: 'preferences', label: 'Tùy chọn', icon: CogIcon },
-    { key: 'notifications', label: 'Thông báo', icon: BellIcon },
-    { key: 'cart', label: 'Giỏ hàng', icon: ShoppingCartIcon },
-    { key: 'maintenance-history', label: 'Lịch sử bảo dưỡng', icon: WrenchScrewdriverIcon },
-    { key: 'purchase-history', label: 'Lịch sử mua hàng', icon: ClockIcon },
-    { key: 'saved-promotions', label: 'Khuyến mãi đã lưu', icon: TagIcon }
+    { key: 'profile', label: 'Personal Information', icon: UserIcon },
+    { key: 'preferences', label: 'Preferences', icon: CogIcon },
+    { key: 'my-vehicle', label: 'My Vehicle', icon: TruckIcon },
+    { key: 'notifications', label: 'Notifications', icon: BellIcon },
+    { key: 'cart', label: 'Shopping Cart', icon: ShoppingCartIcon },
+    { key: 'maintenance-history', label: 'Maintenance History', icon: WrenchScrewdriverIcon },
+    { key: 'purchase-history', label: 'Purchase History', icon: ClockIcon },
+    { key: 'saved-promotions', label: 'Saved Promotions', icon: TagIcon }
   ] as const
 
   return (
     <div className="profile-page">
       <div className="container">
-
-        {/* Profile Layout with Sidebar */}
         <div className="profile-layout">
-          {/* Sidebar Navigation */}
           <div className="profile-sidebar">
-            {/* User Profile Card */}
             <div className="user-profile-card">
               <div className="user-avatar-section">
                 <div className="user-avatar" onClick={handleAvatarClick}>
@@ -327,530 +361,655 @@ export default function Profile() {
               </div>
               
               <div className="user-info">
-                <h2 className="user-name">{profileData.fullName || 'Người dùng'}</h2>
+                <h2 className="user-name">{profileData.fullName || 'User'}</h2>
                 <p className="user-email">{profileData.email}</p>
               </div>
             </div>
 
-            {/* Navigation Menu */}
             <nav className="sidebar-navigation">
               {tabOptions.map((tab) => {
                 const Icon = tab.icon
-  return (
-                         <button
-                           key={tab.key}
-                           className={`nav-item ${activeTab === tab.key ? 'active' : ''}`}
+                return (
+                  <button
+                    key={tab.key}
+                    className={`nav-item ${activeTab === tab.key ? 'active' : ''}`}
                     onClick={() => setActiveTab(tab.key as any)}
-                         >
+                  >
                     <Icon className="nav-icon" />
-                           <span className="nav-label">{tab.label}</span>
-                         </button>
-                       )
-                     })}
+                    <span className="nav-label">{tab.label}</span>
+                  </button>
+                )
+              })}
             </nav>
           </div>
 
-          {/* Main Content */}
           <div className="profile-content">
-          {activeTab === 'profile' && (
+            {activeTab === 'profile' && (
               <div className="profile-form-container">
-            <BaseCard className="profile-form-card">
-              <div className="card-header">
-                      <h3 className="card-title">Chỉnh sửa thông tin</h3>
-                <div className="card-actions">
-                  {!isEditing ? (
-                    <BaseButton variant="outline" onClick={handleEdit}>
-                      Chỉnh sửa
-                    </BaseButton>
-                  ) : (
-                    <div className="edit-actions">
-                      <BaseButton variant="outline" onClick={handleCancel}>
-                        Hủy
-                      </BaseButton>
-                      <BaseButton 
-                        variant="primary" 
-                        onClick={handleSave}
-                        loading={isSaving}
-                      >
-                        {isSaving ? 'Đang lưu...' : 'Lưu'}
-                      </BaseButton>
+                <BaseCard className="profile-form-card">
+                  <div className="card-header">
+                    <h3 className="card-title">Edit Information</h3>
+                    <div className="card-actions">
+                      {!isEditing ? (
+                        <BaseButton variant="outline" onClick={handleEdit}>
+                          Edit
+                        </BaseButton>
+                      ) : (
+                        <div className="edit-actions">
+                          <BaseButton variant="outline" onClick={handleCancel}>
+                            Cancel
+                          </BaseButton>
+                          <BaseButton 
+                            variant="primary" 
+                            onClick={handleSave}
+                            loading={isSaving}
+                          >
+                            {isSaving ? 'Saving...' : 'Save'}
+                          </BaseButton>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              <div className="profile-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Họ và tên *</label>
-                    <BaseInput
-                      value={profileData.fullName}
-                      onChange={(value) => handleInputChange('fullName', value)}
-                      disabled={!isEditing}
-                      placeholder="Nhập họ và tên"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Email 
-                      <span className="disabled-hint" title="Không thể thay đổi email">
-                        <XMarkIcon className="w-4 h-4" />
-                      </span>
-                    </label>
-                    <BaseInput
-                      value={profileData.email}
-                      onChange={(value) => handleInputChange('email', value)}
-                      disabled={true}
-                      type="email"
-                      placeholder="Email không thể thay đổi"
-                      // className="disabled-field"
-                    />
-                  </div>
-                </div>
+                  <div className="profile-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Full Name *</label>
+                        <BaseInput
+                          value={profileData.fullName}
+                          onChange={(value) => handleInputChange('fullName', value)}
+                          disabled={!isEditing}
+                          placeholder="Enter full name"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Email 
+                          <span className="disabled-hint" title="Email cannot be changed">
+                            <XMarkIcon className="w-4 h-4" />
+                          </span>
+                        </label>
+                        <BaseInput
+                          value={profileData.email}
+                          onChange={(value) => handleInputChange('email', value)}
+                          disabled={true}
+                          type="email"
+                          placeholder="Email cannot be changed"
+                        />
+                      </div>
+                    </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">
-                      Số điện thoại
-                      <span className="disabled-hint" title="Không thể thay đổi số điện thoại">
-                        <XMarkIcon className="w-4 h-4" />
-                      </span>
-                    </label>
-                    <BaseInput
-                      value={profileData.phone || 'Chưa cập nhật'}
-                      onChange={(value) => handleInputChange('phone', value)}
-                      disabled={true}
-                      placeholder="Số điện thoại không thể thay đổi"
-                      // className="disabled-field"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Giới tính *</label>
-                    <select
-                      className="form-select"
-                      value={profileData.gender}
-                      onChange={(e) => handleInputChange('gender', e.target.value)}
-                      disabled={!isEditing}
-                      required
-                    >
-                      <option value="">Chọn giới tính</option>
-                      <option value="Male">Nam</option>
-                      <option value="Female">Nữ</option>
-                    </select>
-                  </div>
-                </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">
+                          Phone Number
+                          <span className="disabled-hint" title="Phone number cannot be changed">
+                            <XMarkIcon className="w-4 h-4" />
+                          </span>
+                        </label>
+                        <BaseInput
+                          value={profileData.phoneNumber || 'Not updated'}
+                          onChange={(value) => handleInputChange('phoneNumber', value)}
+                          disabled={true}
+                          placeholder="Phone number cannot be changed"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Gender *</label>
+                        <select
+                          className="form-select"
+                          value={profileData.gender}
+                          onChange={(e) => handleInputChange('gender', e.target.value)}
+                          disabled={!isEditing}
+                          required
+                        >
+                          <option value="">Select gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Ngày sinh *</label>
-                    <BaseInput
-                      value={profileData.dateOfBirth}
-                      onChange={(value) => handleInputChange('dateOfBirth', value)}
-                      disabled={!isEditing}
-                      type="date"
-                      required
-                    />
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Date of Birth *</label>
+                        <BaseInput
+                          value={profileData.dateOfBirth}
+                          onChange={(value) => handleInputChange('dateOfBirth', value)}
+                          disabled={!isEditing}
+                          type="date"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Address *</label>
+                        <BaseInput
+                          value={profileData.address}
+                          onChange={(value) => handleInputChange('address', value)}
+                          disabled={!isEditing}
+                          placeholder="Enter address"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Địa chỉ *</label>
-                    <BaseInput
-                      value={profileData.address}
-                      onChange={(value) => handleInputChange('address', value)}
-                      disabled={!isEditing}
-                      placeholder="Nhập địa chỉ"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            </BaseCard>
+                </BaseCard>
               </div>
             )}
 
-
-
-          {activeTab === 'preferences' && (
-            <BaseCard className="preferences-card">
-              <div className="card-header">
-                <h3 className="card-title">Tùy chọn cá nhân</h3>
-              </div>
-
-              <div className="preferences-content">
-                <div className="preference-item">
-                  <div className="preference-info">
-                    <h4>Đổi mật khẩu</h4>
-                    <p>Cập nhật mật khẩu để bảo vệ tài khoản</p>
-                  </div>
-                  <BaseButton variant="outline" onClick={() => setShowPasswordModal(true)}>
-                    Đổi mật khẩu
-                  </BaseButton>
+            {activeTab === 'preferences' && (
+              <BaseCard className="preferences-card">
+                <div className="card-header">
+                  <h3 className="card-title">Personal Preferences</h3>
                 </div>
 
-              </div>
-            </BaseCard>
-          )}
-
-          {activeTab === 'maintenance-history' && (
-            <BaseCard className="maintenance-history-card">
-              <div className="card-header">
-                <h3 className="card-title">Lịch sử bảo dưỡng</h3>
-              </div>
-
-              <div className="history-content">
-                <div className="history-item">
-                  <div className="history-info">
-                    <h4>Bảo dưỡng định kỳ 10,000km</h4>
-                    <p>Ngày: 15/01/2024 | Garage: AutoEV Hà Nội</p>
-                    <span className="status completed">Hoàn thành</span>
-                  </div>
-                  <div className="history-details">
-                    <p>Chi phí: 1,500,000 VNĐ</p>
-                    <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
+                <div className="preferences-content">
+                  <div className="preference-item">
+                    <div className="preference-info">
+                      <h4>Change Password</h4>
+                      <p>Update your password to protect your account</p>
+                    </div>
+                    <BaseButton variant="outline" onClick={() => setShowPasswordModal(true)}>
+                      Change Password
+                    </BaseButton>
                   </div>
                 </div>
+              </BaseCard>
+            )}
 
-                <div className="history-item">
-                  <div className="history-info">
-                    <h4>Thay pin xe điện</h4>
-                    <p>Ngày: 28/11/2023 | Garage: AutoEV HCM</p>
-                    <span className="status completed">Hoàn thành</span>
-                  </div>
-                  <div className="history-details">
-                    <p>Chi phí: 45,000,000 VNĐ</p>
-                    <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
-                  </div>
+            {activeTab === 'my-vehicle' && (
+              <BaseCard className="my-vehicle-card">
+                <div className="card-header">
+                  <h3 className="card-title">My Vehicle</h3>
                 </div>
 
-                <div className="history-item">
-                  <div className="history-info">
-                    <h4>Kiểm tra hệ thống điện</h4>
-                    <p>Ngày: 05/10/2023 | Garage: AutoEV Đà Nẵng</p>
-                    <span className="status completed">Hoàn thành</span>
-                  </div>
-                  <div className="history-details">
-                    <p>Chi phí: 800,000 VNĐ</p>
-                    <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
-                  </div>
-                </div>
-              </div>
-            </BaseCard>
-          )}
-
-          {activeTab === 'purchase-history' && (
-            <BaseCard className="purchase-history-card">
-              <div className="card-header">
-                <h3 className="card-title">Lịch sử mua hàng</h3>
-              </div>
-
-              <div className="history-content">
-                <div className="history-item">
-                  <div className="history-info">
-                    <h4>Bộ sạc nhanh DC 50kW</h4>
-                    <p>Ngày: 20/12/2023 | Mã đơn: #EV20231220001</p>
-                    <span className="status delivered">Đã giao</span>
-                  </div>
-                  <div className="history-details">
-                    <p>Số lượng: 1 | Giá: 25,000,000 VNĐ</p>
-                    <BaseButton variant="outline" size="sm">Xem đơn hàng</BaseButton>
-                  </div>
-                </div>
-
-                <div className="history-item">
-                  <div className="history-info">
-                    <h4>Lốp xe điện Michelin Energy E-V</h4>
-                    <p>Ngày: 15/11/2023 | Mã đơn: #EV20231115002</p>
-                    <span className="status delivered">Đã giao</span>
-                  </div>
-                  <div className="history-details">
-                    <p>Số lượng: 4 | Giá: 8,000,000 VNĐ</p>
-                    <BaseButton variant="outline" size="sm">Xem đơn hàng</BaseButton>
-                  </div>
-                </div>
-
-                <div className="history-item">
-                  <div className="history-info">
-                    <h4>Dầu phanh DOT 4 chuyên dụng EV</h4>
-                    <p>Ngày: 02/09/2023 | Mã đơn: #EV20230902003</p>
-                    <span className="status delivered">Đã giao</span>
-                  </div>
-                  <div className="history-details">
-                    <p>Số lượng: 2 | Giá: 450,000 VNĐ</p>
-                    <BaseButton variant="outline" size="sm">Xem đơn hàng</BaseButton>
-                  </div>
-                </div>
-              </div>
-            </BaseCard>
-          )}
-
-          {activeTab === 'notifications' && (
-            <BaseCard className="notifications-card">
-              <div className="card-header">
-                <h3 className="card-title">Thông báo</h3>
-                <BaseButton variant="outline" size="sm">Đánh dấu đã đọc tất cả</BaseButton>
-              </div>
-
-              <div className="notifications-content">
-                <div className="notification-item unread">
-                  <div className="notification-icon">
-                    <WrenchScrewdriverIcon className="w-5 h-5" />
-                  </div>
-                  <div className="notification-content">
-                    <h4>Lịch bảo dưỡng sắp tới</h4>
-                    <p>Xe VinFast VF8 của bạn sắp đến hạn bảo dưỡng 10,000km. Hãy đặt lịch ngay!</p>
-                    <span className="notification-time">2 giờ trước</span>
-                  </div>
-                  <div className="notification-actions">
-                    <BaseButton variant="primary" size="sm">Đặt lịch</BaseButton>
-                    <button 
-                      className="mark-read-btn"
-                      onClick={() => handleMarkAsRead('notif-1')}
-                      title="Đánh dấu đã đọc"
-                    >
-                      <XMarkIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="notification-item unread">
-                  <div className="notification-icon">
-                    <ArchiveBoxIcon className="w-5 h-5" />
-                  </div>
-                  <div className="notification-content">
-                    <h4>Đơn hàng đã giao</h4>
-                    <p>Bộ sạc nhanh DC 50kW đã được giao thành công. Cảm ơn bạn đã mua sắm!</p>
-                    <span className="notification-time">1 ngày trước</span>
-                  </div>
-                  <div className="notification-actions">
-                    <BaseButton variant="outline" size="sm">Đánh giá</BaseButton>
-                    <button 
-                      className="mark-read-btn"
-                      onClick={() => handleMarkAsRead('notif-2')}
-                      title="Đánh dấu đã đọc"
-                    >
-                      <XMarkIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="notification-item">
-                  <div className="notification-icon">
-                    <TagIcon className="w-5 h-5" />
-                  </div>
-                  <div className="notification-content">
-                    <h4>Khuyến mãi mới</h4>
-                    <p>Giảm 20% cho dịch vụ bảo dưỡng định kỳ trong tháng 3. Áp dụng từ ngày mai!</p>
-                    <span className="notification-time">3 ngày trước</span>
-                  </div>
-                  <div className="notification-actions">
-                    <BaseButton variant="secondary" size="sm">Xem chi tiết</BaseButton>
-                  </div>
-                </div>
-
-                <div className="notification-item">
-                  <div className="notification-icon">
-                    <BellIcon className="w-5 h-5" />
-                  </div>
-                  <div className="notification-content">
-                    <h4>Cập nhật hệ thống</h4>
-                    <p>Hệ thống sẽ bảo trì vào 2:00 AM ngày 25/03. Dự kiến hoàn thành sau 2 tiếng.</p>
-                    <span className="notification-time">1 tuần trước</span>
-                  </div>
-                </div>
-              </div>
-            </BaseCard>
-          )}
-
-          {activeTab === 'cart' && (
-            <BaseCard className="cart-card">
-              <div className="card-header">
-                <h3 className="card-title">Giỏ hàng</h3>
-                <span className="cart-summary">2 sản phẩm</span>
-              </div>
-
-              <div className="cart-content">
-                <div className="cart-item">
-                  <div className="item-image">
-                    <BoltIcon className="w-8 h-8" />
-                  </div>
-                  <div className="item-details">
-                    <h4>Pin sạc dự phòng 12V</h4>
-                    <p className="item-description">Pin lithium chuyên dụng cho xe điện, dung lượng 20,000mAh</p>
-                    <div className="item-meta">
-                      <span className="item-price">2,500,000 VNĐ</span>
-                      <div className="quantity-controls">
-                        <button className="quantity-btn">-</button>
-                        <span className="quantity">1</span>
-                        <button className="quantity-btn">+</button>
+                <div className="vehicle-content">
+                  <div className="vehicle-item">
+                    <div className="vehicle-image">
+                      <TruckIcon className="w-12 h-12" />
+                    </div>
+                    <div className="vehicle-details">
+                      <h4>VinFast VF8</h4>
+                      <p>Electric SUV | License Plate: 30A-12345</p>
+                      <div className="vehicle-meta">
+                        <span className="vehicle-status active">Active</span>
+                        <span className="next-maintenance">Next maintenance: 5,000 km</span>
                       </div>
                     </div>
+                    <BaseButton variant="outline" size="sm">View Details</BaseButton>
                   </div>
-                  <button 
-                    className="remove-item-btn"
-                    onClick={() => handleRemoveCartItem('cart-item-1')}
-                    title="Xóa khỏi giỏ hàng"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
+                </div>
+              </BaseCard>
+            )}
+
+            {activeTab === 'maintenance-history' && (
+              <BaseCard className="maintenance-history-card">
+                <div className="card-header">
+                  <h3 className="card-title">Maintenance History</h3>
                 </div>
 
-                <div className="cart-item">
-                  <div className="item-image">
-                    <WrenchScrewdriverIcon className="w-8 h-8" />
-                  </div>
-                  <div className="item-details">
-                    <h4>Bộ dụng cụ sửa chữa EV</h4>
-                    <p className="item-description">Bộ công cụ chuyên dụng 25 món cho bảo dưỡng xe điện</p>
-                    <div className="item-meta">
-                      <span className="item-price">1,200,000 VNĐ</span>
-                      <div className="quantity-controls">
-                        <button className="quantity-btn">-</button>
-                        <span className="quantity">1</span>
-                        <button className="quantity-btn">+</button>
-                      </div>
+                <div className="history-content">
+                  <div className="history-item">
+                    <div className="history-info">
+                      <h4>10,000km Periodic Maintenance</h4>
+                      <p>Date: 15/01/2024 | Garage: AutoEV Hanoi</p>
+                      <span className="status completed">Completed</span>
+                    </div>
+                    <div className="history-details">
+                      <p>Cost: 1,500,000 VND</p>
+                      <BaseButton variant="outline" size="sm">View Details</BaseButton>
                     </div>
                   </div>
-                  <button 
-                    className="remove-item-btn"
-                    onClick={() => handleRemoveCartItem('cart-item-2')}
-                    title="Xóa khỏi giỏ hàng"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
 
-                <div className="cart-summary-section">
-                  <div className="summary-row">
-                    <span>Tổng phụ:</span>
-                    <span>3,700,000 VNĐ</span>
+                  <div className="history-item">
+                    <div className="history-info">
+                      <h4>Electric Vehicle Battery Replacement</h4>
+                      <p>Date: 28/11/2023 | Garage: AutoEV HCM</p>
+                      <span className="status completed">Completed</span>
+                    </div>
+                    <div className="history-details">
+                      <p>Cost: 45,000,000 VND</p>
+                      <BaseButton variant="outline" size="sm">View Details</BaseButton>
+                    </div>
                   </div>
-                  <div className="summary-row">
-                    <span>Phí vận chuyển:</span>
-                    <span>Miễn phí</span>
-                  </div>
-                  <div className="summary-row total">
-                    <span>Tổng cộng:</span>
-                    <span>3,700,000 VNĐ</span>
-                  </div>
-                </div>
 
-                <div className="cart-actions">
-                  <BaseButton variant="outline" size="lg">Tiếp tục mua sắm</BaseButton>
-                  <BaseButton variant="primary" size="lg">Thanh toán</BaseButton>
-                </div>
-              </div>
-            </BaseCard>
-          )}
-
-          {activeTab === 'saved-promotions' && (
-            <BaseCard className="saved-promotions-card">
-              <div className="card-header">
-                <h3 className="card-title">Khuyến mãi đã lưu</h3>
-              </div>
-
-              <div className="promotions-content">
-                <div className="promotion-item active">
-                  <div className="promotion-info">
-                    <h4>Giảm 20% dịch vụ bảo dưỡng định kỳ</h4>
-                    <p>Áp dụng cho tất cả dịch vụ bảo dưỡng từ 5,000km trở lên</p>
-                    <span className="expiry">Hết hạn: 31/03/2024</span>
-                  </div>
-                  <div className="promotion-actions">
-                    <span className="discount">-20%</span>
-                    <BaseButton variant="primary" size="sm">Sử dụng ngay</BaseButton>
+                  <div className="history-item">
+                    <div className="history-info">
+                      <h4>Electrical System Inspection</h4>
+                      <p>Date: 05/10/2023 | Garage: AutoEV Da Nang</p>
+                      <span className="status completed">Completed</span>
+                    </div>
+                    <div className="history-details">
+                      <p>Cost: 800,000 VND</p>
+                      <BaseButton variant="outline" size="sm">View Details</BaseButton>
+                    </div>
                   </div>
                 </div>
+              </BaseCard>
+            )}
 
-                <div className="promotion-item active">
-                  <div className="promotion-info">
-                    <h4>Miễn phí kiểm tra pin trong tháng 2</h4>
-                    <p>Kiểm tra toàn diện hệ thống pin và charging system</p>
-                    <span className="expiry">Hết hạn: 29/02/2024</span>
-                  </div>
-                  <div className="promotion-actions">
-                    <span className="discount">FREE</span>
-                    <BaseButton variant="primary" size="sm">Đặt lịch</BaseButton>
-                  </div>
+            {activeTab === 'purchase-history' && (
+              <BaseCard className="purchase-history-card">
+                <div className="card-header">
+                  <h3 className="card-title">Purchase History</h3>
                 </div>
 
-                <div className="promotion-item expired">
-                  <div className="promotion-info">
-                    <h4>Mua 1 tặng 1 dầu phanh EV</h4>
-                    <p>Áp dụng cho tất cả sản phẩm dầu phanh chuyên dụng xe điện</p>
-                    <span className="expiry expired">Đã hết hạn: 31/01/2024</span>
+                <div className="history-content">
+                  <div className="history-item">
+                    <div className="history-info">
+                      <h4>DC Fast Charger 50kW</h4>
+                      <p>Date: 20/12/2023 | Order ID: #EV20231220001</p>
+                      <span className="status delivered">Delivered</span>
+                    </div>
+                    <div className="history-details">
+                      <p>Quantity: 1 | Price: 25,000,000 VND</p>
+                      <BaseButton variant="outline" size="sm">View Order</BaseButton>
+                    </div>
                   </div>
-                  <div className="promotion-actions">
-                    <span className="discount expired">1+1</span>
-                    <BaseButton variant="outline" size="sm" disabled>Hết hạn</BaseButton>
+
+                  <div className="history-item">
+                    <div className="history-info">
+                      <h4>Michelin Energy E-V Electric Vehicle Tires</h4>
+                      <p>Date: 15/11/2023 | Order ID: #EV20231115002</p>
+                      <span className="status delivered">Delivered</span>
+                    </div>
+                    <div className="history-details">
+                      <p>Quantity: 4 | Price: 8,000,000 VND</p>
+                      <BaseButton variant="outline" size="sm">View Order</BaseButton>
+                    </div>
+                  </div>
+
+                  <div className="history-item">
+                    <div className="history-info">
+                      <h4>EV Specialized DOT 4 Brake Fluid</h4>
+                      <p>Date: 02/09/2023 | Order ID: #EV20230902003</p>
+                      <span className="status delivered">Delivered</span>
+                    </div>
+                    <div className="history-details">
+                      <p>Quantity: 2 | Price: 450,000 VND</p>
+                      <BaseButton variant="outline" size="sm">View Order</BaseButton>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </BaseCard>
-          )}
+              </BaseCard>
+            )}
+
+            {activeTab === 'notifications' && (
+              <BaseCard className="notifications-card">
+                <div className="card-header">
+                  <h3 className="card-title">Notifications</h3>
+                  <BaseButton variant="outline" size="sm">Mark all as read</BaseButton>
+                </div>
+
+                <div className="notifications-content">
+                  <div className="notification-item unread">
+                    <div className="notification-icon">
+                      <WrenchScrewdriverIcon className="w-5 h-5" />
+                    </div>
+                    <div className="notification-content">
+                      <h4>Upcoming Maintenance Schedule</h4>
+                      <p>Your VinFast VF8 is due for 10,000km maintenance. Schedule now!</p>
+                      <span className="notification-time">2 hours ago</span>
+                    </div>
+                    <div className="notification-actions">
+                      <BaseButton variant="primary" size="sm">Schedule</BaseButton>
+                      <button 
+                        className="mark-read-btn"
+                        onClick={() => handleMarkAsRead('notif-1')}
+                        title="Mark as read"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="notification-item unread">
+                    <div className="notification-icon">
+                      <ArchiveBoxIcon className="w-5 h-5" />
+                    </div>
+                    <div className="notification-content">
+                      <h4>Order Delivered</h4>
+                      <p>Your DC Fast Charger 50kW has been delivered successfully. Thank you for shopping!</p>
+                      <span className="notification-time">1 day ago</span>
+                    </div>
+                    <div className="notification-actions">
+                      <BaseButton variant="outline" size="sm">Review</BaseButton>
+                      <button 
+                        className="mark-read-btn"
+                        onClick={() => handleMarkAsRead('notif-2')}
+                        title="Mark as read"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="notification-item">
+                    <div className="notification-icon">
+                      <TagIcon className="w-5 h-5" />
+                    </div>
+                    <div className="notification-content">
+                      <h4>New Promotion</h4>
+                      <p>20% off for periodic maintenance services in March. Available from tomorrow!</p>
+                      <span className="notification-time">3 days ago</span>
+                    </div>
+                    <div className="notification-actions">
+                      <BaseButton variant="secondary" size="sm">View Details</BaseButton>
+                    </div>
+                  </div>
+
+                  <div className="notification-item">
+                    <div className="notification-icon">
+                      <BellIcon className="w-5 h-5" />
+                    </div>
+                    <div className="notification-content">
+                      <h4>System Update</h4>
+                      <p>System maintenance scheduled for 2:00 AM on 25/03. Expected completion in 2 hours.</p>
+                      <span className="notification-time">1 week ago</span>
+                    </div>
+                  </div>
+                </div>
+              </BaseCard>
+            )}
+
+            {activeTab === 'cart' && (
+              <BaseCard className="cart-card">
+                <div className="card-header">
+                  <h3 className="card-title">Shopping Cart</h3>
+                  <span className="cart-summary">2 items</span>
+                </div>
+
+                <div className="cart-content">
+                  <div className="cart-item">
+                    <div className="item-image">
+                      <BoltIcon className="w-8 h-8" />
+                    </div>
+                    <div className="item-details">
+                      <h4>12V Backup Charging Battery</h4>
+                      <p className="item-description">Lithium battery specialized for electric vehicles, 20,000mAh capacity</p>
+                      <div className="item-meta">
+                        <span className="item-price">2,500,000 VND</span>
+                        <div className="quantity-controls">
+                          <button className="quantity-btn">-</button>
+                          <span className="quantity">1</span>
+                          <button className="quantity-btn">+</button>
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      className="remove-item-btn"
+                      onClick={() => handleRemoveCartItem('cart-item-1')}
+                      title="Remove from cart"
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="cart-item">
+                    <div className="item-image">
+                      <WrenchScrewdriverIcon className="w-8 h-8" />
+                    </div>
+                    <div className="item-details">
+                      <h4>EV Repair Tool Kit</h4>
+                      <p className="item-description">Specialized 25-piece tool set for electric vehicle maintenance</p>
+                      <div className="item-meta">
+                        <span className="item-price">1,200,000 VND</span>
+                        <div className="quantity-controls">
+                          <button className="quantity-btn">-</button>
+                          <span className="quantity">1</span>
+                          <button className="quantity-btn">+</button>
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      className="remove-item-btn"
+                      onClick={() => handleRemoveCartItem('cart-item-2')}
+                      title="Remove from cart"
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="cart-summary-section">
+                    <div className="summary-row">
+                      <span>Subtotal:</span>
+                      <span>3,700,000 VND</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>Shipping:</span>
+                      <span>Free</span>
+                    </div>
+                    <div className="summary-row total">
+                      <span>Total:</span>
+                      <span>3,700,000 VND</span>
+                    </div>
+                  </div>
+
+                  <div className="cart-actions">
+                    <BaseButton variant="outline" size="lg">Continue Shopping</BaseButton>
+                    <BaseButton variant="primary" size="lg">Checkout</BaseButton>
+                  </div>
+                </div>
+              </BaseCard>
+            )}
+
+            {activeTab === 'saved-promotions' && (
+              <BaseCard className="saved-promotions-card">
+                <div className="card-header">
+                  <h3 className="card-title">Saved Promotions</h3>
+                </div>
+
+                <div className="promotions-content">
+                  <div className="promotion-item active">
+                    <div className="promotion-info">
+                      <h4>20% off periodic maintenance services</h4>
+                      <p>Applicable for all maintenance services from 5,000km and above</p>
+                      <span className="expiry">Expires: 31/03/2024</span>
+                    </div>
+                    <div className="promotion-actions">
+                      <span className="discount">-20%</span>
+                      <BaseButton variant="primary" size="sm">Use Now</BaseButton>
+                    </div>
+                  </div>
+
+                  <div className="promotion-item active">
+                    <div className="promotion-info">
+                      <h4>Free battery inspection in February</h4>
+                      <p>Comprehensive inspection of battery and charging system</p>
+                      <span className="expiry">Expires: 29/02/2024</span>
+                    </div>
+                    <div className="promotion-actions">
+                      <span className="discount">FREE</span>
+                      <BaseButton variant="primary" size="sm">Schedule</BaseButton>
+                    </div>
+                  </div>
+
+                  <div className="promotion-item expired">
+                    <div className="promotion-info">
+                      <h4>Buy 1 Get 1 EV brake fluid</h4>
+                      <p>Applicable for all specialized electric vehicle brake fluid products</p>
+                      <span className="expiry expired">Expired: 31/01/2024</span>
+                    </div>
+                    <div className="promotion-actions">
+                      <span className="discount expired">1+1</span>
+                      <BaseButton variant="outline" size="sm" disabled>Expired</BaseButton>
+                    </div>
+                  </div>
+                </div>
+              </BaseCard>
+            )}
           </div>
         </div>
 
-        {/* Password Change Modal */}
+        {/* Modern Password Change Modal */}
         {showPasswordModal && (
           <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h3>Đổi mật khẩu</h3>
-                <button className="modal-close" onClick={() => setShowPasswordModal(false)}>×</button>
+                <div className="header-content">
+                  <div className="lock-icon">
+                    <CheckCircleIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3>Change Password</h3>
+                    <p>Secure your account with a new password</p>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowPasswordModal(false)}>
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
               </div>
               
               <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Mật khẩu hiện tại</label>
-                  <BaseInput
-                    type="password"
-                    value={passwordData.currentPassword}
-                    onChange={(value) => handlePasswordChange('currentPassword', value)}
-                    placeholder="Nhập mật khẩu hiện tại"
-                  />
-                </div>
+                <div className="password-form">
+                  <div className="form-group">
+                    <label className="form-label">
+                      <KeyIcon className="label-icon" />
+                      Current Password
+                    </label>
+                    <div className="password-input-wrapper">
+                      <BaseInput
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={passwordData.currentPassword}
+                        onChange={(value) => handlePasswordChange('currentPassword', value)}
+                        placeholder="Enter your current password"
+                      />
+                      <button 
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      >
+                        {showCurrentPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Mật khẩu mới</label>
-                  <BaseInput
-                    type="password"
-                    value={passwordData.newPassword}
-                    onChange={(value) => handlePasswordChange('newPassword', value)}
-                    placeholder="Nhập mật khẩu mới"
-                  />
-                </div>
+                  <div className="form-group">
+                    <label className="form-label">
+                      <LockClosedIcon className="label-icon" />
+                      New Password
+                    </label>
+                    <div className="password-input-wrapper">
+                      <BaseInput
+                        type={showNewPassword ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(value) => handlePasswordChange('newPassword', value)}
+                        placeholder="Create a strong password"
+                      />
+                      <button 
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    
+                    {passwordData.newPassword && (
+                      <div className="password-strength">
+                        <div className="strength-bar">
+                          <div className={`strength-fill ${passwordStrength}`} />
+                        </div>
+                        <div className={`strength-text ${passwordStrength}`}>
+                          {passwordStrength === 'weak' && 'Weak password'}
+                          {passwordStrength === 'medium' && 'Medium strength'}
+                          {passwordStrength === 'strong' && 'Strong password'}
+                        </div>
+                      </div>
+                    )}
 
-                <div className="form-group">
-                  <label className="form-label">Xác nhận mật khẩu mới</label>
-                  <BaseInput
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={(value) => handlePasswordChange('confirmPassword', value)}
-                    placeholder="Nhập lại mật khẩu mới"
-                  />
+                    <div className="password-requirements">
+                      <h4>Password must contain:</h4>
+                      <div className="requirements-list">
+                        <div className={`requirement ${passwordRequirements.length ? 'met' : 'unmet'}`}>
+                          At least 8 characters
+                        </div>
+                        <div className={`requirement ${passwordRequirements.uppercase ? 'met' : 'unmet'}`}>
+                          One uppercase letter
+                        </div>
+                        <div className={`requirement ${passwordRequirements.lowercase ? 'met' : 'unmet'}`}>
+                          One lowercase letter
+                        </div>
+                        <div className={`requirement ${passwordRequirements.number ? 'met' : 'unmet'}`}>
+                          One number
+                        </div>
+                        <div className={`requirement ${passwordRequirements.special ? 'met' : 'unmet'}`}>
+                          One special character
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      <CheckCircleIcon className="label-icon" />
+                      Confirm New Password
+                    </label>
+                    <div className="password-input-wrapper">
+                      <BaseInput
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(value) => handlePasswordChange('confirmPassword', value)}
+                        placeholder="Confirm your new password"
+                      />
+                      <button 
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                      <div className="error-message">
+                        <ExclamationTriangleIcon className="w-4 h-4" />
+                        Passwords do not match
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="modal-footer">
-                <BaseButton variant="outline" onClick={() => setShowPasswordModal(false)}>
-                  Hủy
+                <BaseButton 
+                  variant="outline" 
+                  onClick={() => setShowPasswordModal(false)}
+                  className="cancel-btn"
+                >
+                  Cancel
                 </BaseButton>
                 <BaseButton 
                   variant="primary" 
                   onClick={handleChangePassword}
                   loading={isSaving}
+                  disabled={
+                    !passwordData.currentPassword ||
+                    !passwordData.newPassword ||
+                    !passwordData.confirmPassword ||
+                    passwordData.newPassword !== passwordData.confirmPassword ||
+                    passwordStrength === 'weak'
+                  }
+                  className="submit-btn"
                 >
-                  {isSaving ? 'Đang lưu...' : 'Đổi mật khẩu'}
+                  {isSaving ? (
+                    <>
+                      <div className="loading-spinner"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <div className="" >
+                      Update Password
+                      </div>
+                    </>
+                  )}
                 </BaseButton>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </div>
   )
 }
-
-
-
