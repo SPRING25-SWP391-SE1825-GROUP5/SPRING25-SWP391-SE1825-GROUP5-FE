@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import {
+import { 
   ShoppingCart,
   User,
   Search,
@@ -243,23 +243,23 @@ const NewAppHeader: React.FC = () => {
 
   const rightItems = (
     <>
-      <button
+                <button 
         className="header-icon-btn hide-mobile"
         aria-label="Search"
-      >
+                >
         <Search size={20} />
-      </button>
-
+                </button>
+            
       <NavLink
         to="/cart"
-        className="header-icon-btn"
+                className="header-icon-btn" 
         aria-label="Shopping cart"
       >
         <ShoppingCart size={20} />
         <span className="cart-badge">3</span>
       </NavLink>
 
-      {user ? (
+            {user ? (
         <>
           <NavLink
             to="/profile"
@@ -269,33 +269,33 @@ const NewAppHeader: React.FC = () => {
           >
             <User size={20} />
           </NavLink>
-          <button
+                <button
             className="login-btn hide-mobile"
-            onClick={() => {
-              dispatch(logout())
-              toast.success('Đã đăng xuất')
-              navigate('/')
-            }}
-          >
-            Đăng xuất
-          </button>
+                  onClick={() => {
+                    dispatch(logout())
+                    toast.success('Đã đăng xuất')
+                    navigate('/')
+                  }}
+                >
+                  Đăng xuất
+                </button>
         </>
-      ) : (
-        <>
+            ) : (
+              <>
           <NavLink
             to="/auth/login"
             className="login-btn hide-mobile"
           >
-            Đăng nhập
+                          Đăng nhập
           </NavLink>
           <NavLink
             to="/booking"
             className="booking-btn"
           >
-            Đặt chỗ ngay
+                  Đặt chỗ ngay
           </NavLink>
-        </>
-      )}
+              </>
+            )}
     </>
   )
 

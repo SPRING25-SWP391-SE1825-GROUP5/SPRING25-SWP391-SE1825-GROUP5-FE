@@ -103,11 +103,11 @@ export default function Register() {
   return (
     <div className="register">
       {/* Logo Header */}
-      <div className="register__header">
+      {/* <div className="register__header">
         <Link to="/" className="register__logo-link">
           <img src={logo} alt="EV Service Logo" className="register__logo" />
         </Link>
-      </div>
+      </div> */}
 
       <div className="register__container">
         <h1 className="register__title">Sign Up</h1>
@@ -119,10 +119,10 @@ export default function Register() {
         </p>
 
         <div className="register__grid">
-          {/* Left Column - Form */}
           <div className="register__form">
 
             <form onSubmit={onSubmit}>
+              <label htmlFor="fullName" className="form-group__label">Full Name</label>
               <div className="form-group">
                 <input
                   type="text"
@@ -133,11 +133,12 @@ export default function Register() {
                   placeholder=" "
                   required
                 />
-                <label htmlFor="fullName" className="form-group__label">Full Name</label>
+                
                 {errors.fullName && <p className="register__error">{errors.fullName}</p>}
               </div>
 
               <div className="form-group">
+                <label htmlFor="email" className="form-group__label">Email</label>
                 <input
                   type="email"
                   id="email"
@@ -147,11 +148,12 @@ export default function Register() {
                   placeholder=" "
                   required
                 />
-                <label htmlFor="email" className="form-group__label">Email</label>
+                
                 {errors.email && <p className="register__error">{errors.email}</p>}
               </div>
 
               <div className="form-group">
+                <label htmlFor="phoneNumber" className="form-group__label">Phone Number</label>
                 <input
                   type="tel"
                   id="phoneNumber"
@@ -161,11 +163,12 @@ export default function Register() {
                   placeholder=" "
                   required
                 />
-                <label htmlFor="phoneNumber" className="form-group__label">Phone Number</label>
+                
                 {errors.phoneNumber && <p className="register__error">{errors.phoneNumber}</p>}
               </div>
 
               <div className="form-row">
+                 <label htmlFor="dateOfBirth" className="form-group__label">Date of Birth</label>
                 <div className="form-group">
                   <input
                     type="date"
@@ -176,11 +179,12 @@ export default function Register() {
                     placeholder=" "
                     required
                   />
-                  <label htmlFor="dateOfBirth" className="form-group__label">Date of Birth</label>
+                 
                   {errors.dateOfBirth && <p className="register__error">{errors.dateOfBirth}</p>}
                 </div>
 
                 <div className="form-group">
+                  <label htmlFor="gender" className="form-group__label">Gender</label>
                   <select
                     id="gender"
                     className="form-group__input"
@@ -192,12 +196,13 @@ export default function Register() {
                     <option value="MALE">Male</option>
                     <option value="FEMALE">Female</option>
                   </select>
-                  <label htmlFor="gender" className="form-group__label">Gender</label>
+                  
                   {errors.gender && <p className="register__error">{errors.gender}</p>}
                 </div>
               </div>
 
               <div className="form-group">
+                <label htmlFor="address" className="form-group__label">Address (optional)</label>
                 <input
                   type="text"
                   id="address"
@@ -206,12 +211,13 @@ export default function Register() {
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder=" "
                 />
-                <label htmlFor="address" className="form-group__label">Address (optional)</label>
+                
                 {errors.address && <p className="register__error">{errors.address}</p>}
               </div>
 
               <div className="form-group password-field">
                 <div className="password-input-wrapper">
+                  <label htmlFor="password" className="form-group__label">Choose a password</label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password"
@@ -225,7 +231,7 @@ export default function Register() {
                     placeholder=" "
                     required
                   />
-                  <label htmlFor="password" className="form-group__label">Choose a password</label>
+                  
                   <button
                     type="button"
                     className="password-toggle"
@@ -296,6 +302,7 @@ export default function Register() {
 
               <div className="form-group">
                 <div className="password-input-wrapper">
+                  <label htmlFor="confirmPassword" className="form-group__label">Confirm password</label>
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     id="confirmPassword"
@@ -305,7 +312,7 @@ export default function Register() {
                     placeholder=" "
                     required
                   />
-                  <label htmlFor="confirmPassword" className="form-group__label">Confirm password</label>
+                  
                   <button
                     type="button"
                     className="password-toggle"
@@ -329,7 +336,6 @@ export default function Register() {
             <span className="register__divider-text">or</span>
           </div>
 
-          {/* Right Column - Social Login */}
           <div className="register__social">
             <button
               type="button"

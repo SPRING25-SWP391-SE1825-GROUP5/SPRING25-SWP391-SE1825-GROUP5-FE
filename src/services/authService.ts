@@ -173,6 +173,7 @@ export const AuthService = {
       email: d.email ?? '',
       role: d.role ?? 'customer',
       emailVerified: Boolean(d.emailVerified ?? false),
+      phoneNumber: d.phoneNumber ?? d.phone ?? null,
       avatar: d.avatar ?? d.avatarUrl ?? d.imageUrl ?? null,
       address: d.address ?? null,
       dateOfBirth: d.dateOfBirth ?? d.dob ?? null,
