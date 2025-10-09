@@ -6,6 +6,8 @@
 .input-wrapper { position: relative; }
 
 .input {
+  box-sizing: border-box;
+  display: block;
   width: 100%;
   border: 1px solid var(--border-primary);
   background: #fff;
