@@ -119,6 +119,7 @@ body {
     margin-bottom: 8px;
   }
 
+
   &__subtitle {
     font-size: 15px;
     color: #4a5c4a;
@@ -376,3 +377,9 @@ body {
 .form-group__input:focus-visible {
   outline: none;
 }
+
+.google-button-container {
+  display: flex;
+  justify-content: center;
+}
+

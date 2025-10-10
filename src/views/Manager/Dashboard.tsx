@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Building2, 
   Users, 
@@ -55,12 +55,119 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
+import { ServiceManagementService, type Service, type ServiceStats, type ServiceBooking, type ServicePerformance } from '../../services'
 import './manager.scss'
 
 export default function ManagerDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  
+  // Service Management State
+  const [apiServices, setApiServices] = useState<Service[]>([])
+  const [apiServiceStats, setApiServiceStats] = useState<ServiceStats | null>(null)
+  const [apiServicePerformance, setApiServicePerformance] = useState<ServicePerformance[]>([])
+  const [apiRecentBookings, setApiRecentBookings] = useState<ServiceBooking[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // API Functions
+  const fetchServices = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await ServiceManagementService.getServices({ pageSize: 50 })
+      setApiServices(response.services)
+    } catch (err) {
+      setError('Failed to fetch services')
+      console.error('Error fetching services:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchServiceStats = async () => {
+    try {
+      const stats = await ServiceManagementService.getServiceStats()
+      setApiServiceStats(stats)
+    } catch (err) {
+      console.error('Error fetching service stats:', err)
+    }
+  }
+
+  const fetchServicePerformance = async () => {
+    try {
+      const performance = await ServiceManagementService.getServicePerformance()
+      setApiServicePerformance(performance)
+    } catch (err) {
+      console.error('Error fetching service performance:', err)
+    }
+  }
+
+  const fetchRecentBookings = async () => {
+    try {
+      const bookings = await ServiceManagementService.getRecentBookings(10)
+      setApiRecentBookings(bookings)
+    } catch (err) {
+      console.error('Error fetching recent bookings:', err)
+    }
+  }
+
+  // Load data when services page is active
+  useEffect(() => {
+    if (activePage === 'services') {
+      // Load all service-related data
+      Promise.all([
+        fetchServices(),
+        fetchServiceStats(),
+        fetchServicePerformance(),
+        fetchRecentBookings()
+      ]).catch(err => {
+        console.error('Error loading service data:', err)
+        setError('Failed to load service data')
+      })
+    }
+  }, [activePage])
+
+  // Transform API data for display
+  const serviceStatsArray = apiServiceStats ? [
+    {
+      title: 'Total Services',
+      value: apiServiceStats.totalServices.toString(),
+      unit: 'services',
+      change: apiServiceStats.change,
+      changeType: apiServiceStats.changeType,
+      icon: Wrench,
+      color: 'var(--primary-500)'
+    },
+    {
+      title: 'Service Bookings',
+      value: apiServiceStats.serviceBookings.toString(),
+      unit: 'bookings',
+      change: apiServiceStats.change,
+      changeType: apiServiceStats.changeType,
+      icon: ClipboardList,
+      color: 'var(--success-500)'
+    },
+    {
+      title: 'Service Revenue',
+      value: (apiServiceStats.serviceRevenue / 1000000).toFixed(1),
+      unit: 'M VND',
+      change: apiServiceStats.change,
+      changeType: apiServiceStats.changeType,
+      icon: DollarSign,
+      color: 'var(--info-500)'
+    },
+    {
+      title: 'Completion Rate',
+      value: apiServiceStats.completionRate.toFixed(1),
+      unit: '%',
+      change: apiServiceStats.change,
+      changeType: apiServiceStats.changeType,
+      icon: CheckCircle,
+      color: 'var(--warning-500)'
+    }
+  ] : []
 
   // Page components
   const renderPageContent = () => {
@@ -1643,9 +1750,55 @@ export default function ManagerDashboard() {
       case 'services':
         return (
           <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Service Management
-            </h2>
+            {/* 
+              Service Management Page
+              - Fetches service data from API when page loads
+              - Displays service statistics, list, performance charts, and recent bookings
+              - Includes loading states and error handling
+              - Provides refresh and add service functionality
+            */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                Service Management
+              </h2>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  onClick={fetchServices}
+                  style={{
+                    padding: '10px 20px',
+                    border: '1px solid var(--border-primary)',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Search size={16} />
+                  Refresh
+                </button>
+                <button style={{
+                  padding: '10px 20px',
+                  background: 'var(--primary-500)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Plus size={16} />
+                  Add Service
+                </button>
+              </div>
+            </div>
             
             {/* Service Stats */}
             <div style={{
@@ -1654,7 +1807,7 @@ export default function ManagerDashboard() {
               gap: '24px',
               marginBottom: '32px'
             }}>
-              {serviceStats.map((stat, index) => (
+              {apiServiceStats ? serviceStatsArray.map((stat, index) => (
                 <div 
                   key={index}
                   style={{
@@ -1713,7 +1866,11 @@ export default function ManagerDashboard() {
                     </span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  Loading service statistics...
+                </div>
+              )}
             </div>
 
             {/* Service Management Content */}
@@ -1739,12 +1896,25 @@ export default function ManagerDashboard() {
                   Service List
                 </h3>
                 <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  {services.map((service, index) => (
+                  {loading ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                      Loading services...
+                    </div>
+                  ) : error ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--error-500)' }}>
+                      {error}
+                    </div>
+                  ) : apiServices.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                      No services found
+                    </div>
+                  ) : (
+                    apiServices.map((service, index) => (
                     <div 
                       key={service.id}
                       style={{
                         padding: '16px',
-                        borderBottom: index < services.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                        borderBottom: index < apiServices.length - 1 ? '1px solid var(--border-primary)' : 'none',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
@@ -1817,7 +1987,8 @@ export default function ManagerDashboard() {
                         {service.status === 'active' ? 'Active' : 'Paused'}
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1837,7 +2008,7 @@ export default function ManagerDashboard() {
                   Service Performance
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={servicePerformanceData}>
+                  <BarChart data={apiServicePerformance.length > 0 ? apiServicePerformance : servicePerformanceData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
                     <XAxis 
                       dataKey="service" 
@@ -1910,7 +2081,7 @@ export default function ManagerDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentBookings.map((booking, index) => (
+                    {apiRecentBookings.length > 0 ? apiRecentBookings.map((booking, index) => (
                       <tr key={booking.id} style={{ borderBottom: index < recentBookings.length - 1 ? '1px solid var(--border-primary)' : 'none' }}>
                         <td style={{ padding: '12px 8px', fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>#{booking.id}</td>
                         <td style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--text-primary)' }}>{booking.service}</td>
@@ -1939,7 +2110,13 @@ export default function ManagerDashboard() {
                           {booking.price.toLocaleString()} VND
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          No recent bookings found
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
