@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logo from '@/assets/images/logo-black.webp'
 import './register.scss'
 import { GoogleIconWhite } from './AuthIcons'
 import { Eye, EyeOff, X } from 'lucide-react'
-import { AuthService } from '@/services/authService'
+import { AuthService, googleAuthService } from '@/services/authService'
+import toast from 'react-hot-toast'
+import { useAppDispatch } from '@/store/hooks'
+import { syncFromLocalStorage } from '@/store/authSlice'
 import {
   validateRegisterFormStrict,
   validatePassword,
@@ -14,6 +17,7 @@ import {
 export default function Register() {
   const location = useLocation()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -37,15 +41,69 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false)
 
   const redirect = new URLSearchParams(location.search).get('redirect') || '/auth/login'
+  const googleBtnRef = useRef<HTMLDivElement | null>(null)
 
-  const googleAuthUrl = useMemo(() => {
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
-    return `${base}/auth/login-google`
+  const getRedirectPath = useCallback((role?: string | null) => {
+    const r = (role || 'customer').toLowerCase()
+    switch (r) {
+      case 'admin': return '/admin'
+      case 'staff': return '/staff'
+      case 'technician': return '/technician'
+      case 'manager': return '/manager'
+      default: return '/'
+    }
   }, [])
 
-  function loginWithGoogle() {
-    window.location.href = googleAuthUrl
-  }
+  const handleGoogleCredential = useCallback(async (response: { credential: string }) => {
+    const idToken = response?.credential
+    if (!idToken) return
+
+    const loadingId = toast.loading('Đang xác thực Google...')
+    try {
+      const result = await AuthService.loginWithGoogle({ token: idToken })
+      if (result.success) {
+        toast.success('Đăng nhập Google thành công!')
+        localStorage.setItem('token', result.data.token)
+        localStorage.setItem('user', JSON.stringify(result.data.user))
+        dispatch(syncFromLocalStorage())
+        const target = new URLSearchParams(location.search).get('redirect')
+        const path = target || getRedirectPath(result.data.user?.role)
+        navigate(path, { replace: true })
+      } else {
+        toast.error(result.message || 'Đăng nhập Google thất bại!')
+      }
+    } catch (error) {
+      toast.error('Đăng nhập Google thất bại. Vui lòng thử lại.')
+    } finally {
+      toast.dismiss(loadingId)
+    }
+  }, [dispatch, getRedirectPath, navigate, location.search])
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const inited = await googleAuthService.initialize(handleGoogleCredential)
+      if (!mounted) return
+      if (inited && googleBtnRef.current) {
+        googleAuthService.renderButton(googleBtnRef.current)
+      }
+    })()
+    return () => { mounted = false }
+  }, [handleGoogleCredential])
+
+  const onGoogleButtonClick = useCallback(async () => {
+    try {
+      const inited = await googleAuthService.initialize(handleGoogleCredential)
+      if (!inited) {
+        toast.error('Không thể khởi tạo Google. Vui lòng tải lại trang.')
+        return
+      }
+      const shown = await googleAuthService.prompt()
+      if (!shown) toast.error('Không thể hiển thị Google Sign In. Vui lòng thử lại.')
+    } catch (error) {
+      toast.error('Lỗi xác thực Google. Vui lòng thử lại.')
+    }
+  }, [handleGoogleCredential])
 
   function updatePasswordStrength(pw: string) {
     const req = {
@@ -130,56 +188,52 @@ export default function Register() {
 
         <div className="register__grid">
           <div className="register__form">
-
             <form onSubmit={onSubmit}>
-              <label htmlFor="fullName" className="form-group__label">Họ và tên</label>
-              <div className="form-group">
-                <input
-                  type="text"
-                  id="fullName"
-                  className="form-group__input"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)} 
-                  placeholder=" "
-                  required
-                />
-                
-                {errors.fullName && <p className="register__error">{errors.fullName}</p>}
-              </div>
-
-              <div className="form-group">
-              <label htmlFor="email" className="form-group__label">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  className="form-group__input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder=" "
-                  required
-                />
-                
-                {errors.email && <p className="register__error">{errors.email}</p>}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="phoneNumber" className="form-group__label">Số điện thoại</label>
-                <input
-                  type="tel"
-                  id="phoneNumber"
-                  className="form-group__input"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder=" "
-                  required
-                />
-                
-                {errors.phoneNumber && <p className="register__error">{errors.phoneNumber}</p>}
-              </div>
-
-              <div className="form-row">
-                 <label htmlFor="dateOfBirth" className="form-group__label">Ngày sinh</label>
+              <div className="register__form-grid">
                 <div className="form-group">
+                  <label htmlFor="fullName" className="form-group__label">Họ và tên</label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    className="form-group__input"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder=" "
+                    required
+                  />
+                  {errors.fullName && <p className="register__error">{errors.fullName}</p>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="email" className="form-group__label">Email</label>
+                  <input
+                    type="email"
+                    id="email"
+                    className="form-group__input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder=" "
+                    required
+                  />
+                  {errors.email && <p className="register__error">{errors.email}</p>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="phoneNumber" className="form-group__label">Số điện thoại</label>
+                  <input
+                    type="tel"
+                    id="phoneNumber"
+                    className="form-group__input"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder=" "
+                    required
+                  />
+                  {errors.phoneNumber && <p className="register__error">{errors.phoneNumber}</p>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="dateOfBirth" className="form-group__label">Ngày sinh</label>
                   <input
                     type="date"
                     id="dateOfBirth"
@@ -189,7 +243,6 @@ export default function Register() {
                     placeholder=" "
                     required
                   />
-                 
                   {errors.dateOfBirth && <p className="register__error">{errors.dateOfBirth}</p>}
                 </div>
 
@@ -206,132 +259,127 @@ export default function Register() {
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
                   </select>
-                  
                   {errors.gender && <p className="register__error">{errors.gender}</p>}
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="address" className="form-group__label">Địa chỉ (không bắt buộc)</label>
-                <input
-                  type="text"
-                  id="address"
-                  className="form-group__input"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder=" "
-                />
-                
-                {errors.address && <p className="register__error">{errors.address}</p>}
-              </div>
-
-              <div className="form-group password-field">
-                <div className="password-input-wrapper">
-                  <label htmlFor="password" className="form-group__label">Mật khẩu</label>
+                <div className="form-group">
+                  <label htmlFor="address" className="form-group__label">Địa chỉ (không bắt buộc)</label>
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
+                    type="text"
+                    id="address"
                     className="form-group__input"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value)
-                      updatePasswordStrength(e.target.value)
-                    }}
-                    onFocus={() => setShowPasswordPopup(true)}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
                     placeholder=" "
-                    required
                   />
-                  
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                  {errors.address && <p className="register__error">{errors.address}</p>}
                 </div>
-                {errors.password && <p className="register__error">{errors.password}</p>}
 
-                {/* Password Requirements Popup */}
-                {showPasswordPopup && (
-                  <div className="password-popup">
-                    <div className="password-popup-header">
-                      <h4>Mật khẩu mạnh</h4>
-                      <button
-                        className="password-popup-close"
-                        onClick={() => setShowPasswordPopup(false)}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <div className="password-strength-indicator">
-                      <div className="strength-dots">
-                        {[...Array(4)].map((_, i) => (
-                          <div
-                            key={i}
-                            className={`strength-dot ${i < passwordStrength ? 'active' : ''}`}
-                            style={{
-                              backgroundColor: i < passwordStrength ? (passwordStrength <= 2 ? '#EF4444' : passwordStrength <= 3 ? '#F59E0B' : '#10B981') : '#E5E7EB'
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="password-popup-requirements">
-                      <p>Nên có:</p>
-                      <div className="requirement-item">
-                        <div className={`requirement-icon ${passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}`}>
-                          {passwordRequirements.uppercase && passwordRequirements.lowercase ? '✓' : '•'}
-                        </div>
-                        <span className={passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}>
-                          Chữ hoa & chữ thường
-                        </span>
-                      </div>
-                      <div className="requirement-item">
-                        <div className={`requirement-icon ${passwordRequirements.special ? 'met' : ''}`}>
-                          {passwordRequirements.special ? '✓' : '•'}
-                        </div>
-                        <span className={passwordRequirements.special ? 'met' : ''}>
-                          Ký tự đặc biệt (#$&)
-                        </span>
-                      </div>
-                      <div className="requirement-item">
-                        <div className={`requirement-icon ${passwordRequirements.length ? 'met' : ''}`}>
-                          {passwordRequirements.length ? '✓' : '•'}
-                        </div>
-                        <span className={passwordRequirements.length ? 'met' : ''}>
-                          Độ dài lớn hơn
-                        </span>
-                      </div>
-                    </div>
+                <div className="form-group password-field">
+                  <div className="password-input-wrapper">
+                    <label htmlFor="password" className="form-group__label">Mật khẩu</label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      id="password"
+                      className="form-group__input"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value)
+                        updatePasswordStrength(e.target.value)
+                      }}
+                      onFocus={() => setShowPasswordPopup(true)}
+                      placeholder=" "
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                   </div>
-                )}
-              </div>
+                  {errors.password && <p className="register__error">{errors.password}</p>}
 
-              <div className="form-group">
-                <div className="password-input-wrapper">
-                  <label htmlFor="confirmPassword" className="form-group__label">Xác nhận mật khẩu</label>
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    id="confirmPassword"
-                    className="form-group__input"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder=" "
-                    required
-                  />
-                  
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                  {showPasswordPopup && (
+                    <div className="password-popup">
+                      <div className="password-popup-header">
+                        <h4>Mật khẩu mạnh</h4>
+                        <button
+                          className="password-popup-close"
+                          onClick={() => setShowPasswordPopup(false)}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <div className="password-strength-indicator">
+                        <div className="strength-dots">
+                          {[...Array(4)].map((_, i) => (
+                            <div
+                              key={i}
+                              className={`strength-dot ${i < passwordStrength ? 'active' : ''}`}
+                              style={{
+                                backgroundColor: i < passwordStrength ? (passwordStrength <= 2 ? '#EF4444' : passwordStrength <= 3 ? '#F59E0B' : '#10B981') : '#E5E7EB'
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="password-popup-requirements">
+                        <p>Nên có:</p>
+                        <div className="requirement-item">
+                          <div className={`requirement-icon ${passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}`}>
+                            {passwordRequirements.uppercase && passwordRequirements.lowercase ? '✓' : '•'}
+                          </div>
+                          <span className={passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}>
+                            Chữ hoa & chữ thường
+                          </span>
+                        </div>
+                        <div className="requirement-item">
+                          <div className={`requirement-icon ${passwordRequirements.special ? 'met' : ''}`}>
+                            {passwordRequirements.special ? '✓' : '•'}
+                          </div>
+                          <span className={passwordRequirements.special ? 'met' : ''}>
+                            Ký tự đặc biệt (#$&)
+                          </span>
+                        </div>
+                        <div className="requirement-item">
+                          <div className={`requirement-icon ${passwordRequirements.length ? 'met' : ''}`}>
+                            {passwordRequirements.length ? '✓' : '•'}
+                          </div>
+                          <span className={passwordRequirements.length ? 'met' : ''}>
+                            Độ dài lớn hơn
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {errors.confirmPassword && <div className="password-error">{errors.confirmPassword}</div>}
+
+                <div className="form-group">
+                  <div className="password-input-wrapper">
+                    <label htmlFor="confirmPassword" className="form-group__label">Xác nhận mật khẩu</label>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      id="confirmPassword"
+                      className="form-group__input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder=" "
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <div className="password-error">{errors.confirmPassword}</div>}
+                </div>
               </div>
 
               <button type="submit" className="btn btn--primary" disabled={submitting}>
@@ -347,10 +395,15 @@ export default function Register() {
           </div>
 
           <div className="register__social">
+            {/* Google Identity Services Button */}
+            <div ref={googleBtnRef} className="google-button-container"></div>
+
+            {/* Fallback button */}
             <button
               type="button"
-              className="btn btn--google"
-              onClick={loginWithGoogle}
+              className="btn btn--google btn--google-enhanced"
+              onClick={onGoogleButtonClick}
+              style={{ display: 'none' }}
             >
               <div className="btn__icon">
                 <GoogleIconWhite />
@@ -360,17 +413,6 @@ export default function Register() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="register__footer">
-          <div className="register__footer-links">
-            <a href="#">Điều khoản sử dụng</a>
-            <span>•</span>
-            <a href="#">Chính sách bảo mật</a>
-          </div>
-          <p className="register__footer-text">
-            Trang web này được bảo vệ bởi reCAPTCHA Enterprise. Chính sách bảo mật và Điều khoản dịch vụ của Google được áp dụng.
-          </p>
-        </div>
         </div>
       </div>
     </div>
