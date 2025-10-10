@@ -30,6 +30,23 @@ export type {
   UserListResponse
 } from './userService'
 
+// Booking Services
+export { BookingService } from './bookingService'
+export type {
+  AvailabilityQuery
+} from './bookingService'
+
+// Service Management Services
+export { ServiceManagementService } from './serviceManagementService'
+export type {
+  Service,
+  ServiceStats,
+  ServiceBooking,
+  ServicePerformance,
+  ServiceListParams,
+  ServiceListResponse
+} from './serviceManagementService'
+
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'
 // export { OrderService } from './orderService'
