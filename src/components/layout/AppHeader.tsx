@@ -301,7 +301,7 @@ const NewAppHeader: React.FC = () => {
 
   return (
     <>
-            <NavigationDropdown
+      <NavigationDropdown
         menuItems={menuItems}
         logo={{
           src: logo,
@@ -327,77 +327,99 @@ const NewAppHeader: React.FC = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
+          width: 36px;
+          height: 36px;
           border: none;
           background: none;
           color: #333;
           text-decoration: none;
-          border-radius: 6px;
+          border-radius: 8px;
           transition: all 300ms ease;
+          font-family: 'Poppins', sans-serif;
         }
         
         .header-icon-btn:hover {
-          background: #e3f2fd;
+          background: #f3f4f6;
           color: #1976d2;
+          transform: translateY(-1px);
         }
         
         .cart-badge {
           position: absolute;
-          top: -5px;
-          right: -5px;
-          background: #ff4444;
+          top: -4px;
+          right: -4px;
+          background: #ef4444;
           color: white;
-          font-size: 0.7rem;
+          font-size: 0.65rem;
           font-weight: 600;
-          padding: 0.125rem 0.25rem;
-          border-radius: 8px;
-          min-width: 16px;
+          padding: 0.125rem 0.375rem;
+          border-radius: 10px;
+          min-width: 18px;
           text-align: center;
           line-height: 1;
+          font-family: 'Poppins', sans-serif;
         }
         
         .login-btn {
           padding: 0.5rem 1rem;
-          font-size: 0.9rem;
+          font-size: 0.875rem;
           font-weight: 500;
-          color: #333;
+          color: #374151;
           text-decoration: none;
-          border: none;
-          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
           transition: all 300ms ease;
           white-space: nowrap;
+          background: white;
+          font-family: 'Poppins', sans-serif;
         }
         
         .login-btn:hover {
           color: #1976d2;
-          background: #e3f2fd;
+          background: #f8fafc;
+          border-color: #1976d2;
+          transform: translateY(-1px);
         }
         
         .booking-btn {
-          padding: 0 1.5rem;
-          font-size: 0.9rem;
+          padding: 0.5rem 1.25rem;
+          font-size: 0.875rem;
           font-weight: 600;
           color: white;
           text-decoration: none;
-          background: #000000;
+          background: #1f2937;
           border: none;
-          border-radius: 0;
-          transition: background-color 300ms ease;
+          border-radius: 8px;
+          transition: all 300ms ease;
           white-space: nowrap;
-          height: 57px;
+          height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
+          font-family: 'Poppins', sans-serif;
         }
         
         .booking-btn:hover {
-          background: #333333;
+          background: #374151;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(31, 41, 55, 0.3);
         }
         
         @media (max-width: 1023px) {
           .hide-mobile {
             display: none !important;
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .header-icon-btn {
+            width: 32px;
+            height: 32px;
+          }
+          
+          .login-btn, .booking-btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8rem;
           }
         }
       `}</style>

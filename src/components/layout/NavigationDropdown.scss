@@ -7,17 +7,24 @@
   --active-color: #1976d2;
   
   position: fixed;
-  top: 0;
+  top: 56px; /* Điều chỉnh để nằm dưới banner */
   left: 0;
   right: 0;
   z-index: 1000;
   background: white;
   border-bottom: 1px solid #e5e5e5;
   height: var(--header-height);
+  font-family: 'Poppins', sans-serif;
+}
+
+.header-dropdown__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-left: 1rem;
+  padding: 0 24px;
 }
 
 /* Header Sections */
@@ -26,6 +33,7 @@
   align-items: center;
   justify-content: flex-start;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .header-menu-section {
@@ -33,8 +41,8 @@
   align-items: center;
   justify-content: center;
   flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
+  min-width: 0;
+  margin: 0 24px;
 }
 
 .header-right-section {
@@ -42,8 +50,8 @@
   align-items: center;
   justify-content: flex-end;
   flex-shrink: 0;
-  margin-right: 0;
-  padding-right: 0;
+  gap: 8px;
+  min-width: 0;
 }
 
 /* Logo */
@@ -406,9 +414,31 @@
 }
 
 /* Responsive Adjustments */
+@media (max-width: 1024px) {
+  .header-dropdown__container {
+    padding: 0 20px;
+  }
+  
+  .header-menu-section {
+    margin: 0 16px;
+  }
+  
+  .header-right-section {
+    gap: 6px;
+  }
+}
+
 @media (max-width: 1023px) {
-  .header-container {
-    padding: 0 1rem;
+  .header-dropdown__container {
+    padding: 0 16px;
+  }
+  
+  .header-menu-section {
+    margin: 0 12px;
+  }
+  
+  .header-right-section {
+    gap: 4px;
   }
   
   .header-logo img {
@@ -416,9 +446,13 @@
   }
 }
 
-@media (max-width: 767px) {
-  .header-container {
-    padding: 0 0.75rem;
+@media (max-width: 768px) {
+  .header-dropdown__container {
+    padding: 0 12px;
+  }
+  
+  .header-menu-section {
+    margin: 0 8px;
   }
   
   .nav-badge {
