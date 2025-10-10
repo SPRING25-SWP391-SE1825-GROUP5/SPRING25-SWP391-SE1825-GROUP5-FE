@@ -3,11 +3,11 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser } from '@/store/authSlice'
 import { AuthService } from '@/services/authService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
-import { 
-  UserIcon, 
-  CogIcon, 
+import {
+  UserIcon,
+  CogIcon,
   WrenchScrewdriverIcon,
-  ShoppingCartIcon, 
+  ShoppingCartIcon,
   TagIcon,
   PencilIcon,
   BellIcon,
@@ -21,7 +21,9 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   KeyIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  PlusIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline'
 import './profile.scss'
 
@@ -41,6 +43,18 @@ interface ChangePasswordData {
   confirmPassword: string
 }
 
+interface Vehicle {
+  id: string
+  brand: string
+  model: string
+  year: string
+  licensePlate: string
+  color: string
+  image?: string
+  status: 'active' | 'maintenance'
+  nextMaintenance: string
+}
+
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
@@ -49,7 +63,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   const [profileData, setProfileData] = useState<UserProfile>({
     fullName: '',
     email: '',
@@ -59,8 +73,8 @@ export default function Profile() {
     gender: '',
     avatarUrl: '👤'
   })
-  console.log({profileData});
-  
+  console.log({ profileData });
+
 
   const [originalData, setOriginalData] = useState(profileData)
 
@@ -80,6 +94,31 @@ export default function Profile() {
     lowercase: false,
     number: false,
     special: false
+  })
+
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([
+    {
+      id: '1',
+      brand: 'VinFast',
+      model: 'VF8',
+      year: '2023',
+      licensePlate: '30A-12345',
+      color: 'White',
+      status: 'active',
+      nextMaintenance: '5,000 km'
+    }
+  ])
+
+  const vehicleImageInputRef = useRef<HTMLInputElement>(null)
+  const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, 'id'>>({
+    brand: '',
+    model: '',
+    year: new Date().getFullYear().toString(),
+    licensePlate: '',
+    color: '',
+    status: 'active',
+    nextMaintenance: ''
   })
 
   useEffect(() => {
@@ -124,6 +163,13 @@ export default function Profile() {
     }))
   }
 
+  const handleVehicleInputChange = (field: keyof Omit<Vehicle, 'id'>, value: string) => {
+    setNewVehicle(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
   const handleEdit = () => {
     setOriginalData(profileData)
     setIsEditing(true)
@@ -138,15 +184,15 @@ export default function Profile() {
     setIsSaving(true)
     try {
       const errors: string[] = []
-      
+
       if (!profileData.fullName?.trim()) {
         errors.push('Full name is required')
       }
-      
+
       if (!profileData.address?.trim()) {
         errors.push('Address is required')
       }
-      
+
       const dob = profileData.dateOfBirth?.trim()
       if (!dob) {
         errors.push('Date of birth is required')
@@ -162,7 +208,7 @@ export default function Profile() {
           errors.push('You must be at least 13 years old')
         }
       }
-      
+
       if (!profileData.gender) {
         errors.push('Please select gender')
       }
@@ -250,6 +296,59 @@ export default function Profile() {
     console.log('Marking notification as read:', notificationId)
   }
 
+  const handleRemoveVehicle = (vehicleId: string) => {
+    setVehicles(prev => prev.filter(vehicle => vehicle.id !== vehicleId))
+  }
+
+  const handleVehicleImageClick = () => {
+    vehicleImageInputRef.current?.click()
+  }
+
+  const handleVehicleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const isImage = file.type.startsWith('image/')
+    if (!isImage) {
+      alert('Please select a valid image file')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setNewVehicle(prev => ({
+        ...prev,
+        image: e.target?.result as string
+      }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleAddVehicle = () => {
+    if (!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    const vehicle: Vehicle = {
+      ...newVehicle,
+      id: Date.now().toString()
+    }
+
+    setVehicles(prev => [...prev, vehicle])
+    setNewVehicle({
+      brand: '',
+      model: '',
+      year: new Date().getFullYear().toString(),
+      licensePlate: '',
+      color: '',
+      status: 'active',
+      nextMaintenance: ''
+    })
+    setShowAddVehicleModal(false)
+    alert('Vehicle added successfully!')
+  }
+
   const checkPasswordStrength = (password: string) => {
     const requirements = {
       length: password.length >= 8,
@@ -258,9 +357,9 @@ export default function Profile() {
       number: /[0-9]/.test(password),
       special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
     }
-    
+
     setPasswordRequirements(requirements)
-    
+
     const metCount = Object.values(requirements).filter(Boolean).length
     if (metCount >= 4) return 'strong'
     if (metCount >= 3) return 'medium'
@@ -273,7 +372,7 @@ export default function Profile() {
       ...prev,
       [field]: value
     }))
-    
+
     if (field === 'newPassword') {
       setPasswordStrength(checkPasswordStrength(value))
     }
@@ -284,12 +383,12 @@ export default function Profile() {
       alert('Password confirmation does not match!')
       return
     }
-    
+
     if (passwordData.newPassword.length < 6) {
       alert('New password must be at least 6 characters!')
       return
     }
-    
+
     setIsSaving(true)
     try {
       await AuthService.changePassword({
@@ -359,7 +458,7 @@ export default function Profile() {
                   style={{ display: 'none' }}
                 />
               </div>
-              
+
               <div className="user-info">
                 <h2 className="user-name">{profileData.fullName || 'User'}</h2>
                 <p className="user-email">{profileData.email}</p>
@@ -399,8 +498,8 @@ export default function Profile() {
                           <BaseButton variant="outline" onClick={handleCancel}>
                             Cancel
                           </BaseButton>
-                          <BaseButton 
-                            variant="primary" 
+                          <BaseButton
+                            variant="primary"
                             onClick={handleSave}
                             loading={isSaving}
                           >
@@ -425,7 +524,7 @@ export default function Profile() {
                       </div>
                       <div className="form-group">
                         <label className="form-label">
-                          Email 
+                          Email
                           <span className="disabled-hint" title="Email cannot be changed">
                             <XMarkIcon className="w-4 h-4" />
                           </span>
@@ -501,19 +600,55 @@ export default function Profile() {
             {activeTab === 'preferences' && (
               <BaseCard className="preferences-card">
                 <div className="card-header">
-                  <h3 className="card-title">Personal Preferences</h3>
+                  <h3 className="card-title">Account Preferences</h3>
+                  <p className="card-subtitle">Manage your account settings and security</p>
                 </div>
 
                 <div className="preferences-content">
                   <div className="preference-item">
                     <div className="preference-info">
-                      <h4>Change Password</h4>
-                      <p>Update your password to protect your account</p>
+                      <div className="preference-icon security">
+                        <LockClosedIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4>Password & Security</h4>
+                        <p>Update your password to keep your account secure</p>
+                      </div>
                     </div>
-                    <BaseButton variant="outline" onClick={() => setShowPasswordModal(true)}>
+                    <BaseButton variant="primary" onClick={() => {setShowPasswordModal(true) }}>
                       Change Password
                     </BaseButton>
                   </div>
+
+                  {/* <div className="preference-item">
+                    <div className="preference-info">
+                      <div className="preference-icon notification">
+                        <BellIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4>Notification Settings</h4>
+                        <p>Manage how you receive notifications and alerts</p>
+                      </div>
+                    </div>
+                    <BaseButton variant="outline">
+                      Configure
+                    </BaseButton>
+                  </div>
+
+                  <div className="preference-item">
+                    <div className="preference-info">
+                      <div className="preference-icon privacy">
+                        <UserIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4>Privacy Settings</h4>
+                        <p>Control your privacy and data sharing preferences</p>
+                      </div>
+                    </div>
+                    <BaseButton variant="outline">
+                      Manage
+                    </BaseButton>
+                  </div> */}
                 </div>
               </BaseCard>
             )}
@@ -521,24 +656,81 @@ export default function Profile() {
             {activeTab === 'my-vehicle' && (
               <BaseCard className="my-vehicle-card">
                 <div className="card-header">
-                  <h3 className="card-title">My Vehicle</h3>
+                  <div>
+                    <h3 className="card-title">My Vehicles</h3>
+                    <p className="card-subtitle">Manage your registered vehicles</p>
+                  </div>
+                  <BaseButton
+                    variant="primary"
+                    onClick={() => { setShowAddVehicleModal(true) }}
+                    className="add-vehicle-btn"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    Add Vehicle
+                  </BaseButton>
                 </div>
 
                 <div className="vehicle-content">
-                  <div className="vehicle-item">
-                    <div className="vehicle-image">
-                      <TruckIcon className="w-12 h-12" />
+                  {vehicles.length === 0 ? (
+                    <div className="empty-state">
+                      <TruckIcon className="empty-icon" />
+                      <h4>No Vehicles Added</h4>
+                      <p>You haven't added any vehicles yet. Add your first vehicle to get started.</p>
+                      <BaseButton
+                        variant="primary"
+                        onClick={() => { setShowPasswordModal(false); setShowAddVehicleModal(true) }}
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                        Add Your First Vehicle
+                      </BaseButton>
                     </div>
-                    <div className="vehicle-details">
-                      <h4>VinFast VF8</h4>
-                      <p>Electric SUV | License Plate: 30A-12345</p>
-                      <div className="vehicle-meta">
-                        <span className="vehicle-status active">Active</span>
-                        <span className="next-maintenance">Next maintenance: 5,000 km</span>
-                      </div>
+                  ) : (
+                    <div className="vehicles-grid">
+                      {vehicles.map((vehicle) => (
+                        <div key={vehicle.id} className="vehicle-card">
+                          <div className="vehicle-header">
+                            <div className="vehicle-image">
+                              {vehicle.image ? (
+                                <img src={vehicle.image} alt={`${vehicle.brand} ${vehicle.model}`} />
+                              ) : (
+                                <TruckIcon className="vehicle-icon" />
+                              )}
+                            </div>
+                            <button
+                              className="remove-vehicle-btn"
+                              onClick={() => handleRemoveVehicle(vehicle.id)}
+                              title="Remove vehicle"
+                            >
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="vehicle-details">
+                            <h4>{vehicle.brand} {vehicle.model}</h4>
+                            <p className="vehicle-year">{vehicle.year} • {vehicle.color}</p>
+                            <div className="license-plate">
+                              {vehicle.licensePlate}
+                            </div>
+
+                            <div className="vehicle-meta">
+                              <span className={`vehicle-status ${vehicle.status}`}>
+                                {vehicle.status === 'active' ? 'Active' : 'Maintenance'}
+                              </span>
+                              <div className="maintenance-info">
+                                <ClockIcon className="w-4 h-4" />
+                                <span>Next: {vehicle.nextMaintenance}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="vehicle-actions">
+                            <BaseButton variant="outline" size="sm">View Details</BaseButton>
+                            <BaseButton variant="primary" size="sm">Schedule Service</BaseButton>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <BaseButton variant="outline" size="sm">View Details</BaseButton>
-                  </div>
+                  )}
                 </div>
               </BaseCard>
             )}
@@ -654,7 +846,7 @@ export default function Profile() {
                     </div>
                     <div className="notification-actions">
                       <BaseButton variant="primary" size="sm">Schedule</BaseButton>
-                      <button 
+                      <button
                         className="mark-read-btn"
                         onClick={() => handleMarkAsRead('notif-1')}
                         title="Mark as read"
@@ -675,7 +867,7 @@ export default function Profile() {
                     </div>
                     <div className="notification-actions">
                       <BaseButton variant="outline" size="sm">Review</BaseButton>
-                      <button 
+                      <button
                         className="mark-read-btn"
                         onClick={() => handleMarkAsRead('notif-2')}
                         title="Mark as read"
@@ -737,7 +929,7 @@ export default function Profile() {
                         </div>
                       </div>
                     </div>
-                    <button 
+                    <button
                       className="remove-item-btn"
                       onClick={() => handleRemoveCartItem('cart-item-1')}
                       title="Remove from cart"
@@ -762,7 +954,7 @@ export default function Profile() {
                         </div>
                       </div>
                     </div>
-                    <button 
+                    <button
                       className="remove-item-btn"
                       onClick={() => handleRemoveCartItem('cart-item-2')}
                       title="Remove from cart"
@@ -842,7 +1034,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Modern Password Change Modal */}
+        {/*  Password Change Modal */}
         {showPasswordModal && (
           <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -860,7 +1052,7 @@ export default function Profile() {
                   <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="modal-body">
                 <div className="password-form">
                   <div className="form-group">
@@ -875,7 +1067,7 @@ export default function Profile() {
                         onChange={(value) => handlePasswordChange('currentPassword', value)}
                         placeholder="Enter your current password"
                       />
-                      <button 
+                      <button
                         type="button"
                         className="password-toggle"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
@@ -897,7 +1089,7 @@ export default function Profile() {
                         onChange={(value) => handlePasswordChange('newPassword', value)}
                         placeholder="Create a strong password"
                       />
-                      <button 
+                      <button
                         type="button"
                         className="password-toggle"
                         onClick={() => setShowNewPassword(!showNewPassword)}
@@ -905,7 +1097,7 @@ export default function Profile() {
                         {showNewPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                       </button>
                     </div>
-                    
+
                     {passwordData.newPassword && (
                       <div className="password-strength">
                         <div className="strength-bar">
@@ -918,6 +1110,7 @@ export default function Profile() {
                         </div>
                       </div>
                     )}
+
 
                     <div className="password-requirements">
                       <h4>Password must contain:</h4>
@@ -953,7 +1146,7 @@ export default function Profile() {
                         onChange={(value) => handlePasswordChange('confirmPassword', value)}
                         placeholder="Confirm your new password"
                       />
-                      <button 
+                      <button
                         type="button"
                         className="password-toggle"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -972,15 +1165,15 @@ export default function Profile() {
               </div>
 
               <div className="modal-footer">
-                <BaseButton 
-                  variant="outline" 
+                <BaseButton
+                  variant="outline"
                   onClick={() => setShowPasswordModal(false)}
                   className="cancel-btn"
                 >
                   Cancel
                 </BaseButton>
-                <BaseButton 
-                  variant="primary" 
+                <BaseButton
+                  variant="primary"
                   onClick={handleChangePassword}
                   loading={isSaving}
                   disabled={
@@ -1000,10 +1193,139 @@ export default function Profile() {
                   ) : (
                     <>
                       <div className="" >
-                      Update Password
+                        Update Password
                       </div>
                     </>
                   )}
+                </BaseButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Vehicle Modal */}
+        {showAddVehicleModal && (
+          <div className="modal-overlay" onClick={() => setShowAddVehicleModal(false)}>
+            <div className="modal-content vehicle-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="header-content">
+                  <div className="modal-icon">
+                    <TruckIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3>Add New Vehicle</h3>
+                    <p>Enter your vehicle details</p>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowAddVehicleModal(false)}>
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="vehicle-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Brand *</label>
+                      <BaseInput
+                        value={newVehicle.brand}
+                        onChange={(value) => handleVehicleInputChange('brand', value)}
+                        placeholder="e.g., VinFast, Toyota, Honda"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Model *</label>
+                      <BaseInput
+                        value={newVehicle.model}
+                        onChange={(value) => handleVehicleInputChange('model', value)}
+                        placeholder="e.g., VF8, Camry, CR-V"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Year</label>
+                      <BaseInput
+                        value={newVehicle.year}
+                        onChange={(value) => handleVehicleInputChange('year', value)}
+                        type="number"
+                        placeholder="2023"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Color</label>
+                      <BaseInput
+                        value={newVehicle.color}
+                        onChange={(value) => handleVehicleInputChange('color', value)}
+                        placeholder="e.g., White, Black, Red"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">License Plate *</label>
+                      <BaseInput
+                        value={newVehicle.licensePlate}
+                        onChange={(value) => handleVehicleInputChange('licensePlate', value)}
+                        placeholder="e.g., 30A-12345"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Next Maintenance</label>
+                      <BaseInput
+                        value={newVehicle.nextMaintenance}
+                        onChange={(value) => handleVehicleInputChange('nextMaintenance', value)}
+                        placeholder="e.g., 5,000 km or 01/04/2024"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Vehicle Image</label>
+                    <div
+                      className="image-upload-area"
+                      onClick={handleVehicleImageClick}
+                    >
+                      {newVehicle.image ? (
+                        <img src={newVehicle.image} alt="Vehicle preview" className="image-preview" />
+                      ) : (
+                        <div className="upload-placeholder">
+                          <PhotoIcon className="w-8 h-8" />
+                          <span>Click to upload vehicle image</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={vehicleImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleVehicleImageChange}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <BaseButton
+                  variant="outline"
+                  onClick={() => setShowAddVehicleModal(false)}
+                >
+                  Cancel
+                </BaseButton>
+                <BaseButton
+                  variant="primary"
+                  onClick={handleAddVehicle}
+                  disabled={!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate}
+                  className="add-vehicle-btn"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Add Vehicle
                 </BaseButton>
               </div>
             </div>
