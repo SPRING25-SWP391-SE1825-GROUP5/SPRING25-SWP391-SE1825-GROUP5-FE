@@ -21,7 +21,6 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const googleBtnRef = useRef<HTMLDivElement | null>(null);
 
   const handleEmailOrPhoneChange = useCallback(
     (value: string) => {
@@ -75,57 +74,35 @@ export default function LoginPage() {
     [safeRedirect]
   );
 
+
+  // Callback khi Google trả về ID token
   const handleGoogleCredential = useCallback(
     async (response: { credential: string }) => {
-      const idToken = response?.credential;
-      if (!idToken) {
-        return;
-      }
+      const idToken = response?.credential
+      if (!idToken) return
 
-      const loadingId = toast.loading("Verifying Google...");
-
+      const loadingId = toast.loading("Đang xác thực Google...")
       try {
-        const result = await AuthService.loginWithGoogle({ token: idToken });
-
+        const result = await AuthService.loginWithGoogle({ token: idToken })
         if (result.success) {
-          toast.success("Google Sign In Successfully !");
-
-          // Store token and user data in localStorage
-          localStorage.setItem("token", result.data.token);
-          localStorage.setItem("user", JSON.stringify(result.data.user));
-
-          // Sync Redux state with localStorage
-          dispatch(syncFromLocalStorage());
-
-          // Navigate based on user role
-          const userRole = result.data.user?.role || "customer";
-          const redirectPath = getRedirectPath(userRole);
-          navigate(redirectPath, { replace: true });
+          toast.success("Đăng nhập Google thành công!")
+          localStorage.setItem("token", result.data.token)
+          localStorage.setItem("user", JSON.stringify(result.data.user))
+          dispatch(syncFromLocalStorage())
+          const userRole = result.data.user?.role || "customer"
+          const redirectPath = getRedirectPath(userRole)
+          navigate(redirectPath, { replace: true })
         } else {
-          toast.error("Google Sign In Failed : " + (result.message || ""));
+          toast.error(result.message || "Đăng nhập Google thất bại!")
         }
       } catch (error) {
-        toast.error("Google Sign In Failed. Vui lòng thử lại.");
+        toast.error("Đăng nhập Google thất bại. Vui lòng thử lại.")
       } finally {
-        toast.dismiss(loadingId);
+        toast.dismiss(loadingId)
       }
     },
-    [getRedirectPath, navigate, authState, dispatch]
-  );
-
-  // Initialize Google Auth Service
-  useEffect(() => {
-    const initGoogleAuth = async () => {
-      const success = await googleAuthService.initialize(
-        handleGoogleCredential
-      );
-      if (success && googleBtnRef.current) {
-        googleAuthService.renderButton(googleBtnRef.current);
-      }
-    };
-
-    initGoogleAuth();
-  }, [handleGoogleCredential]);
+    [dispatch, getRedirectPath, navigate]
+  )
 
   // Check if user is already logged in
   useEffect(() => {
@@ -167,7 +144,7 @@ export default function LoginPage() {
       console.log("Login result:", result);
 
       if (result.success) {
-        toast.success("Login Successfully !");
+        toast.success("Đăng nhập thành công!");
 
         // Store token and user data in localStorage
         localStorage.setItem("token", result.data.token);
@@ -182,8 +159,8 @@ export default function LoginPage() {
         console.log("Redirect path:", redirectPath);
         navigate(redirectPath, { replace: true });
       } else {
-        toast.error(result.message || "Login Failed !");
-        setServerError(result.message || "Login Failed !");
+        toast.error(result.message || "Đăng nhập thất bại!");
+        setServerError(result.message || "Đăng nhập thất bại!");
       }
     } catch (error: unknown) {
       console.error("Login error:", error);
@@ -213,30 +190,46 @@ export default function LoginPage() {
 
   const onGoogleButtonClick = useCallback(async () => {
     try {
-      const success = await googleAuthService.prompt();
-      if (!success) {
-        toast.error("Please sign in to Google first or try again later");
+      // Khởi tạo GIS nếu chưa sẵn sàng
+      const inited = await googleAuthService.initialize(handleGoogleCredential)
+      if (!inited) {
+        toast.error("Không thể khởi tạo Google. Vui lòng tải lại trang.")
+        return
+      }
+      const shown = await googleAuthService.prompt()
+      if (!shown) {
+        toast.error("Không thể hiển thị Google Sign In. Vui lòng thử lại.")
       }
     } catch (error) {
-      toast.error("Google Authentication Error. Please try again");
+      toast.error("Lỗi xác thực Google. Vui lòng thử lại.")
     }
-  }, []);
+  }, [handleGoogleCredential]);
 
   return (
     <div className="login">
-      {/* Logo Header */}
-      {/* <div className="login__header">
-        <Link to="/" className="login__logo-link">
-          <img src={logo} alt="EV Service Logo" className="login__logo" />
-        </Link>
-      </div> */}
-
       <div className="login__container">
-        <h1 className="login__title">Log In</h1>
+        {/* Left side - Image/Visual */}
+        <div className="login__visual">
+          <div className="login__image-container">
+            <img 
+              src="/src/assets/images/ev-charging.svg" 
+              alt="EV Service Center" 
+              className="login__hero-image"
+            />
+            <div className="login__hero-content">
+              <h2>Chào mừng đến EV Service Center</h2>
+              <p>Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp cho xe điện của bạn</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Login Form */}
+        <div className="login__form-container">
+        <h1 className="login__title">Đăng Nhập</h1>
         <p className="login__subtitle">
-          Don't have an account?{" "}
+          Chưa có tài khoản?{" "}
           <Link to="/auth/register" className="login__signup-link">
-            Sign Up
+            Đăng Ký
           </Link>
         </p>
 
@@ -246,7 +239,7 @@ export default function LoginPage() {
             <form onSubmit={onSubmit}>
               <div className="form-group">
                 <label htmlFor="emailOrPhone" className="form-group__label">
-                  Email or Phone Number
+                  Email hoặc Số điện thoại
                 </label>
                 <input
                   id="emailOrPhone"
@@ -266,7 +259,7 @@ export default function LoginPage() {
 
               <div className="form-group">
                 <label htmlFor="password" className="form-group__label">
-                  Password
+                  Mật khẩu
                 </label>
                 <input
                   id="password"
@@ -278,8 +271,8 @@ export default function LoginPage() {
                   required
                 />
 
-                <Link to="/forgot-password" className="form-group__forgot-link">
-                  Forgot Password?
+                <Link to="/auth/forgot-password" className="form-group__forgot-link">
+                  Quên mật khẩu?
                 </Link>
                 {formError.password && (
                   <p className="login__error">{formError.password}</p>
@@ -293,7 +286,7 @@ export default function LoginPage() {
                 )}
 
               <button type="submit" className="btn btn--primary">
-                Continue
+                Tiếp tục
               </button>
             </form>
           </div>
@@ -301,11 +294,14 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="login__divider">
             <div className="login__divider-line"></div>
-            <span className="login__divider-text">or</span>
+            <span className="login__divider-text">hoặc</span>
           </div>
 
           {/* Right Column - Social Login */}
           <div className="login__social">
+
+            {/* Single Google Button */}
+            <button
             {/* Google Identity Services Button */}
             <div ref={googleBtnRef} className="google-button-container"></div>
 
@@ -335,8 +331,10 @@ export default function LoginPage() {
                   />
                 </svg>
               </div>
-              <span className="btn__text">Continue with Google</span>
-            </button> */}
+
+              <span className="btn__text">Tiếp tục với Google</span>
+            </button>
+
           </div>
         </div>
 
@@ -344,30 +342,31 @@ export default function LoginPage() {
         <div className="login__footer">
           <div className="login__footer-links">
             <a href="/terms" className="login__footer-link">
-              Terms of Use
+              Điều khoản sử dụng
             </a>
             <span className="login__footer-separator">•</span>
             <a href="/privacy" className="login__footer-link">
-              Privacy Policy
+              Chính sách bảo mật
             </a>
           </div>
           <p className="login__recaptcha">
-            This site is protected by reCAPTCHA Enterprise.{" "}
+            Trang web này được bảo vệ bởi reCAPTCHA Enterprise.{" "}
             <a
               href="https://policies.google.com/privacy"
               className="login__recaptcha-link"
             >
-              Google's Privacy Policy
+              Chính sách bảo mật của Google
             </a>{" "}
-            and{" "}
+            và{" "}
             <a
               href="https://policies.google.com/terms"
               className="login__recaptcha-link"
             >
-              Terms of Service
+              Điều khoản dịch vụ
             </a>{" "}
-            apply.
+            áp dụng.
           </p>
+        </div>
         </div>
       </div>
     </div>

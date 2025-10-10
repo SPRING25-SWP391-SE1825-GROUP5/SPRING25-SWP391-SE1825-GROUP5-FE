@@ -20,6 +20,8 @@ const Packages = lazy(() => import('@/views/Packages'))
 const Booking = lazy(() => import('@/views/booking/Booking'))
 const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
+const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
+const ForgotPasswordConfirm = lazy(() => import('../views/auth/ForgotPasswordConfirm'))
 const Dashboard = lazy(() => import('@/views/Dashboard'))
 const Profile = lazy(() => import('@/views/Profile'))
 const Users = lazy(() => import('@/views/Users'))
@@ -113,6 +115,8 @@ const router = createBrowserRouter([
     children: [
       { path: 'login', element: suspense(<Login />) },
       { path: 'register', element: suspense(<Register />) },
+      { path: 'forgot-password', element: suspense(<ForgotPasswordRequest />) },
+      { path: 'forgot-password/confirm', element: suspense(<ForgotPasswordConfirm />) },
     ],
   },
 ])

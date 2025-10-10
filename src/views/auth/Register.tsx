@@ -102,19 +102,29 @@ export default function Register() {
 
   return (
     <div className="register">
-      {/* Logo Header */}
-      {/* <div className="register__header">
-        <Link to="/" className="register__logo-link">
-          <img src={logo} alt="EV Service Logo" className="register__logo" />
-        </Link>
-      </div> */}
-
       <div className="register__container">
-        <h1 className="register__title">Sign Up</h1>
+        {/* Left side - Image/Visual */}
+        <div className="register__visual">
+          <div className="register__image-container">
+            <img 
+              src="/src/assets/images/ev-charging.svg" 
+              alt="EV Service Center" 
+              className="register__hero-image"
+            />
+            <div className="register__hero-content">
+              <h2>Tham gia EV Service Center</h2>
+              <p>Tạo tài khoản và bắt đầu quản lý việc bảo dưỡng xe điện của bạn</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Register Form */}
+        <div className="register__form-container">
+        <h1 className="register__title">Đăng Ký</h1>
         <p className="register__subtitle">
-          Already have an account?{' '}
+          Đã có tài khoản?{' '}
           <Link to="/auth/login" className="register__login-link">
-            Log In
+            Đăng Nhập
           </Link>
         </p>
 
@@ -122,7 +132,7 @@ export default function Register() {
           <div className="register__form">
 
             <form onSubmit={onSubmit}>
-              <label htmlFor="fullName" className="form-group__label">Full Name</label>
+              <label htmlFor="fullName" className="form-group__label">Họ và tên</label>
               <div className="form-group">
                 <input
                   type="text"
@@ -138,7 +148,7 @@ export default function Register() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="email" className="form-group__label">Email</label>
+              <label htmlFor="email" className="form-group__label">Email</label>
                 <input
                   type="email"
                   id="email"
@@ -153,7 +163,7 @@ export default function Register() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="phoneNumber" className="form-group__label">Phone Number</label>
+                <label htmlFor="phoneNumber" className="form-group__label">Số điện thoại</label>
                 <input
                   type="tel"
                   id="phoneNumber"
@@ -168,7 +178,7 @@ export default function Register() {
               </div>
 
               <div className="form-row">
-                 <label htmlFor="dateOfBirth" className="form-group__label">Date of Birth</label>
+                 <label htmlFor="dateOfBirth" className="form-group__label">Ngày sinh</label>
                 <div className="form-group">
                   <input
                     type="date"
@@ -184,7 +194,7 @@ export default function Register() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="gender" className="form-group__label">Gender</label>
+                  <label htmlFor="gender" className="form-group__label">Giới tính</label>
                   <select
                     id="gender"
                     className="form-group__input"
@@ -192,9 +202,9 @@ export default function Register() {
                     onChange={(e) => setGender(e.target.value as any)}
                     required
                   >
-                    <option value="" disabled>Gender</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
+                    <option value="" disabled>Giới tính</option>
+                    <option value="MALE">Nam</option>
+                    <option value="FEMALE">Nữ</option>
                   </select>
                   
                   {errors.gender && <p className="register__error">{errors.gender}</p>}
@@ -202,7 +212,7 @@ export default function Register() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="address" className="form-group__label">Address (optional)</label>
+                <label htmlFor="address" className="form-group__label">Địa chỉ (không bắt buộc)</label>
                 <input
                   type="text"
                   id="address"
@@ -217,7 +227,7 @@ export default function Register() {
 
               <div className="form-group password-field">
                 <div className="password-input-wrapper">
-                  <label htmlFor="password" className="form-group__label">Choose a password</label>
+                  <label htmlFor="password" className="form-group__label">Mật khẩu</label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password"
@@ -246,7 +256,7 @@ export default function Register() {
                 {showPasswordPopup && (
                   <div className="password-popup">
                     <div className="password-popup-header">
-                      <h4>Strong Password</h4>
+                      <h4>Mật khẩu mạnh</h4>
                       <button
                         className="password-popup-close"
                         onClick={() => setShowPasswordPopup(false)}
@@ -270,13 +280,13 @@ export default function Register() {
                     </div>
 
                     <div className="password-popup-requirements">
-                      <p>It's better to have:</p>
+                      <p>Nên có:</p>
                       <div className="requirement-item">
                         <div className={`requirement-icon ${passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}`}>
                           {passwordRequirements.uppercase && passwordRequirements.lowercase ? '✓' : '•'}
                         </div>
                         <span className={passwordRequirements.uppercase && passwordRequirements.lowercase ? 'met' : ''}>
-                          Upper & lower case letters
+                          Chữ hoa & chữ thường
                         </span>
                       </div>
                       <div className="requirement-item">
@@ -284,7 +294,7 @@ export default function Register() {
                           {passwordRequirements.special ? '✓' : '•'}
                         </div>
                         <span className={passwordRequirements.special ? 'met' : ''}>
-                          Symbols (#$&)
+                          Ký tự đặc biệt (#$&)
                         </span>
                       </div>
                       <div className="requirement-item">
@@ -292,7 +302,7 @@ export default function Register() {
                           {passwordRequirements.length ? '✓' : '•'}
                         </div>
                         <span className={passwordRequirements.length ? 'met' : ''}>
-                          A longer password
+                          Độ dài lớn hơn
                         </span>
                       </div>
                     </div>
@@ -302,7 +312,7 @@ export default function Register() {
 
               <div className="form-group">
                 <div className="password-input-wrapper">
-                  <label htmlFor="confirmPassword" className="form-group__label">Confirm password</label>
+                  <label htmlFor="confirmPassword" className="form-group__label">Xác nhận mật khẩu</label>
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     id="confirmPassword"
@@ -325,7 +335,7 @@ export default function Register() {
               </div>
 
               <button type="submit" className="btn btn--primary" disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Sign Up'}
+                {submitting ? 'Đang gửi...' : 'Đăng Ký'}
               </button>
             </form>
           </div>
@@ -333,7 +343,7 @@ export default function Register() {
           {/* Divider */}
           <div className="register__divider">
             <div className="register__divider-line"></div>
-            <span className="register__divider-text">or</span>
+            <span className="register__divider-text">hoặc</span>
           </div>
 
           <div className="register__social">
@@ -345,7 +355,7 @@ export default function Register() {
               <div className="btn__icon">
                 <GoogleIconWhite />
               </div>
-              <span className="btn__text">Continue with Google</span>
+              <span className="btn__text">Tiếp tục với Google</span>
             </button>
           </div>
         </div>
@@ -353,13 +363,14 @@ export default function Register() {
         {/* Footer */}
         <div className="register__footer">
           <div className="register__footer-links">
-            <a href="#">Terms of Use</a>
+            <a href="#">Điều khoản sử dụng</a>
             <span>•</span>
-            <a href="#">Privacy Policy</a>
+            <a href="#">Chính sách bảo mật</a>
           </div>
           <p className="register__footer-text">
-            This site is protected by reCAPTCHA Enterprise. Google's Privacy Policy and Terms of Service apply.
+            Trang web này được bảo vệ bởi reCAPTCHA Enterprise. Chính sách bảo mật và Điều khoản dịch vụ của Google được áp dụng.
           </p>
+        </div>
         </div>
       </div>
     </div>

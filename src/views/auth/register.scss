@@ -18,6 +18,109 @@ body {
   justify-content: center !important;
 }
 
+.register {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  width: 100%;
+  min-height: 100vh;
+
+  &__container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    max-width: 1200px;
+    width: 100%;
+    height: clamp(560px, 92vh, 720px);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-radius: 28px;
+    box-shadow: 0 16px 40px rgba(0, 169, 110, 0.15);
+    animation: fadeIn 0.7s ease;
+    border: 1px solid rgba(0, 169, 110, 0.1);
+    overflow: hidden;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      max-width: 440px;
+      height: auto;
+    }
+  }
+
+  &__visual {
+    background: linear-gradient(135deg, #00a96e, #00d4aa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    position: relative;
+    overflow: hidden;
+
+    @media (max-width: 768px) {
+      display: none;
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+      opacity: 0.3;
+    }
+  }
+
+  &__image-container {
+    text-align: center;
+    z-index: 1;
+    position: relative;
+  }
+
+  &__hero-image {
+    width: clamp(140px, 18vw, 200px);
+    height: clamp(140px, 18vw, 200px);
+    margin-bottom: 30px;
+    filter: brightness(0) invert(1);
+  }
+
+  &__hero-content {
+    color: white;
+    text-align: center;
+
+    h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    p {
+      font-size: 16px;
+      opacity: 0.9;
+      line-height: 1.5;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+  }
+
+  &__form-container {
+    padding: 40px 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: auto;
+    max-height: 100%;
+
+    @media (max-width: 480px) {
+      padding: 28px 20px;
+    }
+  }
+
+}
+
 /* ===== Header with Logo ===== */
 // .register__header {
 //   position: fixed;
@@ -51,155 +154,8 @@ body {
 //   object-fit: contain;
 // }
 
-/* ===== Main Layout ===== */
-.register {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 40px;
-  box-sizing: border-box;
-  margin-top: 600px;
-
-  &__container {
-    width: 100%;
-    max-width: 600px;
-    text-align: center;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(16px);
-    border-radius: 28px;
-    padding: 56px 64px;
-    box-shadow: 0 16px 40px rgba(0, 169, 110, 0.15);
-    animation: fadeIn 0.7s ease;
-    border: 1px solid rgba(0, 169, 110, 0.1);
-
-    @media (max-width: 480px) {
-      padding: 36px 24px;
-      border-radius: 18px;
-    }
-  }
-
-  &__title {
-    font-size: 34px;
-    font-weight: 700;
-    color: #1a3c1f;
-    margin-bottom: 8px;
-  }
-
-  &__subtitle {
-    font-size: 15px;
-    color: #4a5c4a;
-    margin: 0 0 36px 0;
-    line-height: 1.5;
-  }
-
-  &__login-link {
-    color: #00a96e;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.25s ease;
-
-    &:hover {
-      color: #008a5c;
-      text-decoration: underline;
-    }
-  }
-
-  &__grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 32px;
-    align-items: start;
-    justify-content: center;
-    margin-bottom: 48px;
-    width: 100%;
-  }
-
-  &__form {
-    text-align: left;
-  }
-
-  &__divider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b8e6b;
-    font-size: 14px;
-    margin: 30px 0;
-    opacity: 0.9;
-    &::before,
-    &::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, #e0f0e5, transparent);
-      margin: 0 12px;
-    }
-  }
-
-
-  &__divider-text {
-    background: #ffffff;
-    color: #6b8e6b;
-    font-size: 14px;
-    font-weight: 500;
-    padding: 0 8px;
-  }
-
-  &__social {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  &__error {
-    color: #e63946;
-    font-size: 14px;
-    background: rgba(230, 57, 70, 0.05);
-    padding: 10px 14px;
-    border-radius: 10px;
-    border-left: 4px solid #e63946;
-    font-weight: 500;
-    margin-top: 10px;
-  }
-
-  &__footer {
-    text-align: center;
-    margin-top: 32px;
-    padding-top: 28px;
-    border-top: 1px solid rgba(224, 240, 229, 0.6);
-  }
-
-  &__footer-links {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: 14px;
-    color: #6b8e6b;
-
-    a {
-      color: #00a96e;
-      font-weight: 500;
-      text-decoration: none;
-      transition: color 0.2s ease;
-
-      &:hover {
-        color: #008a5c;
-        text-decoration: underline;
-      }
-    }
-
-    span {
-      color: #6b8e6b;
-    }
-  }
-
-  &__footer-text {
-    font-size: 12px;
-    color: #9ca3af;
-  }
-}
+/* ===== Main Layout (use the same 2-column card layout as login) ===== */
+// Removed conflicting overrides that shrank the card and pushed it down.
 
 /* ===== Form Fields ===== */
 .form-group {
