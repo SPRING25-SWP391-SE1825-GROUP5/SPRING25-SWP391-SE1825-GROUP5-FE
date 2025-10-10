@@ -307,10 +307,10 @@ export default function LoginPage() {
           {/* Right Column - Social Login */}
           <div className="login__social">
             {/* Google Identity Services Button */}
-            {/* <div ref={googleBtnRef} className="google-button-container"></div> */}
+            <div ref={googleBtnRef} className="google-button-container"></div>
 
             {/* Fallback button if Google button doesn't render */}
-            <button
+            {/* <button
               type="button"
               className="btn btn--google"
               onClick={onGoogleButtonClick}
@@ -336,7 +336,7 @@ export default function LoginPage() {
                 </svg>
               </div>
               <span className="btn__text">Continue with Google</span>
-            </button>
+            </button> */}
           </div>
         </div>
 
