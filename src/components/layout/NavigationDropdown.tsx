@@ -229,12 +229,14 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   console.log('NavigationDropdown - user:', user)
   console.log('NavigationDropdown - emailVerified:', user?.emailVerified)
 
+  const hasEmailBanner = user && !user.emailVerified
+
   return (
     <>
-      {user && !user.emailVerified && <EmailVerificationBanner />}
+      {hasEmailBanner && <EmailVerificationBanner />}
       <header 
         ref={headerRef}
-        className={`header-dropdown ${className}`}
+        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,

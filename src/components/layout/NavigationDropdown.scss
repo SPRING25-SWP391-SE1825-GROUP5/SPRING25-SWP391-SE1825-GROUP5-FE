@@ -7,7 +7,7 @@
   --active-color: #1976d2;
   
   position: fixed;
-  top: 56px; /* Điều chỉnh để nằm dưới banner */
+  top: 0; /* Vị trí mặc định khi không có banner */
   left: 0;
   right: 0;
   z-index: 1000;
@@ -15,6 +15,12 @@
   border-bottom: 1px solid #e5e5e5;
   height: var(--header-height);
   font-family: 'Poppins', sans-serif;
+  transition: top var(--transition-duration) ease;
+}
+
+/* Khi có banner email verification, header sẽ được đẩy xuống */
+.header-dropdown.has-email-banner {
+  top: 56px; /* Điều chỉnh để nằm dưới banner */
 }
 
 .header-dropdown__container {
