@@ -329,7 +329,8 @@ export default function Services() {
                     fontSize: '14px',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    textDecoration: 'none'
                   }}
                 >
                   Đặt lịch bảo dưỡng

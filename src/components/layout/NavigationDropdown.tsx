@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronDown, Menu, X } from 'lucide-react'
+import EmailVerificationBanner from '@/components/common/EmailVerificationBanner'
+import { useAppSelector } from '@/store/hooks'
 import './NavigationDropdown.scss'
 
 // Types for dropdown content
@@ -74,6 +76,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   const [isMobile, setIsMobile] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const headerRef = useRef<HTMLElement>(null)
+  const user = useAppSelector((s) => s.auth.user)
 
   // Check if mobile
   useEffect(() => {
@@ -222,21 +225,28 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     return null
   }
 
+  // Debug logs
+  console.log('NavigationDropdown - user:', user)
+  console.log('NavigationDropdown - emailVerified:', user?.emailVerified)
+
   return (
-    <header 
-      ref={headerRef}
-      className={`header-dropdown ${className}`}
-      style={{ 
-        '--header-height': headerHeight,
-        '--transition-duration': `${transitionDuration}ms`,
-        '--dropdown-shadow': dropdownShadow,
-        '--hover-color': hoverColor,
-        '--active-color': activeColor
-      } as React.CSSProperties}
-      role="banner"
-    >
-      {/* Logo Section */}
-      <div className="header-logo-section">
+    <>
+      {user && !user.emailVerified && <EmailVerificationBanner />}
+      <header 
+        ref={headerRef}
+        className={`header-dropdown ${className}`}
+        style={{ 
+          '--header-height': headerHeight,
+          '--transition-duration': `${transitionDuration}ms`,
+          '--dropdown-shadow': dropdownShadow,
+          '--hover-color': hoverColor,
+          '--active-color': activeColor
+        } as React.CSSProperties}
+        role="banner"
+      >
+        <div className="header-dropdown__container">
+          {/* Logo Section */}
+          <div className="header-logo-section">
         {logo && (
           <div className="header-logo">
             {logo.href ? (
@@ -395,7 +405,9 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
           ))}
         </ul>
       </nav>
+        </div>
     </header>
+    </>
   )
 }
 

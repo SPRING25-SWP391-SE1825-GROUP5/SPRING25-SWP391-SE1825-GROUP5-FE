@@ -186,31 +186,31 @@ export default function Profile() {
       const errors: string[] = []
 
       if (!profileData.fullName?.trim()) {
-        errors.push('Full name is required')
+        errors.push('Họ và tên là bắt buộc')
       }
 
       if (!profileData.address?.trim()) {
-        errors.push('Address is required')
+        errors.push('Địa chỉ là bắt buộc')
       }
 
       const dob = profileData.dateOfBirth?.trim()
       if (!dob) {
-        errors.push('Date of birth is required')
+        errors.push('Ngày sinh là bắt buộc')
       } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
-        errors.push('Date of birth must be in YYYY-MM-DD format')
+        errors.push('Ngày sinh phải có định dạng YYYY-MM-DD')
       } else {
         const date = new Date(dob)
         const today = new Date()
         if (date > today) {
-          errors.push('Date of birth cannot be in the future')
+          errors.push('Ngày sinh không thể ở tương lai')
         }
         if (today.getFullYear() - date.getFullYear() < 13) {
-          errors.push('You must be at least 13 years old')
+          errors.push('Bạn phải ít nhất 13 tuổi')
         }
       }
 
       if (!profileData.gender) {
-        errors.push('Please select gender')
+        errors.push('Vui lòng chọn giới tính')
       }
 
       if (errors.length) {
@@ -230,9 +230,9 @@ export default function Profile() {
       await dispatch(getCurrentUser())
       setOriginalData(profileData)
       setIsEditing(false)
-      alert('Profile updated successfully!')
+      alert('Cập nhật thông tin thành công!')
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Profile update failed'
+      const msg = error?.response?.data?.message || error?.message || 'Cập nhật thông tin thất bại'
       alert(msg)
     } finally {
       setIsSaving(false)
@@ -249,7 +249,7 @@ export default function Profile() {
 
     const isImage = file.type.startsWith('image/')
     if (!isImage) {
-      alert('Please select a valid image file')
+      alert('Vui lòng chọn file hình ảnh hợp lệ')
       return
     }
 
@@ -276,13 +276,13 @@ export default function Profile() {
             setProfileData(prev => ({ ...prev, avatarUrl: (me as any).avatar }))
             return
           }
-          throw new Error('Avatar uploaded successfully but missing return URL')
+          throw new Error('Tải lên avatar thành công nhưng thiếu URL trả về')
         } catch (e) {
-          throw new Error('Avatar uploaded successfully but failed to get new URL')
+          throw new Error('Tải lên avatar thành công nhưng không thể lấy URL mới')
         }
       })
       .catch((error: any) => {
-        const msg = error?.response?.data?.message || error?.message || 'Avatar upload failed'
+        const msg = error?.response?.data?.message || error?.message || 'Tải lên avatar thất bại'
         alert(msg)
       })
       .finally(() => setIsSaving(false))
@@ -310,7 +310,7 @@ export default function Profile() {
 
     const isImage = file.type.startsWith('image/')
     if (!isImage) {
-      alert('Please select a valid image file')
+      alert('Vui lòng chọn file hình ảnh hợp lệ')
       return
     }
 
@@ -326,7 +326,7 @@ export default function Profile() {
 
   const handleAddVehicle = () => {
     if (!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate) {
-      alert('Please fill in all required fields')
+      alert('Vui lòng điền đầy đủ các trường bắt buộc')
       return
     }
 
@@ -346,7 +346,7 @@ export default function Profile() {
       nextMaintenance: ''
     })
     setShowAddVehicleModal(false)
-    alert('Vehicle added successfully!')
+    alert('Thêm xe thành công!')
   }
 
   const checkPasswordStrength = (password: string) => {
@@ -380,12 +380,12 @@ export default function Profile() {
 
   const handleChangePassword = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Password confirmation does not match!')
+      alert('Xác nhận mật khẩu không khớp!')
       return
     }
 
     if (passwordData.newPassword.length < 6) {
-      alert('New password must be at least 6 characters!')
+      alert('Mật khẩu mới phải có ít nhất 6 ký tự!')
       return
     }
 
@@ -411,9 +411,9 @@ export default function Profile() {
         number: false,
         special: false
       })
-      alert('Password changed successfully!')
+      alert('Đổi mật khẩu thành công!')
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'Password change failed'
+      const msg = error?.response?.data?.message || error?.message || 'Đổi mật khẩu thất bại'
       alert(msg)
     } finally {
       setIsSaving(false)
@@ -421,14 +421,14 @@ export default function Profile() {
   }
 
   const tabOptions = [
-    { key: 'profile', label: 'Personal Information', icon: UserIcon },
-    { key: 'preferences', label: 'Preferences', icon: CogIcon },
-    { key: 'my-vehicle', label: 'My Vehicle', icon: TruckIcon },
-    { key: 'notifications', label: 'Notifications', icon: BellIcon },
-    { key: 'cart', label: 'Shopping Cart', icon: ShoppingCartIcon },
-    { key: 'maintenance-history', label: 'Maintenance History', icon: WrenchScrewdriverIcon },
-    { key: 'purchase-history', label: 'Purchase History', icon: ClockIcon },
-    { key: 'saved-promotions', label: 'Saved Promotions', icon: TagIcon }
+    { key: 'profile', label: 'Thông tin cá nhân', icon: UserIcon },
+    { key: 'preferences', label: 'Tùy chọn', icon: CogIcon },
+    { key: 'my-vehicle', label: 'Xe của tôi', icon: TruckIcon },
+    { key: 'notifications', label: 'Thông báo', icon: BellIcon },
+    { key: 'cart', label: 'Giỏ hàng', icon: ShoppingCartIcon },
+    { key: 'maintenance-history', label: 'Lịch sử bảo dưỡng', icon: WrenchScrewdriverIcon },
+    { key: 'purchase-history', label: 'Lịch sử mua hàng', icon: ClockIcon },
+    { key: 'saved-promotions', label: 'Khuyến mãi đã lưu', icon: TagIcon }
   ] as const
 
   return (
@@ -460,7 +460,7 @@ export default function Profile() {
               </div>
 
               <div className="user-info">
-                <h2 className="user-name">{profileData.fullName || 'User'}</h2>
+                <h2 className="user-name">{profileData.fullName || 'Người dùng'}</h2>
                 <p className="user-email">{profileData.email}</p>
               </div>
             </div>
@@ -487,23 +487,23 @@ export default function Profile() {
               <div className="profile-form-container">
                 <BaseCard className="profile-form-card">
                   <div className="card-header">
-                    <h3 className="card-title">Edit Information</h3>
+                    <h3 className="card-title">Chỉnh sửa thông tin</h3>
                     <div className="card-actions">
                       {!isEditing ? (
                         <BaseButton variant="outline" onClick={handleEdit}>
-                          Edit
+                          Chỉnh sửa
                         </BaseButton>
                       ) : (
                         <div className="edit-actions">
                           <BaseButton variant="outline" onClick={handleCancel}>
-                            Cancel
+                            Hủy
                           </BaseButton>
                           <BaseButton
                             variant="primary"
                             onClick={handleSave}
                             loading={isSaving}
                           >
-                            {isSaving ? 'Saving...' : 'Save'}
+                            {isSaving ? 'Đang lưu...' : 'Lưu'}
                           </BaseButton>
                         </div>
                       )}
@@ -513,19 +513,19 @@ export default function Profile() {
                   <div className="profile-form">
                     <div className="form-row">
                       <div className="form-group">
-                        <label className="form-label">Full Name *</label>
+                        <label className="form-label">Họ và tên *</label>
                         <BaseInput
                           value={profileData.fullName}
                           onChange={(value) => handleInputChange('fullName', value)}
                           disabled={!isEditing}
-                          placeholder="Enter full name"
+                          placeholder="Nhập họ và tên"
                           required
                         />
                       </div>
                       <div className="form-group">
                         <label className="form-label">
                           Email
-                          <span className="disabled-hint" title="Email cannot be changed">
+                          <span className="disabled-hint" title="Email không thể thay đổi">
                             <XMarkIcon className="w-4 h-4" />
                           </span>
                         </label>
@@ -534,7 +534,7 @@ export default function Profile() {
                           onChange={(value) => handleInputChange('email', value)}
                           disabled={true}
                           type="email"
-                          placeholder="Email cannot be changed"
+                          placeholder="Email không thể thay đổi"
                         />
                       </div>
                     </div>
@@ -542,20 +542,20 @@ export default function Profile() {
                     <div className="form-row">
                       <div className="form-group">
                         <label className="form-label">
-                          Phone Number
-                          <span className="disabled-hint" title="Phone number cannot be changed">
+                          Số điện thoại
+                          <span className="disabled-hint" title="Số điện thoại không thể thay đổi">
                             <XMarkIcon className="w-4 h-4" />
                           </span>
                         </label>
                         <BaseInput
-                          value={profileData.phoneNumber || 'Not updated'}
+                          value={profileData.phoneNumber || 'Chưa cập nhật'}
                           onChange={(value) => handleInputChange('phoneNumber', value)}
                           disabled={true}
-                          placeholder="Phone number cannot be changed"
+                          placeholder="Số điện thoại không thể thay đổi"
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Gender *</label>
+                        <label className="form-label">Giới tính *</label>
                         <select
                           className="form-select"
                           value={profileData.gender}
@@ -563,16 +563,16 @@ export default function Profile() {
                           disabled={!isEditing}
                           required
                         >
-                          <option value="">Select gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
+                          <option value="">Chọn giới tính</option>
+                          <option value="Male">Nam</option>
+                          <option value="Female">Nữ</option>
                         </select>
                       </div>
                     </div>
 
                     <div className="form-row">
                       <div className="form-group">
-                        <label className="form-label">Date of Birth *</label>
+                        <label className="form-label">Ngày sinh *</label>
                         <BaseInput
                           value={profileData.dateOfBirth}
                           onChange={(value) => handleInputChange('dateOfBirth', value)}
@@ -582,12 +582,12 @@ export default function Profile() {
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Address *</label>
+                        <label className="form-label">Địa chỉ *</label>
                         <BaseInput
                           value={profileData.address}
                           onChange={(value) => handleInputChange('address', value)}
                           disabled={!isEditing}
-                          placeholder="Enter address"
+                          placeholder="Nhập địa chỉ"
                           required
                         />
                       </div>
@@ -600,8 +600,8 @@ export default function Profile() {
             {activeTab === 'preferences' && (
               <BaseCard className="preferences-card">
                 <div className="card-header">
-                  <h3 className="card-title">Account Preferences</h3>
-                  <p className="card-subtitle">Manage your account settings and security</p>
+                  <h3 className="card-title">Tùy chọn tài khoản</h3>
+                  <p className="card-subtitle">Quản lý cài đặt tài khoản và bảo mật</p>
                 </div>
 
                 <div className="preferences-content">
@@ -611,12 +611,12 @@ export default function Profile() {
                         <LockClosedIcon className="w-6 h-6" />
                       </div>
                       <div>
-                        <h4>Password & Security</h4>
-                        <p>Update your password to keep your account secure</p>
+                        <h4>Mật khẩu & Bảo mật</h4>
+                        <p>Cập nhật mật khẩu để bảo vệ tài khoản của bạn</p>
                       </div>
                     </div>
                     <BaseButton variant="primary" onClick={() => {setShowPasswordModal(true) }}>
-                      Change Password
+                      Đổi mật khẩu
                     </BaseButton>
                   </div>
 
@@ -657,8 +657,8 @@ export default function Profile() {
               <BaseCard className="my-vehicle-card">
                 <div className="card-header">
                   <div>
-                    <h3 className="card-title">My Vehicles</h3>
-                    <p className="card-subtitle">Manage your registered vehicles</p>
+                    <h3 className="card-title">Xe của tôi</h3>
+                    <p className="card-subtitle">Quản lý các xe đã đăng ký</p>
                   </div>
                   <BaseButton
                     variant="primary"
@@ -666,7 +666,7 @@ export default function Profile() {
                     className="add-vehicle-btn"
                   >
                     <PlusIcon className="w-4 h-4" />
-                    Add Vehicle
+                    Thêm xe
                   </BaseButton>
                 </div>
 
@@ -674,14 +674,14 @@ export default function Profile() {
                   {vehicles.length === 0 ? (
                     <div className="empty-state">
                       <TruckIcon className="empty-icon" />
-                      <h4>No Vehicles Added</h4>
-                      <p>You haven't added any vehicles yet. Add your first vehicle to get started.</p>
+                      <h4>Chưa có xe nào</h4>
+                      <p>Bạn chưa thêm xe nào. Hãy thêm chiếc xe đầu tiên để bắt đầu.</p>
                       <BaseButton
                         variant="primary"
                         onClick={() => { setShowPasswordModal(false); setShowAddVehicleModal(true) }}
                       >
                         <PlusIcon className="w-4 h-4" />
-                        Add Your First Vehicle
+                        Thêm xe đầu tiên
                       </BaseButton>
                     </div>
                   ) : (
@@ -699,7 +699,7 @@ export default function Profile() {
                             <button
                               className="remove-vehicle-btn"
                               onClick={() => handleRemoveVehicle(vehicle.id)}
-                              title="Remove vehicle"
+                              title="Xóa xe"
                             >
                               <XMarkIcon className="w-4 h-4" />
                             </button>
@@ -714,18 +714,18 @@ export default function Profile() {
 
                             <div className="vehicle-meta">
                               <span className={`vehicle-status ${vehicle.status}`}>
-                                {vehicle.status === 'active' ? 'Active' : 'Maintenance'}
+                                {vehicle.status === 'active' ? 'Hoạt động' : 'Bảo dưỡng'}
                               </span>
                               <div className="maintenance-info">
                                 <ClockIcon className="w-4 h-4" />
-                                <span>Next: {vehicle.nextMaintenance}</span>
+                                <span>Tiếp theo: {vehicle.nextMaintenance}</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="vehicle-actions">
-                            <BaseButton variant="outline" size="sm">View Details</BaseButton>
-                            <BaseButton variant="primary" size="sm">Schedule Service</BaseButton>
+                            <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
+                            <BaseButton variant="primary" size="sm">Đặt lịch dịch vụ</BaseButton>
                           </div>
                         </div>
                       ))}
@@ -738,43 +738,43 @@ export default function Profile() {
             {activeTab === 'maintenance-history' && (
               <BaseCard className="maintenance-history-card">
                 <div className="card-header">
-                  <h3 className="card-title">Maintenance History</h3>
+                  <h3 className="card-title">Lịch sử bảo dưỡng</h3>
                 </div>
 
                 <div className="history-content">
                   <div className="history-item">
                     <div className="history-info">
-                      <h4>10,000km Periodic Maintenance</h4>
-                      <p>Date: 15/01/2024 | Garage: AutoEV Hanoi</p>
-                      <span className="status completed">Completed</span>
+                      <h4>Bảo dưỡng định kỳ 10,000km</h4>
+                      <p>Ngày: 15/01/2024 | Garage: AutoEV Hà Nội</p>
+                      <span className="status completed">Hoàn thành</span>
                     </div>
                     <div className="history-details">
-                      <p>Cost: 1,500,000 VND</p>
-                      <BaseButton variant="outline" size="sm">View Details</BaseButton>
+                      <p>Chi phí: 1,500,000 VND</p>
+                      <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
                     </div>
                   </div>
 
                   <div className="history-item">
                     <div className="history-info">
-                      <h4>Electric Vehicle Battery Replacement</h4>
-                      <p>Date: 28/11/2023 | Garage: AutoEV HCM</p>
-                      <span className="status completed">Completed</span>
+                      <h4>Thay thế pin xe điện</h4>
+                      <p>Ngày: 28/11/2023 | Garage: AutoEV TP.HCM</p>
+                      <span className="status completed">Hoàn thành</span>
                     </div>
                     <div className="history-details">
-                      <p>Cost: 45,000,000 VND</p>
-                      <BaseButton variant="outline" size="sm">View Details</BaseButton>
+                      <p>Chi phí: 45,000,000 VND</p>
+                      <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
                     </div>
                   </div>
 
                   <div className="history-item">
                     <div className="history-info">
-                      <h4>Electrical System Inspection</h4>
-                      <p>Date: 05/10/2023 | Garage: AutoEV Da Nang</p>
-                      <span className="status completed">Completed</span>
+                      <h4>Kiểm tra hệ thống điện</h4>
+                      <p>Ngày: 05/10/2023 | Garage: AutoEV Đà Nẵng</p>
+                      <span className="status completed">Hoàn thành</span>
                     </div>
                     <div className="history-details">
-                      <p>Cost: 800,000 VND</p>
-                      <BaseButton variant="outline" size="sm">View Details</BaseButton>
+                      <p>Chi phí: 800,000 VND</p>
+                      <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
                     </div>
                   </div>
                 </div>
@@ -784,43 +784,43 @@ export default function Profile() {
             {activeTab === 'purchase-history' && (
               <BaseCard className="purchase-history-card">
                 <div className="card-header">
-                  <h3 className="card-title">Purchase History</h3>
+                  <h3 className="card-title">Lịch sử mua hàng</h3>
                 </div>
 
                 <div className="history-content">
                   <div className="history-item">
                     <div className="history-info">
-                      <h4>DC Fast Charger 50kW</h4>
-                      <p>Date: 20/12/2023 | Order ID: #EV20231220001</p>
-                      <span className="status delivered">Delivered</span>
+                      <h4>Sạc nhanh DC 50kW</h4>
+                      <p>Ngày: 20/12/2023 | Mã đơn hàng: #EV20231220001</p>
+                      <span className="status delivered">Đã giao</span>
                     </div>
                     <div className="history-details">
-                      <p>Quantity: 1 | Price: 25,000,000 VND</p>
-                      <BaseButton variant="outline" size="sm">View Order</BaseButton>
+                      <p>Số lượng: 1 | Giá: 25,000,000 VND</p>
+                      <BaseButton variant="outline" size="sm">Xem đơn hàng</BaseButton>
                     </div>
                   </div>
 
                   <div className="history-item">
                     <div className="history-info">
-                      <h4>Michelin Energy E-V Electric Vehicle Tires</h4>
-                      <p>Date: 15/11/2023 | Order ID: #EV20231115002</p>
-                      <span className="status delivered">Delivered</span>
+                      <h4>Lốp xe điện Michelin Energy E-V</h4>
+                      <p>Ngày: 15/11/2023 | Mã đơn hàng: #EV20231115002</p>
+                      <span className="status delivered">Đã giao</span>
                     </div>
                     <div className="history-details">
-                      <p>Quantity: 4 | Price: 8,000,000 VND</p>
-                      <BaseButton variant="outline" size="sm">View Order</BaseButton>
+                      <p>Số lượng: 4 | Giá: 8,000,000 VND</p>
+                      <BaseButton variant="outline" size="sm">Xem đơn hàng</BaseButton>
                     </div>
                   </div>
 
                   <div className="history-item">
                     <div className="history-info">
-                      <h4>EV Specialized DOT 4 Brake Fluid</h4>
-                      <p>Date: 02/09/2023 | Order ID: #EV20230902003</p>
-                      <span className="status delivered">Delivered</span>
+                      <h4>Dầu phanh chuyên dụng xe điện DOT 4</h4>
+                      <p>Ngày: 02/09/2023 | Mã đơn hàng: #EV20230902003</p>
+                      <span className="status delivered">Đã giao</span>
                     </div>
                     <div className="history-details">
-                      <p>Quantity: 2 | Price: 450,000 VND</p>
-                      <BaseButton variant="outline" size="sm">View Order</BaseButton>
+                      <p>Số lượng: 2 | Giá: 450,000 VND</p>
+                      <BaseButton variant="outline" size="sm">Xem đơn hàng</BaseButton>
                     </div>
                   </div>
                 </div>
@@ -830,8 +830,8 @@ export default function Profile() {
             {activeTab === 'notifications' && (
               <BaseCard className="notifications-card">
                 <div className="card-header">
-                  <h3 className="card-title">Notifications</h3>
-                  <BaseButton variant="outline" size="sm">Mark all as read</BaseButton>
+                  <h3 className="card-title">Thông báo</h3>
+                  <BaseButton variant="outline" size="sm">Đánh dấu tất cả đã đọc</BaseButton>
                 </div>
 
                 <div className="notifications-content">
@@ -840,16 +840,16 @@ export default function Profile() {
                       <WrenchScrewdriverIcon className="w-5 h-5" />
                     </div>
                     <div className="notification-content">
-                      <h4>Upcoming Maintenance Schedule</h4>
-                      <p>Your VinFast VF8 is due for 10,000km maintenance. Schedule now!</p>
-                      <span className="notification-time">2 hours ago</span>
+                      <h4>Lịch bảo dưỡng sắp tới</h4>
+                      <p>Xe VinFast VF8 của bạn sắp đến hạn bảo dưỡng 10,000km. Đặt lịch ngay!</p>
+                      <span className="notification-time">2 giờ trước</span>
                     </div>
                     <div className="notification-actions">
-                      <BaseButton variant="primary" size="sm">Schedule</BaseButton>
+                      <BaseButton variant="primary" size="sm">Đặt lịch</BaseButton>
                       <button
                         className="mark-read-btn"
                         onClick={() => handleMarkAsRead('notif-1')}
-                        title="Mark as read"
+                        title="Đánh dấu đã đọc"
                       >
                         <XMarkIcon className="w-4 h-4" />
                       </button>
@@ -861,16 +861,16 @@ export default function Profile() {
                       <ArchiveBoxIcon className="w-5 h-5" />
                     </div>
                     <div className="notification-content">
-                      <h4>Order Delivered</h4>
-                      <p>Your DC Fast Charger 50kW has been delivered successfully. Thank you for shopping!</p>
-                      <span className="notification-time">1 day ago</span>
+                      <h4>Đơn hàng đã giao</h4>
+                      <p>Sạc nhanh DC 50kW của bạn đã được giao thành công. Cảm ơn bạn đã mua sắm!</p>
+                      <span className="notification-time">1 ngày trước</span>
                     </div>
                     <div className="notification-actions">
-                      <BaseButton variant="outline" size="sm">Review</BaseButton>
+                      <BaseButton variant="outline" size="sm">Đánh giá</BaseButton>
                       <button
                         className="mark-read-btn"
                         onClick={() => handleMarkAsRead('notif-2')}
-                        title="Mark as read"
+                        title="Đánh dấu đã đọc"
                       >
                         <XMarkIcon className="w-4 h-4" />
                       </button>
@@ -882,12 +882,12 @@ export default function Profile() {
                       <TagIcon className="w-5 h-5" />
                     </div>
                     <div className="notification-content">
-                      <h4>New Promotion</h4>
-                      <p>20% off for periodic maintenance services in March. Available from tomorrow!</p>
-                      <span className="notification-time">3 days ago</span>
+                      <h4>Khuyến mãi mới</h4>
+                      <p>Giảm 20% cho dịch vụ bảo dưỡng định kỳ trong tháng 3. Có hiệu lực từ ngày mai!</p>
+                      <span className="notification-time">3 ngày trước</span>
                     </div>
                     <div className="notification-actions">
-                      <BaseButton variant="secondary" size="sm">View Details</BaseButton>
+                      <BaseButton variant="secondary" size="sm">Xem chi tiết</BaseButton>
                     </div>
                   </div>
 
@@ -896,9 +896,9 @@ export default function Profile() {
                       <BellIcon className="w-5 h-5" />
                     </div>
                     <div className="notification-content">
-                      <h4>System Update</h4>
-                      <p>System maintenance scheduled for 2:00 AM on 25/03. Expected completion in 2 hours.</p>
-                      <span className="notification-time">1 week ago</span>
+                      <h4>Cập nhật hệ thống</h4>
+                      <p>Bảo trì hệ thống được lên lịch lúc 2:00 sáng ngày 25/03. Dự kiến hoàn thành trong 2 giờ.</p>
+                      <span className="notification-time">1 tuần trước</span>
                     </div>
                   </div>
                 </div>
@@ -908,8 +908,8 @@ export default function Profile() {
             {activeTab === 'cart' && (
               <BaseCard className="cart-card">
                 <div className="card-header">
-                  <h3 className="card-title">Shopping Cart</h3>
-                  <span className="cart-summary">2 items</span>
+                  <h3 className="card-title">Giỏ hàng</h3>
+                  <span className="cart-summary">2 sản phẩm</span>
                 </div>
 
                 <div className="cart-content">
@@ -918,8 +918,8 @@ export default function Profile() {
                       <BoltIcon className="w-8 h-8" />
                     </div>
                     <div className="item-details">
-                      <h4>12V Backup Charging Battery</h4>
-                      <p className="item-description">Lithium battery specialized for electric vehicles, 20,000mAh capacity</p>
+                      <h4>Pin sạc dự phòng 12V</h4>
+                      <p className="item-description">Pin lithium chuyên dụng cho xe điện, dung lượng 20,000mAh</p>
                       <div className="item-meta">
                         <span className="item-price">2,500,000 VND</span>
                         <div className="quantity-controls">
@@ -932,7 +932,7 @@ export default function Profile() {
                     <button
                       className="remove-item-btn"
                       onClick={() => handleRemoveCartItem('cart-item-1')}
-                      title="Remove from cart"
+                      title="Xóa khỏi giỏ hàng"
                     >
                       <XMarkIcon className="w-5 h-5" />
                     </button>
@@ -943,8 +943,8 @@ export default function Profile() {
                       <WrenchScrewdriverIcon className="w-8 h-8" />
                     </div>
                     <div className="item-details">
-                      <h4>EV Repair Tool Kit</h4>
-                      <p className="item-description">Specialized 25-piece tool set for electric vehicle maintenance</p>
+                      <h4>Bộ dụng cụ sửa chữa xe điện</h4>
+                      <p className="item-description">Bộ dụng cụ chuyên dụng 25 món cho bảo dưỡng xe điện</p>
                       <div className="item-meta">
                         <span className="item-price">1,200,000 VND</span>
                         <div className="quantity-controls">
@@ -957,7 +957,7 @@ export default function Profile() {
                     <button
                       className="remove-item-btn"
                       onClick={() => handleRemoveCartItem('cart-item-2')}
-                      title="Remove from cart"
+                      title="Xóa khỏi giỏ hàng"
                     >
                       <XMarkIcon className="w-5 h-5" />
                     </button>
@@ -965,22 +965,22 @@ export default function Profile() {
 
                   <div className="cart-summary-section">
                     <div className="summary-row">
-                      <span>Subtotal:</span>
+                      <span>Tạm tính:</span>
                       <span>3,700,000 VND</span>
                     </div>
                     <div className="summary-row">
-                      <span>Shipping:</span>
-                      <span>Free</span>
+                      <span>Phí vận chuyển:</span>
+                      <span>Miễn phí</span>
                     </div>
                     <div className="summary-row total">
-                      <span>Total:</span>
+                      <span>Tổng cộng:</span>
                       <span>3,700,000 VND</span>
                     </div>
                   </div>
 
                   <div className="cart-actions">
-                    <BaseButton variant="outline" size="lg">Continue Shopping</BaseButton>
-                    <BaseButton variant="primary" size="lg">Checkout</BaseButton>
+                    <BaseButton variant="outline" size="lg">Tiếp tục mua sắm</BaseButton>
+                    <BaseButton variant="primary" size="lg">Thanh toán</BaseButton>
                   </div>
                 </div>
               </BaseCard>
@@ -989,43 +989,43 @@ export default function Profile() {
             {activeTab === 'saved-promotions' && (
               <BaseCard className="saved-promotions-card">
                 <div className="card-header">
-                  <h3 className="card-title">Saved Promotions</h3>
+                  <h3 className="card-title">Khuyến mãi đã lưu</h3>
                 </div>
 
                 <div className="promotions-content">
                   <div className="promotion-item active">
                     <div className="promotion-info">
-                      <h4>20% off periodic maintenance services</h4>
-                      <p>Applicable for all maintenance services from 5,000km and above</p>
-                      <span className="expiry">Expires: 31/03/2024</span>
+                      <h4>Giảm 20% dịch vụ bảo dưỡng định kỳ</h4>
+                      <p>Áp dụng cho tất cả dịch vụ bảo dưỡng từ 5,000km trở lên</p>
+                      <span className="expiry">Hết hạn: 31/03/2024</span>
                     </div>
                     <div className="promotion-actions">
                       <span className="discount">-20%</span>
-                      <BaseButton variant="primary" size="sm">Use Now</BaseButton>
+                      <BaseButton variant="primary" size="sm">Sử dụng ngay</BaseButton>
                     </div>
                   </div>
 
                   <div className="promotion-item active">
                     <div className="promotion-info">
-                      <h4>Free battery inspection in February</h4>
-                      <p>Comprehensive inspection of battery and charging system</p>
-                      <span className="expiry">Expires: 29/02/2024</span>
+                      <h4>Kiểm tra pin miễn phí trong tháng 2</h4>
+                      <p>Kiểm tra toàn diện pin và hệ thống sạc</p>
+                      <span className="expiry">Hết hạn: 29/02/2024</span>
                     </div>
                     <div className="promotion-actions">
                       <span className="discount">FREE</span>
-                      <BaseButton variant="primary" size="sm">Schedule</BaseButton>
+                      <BaseButton variant="primary" size="sm">Đặt lịch</BaseButton>
                     </div>
                   </div>
 
                   <div className="promotion-item expired">
                     <div className="promotion-info">
-                      <h4>Buy 1 Get 1 EV brake fluid</h4>
-                      <p>Applicable for all specialized electric vehicle brake fluid products</p>
-                      <span className="expiry expired">Expired: 31/01/2024</span>
+                      <h4>Mua 1 tặng 1 dầu phanh xe điện</h4>
+                      <p>Áp dụng cho tất cả sản phẩm dầu phanh chuyên dụng xe điện</p>
+                      <span className="expiry expired">Đã hết hạn: 31/01/2024</span>
                     </div>
                     <div className="promotion-actions">
                       <span className="discount expired">1+1</span>
-                      <BaseButton variant="outline" size="sm" disabled>Expired</BaseButton>
+                      <BaseButton variant="outline" size="sm" disabled>Đã hết hạn</BaseButton>
                     </div>
                   </div>
                 </div>
@@ -1044,8 +1044,8 @@ export default function Profile() {
                     <CheckCircleIcon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3>Change Password</h3>
-                    <p>Secure your account with a new password</p>
+                    <h3>Đổi mật khẩu</h3>
+                    <p>Bảo mật tài khoản của bạn với mật khẩu mới</p>
                   </div>
                 </div>
                 <button className="modal-close" onClick={() => setShowPasswordModal(false)}>
@@ -1058,14 +1058,14 @@ export default function Profile() {
                   <div className="form-group">
                     <label className="form-label">
                       <KeyIcon className="label-icon" />
-                      Current Password
+                      Mật khẩu hiện tại
                     </label>
                     <div className="password-input-wrapper">
                       <BaseInput
                         type={showCurrentPassword ? "text" : "password"}
                         value={passwordData.currentPassword}
                         onChange={(value) => handlePasswordChange('currentPassword', value)}
-                        placeholder="Enter your current password"
+                        placeholder="Nhập mật khẩu hiện tại"
                       />
                       <button
                         type="button"
@@ -1080,14 +1080,14 @@ export default function Profile() {
                   <div className="form-group">
                     <label className="form-label">
                       <LockClosedIcon className="label-icon" />
-                      New Password
+                      Mật khẩu mới
                     </label>
                     <div className="password-input-wrapper">
                       <BaseInput
                         type={showNewPassword ? "text" : "password"}
                         value={passwordData.newPassword}
                         onChange={(value) => handlePasswordChange('newPassword', value)}
-                        placeholder="Create a strong password"
+                        placeholder="Tạo mật khẩu mạnh"
                       />
                       <button
                         type="button"
@@ -1104,31 +1104,31 @@ export default function Profile() {
                           <div className={`strength-fill ${passwordStrength}`} />
                         </div>
                         <div className={`strength-text ${passwordStrength}`}>
-                          {passwordStrength === 'weak' && 'Weak password'}
-                          {passwordStrength === 'medium' && 'Medium strength'}
-                          {passwordStrength === 'strong' && 'Strong password'}
+                          {passwordStrength === 'weak' && 'Mật khẩu yếu'}
+                          {passwordStrength === 'medium' && 'Mật khẩu trung bình'}
+                          {passwordStrength === 'strong' && 'Mật khẩu mạnh'}
                         </div>
                       </div>
                     )}
 
 
                     <div className="password-requirements">
-                      <h4>Password must contain:</h4>
+                      <h4>Mật khẩu phải chứa:</h4>
                       <div className="requirements-list">
                         <div className={`requirement ${passwordRequirements.length ? 'met' : 'unmet'}`}>
-                          At least 8 characters
+                          Ít nhất 8 ký tự
                         </div>
                         <div className={`requirement ${passwordRequirements.uppercase ? 'met' : 'unmet'}`}>
-                          One uppercase letter
+                          Một chữ cái viết hoa
                         </div>
                         <div className={`requirement ${passwordRequirements.lowercase ? 'met' : 'unmet'}`}>
-                          One lowercase letter
+                          Một chữ cái viết thường
                         </div>
                         <div className={`requirement ${passwordRequirements.number ? 'met' : 'unmet'}`}>
-                          One number
+                          Một số
                         </div>
                         <div className={`requirement ${passwordRequirements.special ? 'met' : 'unmet'}`}>
-                          One special character
+                          Một ký tự đặc biệt
                         </div>
                       </div>
                     </div>
@@ -1137,14 +1137,14 @@ export default function Profile() {
                   <div className="form-group">
                     <label className="form-label">
                       <CheckCircleIcon className="label-icon" />
-                      Confirm New Password
+                      Xác nhận mật khẩu mới
                     </label>
                     <div className="password-input-wrapper">
                       <BaseInput
                         type={showConfirmPassword ? "text" : "password"}
                         value={passwordData.confirmPassword}
                         onChange={(value) => handlePasswordChange('confirmPassword', value)}
-                        placeholder="Confirm your new password"
+                        placeholder="Xác nhận mật khẩu mới"
                       />
                       <button
                         type="button"
@@ -1157,7 +1157,7 @@ export default function Profile() {
                     {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
                       <div className="error-message">
                         <ExclamationTriangleIcon className="w-4 h-4" />
-                        Passwords do not match
+                        Mật khẩu không khớp
                       </div>
                     )}
                   </div>
@@ -1170,7 +1170,7 @@ export default function Profile() {
                   onClick={() => setShowPasswordModal(false)}
                   className="cancel-btn"
                 >
-                  Cancel
+                  Hủy
                 </BaseButton>
                 <BaseButton
                   variant="primary"
@@ -1188,12 +1188,12 @@ export default function Profile() {
                   {isSaving ? (
                     <>
                       <div className="loading-spinner"></div>
-                      Updating...
+                      Đang cập nhật...
                     </>
                   ) : (
                     <>
                       <div className="" >
-                        Update Password
+                        Cập nhật mật khẩu
                       </div>
                     </>
                   )}
@@ -1213,8 +1213,8 @@ export default function Profile() {
                     <TruckIcon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3>Add New Vehicle</h3>
-                    <p>Enter your vehicle details</p>
+                    <h3>Thêm xe mới</h3>
+                    <p>Nhập thông tin xe của bạn</p>
                   </div>
                 </div>
                 <button className="modal-close" onClick={() => setShowAddVehicleModal(false)}>
@@ -1226,20 +1226,20 @@ export default function Profile() {
                 <div className="vehicle-form">
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">Brand *</label>
+                      <label className="form-label">Hãng xe *</label>
                       <BaseInput
                         value={newVehicle.brand}
                         onChange={(value) => handleVehicleInputChange('brand', value)}
-                        placeholder="e.g., VinFast, Toyota, Honda"
+                        placeholder="ví dụ: VinFast, Toyota, Honda"
                         required
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Model *</label>
+                      <label className="form-label">Mẫu xe *</label>
                       <BaseInput
                         value={newVehicle.model}
                         onChange={(value) => handleVehicleInputChange('model', value)}
-                        placeholder="e.g., VF8, Camry, CR-V"
+                        placeholder="ví dụ: VF8, Camry, CR-V"
                         required
                       />
                     </div>
@@ -1247,7 +1247,7 @@ export default function Profile() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">Year</label>
+                      <label className="form-label">Năm sản xuất</label>
                       <BaseInput
                         value={newVehicle.year}
                         onChange={(value) => handleVehicleInputChange('year', value)}
@@ -1256,37 +1256,37 @@ export default function Profile() {
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Color</label>
+                      <label className="form-label">Màu sắc</label>
                       <BaseInput
                         value={newVehicle.color}
                         onChange={(value) => handleVehicleInputChange('color', value)}
-                        placeholder="e.g., White, Black, Red"
+                        placeholder="ví dụ: Trắng, Đen, Đỏ"
                       />
                     </div>
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">License Plate *</label>
+                      <label className="form-label">Biển số xe *</label>
                       <BaseInput
                         value={newVehicle.licensePlate}
                         onChange={(value) => handleVehicleInputChange('licensePlate', value)}
-                        placeholder="e.g., 30A-12345"
+                        placeholder="ví dụ: 30A-12345"
                         required
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Next Maintenance</label>
+                      <label className="form-label">Bảo dưỡng tiếp theo</label>
                       <BaseInput
                         value={newVehicle.nextMaintenance}
                         onChange={(value) => handleVehicleInputChange('nextMaintenance', value)}
-                        placeholder="e.g., 5,000 km or 01/04/2024"
+                        placeholder="ví dụ: 5,000 km hoặc 01/04/2024"
                       />
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Vehicle Image</label>
+                    <label className="form-label">Hình ảnh xe</label>
                     <div
                       className="image-upload-area"
                       onClick={handleVehicleImageClick}
@@ -1296,7 +1296,7 @@ export default function Profile() {
                       ) : (
                         <div className="upload-placeholder">
                           <PhotoIcon className="w-8 h-8" />
-                          <span>Click to upload vehicle image</span>
+                          <span>Nhấp để tải lên hình ảnh xe</span>
                         </div>
                       )}
                     </div>
@@ -1316,7 +1316,7 @@ export default function Profile() {
                   variant="outline"
                   onClick={() => setShowAddVehicleModal(false)}
                 >
-                  Cancel
+                  Hủy
                 </BaseButton>
                 <BaseButton
                   variant="primary"
@@ -1325,7 +1325,7 @@ export default function Profile() {
                   className="add-vehicle-btn"
                 >
                   <PlusIcon className="w-4 h-4" />
-                  Add Vehicle
+                  Thêm xe
                 </BaseButton>
               </div>
             </div>

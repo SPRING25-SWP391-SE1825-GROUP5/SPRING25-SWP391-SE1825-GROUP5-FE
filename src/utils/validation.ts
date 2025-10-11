@@ -288,6 +288,21 @@ export const validateResetPasswordForm = (data: {
   }
 }
 
+export const validateResetConfirmForm = (data: {
+  otpCode: string
+  newPassword: string
+  confirmPassword: string
+}): ValidationResult => {
+  const errors: Record<string, string> = {}
+  if (!/^\d{6}$/.test(data.otpCode)) {
+    errors.otpCode = 'OTP phải gồm 6 chữ số'
+  }
+  const passV = validatePassword(data.newPassword)
+  if (!passV.isValid) errors.newPassword = passV.error!
+  if (data.newPassword !== data.confirmPassword) errors.confirmPassword = 'Mật khẩu xác nhận không khớp'
+  return { isValid: Object.keys(errors).length === 0, errors }
+}
+
 
 // Additional validators aligned with backend rules
 export const validateGmail = (email: string): FieldValidation => {
