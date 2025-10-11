@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import type { ReactElement } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { useAppSelector } from '@/store/hooks'
 import AppLayout from '@/components/layout/AppLayout'
 import AuthLayout from '@/components/layout/AuthLayout'
 import AdminLayout from '@/components/layout/AdminLayout'
@@ -43,12 +44,18 @@ const NotFound = lazy(() => import('@/views/NotFound'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
 
+// Wrapper component để force re-render khi auth state thay đổi
+const HomepageWrapper = () => {
+  const user = useAppSelector((s) => s.auth.user)
+  return <SavartHomepage key={user?.id || 'guest'} />
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
     element: <AppLayout />,
     children: [
-      { index: true, element: suspense(<SavartHomepage />) },
+      { index: true, element: suspense(<HomepageWrapper />) },
       { path: 'about', element: suspense(<About />) },
       { path: 'services', element: suspense(<Services />) },
       { path: 'products', element: suspense(<Products />) },

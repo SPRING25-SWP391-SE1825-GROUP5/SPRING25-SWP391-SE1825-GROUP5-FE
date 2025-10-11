@@ -116,7 +116,7 @@ const slice = createSlice({
       if (typeof localStorage !== 'undefined') {
         const token = localStorage.getItem('token')
         const userStr = localStorage.getItem('user')
-        
+
         if (token && userStr && userStr !== 'undefined' && userStr !== 'null') {
           try {
             const user = JSON.parse(userStr)
@@ -183,23 +183,18 @@ const slice = createSlice({
         state.error = null
       })
       .addCase(loginWithGoogle.fulfilled, (state, action: PayloadAction<any>) => {
-        console.log('AuthReducer - loginWithGoogle.fulfilled payload:', action.payload)
         state.loading = false
         const payload: any = action.payload || {}
-        console.log('AuthReducer - parsed payload:', payload)
         const data = payload.data ?? payload
-        console.log('AuthReducer - extracted data:', data)
         const token = data?.accessToken ?? data?.token ?? null
         const refreshToken = data?.refreshToken ?? null
-        const user = data?.user ?? data?.userId ? { 
-          id: data.userId, 
-          fullName: data.fullName, 
-          email: data.email, 
+        const user = data?.user ?? data?.userId ? {
+          id: data.userId,
+          fullName: data.fullName,
+          email: data.email,
           role: data.role,
           emailVerified: data.emailVerified ?? false
         } : null
-        
-        console.log('AuthReducer - final values:', { token, refreshToken, user })
 
         state.token = token
         state.refreshToken = refreshToken
@@ -209,8 +204,6 @@ const slice = createSlice({
           if (token) localStorage.setItem('authToken', token)
           if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
         }
-        
-        console.log('AuthReducer - final state:', { token: state.token, user: state.user })
       })
       .addCase(loginWithGoogle.rejected, (state, action) => {
         state.loading = false

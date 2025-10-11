@@ -73,7 +73,6 @@ export default function Profile() {
     gender: '',
     avatarUrl: '👤'
   })
-  console.log({ profileData });
 
 
   const [originalData, setOriginalData] = useState(profileData)
@@ -289,11 +288,9 @@ export default function Profile() {
   }
 
   const handleRemoveCartItem = (itemId: string) => {
-    console.log('Removing cart item:', itemId)
   }
 
   const handleMarkAsRead = (notificationId: string) => {
-    console.log('Marking notification as read:', notificationId)
   }
 
   const handleRemoveVehicle = (vehicleId: string) => {
