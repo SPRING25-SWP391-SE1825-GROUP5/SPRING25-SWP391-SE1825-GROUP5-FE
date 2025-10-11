@@ -68,21 +68,21 @@ export default function SavartHomepage() {
                     </span>
                   </h1>
 
-                  <p style={{ fontSize: '1.25rem', color: 'var(--quaternary-color)', lineHeight: 1.7, maxWidth: 560, margin: 0 }}>
+                  <p style={{ fontSize: '1.25rem', color: 'black', lineHeight: 1.7, maxWidth: 560, margin: 0 }}>
                     Đặt lịch nhanh, theo dõi minh bạch, công nghệ AI tối ưu quy trình bảo dưỡng xe điện của bạn.
                   </p>
 
                   <div className="hero-cta">
-                    <Link to="/booking" className="btn-primary-new hero-cta-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))', color: 'var(--tertiary-color)', padding: '1.1rem 2rem', border: 'none', borderRadius: 12, fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: '0.5px', boxShadow: '0 8px 25px rgba(0, 64, 48, 0.3)' }}>
+                    <Link to="/booking" className="btn-primary-new hero-cta-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))', color: 'var(--tertiary-color)', padding: '1.1rem 2rem', border: 'none', borderRadius: 12, fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: '0.5px', boxShadow: '0 8px 25px rgba(0, 64, 48, 0.3)' }}>
                       <span>Đặt Lịch Ngay</span>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </Link>
-                    <Link to="/services" className="btn-secondary" style={{ padding: '1rem 1.5rem', borderRadius: 12, fontWeight: 600 }}>
+                    <Link to="/services" className="btn-secondary" style={{  textDecoration: 'none', padding: '1rem 1.5rem', borderRadius: 12, fontWeight: 600 }}>
                       Xem Dịch Vụ
                     </Link>
-                    <Link to="/about" className="about-link" style={{ alignSelf: 'center', fontWeight: 600, padding: '0.5rem 0.75rem' }}>
+                    <Link to="/about" className="about-link" style={{ textDecoration: 'none', alignSelf: 'center', fontWeight: 600, padding: '0.5rem 0.75rem' }}>
                       Tìm hiểu về chúng tôi →
                     </Link>
                   </div>
@@ -238,11 +238,16 @@ export default function SavartHomepage() {
                   </p>
                   <button className="btn-secondary video-cta">Tìm Hiểu Thêm</button>
                 </div>
-                <div className="video-player reveal reveal-delay-1" style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                  <video controls poster={logoImage}>
-                    <source src="https://savart-ev.com/wp-content/uploads/2024/12/Savart-EV-Video.mp4" type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                <div className="video-player reveal reveal-delay-1">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src="https://www.youtube.com/embed/8h_SA67vmoU"
+                    title="Quy Trình Dịch Vụ Chuyên Nghiệp"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  ></iframe>
                 </div>
               </div>
             </div>
@@ -259,7 +264,7 @@ export default function SavartHomepage() {
                   Hệ thống quản lý bảo dưỡng xe điện toàn diện với công nghệ AI và theo dõi thời gian thực
                 </p>
                 <div className="cta-buttons" style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <Link to="/booking" className="btn-primary" style={{ background: 'var(--tertiary-color)', color: 'var(--primary-color)', boxShadow: '0 6px 20px rgba(255,249,229,0.3)', padding: '1.2rem 3rem', border: 'none', borderRadius: 50, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.4s ease', textTransform: 'uppercase', letterSpacing: '1px', position: 'relative', overflow: 'hidden' }}>
+                  <Link to="/booking" className="btn-primary" style={{ textDecoration: 'none', background: 'var(--tertiary-color)', color: 'var(--primary-color)', boxShadow: '0 6px 20px rgba(255,249,229,0.3)', padding: '1.2rem 3rem', border: 'none', borderRadius: 50, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.4s ease', textTransform: 'uppercase', letterSpacing: '1px', position: 'relative', overflow: 'hidden' }}>
                     Đặt Lịch Bảo Dưỡng
                   </Link>
                   <button className="btn-secondary" style={{ background: 'transparent', color: 'var(--tertiary-color)', border: '2px solid var(--tertiary-color)', padding: '1rem 2.5rem', borderRadius: 50, fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
