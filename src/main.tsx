@@ -5,8 +5,12 @@ import './styles/scrollbar.scss'
 import { AppRouter } from './router'
 import { Provider } from 'react-redux'
 import { store } from './store'
+import { syncFromLocalStorage } from './store/authSlice'
 import { Toaster } from 'react-hot-toast'
 import LoginToastWatcher from '@/components/common/LoginToastWatcher'
+
+// Sync authentication state from localStorage on app start
+store.dispatch(syncFromLocalStorage())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

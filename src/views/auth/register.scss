@@ -4,25 +4,16 @@ body {
   margin: 0;
   height: 100vh;
   background: linear-gradient(145deg, #f8fbf7, #ffffff);
-  display: flex;
-  justify-content: center;
-  align-items: center;
   font-family: "Poppins", sans-serif;
 }
 
 #root {
   background: transparent !important;
   min-height: 100vh !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
 }
 
 .register {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px;
   width: 100%;
   min-height: 100vh;
 
@@ -30,21 +21,15 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0;
-    max-width: 1200px;
     width: 100%;
-    height: clamp(560px, 92vh, 720px);
+    height: 100vh;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(16px);
-    border-radius: 28px;
-    box-shadow: 0 16px 40px rgba(0, 169, 110, 0.15);
     animation: fadeIn 0.7s ease;
-    border: 1px solid rgba(0, 169, 110, 0.1);
     overflow: hidden;
 
     @media (max-width: 768px) {
       grid-template-columns: 1fr;
-      max-width: 440px;
-      height: auto;
     }
   }
 
@@ -107,15 +92,23 @@ body {
   }
 
   &__form-container {
-    padding: 40px 48px;
+    padding: 60px 80px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     overflow: auto;
     max-height: 100%;
 
+    @media (max-width: 1024px) {
+      padding: 50px 60px;
+    }
+
+    @media (max-width: 768px) {
+      padding: 40px 40px;
+    }
+
     @media (max-width: 480px) {
-      padding: 28px 20px;
+      padding: 30px 30px;
     }
   }
 

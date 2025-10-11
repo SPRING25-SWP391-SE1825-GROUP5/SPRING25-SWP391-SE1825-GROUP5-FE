@@ -263,7 +263,6 @@ export class GoogleAuthService {
       return false
     }
 
-    console.log('Initializing Google Identity Services with Client ID:', this.clientId)
 
     return new Promise((resolve) => {
       let attempts = 0
@@ -272,11 +271,9 @@ export class GoogleAuthService {
 
       const tryInit = () => {
         attempts++
-        console.log(`Attempt ${attempts} to initialize Google Identity Services...`)
 
         if (window.google?.accounts?.id) {
           try {
-            console.log('Google Identity Services script found, initializing...')
             window.google.accounts.id.initialize({
               client_id: this.clientId,
               callback,
@@ -287,7 +284,6 @@ export class GoogleAuthService {
               itp_support: false,
             })
             this.initialized = true
-            console.log('Google Identity Services initialized successfully')
             resolve(true)
           } catch (error) {
             console.error('Failed to initialize Google Identity Services:', error)
@@ -295,7 +291,6 @@ export class GoogleAuthService {
           }
         } else {
           if (attempts < maxAttempts) {
-            console.log(`Google script not ready, retrying in ${retryDelay}ms...`)
             setTimeout(tryInit, retryDelay)
           } else {
             console.error('Google Identity Services script not loaded after maximum attempts')
@@ -322,7 +317,6 @@ export class GoogleAuthService {
     }
 
     try {
-      console.log('Rendering Google Sign In button...')
       window.google.accounts.id.renderButton(element, {
         type: 'standard',
         theme: 'outline',
@@ -332,7 +326,6 @@ export class GoogleAuthService {
         logo_alignment: 'left',
         width: 280,
       })
-      console.log('Google Sign In button rendered successfully')
       return true
     } catch (error) {
       console.error('Failed to render Google button:', error)
@@ -349,22 +342,16 @@ export class GoogleAuthService {
 
     return new Promise((resolve) => {
       try {
-        console.log('Attempting to show Google Sign In prompt...')
         window.google.accounts.id.prompt((notification) => {
-          console.log('Google prompt notification:', notification)
-
           if (notification.isNotDisplayed()) {
-            console.log('Google prompt not displayed - user may have dismissed it or blocked popups')
             // Check if it's suppressed by user
             if (notification.j === 'suppressed_by_user') {
-              console.log('Google Sign In was suppressed by user - they need to reset their consent')
+              // User needs to reset their consent
             }
             resolve(false)
           } else if (notification.isSkippedMoment()) {
-            console.log('Google prompt was skipped')
             resolve(false)
           } else {
-            console.log('Google prompt displayed successfully')
             resolve(true)
           }
         })
@@ -379,7 +366,6 @@ export class GoogleAuthService {
   resetGoogleConsent(): void {
     try {
       if (window.google?.accounts?.id) {
-        console.log('Resetting Google consent...')
         // Clear any stored consent
         if (window.google.accounts.id.disableAutoSelect) {
           window.google.accounts.id.disableAutoSelect()
@@ -394,7 +380,6 @@ export class GoogleAuthService {
           use_fedcm_for_prompt: true,
           itp_support: true,
         })
-        console.log('Google consent reset completed')
       }
     } catch (error) {
       console.error('Error resetting Google consent:', error)

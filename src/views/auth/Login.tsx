@@ -92,7 +92,11 @@ export default function LoginPage() {
           dispatch(syncFromLocalStorage())
           const userRole = result.data.user?.role || "customer"
           const redirectPath = getRedirectPath(userRole)
-          navigate(redirectPath, { replace: true })
+          
+          // Small delay to ensure state is fully synced
+          setTimeout(() => {
+            navigate(redirectPath, { replace: true });
+          }, 100);
         } else {
           toast.error(result.message || "Đăng nhập Google thất bại!")
         }
@@ -142,7 +146,6 @@ export default function LoginPage() {
 
     try {
       const result = await AuthService.login({ emailOrPhone, password });
-      console.log("Login result:", result);
 
       if (result.success) {
         toast.success("Đăng nhập thành công!");
@@ -154,17 +157,18 @@ export default function LoginPage() {
         // Sync Redux state with localStorage
         dispatch(syncFromLocalStorage());
 
-        // Navigate based on user role
-        console.log("User role:", result.data.user?.role);
+        // Navigate based on user role with small delay to ensure state sync
         const redirectPath = getRedirectPath(result.data.user?.role);
-        console.log("Redirect path:", redirectPath);
-        navigate(redirectPath, { replace: true });
+        
+        // Small delay to ensure state is fully synced
+        setTimeout(() => {
+          navigate(redirectPath, { replace: true });
+        }, 100);
       } else {
         toast.error(result.message || "Đăng nhập thất bại!");
         setServerError(result.message || "Đăng nhập thất bại!");
       }
     } catch (error: unknown) {
-      console.error("Login error:", error);
       const errorMessage =
         (error as any)?.response?.data?.message ||
         (error as any)?.message ||

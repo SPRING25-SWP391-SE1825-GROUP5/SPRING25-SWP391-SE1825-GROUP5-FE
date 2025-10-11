@@ -44,7 +44,8 @@ const loadInitialState = (): AuthState => {
     }
   }
 
-  const token = localStorage.getItem('token')
+  // Try to get token from both possible keys for backward compatibility
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token')
   const userStr = localStorage.getItem('user')
   let user = null
 
@@ -55,6 +56,7 @@ const loadInitialState = (): AuthState => {
       console.error('Error parsing user from localStorage:', error)
       localStorage.removeItem('user')
       localStorage.removeItem('token')
+      localStorage.removeItem('authToken')
     }
   }
 
@@ -114,20 +116,23 @@ const slice = createSlice({
     },
     syncFromLocalStorage(state) {
       if (typeof localStorage !== 'undefined') {
-        const token = localStorage.getItem('token')
+        // Try to get token from both possible keys for backward compatibility
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token')
         const userStr = localStorage.getItem('user')
-        
+
         if (token && userStr && userStr !== 'undefined' && userStr !== 'null') {
           try {
             const user = JSON.parse(userStr)
             if (user && typeof user === 'object') {
               state.user = user
               state.token = token
+              state.refreshToken = localStorage.getItem('refreshToken')
             }
           } catch (error) {
             console.error('Error parsing user from localStorage:', error)
             localStorage.removeItem('user')
             localStorage.removeItem('token')
+            localStorage.removeItem('authToken')
           }
         }
       }
@@ -171,6 +176,7 @@ const slice = createSlice({
           if (typeof localStorage !== 'undefined') {
             if (token) localStorage.setItem('authToken', token)
             if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+            if (user) localStorage.setItem('user', JSON.stringify(user))
           }
         }
       )
@@ -183,23 +189,18 @@ const slice = createSlice({
         state.error = null
       })
       .addCase(loginWithGoogle.fulfilled, (state, action: PayloadAction<any>) => {
-        console.log('AuthReducer - loginWithGoogle.fulfilled payload:', action.payload)
         state.loading = false
         const payload: any = action.payload || {}
-        console.log('AuthReducer - parsed payload:', payload)
         const data = payload.data ?? payload
-        console.log('AuthReducer - extracted data:', data)
         const token = data?.accessToken ?? data?.token ?? null
         const refreshToken = data?.refreshToken ?? null
-        const user = data?.user ?? data?.userId ? { 
-          id: data.userId, 
-          fullName: data.fullName, 
-          email: data.email, 
+        const user = data?.user ?? data?.userId ? {
+          id: data.userId,
+          fullName: data.fullName,
+          email: data.email,
           role: data.role,
           emailVerified: data.emailVerified ?? false
         } : null
-        
-        console.log('AuthReducer - final values:', { token, refreshToken, user })
 
         state.token = token
         state.refreshToken = refreshToken
@@ -208,9 +209,8 @@ const slice = createSlice({
         if (typeof localStorage !== 'undefined') {
           if (token) localStorage.setItem('authToken', token)
           if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+          if (user) localStorage.setItem('user', JSON.stringify(user))
         }
-        
-        console.log('AuthReducer - final state:', { token: state.token, user: state.user })
       })
       .addCase(loginWithGoogle.rejected, (state, action) => {
         state.loading = false
