@@ -69,7 +69,6 @@ export default function Users() {
     try {
       const res = await UserService.getUsers({ pageNumber: 1, pageSize: 100 });
       const allUsers = res.data?.users || [];
-      console.log("All users for stats:", allUsers);
       
 
       setStatsData({
@@ -149,11 +148,9 @@ export default function Users() {
   };
 
   const handleEditUser = (user: User) => {
-    console.log("Edit user:", user);
   };
 
   const handleDeleteUser = (user: User) => {
-    console.log("Delete user:", user);
   };
 
   if (loading) return <div style={{ padding: 24 }}>Đang tải dữ liệu...</div>;

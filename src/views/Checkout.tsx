@@ -157,23 +157,17 @@ export default function Checkout() {
   }
 
   const getEligiblePromotions = (): Promotion[] => {
-    console.log('All saved promotions:', promo.savedPromotions)
-    
     // For debugging - always show some promotions
     if (!promo.savedPromotions || promo.savedPromotions.length === 0) {
-      console.log('No saved promotions found, using demo promotions')
       return []
     }
     
     // For demo purposes, show all active promotions regardless of other conditions
     const eligible = promo.savedPromotions.filter(promotion => {
-      console.log('Checking promotion:', promotion.code, promotion)
-      
       // Only check if active for now
       return promotion.isActive
     })
     
-    console.log('Eligible promotions:', eligible)
     return eligible
   }
 

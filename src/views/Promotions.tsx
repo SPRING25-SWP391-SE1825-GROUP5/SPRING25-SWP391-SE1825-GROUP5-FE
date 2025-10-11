@@ -16,7 +16,6 @@ export default function Promotions() {
   // Update filter based on URL params
   useEffect(() => {
     if (categoryParam && typeParam) {
-      console.log('URL params:', { categoryParam, typeParam })
       // Set filter based on category to show relevant promotions
       setActiveFilter('all') // For now, show all but we could create specific filters
     }

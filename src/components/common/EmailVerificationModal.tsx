@@ -32,11 +32,13 @@ export default function EmailVerificationModal({ isOpen, onClose, userEmail }: E
       setMessage({ type: 'success', text: 'Xác thực email thành công!' })
       setStep('success')
       
-      // Refresh user data to update emailVerified status
+      // Refresh user data to update emailVerified status immediately
+      await dispatch(getCurrentUser())
+      
+      // Close modal after a short delay to show success message
       setTimeout(() => {
-        dispatch(getCurrentUser())
         onClose()
-      }, 2000)
+      }, 1500)
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || 'Mã OTP không đúng. Vui lòng thử lại.'
       setMessage({ type: 'error', text: errorMsg })

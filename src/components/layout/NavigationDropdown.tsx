@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronDown, Menu, X } from 'lucide-react'
-import EmailVerificationBanner from '@/components/common/EmailVerificationBanner'
 import { useAppSelector } from '@/store/hooks'
+import { AuthService } from '@/services/authService'
+import EmailVerificationModal from '@/components/common/EmailVerificationModal'
 import './NavigationDropdown.scss'
 
 // Types for dropdown content
@@ -77,6 +78,11 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const headerRef = useRef<HTMLElement>(null)
   const user = useAppSelector((s) => s.auth.user)
+  
+  // Email verification banner state
+  const [bannerLoading, setBannerLoading] = useState(false)
+  const [bannerMessage, setBannerMessage] = useState<string | null>(null)
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
 
   // Check if mobile
   useEffect(() => {
@@ -109,6 +115,22 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   const handleMobileMenuToggle = () => {
     const newState = !showMobileMenu
     onMobileMenuToggle?.(newState)
+  }
+
+  // Email verification banner functions
+  const handleResendVerification = async () => {
+    if (!user?.email || bannerLoading) return
+    setBannerLoading(true)
+    setBannerMessage(null)
+    try {
+      const resp = await AuthService.resendVerification(user.email)
+      setBannerMessage(resp?.message || 'Đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư.')
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Không thể gửi lại email xác thực. Vui lòng thử lại.'
+      setBannerMessage(msg)
+    } finally {
+      setBannerLoading(false)
+    }
   }
 
   const getDropdownWidth = (width?: string) => {
@@ -225,16 +247,13 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     return null
   }
 
-  // Debug logs
-  console.log('NavigationDropdown - user:', user)
-  console.log('NavigationDropdown - emailVerified:', user?.emailVerified)
+  const hasEmailBanner = user && !user.emailVerified
 
   return (
     <>
-      {user && !user.emailVerified && <EmailVerificationBanner />}
       <header 
         ref={headerRef}
-        className={`header-dropdown ${className}`}
+        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,
@@ -244,6 +263,35 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
         } as React.CSSProperties}
         role="banner"
       >
+        {/* Email Verification Banner - integrated into header */}
+        {hasEmailBanner && (
+          <div className="email-verification-banner">
+            <div className="email-verification-banner__container">
+              <div className="email-verification-banner__left">
+                <span className="email-verification-banner__icon">⚠️</span>
+                <p className="email-verification-banner__msg">
+                  Tài khoản của bạn chưa được xác thực email. Hãy xác thực để bảo mật và sử dụng đầy đủ tính năng.
+                </p>
+              </div>
+              <div className="email-verification-banner__actions">
+                {bannerMessage && <span className="email-verification-banner__hint">{bannerMessage}</span>}
+                <button 
+                  className="email-verification-banner__btn email-verification-banner__btn--secondary" 
+                  onClick={handleResendVerification} 
+                  disabled={bannerLoading}
+                >
+                  {bannerLoading ? 'Đang gửi...' : 'Gửi lại email'}
+                </button>
+                <button 
+                  className="email-verification-banner__btn email-verification-banner__btn--primary" 
+                  onClick={() => setShowVerifyModal(true)}
+                >
+                  Xác thực email
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="header-dropdown__container">
           {/* Logo Section */}
           <div className="header-logo-section">
@@ -406,7 +454,16 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
         </ul>
       </nav>
         </div>
-    </header>
+      </header>
+      
+      {/* Email Verification Modal */}
+      {showVerifyModal && (
+        <EmailVerificationModal
+          isOpen={showVerifyModal}
+          onClose={() => setShowVerifyModal(false)}
+          userEmail={user?.email || ''}
+        />
+      )}
     </>
   )
 }

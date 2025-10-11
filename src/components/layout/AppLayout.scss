@@ -12,7 +12,7 @@
   z-index: 1; /* Below header and dropdown */
 }
 
-/* Khi có banner email verification */
+/* Khi có banner email verification - tính toán chính xác */
 .main-content.has-email-banner {
   padding-top: 113px; /* Offset cho fixed header + banner (57px + 56px) */
 }
