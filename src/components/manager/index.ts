@@ -1,0 +1,6 @@
+export { default as DashboardOverview } from './DashboardOverview'
+export { default as BranchesManagement } from './BranchesManagement'
+export { default as StaffManagement } from './StaffManagement'
+export { default as ServicesManagement } from './ServicesManagement'
+export { default as ReportsManagement } from './ReportsManagement'
+export { default as InventoryManagement } from './InventoryManagement'
