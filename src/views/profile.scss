@@ -3,7 +3,11 @@
   padding: 2rem 0;
   background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 25%, #f0f9ff 50%, #f8fafc 100%);
   min-height: calc(100vh - 57px);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   position: relative;
   overflow-x: hidden;
 
@@ -288,6 +292,10 @@
         position: relative;
         z-index: 1;
         letter-spacing: -0.01em;
+        font-family: inherit;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
     }
   }
@@ -429,6 +437,10 @@
       margin: 0;
       font-size: 0.95rem;
       letter-spacing: -0.01em;
+      font-family: inherit;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
 
       .field-note {
         font-size: 0.8rem;
@@ -1714,6 +1726,33 @@
 .edit-actions {
   display: flex;
   gap: 1rem;
+}
+
+/* Vietnamese Font Support */
+.profile-page * {
+  font-family: inherit;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Specific improvements for Vietnamese text */
+.profile-page h1, 
+.profile-page h2, 
+.profile-page h3, 
+.profile-page h4, 
+.profile-page h5, 
+.profile-page h6 {
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+}
+
+.profile-page p, 
+.profile-page span, 
+.profile-page div, 
+.profile-page label {
+  font-feature-settings: 'kern' 1;
+  text-rendering: optimizeLegibility;
 }
 
 .field-note {
