@@ -44,7 +44,8 @@ const loadInitialState = (): AuthState => {
     }
   }
 
-  const token = localStorage.getItem('token')
+  // Try to get token from both possible keys for backward compatibility
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token')
   const userStr = localStorage.getItem('user')
   let user = null
 
@@ -55,6 +56,7 @@ const loadInitialState = (): AuthState => {
       console.error('Error parsing user from localStorage:', error)
       localStorage.removeItem('user')
       localStorage.removeItem('token')
+      localStorage.removeItem('authToken')
     }
   }
 
@@ -114,7 +116,8 @@ const slice = createSlice({
     },
     syncFromLocalStorage(state) {
       if (typeof localStorage !== 'undefined') {
-        const token = localStorage.getItem('token')
+        // Try to get token from both possible keys for backward compatibility
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token')
         const userStr = localStorage.getItem('user')
         
         if (token && userStr && userStr !== 'undefined' && userStr !== 'null') {
@@ -123,11 +126,13 @@ const slice = createSlice({
             if (user && typeof user === 'object') {
               state.user = user
               state.token = token
+              state.refreshToken = localStorage.getItem('refreshToken')
             }
           } catch (error) {
             console.error('Error parsing user from localStorage:', error)
             localStorage.removeItem('user')
             localStorage.removeItem('token')
+            localStorage.removeItem('authToken')
           }
         }
       }
@@ -171,6 +176,7 @@ const slice = createSlice({
           if (typeof localStorage !== 'undefined') {
             if (token) localStorage.setItem('authToken', token)
             if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+            if (user) localStorage.setItem('user', JSON.stringify(user))
           }
         }
       )
@@ -208,6 +214,7 @@ const slice = createSlice({
         if (typeof localStorage !== 'undefined') {
           if (token) localStorage.setItem('authToken', token)
           if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+          if (user) localStorage.setItem('user', JSON.stringify(user))
         }
         
         console.log('AuthReducer - final state:', { token: state.token, user: state.user })
