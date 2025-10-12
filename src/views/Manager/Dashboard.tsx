@@ -10,7 +10,8 @@ import {
   Users,
   Wrench,
   FileText,
-  Target
+  Target,
+  Car
 } from 'lucide-react'
 import {
   DashboardOverview,
@@ -20,6 +21,7 @@ import {
   ReportsManagement,
   InventoryManagement
 } from '../../components/manager'
+import VehicleModel from '../../components/manager/VehicleModel'
 import './manager.scss'
 
 export default function ManagerDashboard() {
@@ -41,6 +43,8 @@ export default function ManagerDashboard() {
         return <ReportsManagement />
       case 'inventory':
         return <InventoryManagement />
+      case 'vehicles':
+        return <VehicleModel />
       case 'settings':
         return (
           <div>
@@ -276,6 +280,7 @@ export default function ManagerDashboard() {
                 { icon: Building2, label: 'Chi nhánh', page: 'branches' },
                 { icon: Users, label: 'Nhân viên', page: 'staff' },
                 { icon: Wrench, label: 'Dịch vụ', page: 'services' },
+                { icon: Car, label: 'Mẫu xe', page: 'vehicles' },
                 { icon: FileText, label: 'Báo cáo', page: 'reports' },
                 { icon: Target, label: 'Kho', page: 'inventory' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings' }
