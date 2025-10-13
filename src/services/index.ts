@@ -57,6 +57,18 @@ export type {
   VehicleModelSearchParams
 } from './vehicleModelManagement'
 
+// Vehicle Services
+export { VehicleService } from './vehicleService'
+export type {
+  Vehicle,
+  CreateVehicleRequest,
+  UpdateVehicleRequest,
+  VehicleListResponse,
+  VehicleResponse,
+  UpdateMileageRequest,
+  NextServiceDueResponse
+} from './vehicleService'
+
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'
 // export { OrderService } from './orderService'

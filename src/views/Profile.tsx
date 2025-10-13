@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser } from '@/store/authSlice'
-import { AuthService } from '@/services/authService'
+import { AuthService, VehicleService } from '@/services'
+import type { Vehicle as ApiVehicle, CreateVehicleRequest, UpdateVehicleRequest } from '@/services'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import {
   UserIcon,
@@ -43,6 +44,7 @@ interface ChangePasswordData {
   confirmPassword: string
 }
 
+// Local Vehicle interface for UI display
 interface Vehicle {
   id: string
   brand: string
@@ -53,6 +55,24 @@ interface Vehicle {
   image?: string
   status: 'active' | 'maintenance'
   nextMaintenance: string
+  // API fields
+  vehicleId?: number
+  customerId?: number
+  vin?: string
+  currentMileage?: number
+  lastServiceDate?: string | null
+  purchaseDate?: string | null
+  nextServiceDue?: string | null
+  createdAt?: string
+  customerName?: string
+  customerPhone?: string
+  modelId?: number | null
+}
+
+// Extended interface for new vehicle form
+interface NewVehicleForm extends Omit<Vehicle, 'id' | 'currentMileage'> {
+  vin?: string
+  currentMileage?: string
 }
 
 export default function Profile() {
@@ -96,28 +116,21 @@ export default function Profile() {
   })
 
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false)
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    {
-      id: '1',
-      brand: 'VinFast',
-      model: 'VF8',
-      year: '2023',
-      licensePlate: '30A-12345',
-      color: 'White',
-      status: 'active',
-      nextMaintenance: '5,000 km'
-    }
-  ])
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
+  const [vehicleError, setVehicleError] = useState<string | null>(null)
 
   const vehicleImageInputRef = useRef<HTMLInputElement>(null)
-  const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, 'id'>>({
+  const [newVehicle, setNewVehicle] = useState<NewVehicleForm>({
     brand: '',
     model: '',
     year: new Date().getFullYear().toString(),
     licensePlate: '',
     color: '',
     status: 'active',
-    nextMaintenance: ''
+    nextMaintenance: '',
+    vin: '',
+    currentMileage: ''
   })
 
   useEffect(() => {
@@ -125,6 +138,13 @@ export default function Profile() {
       dispatch(getCurrentUser())
     }
   }, [dispatch, auth.token])
+
+  // Load vehicles when user is available
+  useEffect(() => {
+    if (auth.user?.id) {
+      loadVehicles()
+    }
+  }, [auth.user?.id])
 
   useEffect(() => {
     if (auth.user) {
@@ -162,7 +182,7 @@ export default function Profile() {
     }))
   }
 
-  const handleVehicleInputChange = (field: keyof Omit<Vehicle, 'id'>, value: string) => {
+  const handleVehicleInputChange = (field: keyof NewVehicleForm, value: string) => {
     setNewVehicle(prev => ({
       ...prev,
       [field]: value
@@ -293,6 +313,66 @@ export default function Profile() {
   const handleMarkAsRead = (notificationId: string) => {
   }
 
+  // Load vehicles from API
+  const loadVehicles = async () => {
+    if (!auth.user?.id) return
+    
+    setIsLoadingVehicles(true)
+    setVehicleError(null)
+    
+    try {
+      const response = await VehicleService.getCustomerVehicles(auth.user.id)
+      if (response.success && response.data.vehicles) {
+        const formattedVehicles = response.data.vehicles.map((apiVehicle: ApiVehicle) => ({
+          id: apiVehicle.vehicleId.toString(),
+          vehicleId: apiVehicle.vehicleId,
+          customerId: apiVehicle.customerId,
+          vin: apiVehicle.vin,
+          licensePlate: apiVehicle.licensePlate,
+          color: apiVehicle.color,
+          currentMileage: apiVehicle.currentMileage,
+          lastServiceDate: apiVehicle.lastServiceDate,
+          purchaseDate: apiVehicle.purchaseDate,
+          nextServiceDue: apiVehicle.nextServiceDue,
+          createdAt: apiVehicle.createdAt,
+          customerName: apiVehicle.customerName,
+          customerPhone: apiVehicle.customerPhone,
+          modelId: apiVehicle.modelId,
+          // UI display fields (extract from VIN or use defaults)
+          brand: extractBrandFromVin(apiVehicle.vin) || 'Unknown',
+          model: extractModelFromVin(apiVehicle.vin) || 'Unknown',
+          year: apiVehicle.purchaseDate ? new Date(apiVehicle.purchaseDate).getFullYear().toString() : 'Unknown',
+          status: 'active' as const,
+          nextMaintenance: apiVehicle.nextServiceDue || `${apiVehicle.currentMileage + 5000} km`
+        }))
+        setVehicles(formattedVehicles)
+      }
+    } catch (error: any) {
+      console.error('Error loading vehicles:', error)
+      setVehicleError(error?.response?.data?.message || 'Không thể tải danh sách xe')
+    } finally {
+      setIsLoadingVehicles(false)
+    }
+  }
+
+  // Helper functions to extract brand/model from VIN (simplified)
+  const extractBrandFromVin = (vin: string): string | null => {
+    // Simple mapping based on VIN patterns
+    if (vin.includes('VF') || vin.includes('VinFast')) return 'VinFast'
+    if (vin.includes('TOY') || vin.includes('Toyota')) return 'Toyota'
+    if (vin.includes('HON') || vin.includes('Honda')) return 'Honda'
+    if (vin.includes('HYU') || vin.includes('Hyundai')) return 'Hyundai'
+    return null
+  }
+
+  const extractModelFromVin = (vin: string): string | null => {
+    // Simple mapping based on VIN patterns
+    if (vin.includes('VF8')) return 'VF8'
+    if (vin.includes('VF9')) return 'VF9'
+    if (vin.includes('VF5')) return 'VF5'
+    return null
+  }
+
   const handleRemoveVehicle = (vehicleId: string) => {
     setVehicles(prev => prev.filter(vehicle => vehicle.id !== vehicleId))
   }
@@ -321,29 +401,66 @@ export default function Profile() {
     reader.readAsDataURL(file)
   }
 
-  const handleAddVehicle = () => {
+  const handleAddVehicle = async () => {
     if (!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate) {
       alert('Vui lòng điền đầy đủ các trường bắt buộc')
       return
     }
 
-    const vehicle: Vehicle = {
-      ...newVehicle,
-      id: Date.now().toString()
+    if (!auth.user?.id) {
+      alert('Vui lòng đăng nhập để thêm xe')
+      return
     }
 
-    setVehicles(prev => [...prev, vehicle])
-    setNewVehicle({
-      brand: '',
-      model: '',
-      year: new Date().getFullYear().toString(),
-      licensePlate: '',
-      color: '',
-      status: 'active',
-      nextMaintenance: ''
-    })
-    setShowAddVehicleModal(false)
-    alert('Thêm xe thành công!')
+    setIsSaving(true)
+    try {
+      // Use provided VIN or generate one
+      const vin = newVehicle.vin || generateVin(newVehicle.brand, newVehicle.model)
+      
+      const createRequest: CreateVehicleRequest = {
+        customerId: auth.user.id,
+        vin: vin,
+        licensePlate: newVehicle.licensePlate,
+        color: newVehicle.color || 'Unknown',
+        currentMileage: parseInt(newVehicle.currentMileage || '0') || 0,
+        purchaseDate: newVehicle.year ? `${newVehicle.year}-01-01` : undefined
+      }
+
+      const response = await VehicleService.createVehicle(createRequest)
+      
+      if (response.success) {
+        // Reload vehicles to get the updated list
+        await loadVehicles()
+        
+        setNewVehicle({
+          brand: '',
+          model: '',
+          year: new Date().getFullYear().toString(),
+          licensePlate: '',
+          color: '',
+          status: 'active',
+          nextMaintenance: '',
+          vin: '',
+          currentMileage: ''
+        })
+        setShowAddVehicleModal(false)
+        alert('Thêm xe thành công!')
+      }
+    } catch (error: any) {
+      console.error('Error adding vehicle:', error)
+      const msg = error?.response?.data?.message || 'Thêm xe thất bại'
+      alert(msg)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Helper function to generate VIN
+  const generateVin = (brand: string, model: string): string => {
+    const brandCode = brand.substring(0, 3).toUpperCase()
+    const modelCode = model.substring(0, 3).toUpperCase()
+    const randomSuffix = Math.random().toString(36).substring(2, 11).toUpperCase()
+    return `${brandCode}${modelCode}${randomSuffix}`.substring(0, 17)
   }
 
   const checkPasswordStrength = (password: string) => {
@@ -668,7 +785,21 @@ export default function Profile() {
                 </div>
 
                 <div className="vehicle-content">
-                  {vehicles.length === 0 ? (
+                  {isLoadingVehicles ? (
+                    <div className="loading-state">
+                      <div className="loading-spinner"></div>
+                      <p>Đang tải danh sách xe...</p>
+                    </div>
+                  ) : vehicleError ? (
+                    <div className="error-state">
+                      <ExclamationTriangleIcon className="error-icon" />
+                      <h4>Lỗi tải dữ liệu</h4>
+                      <p>{vehicleError}</p>
+                      <BaseButton variant="primary" onClick={loadVehicles}>
+                        Thử lại
+                      </BaseButton>
+                    </div>
+                  ) : vehicles.length === 0 ? (
                     <div className="empty-state">
                       <TruckIcon className="empty-icon" />
                       <h4>Chưa có xe nào</h4>
@@ -708,6 +839,16 @@ export default function Profile() {
                             <div className="license-plate">
                               {vehicle.licensePlate}
                             </div>
+                            {vehicle.vin && (
+                              <div className="vehicle-vin">
+                                <small>VIN: {vehicle.vin}</small>
+                              </div>
+                            )}
+                            {vehicle.currentMileage && (
+                              <div className="vehicle-mileage">
+                                <small>Số km: {vehicle.currentMileage.toLocaleString()} km</small>
+                              </div>
+                            )}
 
                             <div className="vehicle-meta">
                               <span className={`vehicle-status ${vehicle.status}`}>
@@ -1244,6 +1385,28 @@ export default function Profile() {
 
                   <div className="form-row">
                     <div className="form-group">
+                      <label className="form-label">Số VIN *</label>
+                      <BaseInput
+                        value={newVehicle.vin || ''}
+                        onChange={(value) => handleVehicleInputChange('vin', value)}
+                        placeholder="17 ký tự VIN"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Số km hiện tại *</label>
+                      <BaseInput
+                        value={newVehicle.currentMileage || ''}
+                        onChange={(value) => handleVehicleInputChange('currentMileage', value)}
+                        type="number"
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
                       <label className="form-label">Năm sản xuất</label>
                       <BaseInput
                         value={newVehicle.year}
@@ -1318,11 +1481,12 @@ export default function Profile() {
                 <BaseButton
                   variant="primary"
                   onClick={handleAddVehicle}
-                  disabled={!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate}
+                  loading={isSaving}
+                  disabled={!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate || !newVehicle.vin || !newVehicle.currentMileage}
                   className="add-vehicle-btn"
                 >
                   <PlusIcon className="w-4 h-4" />
-                  Thêm xe
+                  {isSaving ? 'Đang thêm...' : 'Thêm xe'}
                 </BaseButton>
               </div>
             </div>

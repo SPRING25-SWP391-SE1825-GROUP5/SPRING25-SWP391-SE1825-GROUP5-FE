@@ -653,6 +653,43 @@
   .vehicle-content {
     padding: 2.5rem;
 
+    .loading-state, .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--text-secondary);
+
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border-primary);
+        border-top: 3px solid var(--primary-500);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+      }
+
+      .error-icon {
+        width: 48px;
+        height: 48px;
+        color: var(--error-500);
+        margin-bottom: 1rem;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        margin-bottom: 1.5rem;
+        max-width: 400px;
+      }
+    }
+
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
@@ -1663,6 +1700,16 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Vehicle additional info styles */
+.vehicle-vin, .vehicle-mileage {
+  margin-top: 0.5rem;
+  
+  small {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+  }
 }
 
 @keyframes slideInUp {
