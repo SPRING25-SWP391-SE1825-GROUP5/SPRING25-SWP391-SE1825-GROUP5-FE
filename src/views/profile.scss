@@ -1802,7 +1802,7 @@
 
       /* Vehicle Detail Modal Content */
       .vehicle-detail-content {
-        .vehicle-image-section {
+        .vehicle-header-info {
           text-align: center;
           margin-bottom: 3rem;
           position: relative;
@@ -1826,28 +1826,24 @@
             box-shadow: 0 2px 8px rgba(0, 64, 48, 0.3);
           }
 
-          .vehicle-image-large {
-            width: 280px;
-            height: 200px;
+          .vehicle-title-section {
             background: linear-gradient(145deg, 
-              rgba(255, 255, 255, 0.9) 0%, 
-              rgba(248, 250, 252, 0.8) 50%, 
-              rgba(241, 245, 249, 0.7) 100%);
+              rgba(255, 255, 255, 0.95) 0%, 
+              rgba(248, 250, 252, 0.9) 50%, 
+              rgba(241, 245, 249, 0.85) 100%);
             border-radius: 24px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 4px solid transparent;
+            padding: 3rem 2.5rem;
+            border: 2px solid transparent;
             background-clip: padding-box;
-            overflow: hidden;
             box-shadow: 
-              0 20px 60px rgba(0, 64, 48, 0.2),
-              0 8px 24px rgba(0, 64, 48, 0.15),
-              0 2px 8px rgba(0, 64, 48, 0.1),
+              0 20px 60px rgba(0, 64, 48, 0.15),
+              0 8px 24px rgba(0, 64, 48, 0.1),
+              0 2px 8px rgba(0, 64, 48, 0.05),
               inset 0 1px 0 rgba(255, 255, 255, 0.3);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
-            backdrop-filter: blur(10px);
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
             &::before {
               content: '';
@@ -1868,93 +1864,206 @@
               transition: opacity 0.3s ease;
             }
 
-            &::after {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background: linear-gradient(135deg, 
-                transparent 0%, 
-                rgba(74, 151, 130, 0.05) 30%, 
-                rgba(74, 151, 130, 0.1) 50%, 
-                rgba(74, 151, 130, 0.05) 70%, 
-                transparent 100%);
-              opacity: 0;
-              transition: opacity 0.3s ease;
-            }
-
             &:hover {
-              transform: translateY(-8px) scale(1.03);
+              transform: translateY(-4px) scale(1.01);
               box-shadow: 
-                0 32px 80px rgba(0, 64, 48, 0.3),
-                0 16px 40px rgba(0, 64, 48, 0.2),
-                0 4px 12px rgba(0, 64, 48, 0.15),
+                0 32px 80px rgba(0, 64, 48, 0.2),
+                0 16px 40px rgba(0, 64, 48, 0.15),
+                0 4px 12px rgba(0, 64, 48, 0.1),
                 inset 0 1px 0 rgba(255, 255, 255, 0.4);
 
               &::before {
                 opacity: 1;
               }
+            }
+
+            .vehicle-title {
+              font-size: 2.5rem;
+              font-weight: 900;
+              background: linear-gradient(135deg, 
+                var(--primary-700) 0%, 
+                var(--primary-600) 25%, 
+                var(--primary-500) 50%, 
+                var(--primary-600) 75%, 
+                var(--primary-700) 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              margin: 0 0 1rem 0;
+              letter-spacing: -0.025em;
+              text-shadow: 0 4px 8px rgba(0, 64, 48, 0.1);
+              position: relative;
 
               &::after {
-                opacity: 1;
+                content: '';
+                position: absolute;
+                bottom: -8px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 80px;
+                height: 4px;
+                background: linear-gradient(90deg, 
+                  var(--primary-500) 0%, 
+                  var(--primary-400) 50%, 
+                  var(--primary-500) 100%);
+                border-radius: 2px;
+                box-shadow: 0 2px 8px rgba(0, 64, 48, 0.3);
+              }
+              }
+
+              @media (max-width: 768px) {
+                font-size: 2rem;
+              }
+
+              @media (max-width: 480px) {
+                font-size: 1.75rem;
               }
             }
 
-            img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
+            .vehicle-subtitle {
+              font-size: 1.25rem;
+              color: var(--text-secondary);
+              margin: 0 0 2rem 0;
+              font-weight: 600;
+              letter-spacing: -0.01em;
+
+              @media (max-width: 480px) {
+                font-size: 1.1rem;
+              }
+            }
+
+            @media (max-width: 768px) {
+              padding: 2rem 2rem;
+            }
+
+            @media (max-width: 480px) {
+              padding: 1.5rem 1.5rem;
               border-radius: 20px;
-              transition: all 0.4s ease;
-              filter: brightness(1.05) contrast(1.1);
             }
+          }
 
-            .vehicle-icon-large {
-              width: 120px;
-              height: 120px;
-              color: var(--primary-500);
-              filter: drop-shadow(0 8px 16px rgba(0, 64, 48, 0.3));
-              transition: all 0.4s ease;
-            }
+            .vehicle-status-badge {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.75rem;
+              background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.9) 0%, 
+                rgba(248, 250, 252, 0.8) 100%);
+              padding: 1rem 2rem;
+              border-radius: 50px;
+              border: 2px solid transparent;
+              background-clip: padding-box;
+              box-shadow: 
+                0 8px 24px rgba(0, 64, 48, 0.1),
+                0 4px 12px rgba(0, 64, 48, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+              position: relative;
+              overflow: hidden;
+              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-            &:hover .vehicle-icon-large {
-              transform: scale(1.15) rotate(5deg);
-              color: var(--primary-600);
-              filter: drop-shadow(0 12px 24px rgba(0, 64, 48, 0.4));
+              &::before {
+                content: '';
+                position: absolute;
+                top: -2px;
+                left: -2px;
+                right: -2px;
+                bottom: -2px;
+                background: linear-gradient(135deg, 
+                  var(--primary-500) 0%, 
+                  var(--primary-400) 50%, 
+                  var(--primary-500) 100%);
+                border-radius: 52px;
+                z-index: -1;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+              }
+
+              &:hover {
+                transform: translateY(-2px) scale(1.05);
+                box-shadow: 
+                  0 12px 32px rgba(0, 64, 48, 0.15),
+                  0 6px 16px rgba(0, 64, 48, 0.1),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.4);
+
+                &::before {
+                  opacity: 1;
+                }
+              }
+
+              .status-indicator {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                position: relative;
+                animation: pulse-glow 2s ease-in-out infinite;
+
+                &.active {
+                  background: linear-gradient(135deg, #10b981, #059669);
+                  box-shadow: 
+                    0 0 8px rgba(16, 185, 129, 0.4),
+                    0 0 16px rgba(16, 185, 129, 0.2);
+                }
+
+                &.maintenance {
+                  background: linear-gradient(135deg, #f59e0b, #d97706);
+                  box-shadow: 
+                    0 0 8px rgba(245, 158, 11, 0.4),
+                    0 0 16px rgba(245, 158, 11, 0.2);
+                }
+              }
+
+              .status-text {
+                font-weight: 700;
+                font-size: 1rem;
+                color: var(--text-primary);
+                letter-spacing: -0.01em;
+              }
             }
           }
         }
 
         .vehicle-info-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-          gap: 3rem;
+          grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+          gap: 2.5rem;
+          margin-top: 2rem;
 
           @media (max-width: 768px) {
             grid-template-columns: 1fr;
-            gap: 2.5rem;
+            gap: 2rem;
+            margin-top: 1.5rem;
+          }
+
+          @media (max-width: 480px) {
+            gap: 1.5rem;
+            margin-top: 1rem;
+            grid-template-columns: 1fr;
           }
 
           .info-section {
             background: linear-gradient(145deg, 
-              rgba(255, 255, 255, 0.95) 0%, 
-              rgba(248, 250, 252, 0.9) 50%, 
-              rgba(241, 245, 249, 0.85) 100%);
-            border-radius: 20px;
+              rgba(255, 255, 255, 0.98) 0%, 
+              rgba(248, 250, 252, 0.95) 50%, 
+              rgba(241, 245, 249, 0.9) 100%);
+            border-radius: 24px;
             padding: 2.5rem;
             border: 2px solid transparent;
             background-clip: padding-box;
             box-shadow: 
-              0 16px 48px rgba(0, 64, 48, 0.12),
-              0 8px 24px rgba(0, 64, 48, 0.08),
-              0 2px 8px rgba(0, 64, 48, 0.05),
-              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+              0 20px 60px rgba(0, 64, 48, 0.1),
+              0 8px 24px rgba(0, 64, 48, 0.06),
+              0 2px 8px rgba(0, 64, 48, 0.03),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
-            backdrop-filter: blur(15px);
+            backdrop-filter: blur(20px);
+            animation: slide-in-stagger 0.6s ease-out;
+            animation-fill-mode: both;
+
+            &:nth-child(1) { animation-delay: 0.1s; }
+            &:nth-child(2) { animation-delay: 0.2s; }
+            &:nth-child(3) { animation-delay: 0.3s; }
 
             &::before {
               content: '';
@@ -1963,12 +2072,7 @@
               left: -2px;
               right: -2px;
               bottom: -2px;
-              background: linear-gradient(135deg, 
-                var(--primary-500) 0%, 
-                var(--primary-400) 25%, 
-                var(--primary-300) 50%, 
-                var(--primary-400) 75%, 
-                var(--primary-500) 100%);
+
               border-radius: 22px;
               z-index: -1;
               opacity: 0;
@@ -2030,7 +2134,7 @@
                 var(--primary-300) 50%, 
                 var(--primary-400) 75%, 
                 var(--primary-500) 100%);
-              background-clip: border-box;
+
               position: relative;
               text-shadow: 0 2px 4px rgba(0, 64, 48, 0.1);
 
@@ -2068,10 +2172,7 @@
               }
 
               &:hover {
-                background: linear-gradient(135deg, 
-                  rgba(74, 151, 130, 0.05) 0%, 
-                  rgba(74, 151, 130, 0.08) 50%, 
-                  rgba(74, 151, 130, 0.05) 100%);
+
                 margin: 0 -1rem;
                 padding: 1.25rem 1rem;
                 border-radius: 12px;
@@ -2256,7 +2357,6 @@
       }
     }
   }
-}
 
 /* Enhanced Animations */
 @keyframes pulse {
@@ -3021,5 +3121,4 @@ html {
     opacity: 1;
     transform: translateY(0);
   }
-}
 }

@@ -157,7 +157,7 @@ export default function Profile() {
       if (customerResponse.success && customerResponse.data) {
         setCurrentCustomer(customerResponse.data)
         console.log('Current customer:', customerResponse.data)
-        
+
         // Then load vehicles using customerId
         await loadVehicles(customerResponse.data.customerId)
       } else {
@@ -180,7 +180,7 @@ export default function Profile() {
         phoneNumber: auth.user?.phoneNumber || '0123456789',
         isGuest: false
       })
-      
+
       if (createResponse.success && createResponse.data) {
         setCurrentCustomer(createResponse.data)
         console.log('Created customer:', createResponse.data)
@@ -368,10 +368,10 @@ export default function Profile() {
       console.error('No customer ID available')
       return
     }
-    
+
     setIsLoadingVehicles(true)
     setVehicleError(null)
-    
+
     try {
       console.log('Loading vehicles for customer ID:', targetCustomerId)
       const response = await VehicleService.getCustomerVehicles(targetCustomerId)
@@ -472,7 +472,7 @@ export default function Profile() {
     try {
       // Use provided VIN or generate one
       const vin = newVehicle.vin || generateVin(newVehicle.brand, newVehicle.model)
-      
+
       const createRequest: CreateVehicleRequest = {
         customerId: currentCustomer.customerId,
         vin: vin,
@@ -483,11 +483,11 @@ export default function Profile() {
       }
 
       const response = await VehicleService.createVehicle(createRequest)
-      
+
       if (response.success) {
         // Reload vehicles to get the updated list
         await loadVehicles(currentCustomer.customerId)
-        
+
         setNewVehicle({
           brand: '',
           model: '',
@@ -593,7 +593,7 @@ export default function Profile() {
   const tabOptions = [
     { key: 'profile', label: 'Thông tin cá nhân', icon: UserIcon },
     { key: 'preferences', label: 'Tùy chọn', icon: CogIcon },
-    { key: 'my-vehicle', label: 'Xe của tôi', icon: TruckIcon },
+    { key: 'my-vehicle', label: 'Xe của tôi', icon: BoltIcon },
     { key: 'notifications', label: 'Thông báo', icon: BellIcon },
     { key: 'cart', label: 'Giỏ hàng', icon: ShoppingCartIcon },
     { key: 'maintenance-history', label: 'Lịch sử bảo dưỡng', icon: WrenchScrewdriverIcon },
@@ -785,40 +785,11 @@ export default function Profile() {
                         <p>Cập nhật mật khẩu để bảo vệ tài khoản của bạn</p>
                       </div>
                     </div>
-                    <BaseButton variant="primary" onClick={() => {setShowPasswordModal(true) }}>
+                    <BaseButton variant="primary" onClick={() => { setShowPasswordModal(true) }}>
                       Đổi mật khẩu
                     </BaseButton>
                   </div>
 
-                  {/* <div className="preference-item">
-                    <div className="preference-info">
-                      <div className="preference-icon notification">
-                        <BellIcon className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4>Notification Settings</h4>
-                        <p>Manage how you receive notifications and alerts</p>
-                      </div>
-                    </div>
-                    <BaseButton variant="outline">
-                      Configure
-                    </BaseButton>
-                  </div>
-
-                  <div className="preference-item">
-                    <div className="preference-info">
-                      <div className="preference-icon privacy">
-                        <UserIcon className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4>Privacy Settings</h4>
-                        <p>Control your privacy and data sharing preferences</p>
-                      </div>
-                    </div>
-                    <BaseButton variant="outline">
-                      Manage
-                    </BaseButton>
-                  </div> */}
                 </div>
               </BaseCard>
             )}
@@ -829,7 +800,7 @@ export default function Profile() {
                   <div>
                     <h3 className="card-title">Xe của tôi</h3>
                     <p className="card-subtitle">Quản lý các xe đã đăng ký</p>
-                    
+
                   </div>
                   <BaseButton
                     variant="primary"
@@ -858,7 +829,7 @@ export default function Profile() {
                     </div>
                   ) : vehicles.length === 0 ? (
                     <div className="empty-state">
-                      <TruckIcon className="empty-icon" />
+                      <BoltIcon className="empty-icon" />
                       <h4>Chưa có xe nào</h4>
                       <p>Bạn chưa thêm xe nào. Hãy thêm chiếc xe đầu tiên để bắt đầu.</p>
                       <BaseButton
@@ -878,7 +849,7 @@ export default function Profile() {
                               {vehicle.image ? (
                                 <img src={vehicle.image} alt={`${vehicle.brand} ${vehicle.model}`} />
                               ) : (
-                                <TruckIcon className="vehicle-icon" />
+                                <BoltIcon className="vehicle-icon" />
                               )}
                             </div>
                           </div>
@@ -905,15 +876,14 @@ export default function Profile() {
                                 {vehicle.status === 'active' ? 'Hoạt động' : 'Bảo dưỡng'}
                               </span>
                               <div className="maintenance-info">
-                                <ClockIcon className="w-4 h-4" />
                                 <span>Tiếp theo: {vehicle.nextMaintenance}</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="vehicle-actions">
-                            <BaseButton 
-                              variant="outline" 
+                            <BaseButton
+                              variant="outline"
                               size="sm"
                               onClick={() => handleViewVehicleDetail(vehicle)}
                             >
@@ -1402,15 +1372,15 @@ export default function Profile() {
           <div className="modal-overlay" onClick={() => setShowAddVehicleModal(false)}>
             <div className="modal-content vehicle-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <div className="header-content">
-                  <div className="modal-icon">
-                    <TruckIcon className="w-6 h-6" />
+                  <div className="header-content">
+                    <div className="modal-icon">
+                      <BoltIcon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3>Thêm xe mới</h3>
+                      <p>Nhập thông tin xe của bạn</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3>Thêm xe mới</h3>
-                    <p>Nhập thông tin xe của bạn</p>
-                  </div>
-                </div>
                 <button className="modal-close" onClick={() => setShowAddVehicleModal(false)}>
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -1424,7 +1394,7 @@ export default function Profile() {
                       <BaseInput
                         value={newVehicle.brand}
                         onChange={(value) => handleVehicleInputChange('brand', value)}
-                        placeholder="ví dụ: VinFast, Toyota, Honda"
+                        placeholder="Ví dụ: VinFast"
                         required
                       />
                     </div>
@@ -1433,7 +1403,7 @@ export default function Profile() {
                       <BaseInput
                         value={newVehicle.model}
                         onChange={(value) => handleVehicleInputChange('model', value)}
-                        placeholder="ví dụ: VF8, Camry, CR-V"
+                        placeholder="ví dụ: Evo"
                         required
                       />
                     </div>
@@ -1501,29 +1471,7 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Hình ảnh xe</label>
-                    <div
-                      className="image-upload-area"
-                      onClick={handleVehicleImageClick}
-                    >
-                      {newVehicle.image ? (
-                        <img src={newVehicle.image} alt="Vehicle preview" className="image-preview" />
-                      ) : (
-                        <div className="upload-placeholder">
-                          <PhotoIcon className="w-8 h-8" />
-                          <span>Nhấp để tải lên hình ảnh xe</span>
-                        </div>
-                      )}
-                    </div>
-                    <input
-                      ref={vehicleImageInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleVehicleImageChange}
-                      style={{ display: 'none' }}
-                    />
-                  </div>
+
                 </div>
               </div>
 
@@ -1556,7 +1504,7 @@ export default function Profile() {
               <div className="modal-header">
                 <div className="header-content">
                   <div className="modal-icon">
-                    <TruckIcon className="w-6 h-6" />
+                    <BoltIcon className="w-6 h-6" />
                   </div>
                   <div>
                     <h3>Chi tiết xe</h3>
@@ -1570,16 +1518,16 @@ export default function Profile() {
 
               <div className="modal-body">
                 <div className="vehicle-detail-content">
-                  <div className="vehicle-image-section">
-                    <div className="vehicle-image-large">
-                      {selectedVehicle.image ? (
-                        <img 
-                          src={selectedVehicle.image} 
-                          alt={`${selectedVehicle.brand} ${selectedVehicle.model}`}
-                        />
-                      ) : (
-                        <TruckIcon className="vehicle-icon-large" />
-                      )}
+                  <div className="vehicle-header-info">
+                    <div className="vehicle-title-section">
+                      <h2 className="vehicle-title">{selectedVehicle.brand} {selectedVehicle.model}</h2>
+                      <p className="vehicle-subtitle">{selectedVehicle.year} • {selectedVehicle.color}</p>
+                      <div className="vehicle-status-badge">
+                        <span className={`status-indicator ${selectedVehicle.status}`}></span>
+                        <span className="status-text">
+                          {selectedVehicle.status === 'active' ? 'Đang hoạt động' : 'Đang bảo dưỡng'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
