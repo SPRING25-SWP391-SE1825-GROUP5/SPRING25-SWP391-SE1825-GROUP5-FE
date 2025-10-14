@@ -69,6 +69,16 @@ export type {
   NextServiceDueResponse
 } from './vehicleService'
 
+// Customer Services
+export { CustomerService } from './customerService'
+export type {
+  Customer,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
+  QuickCreateCustomerRequest,
+  CustomerResponse
+} from './customerService'
+
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'
 // export { OrderService } from './orderService'

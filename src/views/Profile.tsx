@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser } from '@/store/authSlice'
-import { AuthService, VehicleService } from '@/services'
-import type { Vehicle as ApiVehicle, CreateVehicleRequest, UpdateVehicleRequest } from '@/services'
+import { AuthService, VehicleService, CustomerService } from '@/services'
+import type { Vehicle as ApiVehicle, CreateVehicleRequest, UpdateVehicleRequest, Customer } from '@/services'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import {
   UserIcon,
@@ -116,9 +116,12 @@ export default function Profile() {
   })
 
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false)
+  const [showVehicleDetailModal, setShowVehicleDetailModal] = useState(false)
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
   const [vehicleError, setVehicleError] = useState<string | null>(null)
+  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null)
 
   const vehicleImageInputRef = useRef<HTMLInputElement>(null)
   const [newVehicle, setNewVehicle] = useState<NewVehicleForm>({
@@ -139,12 +142,57 @@ export default function Profile() {
     }
   }, [dispatch, auth.token])
 
-  // Load vehicles when user is available
+  // Load customer and vehicles when user is available
   useEffect(() => {
     if (auth.user?.id) {
-      loadVehicles()
+      loadCustomerAndVehicles()
     }
   }, [auth.user?.id])
+
+  // Load customer information first, then vehicles
+  const loadCustomerAndVehicles = async () => {
+    try {
+      // First, get customer information
+      const customerResponse = await CustomerService.getCurrentCustomer()
+      if (customerResponse.success && customerResponse.data) {
+        setCurrentCustomer(customerResponse.data)
+        console.log('Current customer:', customerResponse.data)
+        
+        // Then load vehicles using customerId
+        await loadVehicles(customerResponse.data.customerId)
+      } else {
+        console.error('Failed to get customer info:', customerResponse.message)
+        // Try to create customer if not exists
+        await createCustomerIfNotExists()
+      }
+    } catch (error: any) {
+      console.error('Error loading customer:', error)
+      // Try to create customer if not exists
+      await createCustomerIfNotExists()
+    }
+  }
+
+  // Create customer if not exists
+  const createCustomerIfNotExists = async () => {
+    try {
+      console.log('Creating customer profile...')
+      const createResponse = await CustomerService.createCustomer({
+        phoneNumber: auth.user?.phoneNumber || '0123456789',
+        isGuest: false
+      })
+      
+      if (createResponse.success && createResponse.data) {
+        setCurrentCustomer(createResponse.data)
+        console.log('Created customer:', createResponse.data)
+        await loadVehicles(createResponse.data.customerId)
+      } else {
+        setVehicleError('Không thể tạo thông tin khách hàng')
+      }
+    } catch (error: any) {
+      console.error('Error creating customer:', error)
+      setVehicleError('Không thể tạo thông tin khách hàng')
+    }
+  }
 
   useEffect(() => {
     if (auth.user) {
@@ -314,14 +362,19 @@ export default function Profile() {
   }
 
   // Load vehicles from API
-  const loadVehicles = async () => {
-    if (!auth.user?.id) return
+  const loadVehicles = async (customerId?: number) => {
+    const targetCustomerId = customerId || currentCustomer?.customerId
+    if (!targetCustomerId) {
+      console.error('No customer ID available')
+      return
+    }
     
     setIsLoadingVehicles(true)
     setVehicleError(null)
     
     try {
-      const response = await VehicleService.getCustomerVehicles(auth.user.id)
+      console.log('Loading vehicles for customer ID:', targetCustomerId)
+      const response = await VehicleService.getCustomerVehicles(targetCustomerId)
       if (response.success && response.data.vehicles) {
         const formattedVehicles = response.data.vehicles.map((apiVehicle: ApiVehicle) => ({
           id: apiVehicle.vehicleId.toString(),
@@ -346,6 +399,7 @@ export default function Profile() {
           nextMaintenance: apiVehicle.nextServiceDue || `${apiVehicle.currentMileage + 5000} km`
         }))
         setVehicles(formattedVehicles)
+        console.log('Loaded vehicles:', formattedVehicles)
       }
     } catch (error: any) {
       console.error('Error loading vehicles:', error)
@@ -373,9 +427,6 @@ export default function Profile() {
     return null
   }
 
-  const handleRemoveVehicle = (vehicleId: string) => {
-    setVehicles(prev => prev.filter(vehicle => vehicle.id !== vehicleId))
-  }
 
   const handleVehicleImageClick = () => {
     vehicleImageInputRef.current?.click()
@@ -401,14 +452,19 @@ export default function Profile() {
     reader.readAsDataURL(file)
   }
 
+  const handleViewVehicleDetail = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle)
+    setShowVehicleDetailModal(true)
+  }
+
   const handleAddVehicle = async () => {
     if (!newVehicle.brand || !newVehicle.model || !newVehicle.licensePlate) {
       alert('Vui lòng điền đầy đủ các trường bắt buộc')
       return
     }
 
-    if (!auth.user?.id) {
-      alert('Vui lòng đăng nhập để thêm xe')
+    if (!currentCustomer?.customerId) {
+      alert('Vui lòng đăng nhập và có thông tin khách hàng để thêm xe')
       return
     }
 
@@ -418,7 +474,7 @@ export default function Profile() {
       const vin = newVehicle.vin || generateVin(newVehicle.brand, newVehicle.model)
       
       const createRequest: CreateVehicleRequest = {
-        customerId: auth.user.id,
+        customerId: currentCustomer.customerId,
         vin: vin,
         licensePlate: newVehicle.licensePlate,
         color: newVehicle.color || 'Unknown',
@@ -430,7 +486,7 @@ export default function Profile() {
       
       if (response.success) {
         // Reload vehicles to get the updated list
-        await loadVehicles()
+        await loadVehicles(currentCustomer.customerId)
         
         setNewVehicle({
           brand: '',
@@ -773,6 +829,7 @@ export default function Profile() {
                   <div>
                     <h3 className="card-title">Xe của tôi</h3>
                     <p className="card-subtitle">Quản lý các xe đã đăng ký</p>
+                    
                   </div>
                   <BaseButton
                     variant="primary"
@@ -795,7 +852,7 @@ export default function Profile() {
                       <ExclamationTriangleIcon className="error-icon" />
                       <h4>Lỗi tải dữ liệu</h4>
                       <p>{vehicleError}</p>
-                      <BaseButton variant="primary" onClick={loadVehicles}>
+                      <BaseButton variant="primary" onClick={() => loadVehicles()}>
                         Thử lại
                       </BaseButton>
                     </div>
@@ -824,13 +881,6 @@ export default function Profile() {
                                 <TruckIcon className="vehicle-icon" />
                               )}
                             </div>
-                            <button
-                              className="remove-vehicle-btn"
-                              onClick={() => handleRemoveVehicle(vehicle.id)}
-                              title="Xóa xe"
-                            >
-                              <XMarkIcon className="w-4 h-4" />
-                            </button>
                           </div>
 
                           <div className="vehicle-details">
@@ -862,7 +912,13 @@ export default function Profile() {
                           </div>
 
                           <div className="vehicle-actions">
-                            <BaseButton variant="outline" size="sm">Xem chi tiết</BaseButton>
+                            <BaseButton 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewVehicleDetail(vehicle)}
+                            >
+                              Xem chi tiết
+                            </BaseButton>
                             <BaseButton variant="primary" size="sm">Đặt lịch dịch vụ</BaseButton>
                           </div>
                         </div>
@@ -1487,6 +1543,125 @@ export default function Profile() {
                 >
                   <PlusIcon className="w-4 h-4" />
                   {isSaving ? 'Đang thêm...' : 'Thêm xe'}
+                </BaseButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Vehicle Detail Modal */}
+        {showVehicleDetailModal && selectedVehicle && (
+          <div className="modal-overlay" onClick={() => setShowVehicleDetailModal(false)}>
+            <div className="modal-content vehicle-detail-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="header-content">
+                  <div className="modal-icon">
+                    <TruckIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3>Chi tiết xe</h3>
+                    <p>Thông tin chi tiết về xe của bạn</p>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowVehicleDetailModal(false)}>
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="vehicle-detail-content">
+                  <div className="vehicle-image-section">
+                    <div className="vehicle-image-large">
+                      {selectedVehicle.image ? (
+                        <img 
+                          src={selectedVehicle.image} 
+                          alt={`${selectedVehicle.brand} ${selectedVehicle.model}`}
+                        />
+                      ) : (
+                        <TruckIcon className="vehicle-icon-large" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="vehicle-info-grid">
+                    <div className="info-section">
+                      <h4>Thông tin cơ bản</h4>
+                      <div className="info-item">
+                        <span className="label">Hãng xe:</span>
+                        <span className="value">{selectedVehicle.brand}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="label">Mẫu xe:</span>
+                        <span className="value">{selectedVehicle.model}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="label">Năm sản xuất:</span>
+                        <span className="value">{selectedVehicle.year}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="label">Màu sắc:</span>
+                        <span className="value">{selectedVehicle.color}</span>
+                      </div>
+                    </div>
+
+                    <div className="info-section">
+                      <h4>Thông tin đăng ký</h4>
+                      <div className="info-item">
+                        <span className="label">Biển số xe:</span>
+                        <span className="value license-plate">{selectedVehicle.licensePlate}</span>
+                      </div>
+                      {selectedVehicle.vin && (
+                        <div className="info-item">
+                          <span className="label">Số VIN:</span>
+                          <span className="value vin">{selectedVehicle.vin}</span>
+                        </div>
+                      )}
+                      <div className="info-item">
+                        <span className="label">Trạng thái:</span>
+                        <span className={`value status ${selectedVehicle.status}`}>
+                          {selectedVehicle.status === 'active' ? 'Hoạt động' : 'Bảo dưỡng'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="info-section">
+                      <h4>Thông tin vận hành</h4>
+                      {selectedVehicle.currentMileage && (
+                        <div className="info-item">
+                          <span className="label">Số km hiện tại:</span>
+                          <span className="value">{selectedVehicle.currentMileage.toLocaleString()} km</span>
+                        </div>
+                      )}
+                      <div className="info-item">
+                        <span className="label">Bảo dưỡng tiếp theo:</span>
+                        <span className="value">{selectedVehicle.nextMaintenance}</span>
+                      </div>
+                      {selectedVehicle.lastServiceDate && (
+                        <div className="info-item">
+                          <span className="label">Lần bảo dưỡng cuối:</span>
+                          <span className="value">{new Date(selectedVehicle.lastServiceDate).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                      )}
+                      {selectedVehicle.purchaseDate && (
+                        <div className="info-item">
+                          <span className="label">Ngày mua:</span>
+                          <span className="value">{new Date(selectedVehicle.purchaseDate).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <BaseButton
+                  variant="outline"
+                  onClick={() => setShowVehicleDetailModal(false)}
+                >
+                  Đóng
+                </BaseButton>
+                <BaseButton variant="primary">
+                  Đặt lịch dịch vụ
                 </BaseButton>
               </div>
             </div>
