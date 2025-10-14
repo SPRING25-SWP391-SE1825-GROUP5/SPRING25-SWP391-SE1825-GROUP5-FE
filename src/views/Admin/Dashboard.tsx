@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Users, 
@@ -55,55 +55,19 @@ import {
 } from 'recharts'
 import './admin.scss'
 import UsersComponent from './Users'
+import api from '@/services/api'
 
 // Parts Management Component
 function PartsManagementContent() {
-  const [partsData, setPartsData] = useState([
-    {
-      id: 'P001',
-      name: 'Pin Lithium 48V 20Ah',
-      category: 'Hệ thống điện',
-      stock: 45,
-      price: 8500000,
-      supplier: 'Samsung SDI',
-      status: 'Còn hàng',
-      lastUpdated: '2024-01-15'
-    },
-    {
-      id: 'P002', 
-      name: 'Bộ sạc nhanh 48V',
-      category: 'Phụ kiện sạc',
-      stock: 12,
-      price: 2500000,
-      supplier: 'Delta Electronics',
-      status: 'Sắp hết',
-      lastUpdated: '2024-01-14'
-    },
-    {
-      id: 'P003',
-      name: 'Động cơ BLDC 3000W',
-      category: 'Động cơ',
-      stock: 8,
-      price: 15000000,
-      supplier: 'Bosch',
-      status: 'Sắp hết',
-      lastUpdated: '2024-01-13'
-    },
-    {
-      id: 'P004',
-      name: 'Phanh đĩa thủy lực',
-      category: 'Hệ thống phanh',
-      stock: 25,
-      price: 1200000,
-      supplier: 'Shimano',
-      status: 'Còn hàng',
-      lastUpdated: '2024-01-12'
-    }
-  ])
+  const [partsData, setPartsData] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pageNumber, setPageNumber] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
 
   const [filters, setFilters] = useState({
     search: '',
-    category: '',
     status: '',
     supplier: ''
   })
@@ -119,7 +83,10 @@ function PartsManagementContent() {
     }).format(price)
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | boolean) => {
+    if (typeof status === 'boolean') {
+      return status ? 'var(--success-500)' : 'var(--error-500)'
+    }
     switch (status) {
       case 'Còn hàng': return 'var(--success-500)'
       case 'Sắp hết': return 'var(--warning-500)'
@@ -128,7 +95,10 @@ function PartsManagementContent() {
     }
   }
 
-  const getStatusBg = (status) => {
+  const getStatusBg = (status: string | boolean) => {
+    if (typeof status === 'boolean') {
+      return status ? 'var(--success-50)' : 'var(--error-50)'
+    }
     switch (status) {
       case 'Còn hàng': return 'var(--success-50)'
       case 'Sắp hết': return 'var(--warning-50)'
@@ -142,18 +112,69 @@ function PartsManagementContent() {
       part.name.toLowerCase().includes(filters.search.toLowerCase()) ||
       part.id.toLowerCase().includes(filters.search.toLowerCase())
     
-    const matchesCategory = !filters.category || part.category === filters.category
     const matchesStatus = !filters.status || part.status === filters.status
     const matchesSupplier = !filters.supplier || part.supplier === filters.supplier
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesSupplier
+    return matchesSearch && matchesStatus && matchesSupplier
   })
 
   const totalParts = partsData.length
   const totalValue = partsData.reduce((sum, part) => sum + (part.price * part.stock), 0)
   const lowStockParts = partsData.filter(part => part.stock < 15).length
   const outOfStockParts = partsData.filter(part => part.stock === 0).length
-  const categories = [...new Set(partsData.map(part => part.category))].length
+  
+
+  useEffect(() => {
+    const fetchParts = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const { data } = await api.get('/Part', { params: { pageNumber, pageSize } })
+        const apiRes = data as {
+          success: boolean
+          message: string
+          data: {
+            parts: Array<{
+              partId: number
+              partNumber: string
+              partName: string
+              brand: string
+              price: number
+              imageUrl: string | null
+              isActive: boolean
+              createdAt: string
+            }>
+            pageNumber: number
+            pageSize: number
+            totalPages: number
+            totalCount: number
+            hasPreviousPage: boolean
+            hasNextPage: boolean
+          }
+        }
+
+        const mapped = apiRes.data.parts.map(p => ({
+          id: String(p.partId),
+          name: p.partName,
+          category: p.brand,
+          stock: 0,
+          price: p.price,
+          supplier: p.brand,
+          status: p.isActive ? 'Còn hàng' : 'Hết hàng',
+          isActive: p.isActive,
+          lastUpdated: new Date(p.createdAt).toLocaleDateString('vi-VN')
+        }))
+
+        setPartsData(mapped)
+        setTotalCount(apiRes.data.totalCount)
+      } catch (e: any) {
+        setError(e?.message || 'Không thể tải danh sách phụ tùng')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchParts()
+  }, [pageNumber, pageSize])
 
   return (
     <div style={{ 
@@ -268,6 +289,8 @@ function PartsManagementContent() {
         </div>
       </div>
 
+      
+
       {/* Stats */}
       <div style={{
         display: 'grid',
@@ -304,13 +327,7 @@ function PartsManagementContent() {
             color: 'var(--error-500)',
             bgColor: 'var(--error-50)'
           },
-          {
-            title: 'Danh mục',
-            value: categories,
-            icon: FileText,
-            color: 'var(--secondary-500)',
-            bgColor: 'var(--secondary-50)'
-          }
+          
         ].map((stat, index) => (
           <div
             key={index}
@@ -427,7 +444,7 @@ function PartsManagementContent() {
             </div>
           </div>
 
-          {['category', 'status', 'supplier'].map((filterType) => (
+          {['status', 'supplier'].map((filterType) => (
             <div key={filterType}>
               <label style={{
                 display: 'block',
@@ -436,8 +453,7 @@ function PartsManagementContent() {
                 color: 'var(--text-secondary)',
                 marginBottom: '6px'
               }}>
-                {filterType === 'category' ? 'Danh mục' : 
-                 filterType === 'status' ? 'Trạng thái' : 'Nhà cung cấp'}
+                {filterType === 'status' ? 'Trạng thái' : 'Nhà cung cấp'}
               </label>
               <select
                 value={filters[filterType]}
@@ -455,9 +471,6 @@ function PartsManagementContent() {
                 }}
               >
                 <option value="">Tất cả</option>
-                {filterType === 'category' && ['Hệ thống điện', 'Phụ kiện sạc', 'Động cơ', 'Hệ thống phanh'].map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
                 {filterType === 'status' && ['Còn hàng', 'Sắp hết', 'Hết hàng'].map(status => (
                   <option key={status} value={status}>{status}</option>
                 ))}
@@ -470,7 +483,7 @@ function PartsManagementContent() {
 
           <div>
             <button
-              onClick={() => setFilters({ search: '', category: '', status: '', supplier: '' })}
+              onClick={() => setFilters({ search: '', status: '', supplier: '' })}
               style={{
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-primary)',
@@ -543,14 +556,8 @@ function PartsManagementContent() {
                   fontSize: '14px',
                   fontWeight: '600',
                   color: 'var(--text-primary)'
-                }}>Danh mục</th>
-                <th style={{
-                  padding: '16px 24px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}>Tồn kho</th>
+                }}>Nhà cung cấp</th>
+                
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'right',
@@ -560,11 +567,12 @@ function PartsManagementContent() {
                 }}>Giá</th>
                 <th style={{
                   padding: '16px 24px',
-                  textAlign: 'left',
+                  textAlign: 'center',
                   fontSize: '14px',
                   fontWeight: '600',
                   color: 'var(--text-primary)'
-                }}>Nhà cung cấp</th>
+                }}>Đánh giá</th>
+                
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'center',
@@ -614,17 +622,9 @@ function PartsManagementContent() {
                     fontSize: '13px',
                     color: 'var(--text-secondary)'
                   }}>
-                    {part.category}
+                    {part.supplier}
                   </td>
-                  <td style={{
-                    padding: '16px 24px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: part.stock < 15 ? 'var(--error-500)' : 'var(--text-primary)'
-                  }}>
-                    {part.stock}
-                  </td>
+                  
                   <td style={{
                     padding: '16px 24px',
                     textAlign: 'right',
@@ -636,11 +636,13 @@ function PartsManagementContent() {
                   </td>
                   <td style={{
                     padding: '16px 24px',
+                    textAlign: 'center',
                     fontSize: '13px',
                     color: 'var(--text-secondary)'
                   }}>
-                    {part.supplier}
+                    {'—'}
                   </td>
+                  
                   <td style={{
                     padding: '16px 24px',
                     textAlign: 'center'
@@ -650,10 +652,10 @@ function PartsManagementContent() {
                       borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: '600',
-                      color: getStatusColor(part.status),
-                      background: getStatusBg(part.status)
+                      color: getStatusColor(part.isActive ?? part.status),
+                      background: getStatusBg(part.isActive ?? part.status)
                     }}>
-                      {part.status}
+                      {typeof part.isActive === 'boolean' ? (part.isActive ? 'Hoạt động' : 'Không hoạt động') : part.status}
                     </span>
                   </td>
                   <td style={{
@@ -724,6 +726,53 @@ function PartsManagementContent() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Pagination - move to bottom of page */}
+      <div style={{
+        marginTop: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Hiển thị <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {((pageNumber - 1) * pageSize) + 1}-{Math.min(pageNumber * pageSize, totalCount)}
+          </span> trong tổng số <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalCount}</span> phụ tùng
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+            disabled={pageNumber === 1}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-primary)',
+              background: pageNumber === 1 ? 'var(--bg-tertiary)' : 'var(--primary-500)',
+              color: pageNumber === 1 ? 'var(--text-secondary)' : 'var(--text-inverse)',
+              cursor: pageNumber === 1 ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 600
+            }}
+          >Trước</button>
+          <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
+            Trang {pageNumber} / {Math.max(1, Math.ceil(totalCount / pageSize))}
+          </div>
+          <button
+            onClick={() => setPageNumber(Math.min(Math.ceil(totalCount / pageSize), pageNumber + 1))}
+            disabled={pageNumber >= Math.ceil(totalCount / pageSize)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-primary)',
+              background: pageNumber >= Math.ceil(totalCount / pageSize) ? 'var(--bg-tertiary)' : 'var(--primary-500)',
+              color: pageNumber >= Math.ceil(totalCount / pageSize) ? 'var(--text-secondary)' : 'var(--text-inverse)',
+              cursor: pageNumber >= Math.ceil(totalCount / pageSize) ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 600
+            }}
+          >Sau</button>
         </div>
       </div>
 
