@@ -295,7 +295,7 @@ export const ServiceManagementService = {
       
       const backendService = {
         ...mapServiceToBackendService(service),
-        serviceId: id // Ensure serviceId is included
+        serviceId: id 
       }
 
       console.log('Sending update payload:', backendService)

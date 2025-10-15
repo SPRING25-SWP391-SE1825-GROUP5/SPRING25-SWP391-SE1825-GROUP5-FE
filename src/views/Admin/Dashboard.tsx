@@ -19,6 +19,10 @@ import {
   Menu,
   LogOut,
   Globe,
+  Edit,
+  X,
+  Plus,
+  CheckCircle,
   Shield,
   Mail,
   Smartphone,
@@ -26,7 +30,6 @@ import {
   Save,
   RefreshCw,
   AlertTriangle,
-  CheckCircle,
   Info,
   Key,
   Server,
@@ -36,8 +39,7 @@ import {
   AlertCircle,
   User,
   Car,
-  Download,
-  Plus
+  Download
 } from 'lucide-react'
 import {
   AreaChart,
@@ -58,6 +60,7 @@ import './admin.scss'
 import UsersComponent from './Users'
 import ServicesManagement from '../../components/manager/ServicesManagement'
 import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
+import CenterManagement from '../../components/admin/CenterManagement'
 import { useAppSelector } from '@/store/hooks'
 
 // Parts Management Component
@@ -3240,6 +3243,7 @@ function BookingManagementContent() {
   )
 }
 
+
 export default function AdminDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
@@ -3472,6 +3476,8 @@ export default function AdminDashboard() {
         return isAdmin 
           ? <ServicesManagementAdmin /> 
           : <ServicesManagement allowCreate={false}/>
+      case 'service-centers':
+        return <CenterManagement />
       case 'settings':
         return <SystemSettingsContent />
       case 'bookings':
@@ -4335,6 +4341,7 @@ export default function AdminDashboard() {
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
+                { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
                 { icon: Calendar, label: 'Booking', page: 'bookings', route: '/admin/bookings' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings', route: '/admin/settings' },
                 { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
