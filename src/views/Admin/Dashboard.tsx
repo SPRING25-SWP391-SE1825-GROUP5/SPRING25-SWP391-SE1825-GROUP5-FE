@@ -3160,7 +3160,7 @@ export default function AdminDashboard() {
       case 'services':
         return isAdmin 
           ? <ServicesManagementAdmin /> 
-          : <ServicesManagement allowCreate={false} allowDelete={false} />
+          : <ServicesManagement allowCreate={false}/>
       case 'settings':
         return <SystemSettingsContent />
       case 'bookings':
