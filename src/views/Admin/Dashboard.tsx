@@ -55,6 +55,9 @@ import {
 } from 'recharts'
 import './admin.scss'
 import UsersComponent from './Users'
+import ServicesManagement from '../../components/manager/ServicesManagement'
+import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
+import { useAppSelector } from '@/store/hooks'
 
 // Parts Management Component
 function PartsManagementContent() {
@@ -2930,6 +2933,14 @@ export default function AdminDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const role = useAppSelector(s => s.auth.user?.role)
+  const isAdmin = (() => {
+    const r = (role || '').toString().toLowerCase()
+    // Robust: treat any role containing 'admin' as admin, but exclude manager
+    if (!r) return false
+    if (r.includes('manager')) return false
+    return r.includes('admin')
+  })()
 
   // Page components
   const renderPageContent = () => {
@@ -3146,6 +3157,10 @@ export default function AdminDashboard() {
         )
       case 'parts':
         return <PartsManagementContent />
+      case 'services':
+        return isAdmin 
+          ? <ServicesManagementAdmin /> 
+          : <ServicesManagement allowCreate={false} allowDelete={false} />
       case 'settings':
         return <SystemSettingsContent />
       case 'bookings':
@@ -3719,6 +3734,13 @@ export default function AdminDashboard() {
       color: 'var(--primary-500)'
     },
     {
+      title: 'Quản lý dịch vụ',
+      description: 'Thêm, sửa, xóa dịch vụ',
+      icon: Wrench,
+      page: 'services',
+      color: 'var(--success-500)'
+    },
+    {
       title: 'Quản lý phụ tùng',
       description: 'Kiểm tra tồn kho, nhập hàng',
       icon: Package,
@@ -3999,6 +4021,7 @@ export default function AdminDashboard() {
               </h3>
               {[
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
+                { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Calendar, label: 'Booking', page: 'bookings', route: '/admin/bookings' },

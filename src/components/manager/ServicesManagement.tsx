@@ -8,9 +8,9 @@ import {
   Plus,
   Eye,
   Edit,
-  Trash2,
   X
 } from 'lucide-react'
+import { useAppSelector } from '@/store/hooks'
 import {
   BarChart,
   Bar,
@@ -21,10 +21,16 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { ServiceManagementService, type Service, type ServiceStats, type ServiceBooking, type ServicePerformance, type ServicePart } from '../../services/serviceManagementService'
+import { ServiceManagementService, type Service, type ServiceStats, type ServiceBooking, type ServicePerformance } from '../../services/serviceManagementService'
 
-export default function ServicesManagement() {
-  // State Quản lý Dịch vụ
+export default function ServicesManagement({ allowCreate = true }: { allowCreate?: boolean }) {
+  // User info for permissions
+  const { user } = useAppSelector((s) => s.auth)
+  const role = (user?.role || '').toLowerCase()
+  const isAdmin = role === 'admin'
+  const canCreate = allowCreate && isAdmin
+  
+  // State Management
   const [apiServices, setApiServices] = useState<Service[]>([])
   const [apiServiceStats, setApiServiceStats] = useState<ServiceStats | null>(null)
   const [apiServicePerformance, setApiServicePerformance] = useState<ServicePerformance[]>([])
@@ -33,21 +39,20 @@ export default function ServicesManagement() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  // Bộ lọc/Phân trang dịch vụ
+  // Service filters/pagination
   const [servicePage, setServicePage] = useState(1)
   const [servicePageSize, setServicePageSize] = useState(10)
   const [serviceSearch, setServiceSearch] = useState('')
   const [serviceCategory, setServiceCategory] = useState('')
   const [serviceOnlyActive, setServiceOnlyActive] = useState(false)
   
-  // Modal chi tiết dịch vụ
+  // Service detail modal
   const [serviceDetailOpen, setServiceDetailOpen] = useState(false)
   const [serviceDetailLoading, setServiceDetailLoading] = useState(false)
   const [serviceDetailError, setServiceDetailError] = useState<string | null>(null)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
-  const [serviceParts, setServiceParts] = useState<ServicePart[]>([])
   
-  // Modal tạo/cập nhật dịch vụ
+  // Service form modal
   const [serviceFormOpen, setServiceFormOpen] = useState(false)
   const [serviceFormSubmitting, setServiceFormSubmitting] = useState(false)
   const [serviceFormError, setServiceFormError] = useState<string | null>(null)
@@ -57,25 +62,17 @@ export default function ServicesManagement() {
     name: string; 
     description: string; 
     price: number; 
+    notes: string;
     isActive: boolean 
   }>({ 
     name: '', 
     description: '', 
     price: 0, 
+    notes: '',
     isActive: true 
   })
 
-  // Quản lý phụ tùng dịch vụ
-  const [partsModalOpen, setPartsModalOpen] = useState(false)
-  const [partsLoading, setPartsLoading] = useState(false)
-  const [newPart, setNewPart] = useState<Omit<ServicePart, 'partId'>>({
-    partName: '',
-    quantity: 1,
-    unitPrice: 0,
-    totalPrice: 0
-  })
-
-  // Hàm API
+  // Fetch data functions
   const fetchServices = async () => {
     try {
       setLoading(true)
@@ -91,8 +88,8 @@ export default function ServicesManagement() {
         ? await ServiceManagementService.getActiveServices(params)
         : await ServiceManagementService.getServices(params)
       setApiServices(response.services)
-    } catch (err) {
-      setError('Không thể tải danh sách dịch vụ')
+    } catch (err: any) {
+      setError('Không thể tải danh sách dịch vụ: ' + (err.message || 'Unknown error'))
       console.error('Lỗi khi tải dịch vụ:', err)
     } finally {
       setLoading(false)
@@ -142,21 +139,18 @@ export default function ServicesManagement() {
       setServiceDetailOpen(true)
       const detail = await ServiceManagementService.getServiceById(id)
       setSelectedService(detail)
-      
-      // Tải phụ tùng dịch vụ
-      const parts = await ServiceManagementService.getServiceParts(id)
-      setServiceParts(parts)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Lỗi khi tải chi tiết dịch vụ:', err)
-      setServiceDetailError('Không thể tải chi tiết dịch vụ')
+      setServiceDetailError('Không thể tải chi tiết dịch vụ: ' + (err.message || 'Unknown error'))
     } finally {
       setServiceDetailLoading(false)
     }
   }
 
   const openCreateService = () => {
+    if (!canCreate) return
     setServiceFormMode('create')
-    setServiceFormValues({ name: '', description: '', price: 0, isActive: true })
+    setServiceFormValues({ name: '', description: '', notes: '', price: 0, isActive: true })
     setServiceFormError(null)
     setServiceFormOpen(true)
   }
@@ -168,6 +162,7 @@ export default function ServicesManagement() {
       name: s.name, 
       description: s.description, 
       price: s.price, 
+      notes: s.notes || '',
       isActive: s.isActive 
     })
     setServiceFormError(null)
@@ -189,41 +184,40 @@ export default function ServicesManagement() {
         return
       }
 
+      console.log('Submitting form:', {
+        mode: serviceFormMode,
+        values: serviceFormValues
+      })
+
       if (serviceFormMode === 'create') {
         await ServiceManagementService.createService({
           name: serviceFormValues.name,
           description: serviceFormValues.description,
           price: serviceFormValues.price,
-          isActive: serviceFormValues.isActive,
-          createAt: new Date().toISOString()
-        } as any)
+          notes: serviceFormValues.notes,
+          isActive: serviceFormValues.isActive
+        })
       } else {
-        await ServiceManagementService.updateService(serviceFormValues.id as number, {
+        if (!serviceFormValues.id) {
+          setServiceFormError('ID dịch vụ không hợp lệ')
+          return
+        }
+        await ServiceManagementService.updateService(serviceFormValues.id, {
           name: serviceFormValues.name,
           description: serviceFormValues.description,
           price: serviceFormValues.price,
+          notes: serviceFormValues.notes,
           isActive: serviceFormValues.isActive
         })
       }
+      
       setServiceFormOpen(false)
-      await fetchServices()
-    } catch (err) {
+      await fetchServices() // Refresh the list
+    } catch (err: any) {
       console.error('Lỗi khi gửi form dịch vụ:', err)
-      setServiceFormError('Không thể lưu dịch vụ')
+      setServiceFormError(`Không thể lưu dịch vụ: ${err.message || 'Unknown error'}`)
     } finally {
       setServiceFormSubmitting(false)
-    }
-  }
-
-  const handleDeleteService = async (id: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa dịch vụ này?')) {
-      try {
-        await ServiceManagementService.deleteService(id)
-        await fetchServices()
-      } catch (err) {
-        console.error('Lỗi khi xóa dịch vụ:', err)
-        alert('Không thể xóa dịch vụ')
-      }
     }
   }
 
@@ -231,84 +225,37 @@ export default function ServicesManagement() {
     try {
       await ServiceManagementService.updateServiceStatus(id)
       await fetchServices()
-      // Làm mới chi tiết nếu đang mở
       if (selectedService && selectedService.id === id) {
         const updated = await ServiceManagementService.getServiceById(id)
         setSelectedService(updated)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Lỗi khi chuyển trạng thái dịch vụ:', err)
-      alert('Không thể cập nhật trạng thái dịch vụ')
+      alert(`Không thể cập nhật trạng thái dịch vụ: ${err.message || 'Unknown error'}`)
     }
   }
 
-  const openPartsManagement = async (serviceId: number) => {
-    try {
-      setPartsLoading(true)
-      const parts = await ServiceManagementService.getServiceParts(serviceId)
-      setServiceParts(parts)
-      setPartsModalOpen(true)
-    } catch (err) {
-      console.error('Lỗi khi tải phụ tùng dịch vụ:', err)
-      alert('Không thể tải phụ tùng dịch vụ')
-    } finally {
-      setPartsLoading(false)
-    }
-  }
-
-  const addServicePart = async () => {
-    if (!selectedService || !newPart.partName.trim() || newPart.quantity <= 0 || newPart.unitPrice < 0) {
-      alert('Vui lòng điền đầy đủ thông tin phụ tùng')
-      return
-    }
-
-    try {
-      await ServiceManagementService.addServicePart(selectedService.id, {
-        ...newPart,
-        totalPrice: newPart.quantity * newPart.unitPrice
-      })
-      // Làm mới danh sách phụ tùng
-      const parts = await ServiceManagementService.getServiceParts(selectedService.id)
-      setServiceParts(parts)
-      setNewPart({ partName: '', quantity: 1, unitPrice: 0, totalPrice: 0 })
-    } catch (err) {
-      console.error('Lỗi khi thêm phụ tùng:', err)
-      alert('Không thể thêm phụ tùng')
-    }
-  }
-
-  const removeServicePart = async (partId: number) => {
-    if (!selectedService) return
-
-    if (window.confirm('Bạn có chắc chắn muốn xóa phụ tùng này?')) {
+  // Load data on component mount and when filters change
+  useEffect(() => {
+    const loadData = async () => {
       try {
-        await ServiceManagementService.removeServicePart(selectedService.id, partId)
-        // Làm mới danh sách phụ tùng
-        const parts = await ServiceManagementService.getServiceParts(selectedService.id)
-        setServiceParts(parts)
+        await Promise.all([
+          fetchServices(),
+          fetchServiceStats(),
+          fetchServicePerformance(),
+          fetchRecentBookings(),
+          fetchServiceCategories()
+        ])
       } catch (err) {
-        console.error('Lỗi khi xóa phụ tùng:', err)
-        alert('Không thể xóa phụ tùng')
+        console.error('Lỗi khi tải dữ liệu dịch vụ:', err)
+        setError('Không thể tải dữ liệu dịch vụ')
       }
     }
-  }
-
-  // Tải dữ liệu khi component mount
-  useEffect(() => {
-    // Tải tất cả dữ liệu liên quan đến dịch vụ
-    Promise.all([
-      fetchServices(),
-      fetchServiceStats(),
-      fetchServicePerformance(),
-      fetchRecentBookings(),
-      fetchServiceCategories()
-    ]).catch(err => {
-      console.error('Lỗi khi tải dữ liệu dịch vụ:', err)
-      setError('Không thể tải dữ liệu dịch vụ')
-    })
+    
+    loadData()
   }, [servicePage, servicePageSize, serviceSearch, serviceCategory, serviceOnlyActive])
 
-  // Chuyển đổi dữ liệu API để hiển thị
+  // Service stats for display
   const serviceStatsArray = apiServiceStats ? [
     {
       title: 'Tổng số dịch vụ',
@@ -347,15 +294,6 @@ export default function ServicesManagement() {
       color: 'var(--warning-500)'
     }
   ] : []
-
-  // Dữ liệu mẫu cho fallback
-  const servicePerformanceData = [
-    { service: 'Bảo dưỡng', bookings: 45, revenue: 12000000 },
-    { service: 'Sửa chữa', bookings: 38, revenue: 18000000 },
-    { service: 'Lốp xe', bookings: 28, revenue: 8000000 },
-    { service: 'Điện', bookings: 22, revenue: 6000000 },
-    { service: 'Phanh', bookings: 35, revenue: 10000000 }
-  ]
 
   return (
     <div>
@@ -444,26 +382,28 @@ export default function ServicesManagement() {
             <option value={50}>50 mỗi trang</option>
           </select>
 
-          <button onClick={openCreateService} style={{
-            padding: '10px 20px',
-            background: 'var(--primary-500)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <Plus size={16} />
-            Thêm dịch vụ
-          </button>
+          {canCreate && (
+            <button onClick={openCreateService} style={{
+              padding: '10px 20px',
+              background: 'var(--primary-500)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <Plus size={16} />
+              Thêm dịch vụ
+            </button>
+          )}
         </div>
       </div>
       
-      {/* Thống kê Dịch vụ */}
+      {/* Service Statistics */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
@@ -536,14 +476,14 @@ export default function ServicesManagement() {
         )}
       </div>
 
-      {/* Nội dung Quản lý Dịch vụ */}
+      {/* Service Management Content */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: '24px',
         marginBottom: '32px'
       }}>
-        {/* Danh sách Dịch vụ */}
+        {/* Services List */}
         <div style={{
           background: 'var(--bg-card)',
           padding: '24px',
@@ -696,20 +636,6 @@ export default function ServicesManagement() {
                     >
                       <CheckCircle size={14} />
                     </button>
-                    <button
-                      onClick={async (e) => { e.stopPropagation(); handleDeleteService(service.id) }}
-                      style={{
-                        padding: '6px',
-                        border: '1px solid var(--border-primary)',
-                        borderRadius: '6px',
-                        background: 'transparent',
-                        color: 'var(--error-500)',
-                        cursor: 'pointer'
-                      }}
-                      title="Xóa dịch vụ"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 </div>
               ))
@@ -748,7 +674,7 @@ export default function ServicesManagement() {
           </div>
         </div>
 
-        {/* Hiệu suất Dịch vụ */}
+        {/* Service Performance */}
         <div style={{
           background: 'var(--bg-card)',
           padding: '24px',
@@ -764,7 +690,7 @@ export default function ServicesManagement() {
             Hiệu suất Dịch vụ
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={apiServicePerformance.length > 0 ? apiServicePerformance : servicePerformanceData}>
+            <BarChart data={apiServicePerformance}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
               <XAxis 
                 dataKey="service" 
@@ -795,7 +721,7 @@ export default function ServicesManagement() {
         </div>
       </div>
 
-      {/* Đơn đặt Dịch vụ Gần đây */}
+      {/* Recent Service Bookings */}
       <div style={{
         background: 'var(--bg-card)',
         padding: '24px',
@@ -878,7 +804,7 @@ export default function ServicesManagement() {
         </div>
       </div>
 
-      {/* Modal Form Dịch vụ */}
+      {/* Service Form Modal */}
       {serviceFormOpen && (
         <div style={{ 
           position: 'fixed', 
@@ -975,6 +901,28 @@ export default function ServicesManagement() {
                   placeholder="Nhập mô tả dịch vụ"
                 />
               </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '500' }}>
+                  Ghi chú
+                </label>
+                <textarea
+                  value={serviceFormValues.notes}
+                  onChange={(e) => setServiceFormValues(v => ({ ...v, notes: e.target.value }))}
+                  rows={2}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    border: '1px solid var(--border-primary)', 
+                    borderRadius: '8px', 
+                    background: 'var(--bg-card)', 
+                    color: 'var(--text-primary)', 
+                    fontSize: '14px', 
+                    resize: 'vertical' 
+                  }}
+                  placeholder="Nhập ghi chú (nếu có)"
+                />
+              </div>
               
               <div>
                 <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '500' }}>
@@ -1047,7 +995,7 @@ export default function ServicesManagement() {
         </div>
       )}
 
-      {/* Modal Chi tiết Dịch vụ */}
+      {/* Service Detail Modal */}
       {serviceDetailOpen && (
         <div style={{
           position: 'fixed', 
@@ -1072,7 +1020,7 @@ export default function ServicesManagement() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Chi tiết Dịch vụ</h3>
               <button
-                onClick={() => { setServiceDetailOpen(false); setSelectedService(null); setServiceParts([]); }}
+                onClick={() => { setServiceDetailOpen(false); setSelectedService(null); }}
                 style={{
                   border: 'none', 
                   background: 'transparent', 
@@ -1109,6 +1057,13 @@ export default function ServicesManagement() {
                   <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500' }}>Mô tả</label>
                   <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: '1.5' }}>{selectedService.description}</p>
                 </div>
+
+                {selectedService.notes && (
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500' }}>Ghi chú</label>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: '1.5', fontStyle: 'italic' }}>{selectedService.notes}</p>
+                  </div>
+                )}
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
@@ -1132,56 +1087,6 @@ export default function ServicesManagement() {
                       {new Date(selectedService.createAt).toLocaleDateString()}
                     </p>
                   </div>
-                </div>
-
-                {/* Quản lý Phụ tùng Dịch vụ */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <label style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>Phụ tùng Dịch vụ</label>
-                    <button
-                      onClick={() => setPartsModalOpen(true)}
-                      style={{
-                        padding: '6px 12px',
-                        border: '1px solid var(--border-primary)',
-                        background: 'transparent',
-                        color: 'var(--text-primary)',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '500'
-                      }}
-                    >
-                      Quản lý Phụ tùng
-                    </button>
-                  </div>
-                  
-                  {serviceParts.length === 0 ? (
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
-                      Chưa có phụ tùng nào được gán cho dịch vụ này
-                    </p>
-                  ) : (
-                    <div style={{ border: '1px solid var(--border-primary)', borderRadius: '8px', overflow: 'hidden' }}>
-                      {serviceParts.map((part, index) => (
-                        <div key={part.partId} style={{ 
-                          padding: '12px', 
-                          borderBottom: index < serviceParts.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <div>
-                            <p style={{ margin: '0 0 4px 0', fontWeight: '600' }}>{part.partName}</p>
-                            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                              {part.quantity} x {(part.unitPrice || 0).toLocaleString()} VNĐ
-                            </p>
-                          </div>
-                          <p style={{ margin: 0, fontWeight: '600', color: 'var(--success-600)' }}>
-                            {(part.totalPrice || 0).toLocaleString()} VNĐ
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
@@ -1222,219 +1127,6 @@ export default function ServicesManagement() {
             ) : (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Không có dữ liệu dịch vụ</div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Modal Quản lý Phụ tùng Dịch vụ */}
-      {partsModalOpen && selectedService && (
-        <div style={{
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2001
-        }}>
-          <div style={{
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '12px',
-            border: '1px solid var(--border-primary)', 
-            width: '700px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '24px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
-                Quản lý Phụ tùng - {selectedService.name}
-              </h3>
-              <button
-                onClick={() => setPartsModalOpen(false)}
-                style={{
-                  border: 'none', 
-                  background: 'transparent', 
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '8px',
-                  borderRadius: '4px'
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Form Thêm Phụ tùng Mới */}
-            <div style={{ 
-              background: 'var(--bg-secondary)', 
-              padding: '16px', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600' }}>Thêm Phụ tùng Mới</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: '8px', alignItems: 'end' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Tên phụ tùng</label>
-                  <input
-                    value={newPart.partName}
-                    onChange={(e) => setNewPart({ ...newPart, partName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '4px',
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px'
-                    }}
-                    placeholder="Nhập tên phụ tùng"
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Số lượng</label>
-                  <input
-                    type="number"
-                    value={newPart.quantity}
-                    onChange={(e) => setNewPart({ 
-                      ...newPart, 
-                      quantity: Number(e.target.value),
-                      totalPrice: Number(e.target.value) * newPart.unitPrice
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '4px',
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px'
-                    }}
-                    min={1}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Đơn giá</label>
-                  <input
-                    type="number"
-                    value={newPart.unitPrice}
-                    onChange={(e) => setNewPart({ 
-                      ...newPart, 
-                      unitPrice: Number(e.target.value),
-                      totalPrice: newPart.quantity * Number(e.target.value)
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '4px',
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px'
-                    }}
-                    min={0}
-                    step={1000}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Tổng</label>
-                  <input
-                    value={(newPart.totalPrice || 0).toLocaleString()}
-                    disabled
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '4px',
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--text-secondary)',
-                      fontSize: '12px'
-                    }}
-                  />
-                </div>
-                <button
-                  onClick={addServicePart}
-                  style={{
-                    padding: '8px 12px',
-                    border: 'none',
-                    background: 'var(--primary-500)',
-                    color: 'white',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    height: 'fit-content'
-                  }}
-                >
-                  Thêm
-                </button>
-              </div>
-            </div>
-
-            {/* Danh sách Phụ tùng */}
-            <div>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600' }}>Phụ tùng Hiện tại</h4>
-              {partsLoading ? (
-                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Đang tải phụ tùng...</div>
-              ) : serviceParts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                  Chưa có phụ tùng nào được gán cho dịch vụ này
-                </div>
-              ) : (
-                <div style={{ border: '1px solid var(--border-primary)', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
-                    padding: '12px',
-                    background: 'var(--bg-secondary)',
-                    borderBottom: '1px solid var(--border-primary)',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <div>Tên phụ tùng</div>
-                    <div>Số lượng</div>
-                    <div>Đơn giá</div>
-                    <div>Thành tiền</div>
-                    <div>Thao tác</div>
-                  </div>
-                  {serviceParts.map((part) => (
-                    <div key={part.partId} style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
-                      padding: '12px',
-                      borderBottom: '1px solid var(--border-primary)',
-                      alignItems: 'center'
-                    }}>
-                      <div style={{ fontWeight: '500' }}>{part.partName}</div>
-                      <div>{part.quantity}</div>
-                      <div>{(part.unitPrice || 0).toLocaleString()} VNĐ</div>
-                      <div style={{ fontWeight: '600', color: 'var(--success-600)' }}>{(part.totalPrice || 0).toLocaleString()} VNĐ</div>
-                      <div>
-                        <button
-                          onClick={() => removeServicePart(part.partId)}
-                          style={{
-                            padding: '4px 8px',
-                            border: '1px solid var(--error-200)',
-                            background: 'var(--error-50)',
-                            color: 'var(--error-600)',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '11px',
-                            fontWeight: '500'
-                          }}
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
