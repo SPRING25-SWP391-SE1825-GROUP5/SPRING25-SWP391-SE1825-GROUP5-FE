@@ -3480,24 +3480,6 @@ export default function AdminDashboard() {
         return <CenterManagement />
       case 'settings':
         return <SystemSettingsContent />
-      case 'bookings':
-        return <BookingManagementContent />
-      case 'reports':
-        return (
-          <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Báo cáo
-            </h2>
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Nội dung báo cáo sẽ được hiển thị ở đây...</p>
-            </div>
-          </div>
-        )
       default:
         return renderDashboardContent()
     }
@@ -4065,25 +4047,11 @@ export default function AdminDashboard() {
       color: 'var(--success-500)'
     },
     {
-      title: 'Quản lý booking',
-      description: 'Quản lý lịch đặt bảo trì xe điện',
-      icon: Calendar,
-      page: 'bookings',
-      color: '#8b5cf6'
-    },
-    {
       title: 'Cài đặt hệ thống',
       description: 'Cấu hình và tùy chỉnh hệ thống',
       icon: Settings,
       page: 'settings',
       color: '#6366f1'
-    },
-    {
-      title: 'Báo cáo',
-      description: 'Xem báo cáo doanh thu, thống kê',
-      icon: BarChart3,
-      page: 'reports',
-      color: 'var(--info-500)'
     },
     {
       title: 'Quản lý người dùng',
@@ -4342,9 +4310,8 @@ export default function AdminDashboard() {
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
-                { icon: Calendar, label: 'Booking', page: 'bookings', route: '/admin/bookings' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings', route: '/admin/settings' },
-                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
+                
               ].map((item, index) => (
                 <div 
                   key={index}
