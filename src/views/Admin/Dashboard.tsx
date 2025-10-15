@@ -1212,7 +1212,7 @@ function SystemSettingsContent() {
 
   const handleSave = async (tabId) => {
     setSaveStatus('saving')
-    // Simulate API call
+    
     setTimeout(() => {
       setSaveStatus('success')
       setTimeout(() => setSaveStatus(null), 3000)
