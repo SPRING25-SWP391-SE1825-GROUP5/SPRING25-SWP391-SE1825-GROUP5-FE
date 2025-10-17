@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import api from '../../services/api'
 import { 
   Users, 
   Package, 
@@ -18,6 +19,10 @@ import {
   Menu,
   LogOut,
   Globe,
+  Edit,
+  X,
+  Plus,
+  CheckCircle,
   Shield,
   Mail,
   Smartphone,
@@ -25,7 +30,6 @@ import {
   Save,
   RefreshCw,
   AlertTriangle,
-  CheckCircle,
   Info,
   Key,
   Server,
@@ -35,8 +39,7 @@ import {
   AlertCircle,
   User,
   Car,
-  Download,
-  Plus
+  Download
 } from 'lucide-react'
 import {
   AreaChart,
@@ -55,55 +58,53 @@ import {
 } from 'recharts'
 import './admin.scss'
 import UsersComponent from './Users'
+import ServicesManagement from '../../components/manager/ServicesManagement'
+import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
+import CenterManagement from '../../components/admin/CenterManagement'
+import { useAppSelector } from '@/store/hooks'
 
 // Parts Management Component
 function PartsManagementContent() {
-  const [partsData, setPartsData] = useState([
-    {
-      id: 'P001',
-      name: 'Pin Lithium 48V 20Ah',
-      category: 'Hệ thống điện',
-      stock: 45,
-      price: 8500000,
-      supplier: 'Samsung SDI',
-      status: 'Còn hàng',
-      lastUpdated: '2024-01-15'
-    },
-    {
-      id: 'P002', 
-      name: 'Bộ sạc nhanh 48V',
-      category: 'Phụ kiện sạc',
-      stock: 12,
-      price: 2500000,
-      supplier: 'Delta Electronics',
-      status: 'Sắp hết',
-      lastUpdated: '2024-01-14'
-    },
-    {
-      id: 'P003',
-      name: 'Động cơ BLDC 3000W',
-      category: 'Động cơ',
-      stock: 8,
-      price: 15000000,
-      supplier: 'Bosch',
-      status: 'Sắp hết',
-      lastUpdated: '2024-01-13'
-    },
-    {
-      id: 'P004',
-      name: 'Phanh đĩa thủy lực',
-      category: 'Hệ thống phanh',
-      stock: 25,
-      price: 1200000,
-      supplier: 'Shimano',
-      status: 'Còn hàng',
-      lastUpdated: '2024-01-12'
-    }
-  ])
+  const [partsData, setPartsData] = useState<any[]>([])
+  const [allParts, setAllParts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pageNumber, setPageNumber] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
+  const [newPart, setNewPart] = useState({
+    partNumber: '',
+    partName: '',
+    brand: '',
+    unitPrice: 0,
+    isActive: true
+  })
+
+  const mapApiPartToUi = (p: any) => ({
+    id: String(p.partId),
+    name: p.partName,
+    category: p.brand,
+    stock: 0,
+    price: p.price,
+    supplier: p.brand,
+    status: p.isActive ? 'Còn hàng' : 'Hết hàng',
+    isActive: p.isActive,
+    lastUpdated: new Date(p.createdAt).toLocaleDateString('vi-VN')
+  })
+
+  const appendNewApiPartAtEnd = (apiPart: any) => {
+    const mapped = mapApiPartToUi(apiPart)
+    setAllParts((prev) => {
+      const merged = [...prev, mapped].sort((a, b) => Number(a.id) - Number(b.id))
+      setTotalCount(merged.length)
+      const lastPage = Math.max(1, Math.ceil(merged.length / pageSize))
+      setPageNumber(lastPage)
+      return merged
+    })
+  }
 
   const [filters, setFilters] = useState({
     search: '',
-    category: '',
     status: '',
     supplier: ''
   })
@@ -119,7 +120,10 @@ function PartsManagementContent() {
     }).format(price)
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | boolean) => {
+    if (typeof status === 'boolean') {
+      return status ? 'var(--success-500)' : 'var(--error-500)'
+    }
     switch (status) {
       case 'Còn hàng': return 'var(--success-500)'
       case 'Sắp hết': return 'var(--warning-500)'
@@ -128,7 +132,10 @@ function PartsManagementContent() {
     }
   }
 
-  const getStatusBg = (status) => {
+  const getStatusBg = (status: string | boolean) => {
+    if (typeof status === 'boolean') {
+      return status ? 'var(--success-50)' : 'var(--error-50)'
+    }
     switch (status) {
       case 'Còn hàng': return 'var(--success-50)'
       case 'Sắp hết': return 'var(--warning-50)'
@@ -142,18 +149,76 @@ function PartsManagementContent() {
       part.name.toLowerCase().includes(filters.search.toLowerCase()) ||
       part.id.toLowerCase().includes(filters.search.toLowerCase())
     
-    const matchesCategory = !filters.category || part.category === filters.category
     const matchesStatus = !filters.status || part.status === filters.status
     const matchesSupplier = !filters.supplier || part.supplier === filters.supplier
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesSupplier
+    return matchesSearch && matchesStatus && matchesSupplier
   })
 
   const totalParts = partsData.length
   const totalValue = partsData.reduce((sum, part) => sum + (part.price * part.stock), 0)
   const lowStockParts = partsData.filter(part => part.stock < 15).length
   const outOfStockParts = partsData.filter(part => part.stock === 0).length
-  const categories = [...new Set(partsData.map(part => part.category))].length
+  
+
+  useEffect(() => {
+    const fetchAllParts = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const { data } = await api.get('/Part', { params: { pageNumber: 1, pageSize } })
+        const firstPage = data as {
+          success: boolean
+          message: string
+          data: {
+            parts: Array<{
+              partId: number
+              partNumber: string
+              partName: string
+              brand: string
+              price: number
+              imageUrl: string | null
+              isActive: boolean
+              createdAt: string
+            }>
+            pageNumber: number
+            pageSize: number
+            totalPages: number
+            totalCount: number
+            hasPreviousPage: boolean
+            hasNextPage: boolean
+          }
+        }
+
+        const totalPages = firstPage.data.totalPages
+        const requests = [] as Promise<any>[]
+        for (let p = 2; p <= totalPages; p++) {
+          requests.push(api.get('/Part', { params: { pageNumber: p, pageSize } }))
+        }
+        const restPages = await Promise.all(requests)
+        const restParts = restPages.flatMap((res) => (res.data?.data?.parts || []))
+
+        const combined = [...firstPage.data.parts, ...restParts]
+          .sort((a, b) => a.partId - b.partId)
+          .map(mapApiPartToUi)
+
+        setAllParts(combined)
+        setTotalCount(combined.length)
+      } catch (e: any) {
+        setError(e?.message || 'Không thể tải danh sách phụ tùng')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAllParts()
+  }, [pageSize])
+
+  // derive current page slice from globally sorted full list
+  useEffect(() => {
+    const start = (pageNumber - 1) * pageSize
+    const end = start + pageSize
+    setPartsData(allParts.slice(start, end))
+  }, [allParts, pageNumber, pageSize])
 
   return (
     <div style={{ 
@@ -268,6 +333,8 @@ function PartsManagementContent() {
         </div>
       </div>
 
+      
+
       {/* Stats */}
       <div style={{
         display: 'grid',
@@ -304,13 +371,7 @@ function PartsManagementContent() {
             color: 'var(--error-500)',
             bgColor: 'var(--error-50)'
           },
-          {
-            title: 'Danh mục',
-            value: categories,
-            icon: FileText,
-            color: 'var(--secondary-500)',
-            bgColor: 'var(--secondary-50)'
-          }
+          
         ].map((stat, index) => (
           <div
             key={index}
@@ -427,7 +488,7 @@ function PartsManagementContent() {
             </div>
           </div>
 
-          {['category', 'status', 'supplier'].map((filterType) => (
+          {['status', 'supplier'].map((filterType) => (
             <div key={filterType}>
               <label style={{
                 display: 'block',
@@ -436,8 +497,7 @@ function PartsManagementContent() {
                 color: 'var(--text-secondary)',
                 marginBottom: '6px'
               }}>
-                {filterType === 'category' ? 'Danh mục' : 
-                 filterType === 'status' ? 'Trạng thái' : 'Nhà cung cấp'}
+                {filterType === 'status' ? 'Trạng thái' : 'Nhà cung cấp'}
               </label>
               <select
                 value={filters[filterType]}
@@ -455,9 +515,6 @@ function PartsManagementContent() {
                 }}
               >
                 <option value="">Tất cả</option>
-                {filterType === 'category' && ['Hệ thống điện', 'Phụ kiện sạc', 'Động cơ', 'Hệ thống phanh'].map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
                 {filterType === 'status' && ['Còn hàng', 'Sắp hết', 'Hết hàng'].map(status => (
                   <option key={status} value={status}>{status}</option>
                 ))}
@@ -470,7 +527,7 @@ function PartsManagementContent() {
 
           <div>
             <button
-              onClick={() => setFilters({ search: '', category: '', status: '', supplier: '' })}
+              onClick={() => setFilters({ search: '', status: '', supplier: '' })}
               style={{
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-primary)',
@@ -543,14 +600,8 @@ function PartsManagementContent() {
                   fontSize: '14px',
                   fontWeight: '600',
                   color: 'var(--text-primary)'
-                }}>Danh mục</th>
-                <th style={{
-                  padding: '16px 24px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}>Tồn kho</th>
+                }}>Nhà cung cấp</th>
+                
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'right',
@@ -560,11 +611,12 @@ function PartsManagementContent() {
                 }}>Giá</th>
                 <th style={{
                   padding: '16px 24px',
-                  textAlign: 'left',
+                  textAlign: 'center',
                   fontSize: '14px',
                   fontWeight: '600',
                   color: 'var(--text-primary)'
-                }}>Nhà cung cấp</th>
+                }}>Đánh giá</th>
+                
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'center',
@@ -614,17 +666,9 @@ function PartsManagementContent() {
                     fontSize: '13px',
                     color: 'var(--text-secondary)'
                   }}>
-                    {part.category}
+                    {part.supplier}
                   </td>
-                  <td style={{
-                    padding: '16px 24px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: part.stock < 15 ? 'var(--error-500)' : 'var(--text-primary)'
-                  }}>
-                    {part.stock}
-                  </td>
+                  
                   <td style={{
                     padding: '16px 24px',
                     textAlign: 'right',
@@ -636,11 +680,13 @@ function PartsManagementContent() {
                   </td>
                   <td style={{
                     padding: '16px 24px',
+                    textAlign: 'center',
                     fontSize: '13px',
                     color: 'var(--text-secondary)'
                   }}>
-                    {part.supplier}
+                    {'—'}
                   </td>
+                  
                   <td style={{
                     padding: '16px 24px',
                     textAlign: 'center'
@@ -650,10 +696,10 @@ function PartsManagementContent() {
                       borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: '600',
-                      color: getStatusColor(part.status),
-                      background: getStatusBg(part.status)
+                      color: getStatusColor(part.isActive ?? part.status),
+                      background: getStatusBg(part.isActive ?? part.status)
                     }}>
-                      {part.status}
+                      {typeof part.isActive === 'boolean' ? (part.isActive ? 'Hoạt động' : 'Không hoạt động') : part.status}
                     </span>
                   </td>
                   <td style={{
@@ -727,6 +773,53 @@ function PartsManagementContent() {
         </div>
       </div>
 
+      {/* Pagination - move to bottom of page */}
+      <div style={{
+        marginTop: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Hiển thị <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {((pageNumber - 1) * pageSize) + 1}-{Math.min(pageNumber * pageSize, totalCount)}
+          </span> trong tổng số <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{totalCount}</span> phụ tùng
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+            disabled={pageNumber === 1}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-primary)',
+              background: pageNumber === 1 ? 'var(--bg-tertiary)' : 'var(--primary-500)',
+              color: pageNumber === 1 ? 'var(--text-secondary)' : 'var(--text-inverse)',
+              cursor: pageNumber === 1 ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 600
+            }}
+          >Trước</button>
+          <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
+            Trang {pageNumber} / {Math.max(1, Math.ceil(totalCount / pageSize))}
+          </div>
+          <button
+            onClick={() => setPageNumber(Math.min(Math.ceil(totalCount / pageSize), pageNumber + 1))}
+            disabled={pageNumber >= Math.ceil(totalCount / pageSize)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-primary)',
+              background: pageNumber >= Math.ceil(totalCount / pageSize) ? 'var(--bg-tertiary)' : 'var(--primary-500)',
+              color: pageNumber >= Math.ceil(totalCount / pageSize) ? 'var(--text-secondary)' : 'var(--text-inverse)',
+              cursor: pageNumber >= Math.ceil(totalCount / pageSize) ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 600
+            }}
+          >Sau</button>
+        </div>
+      </div>
+
       {/* Modal for Add/Edit - Styled like the reference image */}
       {isModalOpen && (
         <div style={{
@@ -766,7 +859,7 @@ function PartsManagementContent() {
                 color: '#1a1a1a',
                 margin: 0
               }}>
-                {editingPart ? 'Chỉnh sửa phụ tùng' : 'Chi tiết phụ tùng'}
+                {editingPart ? 'Chỉnh sửa phụ tùng' : 'Thêm phụ tùng'}
               </h3>
               <button
                 onClick={() => {
@@ -790,181 +883,333 @@ function PartsManagementContent() {
             {/* Content */}
             <div style={{ padding: '24px' }}>
               {/* Avatar Section */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                marginBottom: '24px'
-              }}>
-                <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  background: 'var(--primary-500)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '16px',
-                  color: 'white',
-                  fontSize: '24px',
-                  fontWeight: 'bold'
-                }}>
-                  {editingPart ? editingPart.name.charAt(0) : 'P'}
-                </div>
-                <div>
-                  <h4 style={{
-                    fontSize: '18px',
-                    fontWeight: '600',
-                    color: '#1a1a1a',
-                    margin: '0 0 4px 0'
-                  }}>
-                    {editingPart ? editingPart.name : 'Tên phụ tùng'}
-                  </h4>
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#666',
-                    margin: 0
-                  }}>
-                    {editingPart ? `Mã: ${editingPart.id}` : 'Mã phụ tùng'}
-                  </p>
-                </div>
-              </div>
 
-              {/* Details */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Phone */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    marginRight: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Package size={16} style={{ color: '#666' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#999', marginRight: '8px' }}>Danh mục:</span>
-                    <span style={{ fontSize: '14px', color: '#1a1a1a' }}>
-                      {editingPart ? editingPart.category : 'Hệ thống điện'}
-                    </span>
-                  </div>
-                </div>
+              {/* Form create part */}
+{!editingPart && (
+  <div
+    style={{
+      background: 'var(--bg-card)',
+      padding: '24px',
+      borderRadius: '12px',
+      boxShadow: 'var(--shadow-sm)',
+      marginBottom: '24px',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        maxWidth: '500px',
+        margin: '0 auto',
+      }}
+    >
+      {/* Mã phụ tùng */}
+      <div>
+        <label
+          style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: '#374151',
+            marginBottom: '8px',
+          }}
+        >
+          Mã phụ tùng
+        </label>
+        <input
+          value={newPart.partNumber}
+          onChange={(e) => setNewPart({ ...newPart, partNumber: e.target.value })}
+          placeholder="Nhập mã phụ tùng"
+          style={{
+            width: '100%',
+            padding: '12px 14px',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            fontSize: '14px',
+            outline: 'none',
+            transition: 'border-color 0.2s ease',
+            boxSizing: 'border-box',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+        />
+      </div>
 
-                {/* Address */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    marginRight: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <TrendingUp size={16} style={{ color: '#666' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#999', marginRight: '8px' }}>Tồn kho:</span>
-                    <span style={{ fontSize: '14px', color: '#1a1a1a' }}>
-                      {editingPart ? `${editingPart.stock} sản phẩm` : '45 sản phẩm'}
-                    </span>
-                  </div>
-                </div>
+      {/* Tên phụ tùng */}
+      <div>
+        <label
+          style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: '#374151',
+            marginBottom: '8px',
+          }}
+        >
+          Tên phụ tùng
+        </label>
+        <input
+          value={newPart.partName}
+          onChange={(e) => setNewPart({ ...newPart, partName: e.target.value })}
+          placeholder="Nhập tên phụ tùng"
+          style={{
+            width: '100%',
+            padding: '12px 14px',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            fontSize: '14px',
+            outline: 'none',
+            transition: 'border-color 0.2s ease',
+            boxSizing: 'border-box',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+        />
+      </div>
 
-                {/* Role */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    marginRight: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Activity size={16} style={{ color: '#666' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#999', marginRight: '8px' }}>Vai trò:</span>
-                    <span style={{
-                      fontSize: '12px',
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      background: editingPart?.status === 'Còn hàng' ? '#e8f5e8' : '#fff3cd',
-                      color: editingPart?.status === 'Còn hàng' ? '#2d7738' : '#856404',
-                      fontWeight: '500'
-                    }}>
-                      {editingPart ? editingPart.status : 'Còn hàng'}
-                    </span>
-                  </div>
-                </div>
+      {/* Thương hiệu và Đơn giá - 2 cột */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+        }}
+      >
+        {/* Thương hiệu */}
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#374151',
+              marginBottom: '8px',
+            }}
+          >
+            Thương hiệu
+          </label>
+          <input
+            value={newPart.brand}
+            onChange={(e) => setNewPart({ ...newPart, brand: e.target.value })}
+            placeholder="Nhập thương hiệu"
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              fontSize: '14px',
+              outline: 'none',
+              transition: 'border-color 0.2s ease',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+            onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+          />
+        </div>
 
-                {/* Status */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    marginRight: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Settings size={16} style={{ color: '#666' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#999', marginRight: '8px' }}>Trạng thái:</span>
-                    <span style={{
-                      fontSize: '12px',
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      background: '#e8f5e8',
-                      color: '#2d7738',
-                      fontWeight: '500'
-                    }}>
-                      Hoạt động
-                    </span>
-                  </div>
-                </div>
+        {/* Đơn giá */}
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#374151',
+              marginBottom: '8px',
+            }}
+          >
+            Đơn giá
+          </label>
+          <input
+            type="number"
+            value={newPart.unitPrice}
+            onChange={(e) => setNewPart({ ...newPart, unitPrice: Number(e.target.value) })}
+            placeholder="Nhập đơn giá"
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              fontSize: '14px',
+              outline: 'none',
+              transition: 'border-color 0.2s ease',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+            onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+          />
+        </div>
+      </div>
 
-                {/* Join Date */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    marginRight: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <FileText size={16} style={{ color: '#666' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#999', marginRight: '8px' }}>Ngày tham gia:</span>
-                    <span style={{ fontSize: '14px', color: '#1a1a1a' }}>
-                      {editingPart ? editingPart.lastUpdated : '15/1/2024'}
-                    </span>
-                  </div>
-                </div>
+      {/* Checkbox hoạt động */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '8px',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={newPart.isActive}
+          onChange={(e) => setNewPart({ ...newPart, isActive: e.target.checked })}
+          style={{ width: '16px', height: '16px' }}
+        />
+        <span style={{ fontSize: '15px', color: '#111827' }}>Hoạt động</span>
+      </div>
+    </div>
+  </div>
+)}
 
-                {/* Last Login */}
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    marginRight: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <DollarSign size={16} style={{ color: '#666' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '14px', color: '#999', marginRight: '8px' }}>Giá bán:</span>
-                    <span style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '600' }}>
-                      {editingPart ? formatPrice(editingPart.price) : '8.500.000₫'}
-                    </span>
+
+              {/* Form edit part */}
+              {editingPart && (
+                <div
+                  style={{
+                    background: 'var(--bg-card)',
+                    padding: '24px',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--shadow-sm)',
+                    marginBottom: '24px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '20px',
+                      maxWidth: '500px',
+                      margin: '0 auto',
+                    }}
+                  >
+                    {/* Tên phụ tùng */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          color: '#374151',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Tên phụ tùng
+                      </label>
+                      <input
+                        value={editingPart.name}
+                        onChange={(e) => setEditingPart({ ...editingPart, name: e.target.value })}
+                        placeholder="Nhập tên phụ tùng"
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease',
+                          boxSizing: 'border-box',
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                        onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                      />
+                    </div>
+
+                    {/* Thương hiệu và Đơn giá - 2 cột */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '20px',
+                      }}
+                    >
+                      {/* Thương hiệu */}
+                      <div>
+                        <label
+                          style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#374151',
+                            marginBottom: '8px',
+                          }}
+                        >
+                          Thương hiệu
+                        </label>
+                        <input
+                          value={editingPart.supplier}
+                          onChange={(e) => setEditingPart({ ...editingPart, supplier: e.target.value })}
+                          placeholder="Nhập thương hiệu"
+                          style={{
+                            width: '100%',
+                            padding: '12px 14px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            transition: 'border-color 0.2s ease',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                        />
+                      </div>
+
+                      {/* Đơn giá */}
+                      <div>
+                        <label
+                          style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#374151',
+                            marginBottom: '8px',
+                          }}
+                        >
+                          Đơn giá
+                        </label>
+                        <input
+                          type="number"
+                          value={editingPart.price}
+                          onChange={(e) => setEditingPart({ ...editingPart, price: Number(e.target.value) })}
+                          placeholder="Nhập đơn giá"
+                          style={{
+                            width: '100%',
+                            padding: '12px 14px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            transition: 'border-color 0.2s ease',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Checkbox hoạt động */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginTop: '8px',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editingPart.isActive}
+                        onChange={(e) => setEditingPart({ ...editingPart, isActive: e.target.checked })}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <span style={{ fontSize: '15px', color: '#111827' }}>Hoạt động</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Action Buttons */}
               <div style={{
@@ -998,27 +1243,99 @@ function PartsManagementContent() {
                 >
                   Đóng
                 </button>
-                <button
-                  style={{
-                    background: 'var(--primary-500)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--primary-600)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--primary-500)'
-                  }}
-                >
-                  Chỉnh sửa
-                </button>
+                {!editingPart && (
+                  <button
+                    style={{
+                      background: 'var(--primary-500)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--primary-600)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--primary-500)'
+                    }}
+                    onClick={async () => {
+                      try {
+                        const payload = {
+                          partNumber: newPart.partNumber,
+                          partName: newPart.partName,
+                          brand: newPart.brand,
+                          unitPrice: newPart.unitPrice,
+                          isActive: newPart.isActive
+                        }
+                        const res = await api.post('/Part', payload)
+                        const created = res.data?.data || res.data
+                        appendNewApiPartAtEnd(created)
+                        setIsModalOpen(false)
+                        setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
+                      } catch (e) {
+                        console.error(e)
+                        alert('Tạo phụ tùng thất bại')
+                      }
+                    }}
+                  >
+                    Tạo mới
+                  </button>
+                )}
+                {editingPart && (
+                  <button
+                    style={{
+                      background: 'var(--primary-500)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--primary-600)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--primary-500)'
+                    }}
+                    onClick={async () => {
+                      try {
+                        const payload = {
+                          partName: editingPart.name,
+                          brand: editingPart.supplier,
+                          unitPrice: editingPart.price,
+                          imageUrl: '', // API yêu cầu nhưng không dùng
+                          isActive: editingPart.isActive
+                        }
+                        const res = await api.put(`/Part/${editingPart.id}`, payload)
+                        
+                        // Cập nhật lại danh sách
+                        setAllParts((prev) => {
+                          const updated = prev.map(p => 
+                            p.id === editingPart.id 
+                              ? { ...p, name: editingPart.name, supplier: editingPart.supplier, price: editingPart.price, isActive: editingPart.isActive }
+                              : p
+                          )
+                          return updated
+                        })
+                        
+                        setIsModalOpen(false)
+                        setEditingPart(null)
+                      } catch (e) {
+                        console.error(e)
+                        alert('Cập nhật phụ tùng thất bại')
+                      }
+                    }}
+                  >
+                    Cập nhật
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1209,7 +1526,7 @@ function SystemSettingsContent() {
 
   const handleSave = async (tabId) => {
     setSaveStatus('saving')
-    // Simulate API call
+    
     setTimeout(() => {
       setSaveStatus('success')
       setTimeout(() => setSaveStatus(null), 3000)
@@ -2926,10 +3243,19 @@ function BookingManagementContent() {
   )
 }
 
+
 export default function AdminDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const role = useAppSelector(s => s.auth.user?.role)
+  const isAdmin = (() => {
+    const r = (role || '').toString().toLowerCase()
+    // Robust: treat any role containing 'admin' as admin, but exclude manager
+    if (!r) return false
+    if (r.includes('manager')) return false
+    return r.includes('admin')
+  })()
 
   // Page components
   const renderPageContent = () => {
@@ -3146,6 +3472,12 @@ export default function AdminDashboard() {
         )
       case 'parts':
         return <PartsManagementContent />
+      case 'services':
+        return isAdmin 
+          ? <ServicesManagementAdmin /> 
+          : <ServicesManagement allowCreate={false}/>
+      case 'service-centers':
+        return <CenterManagement />
       case 'settings':
         return <SystemSettingsContent />
       case 'bookings':
@@ -3719,6 +4051,13 @@ export default function AdminDashboard() {
       color: 'var(--primary-500)'
     },
     {
+      title: 'Quản lý dịch vụ',
+      description: 'Thêm, sửa, xóa dịch vụ',
+      icon: Wrench,
+      page: 'services',
+      color: 'var(--success-500)'
+    },
+    {
       title: 'Quản lý phụ tùng',
       description: 'Kiểm tra tồn kho, nhập hàng',
       icon: Package,
@@ -3999,8 +4338,10 @@ export default function AdminDashboard() {
               </h3>
               {[
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
+                { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
+                { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
                 { icon: Calendar, label: 'Booking', page: 'bookings', route: '/admin/bookings' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings', route: '/admin/settings' },
                 { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
