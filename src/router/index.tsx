@@ -30,6 +30,7 @@ const MyVehicles = lazy(() => import('@/views/Customer/MyVehicles'))
 const MaintenanceHistory = lazy(() => import('@/views/Customer/MaintenanceHistory'))
 const StaffCustomers = lazy(() => import('@/views/Staff/Customers'))
 const StaffAppointments = lazy(() => import('@/views/Staff/Appointments'))
+const StaffTechnicianSchedule = lazy(() => import('@/components/staff/TechnicianSchedulePage'))
 const StaffServiceOrders = lazy(() => import('@/views/Staff/ServiceOrders'))
 const TechnicianWorkQueue = lazy(() => import('@/views/Technician/WorkQueue'))
 const TechnicianChecklists = lazy(() => import('@/views/Technician/Checklists'))
@@ -83,6 +84,7 @@ const router = createBrowserRouter([
       { path: 'customers', element: suspense(<StaffCustomers />) },
       { path: 'appointments', element: suspense(<StaffAppointments />) },
       { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
+      { path: 'technician-schedule', element: suspense(<StaffTechnicianSchedule />) },
     ],
   },
   // Manager routes with manager layout (no global header)
