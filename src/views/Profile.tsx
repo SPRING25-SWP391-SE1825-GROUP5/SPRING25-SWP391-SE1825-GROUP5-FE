@@ -1389,7 +1389,7 @@ export default function Profile() {
               <div className="modal-body">
                 <div className="vehicle-form">
                   <div className="form-row">
-                    <div className="form-group">
+                    {/* <div className="form-group">
                       <label className="form-label">Hãng xe *</label>
                       <BaseInput
                         value={newVehicle.brand}
@@ -1397,7 +1397,7 @@ export default function Profile() {
                         placeholder="Ví dụ: VinFast"
                         required
                       />
-                    </div>
+                    </div> */}
                     <div className="form-group">
                       <label className="form-label">Mẫu xe *</label>
                       <BaseInput
@@ -1407,9 +1407,7 @@ export default function Profile() {
                         required
                       />
                     </div>
-                  </div>
 
-                  <div className="form-row">
                     <div className="form-group">
                       <label className="form-label">Số VIN *</label>
                       <BaseInput
@@ -1419,6 +1417,10 @@ export default function Profile() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="form-row">
+                    
                     <div className="form-group">
                       <label className="form-label">Số km hiện tại *</label>
                       <BaseInput
@@ -1426,6 +1428,16 @@ export default function Profile() {
                         onChange={(value) => handleVehicleInputChange('currentMileage', value)}
                         type="number"
                         placeholder="0"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Biển số xe *</label>
+                      <BaseInput
+                        value={newVehicle.licensePlate}
+                        onChange={(value) => handleVehicleInputChange('licensePlate', value)}
+                        placeholder="ví dụ: 30-A1 12345"
                         required
                       />
                     </div>
@@ -1452,23 +1464,15 @@ export default function Profile() {
                   </div>
 
                   <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label">Biển số xe *</label>
-                      <BaseInput
-                        value={newVehicle.licensePlate}
-                        onChange={(value) => handleVehicleInputChange('licensePlate', value)}
-                        placeholder="ví dụ: 30A-12345"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
+                    
+                    {/* <div className="form-group">
                       <label className="form-label">Bảo dưỡng tiếp theo</label>
                       <BaseInput
                         value={newVehicle.nextMaintenance}
                         onChange={(value) => handleVehicleInputChange('nextMaintenance', value)}
                         placeholder="ví dụ: 5,000 km hoặc 01/04/2024"
                       />
-                    </div>
+                    </div> */}
                   </div>
 
 
