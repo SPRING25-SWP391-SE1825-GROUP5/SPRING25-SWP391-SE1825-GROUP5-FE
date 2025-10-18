@@ -17,7 +17,7 @@ export default function AppLayout() {
       <AppHeader />
       <main className={`main-content ${hasEmailBanner ? 'has-email-banner' : ''}`}>
         <Outlet />
-      </main><<<<<<< feat/refactor-ui-profile
+      </main>
       <Footer />
       
       {/* Chat Widget - Only show for authenticated users */}
