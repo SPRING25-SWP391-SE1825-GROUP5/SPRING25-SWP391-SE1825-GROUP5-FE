@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import auth, { logout } from './authSlice'
 import promo from './promoSlice'
 import cart from './cartSlice'
+import chat from './chatSlice'
 import { attachTokenGetter, attachUnauthorizedHandler } from '@/services/api'
 
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     auth,
     promo,
     cart,
+    chat,
   },
 })
 

@@ -79,6 +79,27 @@ export type {
   CustomerResponse
 } from './customerService'
 
+// Chat Services
+export { ChatService } from './chatService'
+export type {
+  ChatUser,
+  ChatMessage,
+  ChatConversation,
+  ChatGroup,
+  ChatState,
+  SendMessageRequest,
+  CreateConversationRequest,
+  ChatNotification,
+  ChatWidgetProps,
+  ChatWindowProps,
+  MessageListProps,
+  MessageInputProps,
+  ConversationListProps,
+  ChatApiResponse,
+  MessageListResponse,
+  ConversationListResponse
+} from '@/types/chat'
+
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'
 // export { OrderService } from './orderService'
