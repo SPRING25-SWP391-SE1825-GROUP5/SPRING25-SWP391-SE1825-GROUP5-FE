@@ -295,18 +295,26 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
         <div className="header-dropdown__container">
           {/* Logo Section */}
           <div className="header-logo-section">
-        {logo && (
-          <div className="header-logo">
-            {logo.href ? (
-              <NavLink to={logo.href} aria-label="Go to homepage">
-                <img src={logo.src} alt={logo.alt} />
-              </NavLink>
-            ) : (
-              <img src={logo.src} alt={logo.alt} />
+            {logo && (
+              <div className="header-logo">
+                {logo.href ? (
+                  <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
+                    <img src={logo.src} alt={logo.alt} />
+                    <div className="brand-info">
+                      <p className="brand-tagline">Dịch vụ bảo dưỡng xe điện chuyên nghiệp</p>
+                    </div>
+                  </NavLink>
+                ) : (
+                  <>
+                    <img src={logo.src} alt={logo.alt} />
+                    <div className="brand-info">
+                      <p className="brand-tagline">Dịch vụ bảo dưỡng xe điện chuyên nghiệp</p>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
       {/* Menu Section */}
       <div className="header-menu-section">

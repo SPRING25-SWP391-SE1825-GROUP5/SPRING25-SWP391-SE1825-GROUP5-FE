@@ -3797,7 +3797,7 @@ export default function AdminDashboard() {
     { name: 'Đèn LED', stock: 35, minStock: 25, color: 'var(--success-500)' }
   ]
 
-  // Mock data for dashboard stats
+
   const stats = [
     {
       title: 'Tổng doanh thu',

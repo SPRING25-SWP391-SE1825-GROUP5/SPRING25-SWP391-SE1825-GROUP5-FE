@@ -126,7 +126,13 @@ export const AuthService = {
   },
 
   async login(payload: LoginRequest) {
-    const { data } = await api.post<any>('/auth/login', payload)
+    // Map frontend field names to backend field names
+    const requestPayload = {
+      Email: payload.emailOrPhone,
+      Password: payload.password
+    }
+
+    const { data } = await api.post<any>('/auth/login', requestPayload)
 
     // Normalize backend response into FE-standard shape
     // Accepted backend shapes (examples):
@@ -195,8 +201,20 @@ export const AuthService = {
     dateOfBirth: string
     gender: 'MALE' | 'FEMALE'
     address?: string
+    email?: string
+    phoneNumber?: string
   }>) {
-    const { data } = await api.put<BasicSuccess<User>>('/Auth/profile', payload)
+    // Map frontend field names to backend field names
+    const requestPayload = {
+      FullName: payload.fullName,
+      DateOfBirth: payload.dateOfBirth,
+      Gender: payload.gender,
+      Address: payload.address || '',
+      Email: payload.email,
+      PhoneNumber: payload.phoneNumber
+    }
+
+    const { data } = await api.put<BasicSuccess<User>>('/Auth/profile', requestPayload)
     return data
   },
 

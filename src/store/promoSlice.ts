@@ -25,7 +25,7 @@ interface PromoState {
 }
 
 // TODO: Replace with real API data
-const mockSavedPromotions: Promotion[] = []
+const savedPromotions: Promotion[] = []
 
 const initialState: PromoState = {
   savedPromotions: [],

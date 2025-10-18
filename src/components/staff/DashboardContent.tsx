@@ -45,7 +45,7 @@ export default function DashboardContent() {
     { status: 'Đã hủy', count: 5 }
   ]
 
-  // Mock data for dashboard stats
+  // Dashboard stats
   const stats = [
     {
       title: 'Khách hàng mới',

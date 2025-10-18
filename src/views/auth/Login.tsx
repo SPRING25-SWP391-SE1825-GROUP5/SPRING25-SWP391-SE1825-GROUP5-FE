@@ -189,17 +189,36 @@ export default function LoginPage() {
         const nextFormError: Record<string, string> = {};
         const nextFieldErrors: Record<string, string> = {};
         
-        apiFieldErrors.forEach((msg: string) => {
-          const m = msg.toLowerCase();
-          if (m.includes("email") || m.includes("phone")) {
-            nextFormError.emailOrPhone = msg;
-            nextFieldErrors.emailOrPhone = msg;
-          }
-          if (m.includes("password")) {
-            nextFormError.password = msg;
-            nextFieldErrors.password = msg;
-          }
-        });
+        // Handle both array and object formats
+        if (Array.isArray(apiFieldErrors)) {
+          apiFieldErrors.forEach((msg: string) => {
+            const m = msg.toLowerCase();
+            if (m.includes("email") || m.includes("phone")) {
+              nextFormError.emailOrPhone = msg;
+              nextFieldErrors.emailOrPhone = msg;
+            }
+            if (m.includes("password")) {
+              nextFormError.password = msg;
+              nextFieldErrors.password = msg;
+            }
+          });
+        } else if (typeof apiFieldErrors === 'object') {
+          // Handle object format like { Email: ["Error message"] }
+          Object.entries(apiFieldErrors).forEach(([field, messages]) => {
+            const fieldName = field.toLowerCase();
+            const errorMsg = Array.isArray(messages) ? messages[0] : messages;
+            
+            if (fieldName.includes("email") || fieldName.includes("phone")) {
+              nextFormError.emailOrPhone = errorMsg;
+              nextFieldErrors.emailOrPhone = errorMsg;
+            }
+            if (fieldName.includes("password")) {
+              nextFormError.password = errorMsg;
+              nextFieldErrors.password = errorMsg;
+            }
+          });
+        }
+        
         setFormError(nextFormError);
         setFieldErrors(nextFieldErrors);
       }

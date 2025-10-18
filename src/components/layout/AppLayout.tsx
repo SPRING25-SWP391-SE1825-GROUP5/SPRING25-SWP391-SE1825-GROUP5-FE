@@ -1,8 +1,11 @@
 import { Outlet } from 'react-router-dom'
 import { useAppSelector } from '@/store/hooks'
 import AppHeader from './AppHeader'
-import { AppFooter } from './AppFooter'
+
+import { Footer } from '@/components/common'
+
 import { ChatWidget } from '@/components/chat'
+
 import './AppLayout.scss'
 
 export default function AppLayout() {
@@ -14,8 +17,8 @@ export default function AppLayout() {
       <AppHeader />
       <main className={`main-content ${hasEmailBanner ? 'has-email-banner' : ''}`}>
         <Outlet />
-      </main>
-      <AppFooter />
+      </main><<<<<<< feat/refactor-ui-profile
+      <Footer />
       
       {/* Chat Widget - Only show for authenticated users */}
       {user && (
@@ -24,6 +27,7 @@ export default function AppLayout() {
           theme="light"
         />
       )}
+
     </div>
   )
 }
