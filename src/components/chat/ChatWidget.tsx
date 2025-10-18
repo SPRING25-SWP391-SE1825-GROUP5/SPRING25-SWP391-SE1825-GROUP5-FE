@@ -1,10 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { MessageCircle, X, Send, Paperclip, Headphones } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { toggleWidget, openWidget, closeWidget, addMessage } from '@/store/chatSlice'
+import { toggleWidget, openWidget, closeWidget } from '@/store/chatSlice'
 import type { ChatMessage } from '@/types/chat'
 import './ChatWidget.scss'
 
+/**
+ * ChatWidget - Hộp thoại tin nhắn nhỏ với hỗ trợ khách hàng
+ * 
+ * Đây là widget chat nhỏ gọn hiển thị ở góc màn hình, khác biệt hoàn toàn với:
+ * - ChatInterface: Trang chat đầy đủ với 3 cột (danh sách, chat, thông tin)
+ * 
+ * Tính năng:
+ * - Chat nhanh với nhân viên hỗ trợ
+ * - Tự động phản hồi
+ * - Giao diện nhỏ gọn, không chiếm nhiều không gian
+ * - State riêng biệt, không ảnh hưởng đến ChatInterface
+ */
 interface ChatWidgetProps {
   className?: string
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
@@ -24,6 +36,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
+      conversationId: 'widget-conversation',
       senderId: 'staff',
       senderName: 'Nhân viên hỗ trợ',
       content: 'Xin chào! Chào mừng bạn đến với EV Center, chúng tôi có thể giúp gì cho bạn',
@@ -65,6 +78,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     if (message.trim()) {
       const newMessage: ChatMessage = {
         id: `user-${Date.now()}`,
+        conversationId: 'widget-conversation',
         senderId: String(user?.userId || 'current-user'),
         senderName: user?.fullName || 'Bạn',
         content: message.trim(),
@@ -82,6 +96,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setTimeout(() => {
           const staffResponse: ChatMessage = {
             id: `staff-${Date.now()}`,
+            conversationId: 'widget-conversation',
             senderId: 'staff',
             senderName: 'Nhân viên hỗ trợ',
             content: 'Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi trong thời gian sớm nhất.',

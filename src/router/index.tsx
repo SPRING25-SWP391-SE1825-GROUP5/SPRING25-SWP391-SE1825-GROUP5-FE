@@ -14,7 +14,7 @@ import RequireAuth from '@/components/routes/RequireAuth'
 const SavartHomepage = lazy(() => import('@/views/SavartHomepage'))
 const About = lazy(() => import('@/views/About'))
 const Services = lazy(() => import('@/views/Services'))
-const Contact = lazy(() => import('@/views/Contact'))
+const ProtectedContact = lazy(() => import('@/views/ProtectedContact'))
 const Products = lazy(() => import('@/views/Products'))
 const Promotions = lazy(() => import('@/views/Promotions'))
 const Packages = lazy(() => import('@/views/Packages'))
@@ -63,7 +63,7 @@ const router = createBrowserRouter([
       { path: 'products', element: suspense(<Products />) },
       { path: 'promotions', element: suspense(<Promotions />) },
       { path: 'packages', element: suspense(<Packages />) },
-      { path: 'contact', element: suspense(<Contact />) },
+      { path: 'contact', element: suspense(<ProtectedContact />) },
       { path: 'booking', element: suspense(<Booking />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
