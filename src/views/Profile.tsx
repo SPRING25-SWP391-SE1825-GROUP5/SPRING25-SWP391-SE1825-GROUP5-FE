@@ -4,6 +4,14 @@ import { getCurrentUser } from '@/store/authSlice'
 import { AuthService, VehicleService, CustomerService } from '@/services'
 import type { Vehicle as ApiVehicle, CreateVehicleRequest, UpdateVehicleRequest, Customer } from '@/services'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
+import { 
+  validateFullName, 
+  validateDOB16,
+  validateGender, 
+  validateAddress255,
+  validateChangePasswordForm,
+  validatePassword
+} from '@/utils/validation'
 import {
   UserIcon,
   CogIcon,
@@ -96,6 +104,9 @@ export default function Profile() {
 
 
   const [originalData, setOriginalData] = useState(profileData)
+
+  // Error messages for form validation
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   const [passwordData, setPasswordData] = useState<ChangePasswordData>({
     currentPassword: '',
@@ -228,6 +239,15 @@ export default function Profile() {
       ...prev,
       [field]: value
     }))
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field]
+        return newErrors
+      })
+    }
   }
 
   const handleVehicleInputChange = (field: keyof NewVehicleForm, value: string) => {
@@ -250,46 +270,46 @@ export default function Profile() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const errors: string[] = []
+      const errors: Record<string, string> = {}
 
-      if (!profileData.fullName?.trim()) {
-        errors.push('Họ và tên là bắt buộc')
+      // Validate full name using utility
+      const fullNameValidation = validateFullName(profileData.fullName)
+      if (!fullNameValidation.isValid) {
+        errors.fullName = fullNameValidation.error!
       }
 
-      if (!profileData.address?.trim()) {
-        errors.push('Địa chỉ là bắt buộc')
+      // Validate address using utility
+      const addressValidation = validateAddress255(profileData.address)
+      if (!addressValidation.isValid) {
+        errors.address = addressValidation.error!
       }
 
-      const dob = profileData.dateOfBirth?.trim()
-      if (!dob) {
-        errors.push('Ngày sinh là bắt buộc')
-      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
-        errors.push('Ngày sinh phải có định dạng YYYY-MM-DD')
-      } else {
-        const date = new Date(dob)
-        const today = new Date()
-        if (date > today) {
-          errors.push('Ngày sinh không thể ở tương lai')
-        }
-        if (today.getFullYear() - date.getFullYear() < 13) {
-          errors.push('Bạn phải ít nhất 13 tuổi')
-        }
+      // Validate date of birth using utility (16 years old minimum)
+      const dobValidation = validateDOB16(profileData.dateOfBirth)
+      if (!dobValidation.isValid) {
+        errors.dateOfBirth = dobValidation.error!
       }
 
-      if (!profileData.gender) {
-        errors.push('Vui lòng chọn giới tính')
+      // Validate gender using utility
+      const genderValue = profileData.gender === 'Male' ? 'MALE' : profileData.gender === 'Female' ? 'FEMALE' : ''
+      const genderValidation = validateGender(genderValue)
+      if (!genderValidation.isValid) {
+        errors.gender = genderValidation.error!
       }
 
-      if (errors.length) {
-        alert(errors.join('\n'))
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors)
         return
       }
 
+      // Clear errors if validation passes
+      setFormErrors({})
+
       const payload: any = {
         fullName: profileData.fullName.trim(),
-        dateOfBirth: dob,
-        gender: profileData.gender === 'Male' ? 'MALE' : 'FEMALE',
-        address: profileData.address.trim(),
+        dateOfBirth: profileData.dateOfBirth,
+        gender: genderValue,
+        address: profileData.address?.trim() || '',
       }
 
       await AuthService.updateProfile(payload)
@@ -549,13 +569,16 @@ export default function Profile() {
   }
 
   const handleChangePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Xác nhận mật khẩu không khớp!')
-      return
-    }
+    // Use validation utility for change password form
+    const validation = validateChangePasswordForm({
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+      confirmPassword: passwordData.confirmPassword
+    })
 
-    if (passwordData.newPassword.length < 6) {
-      alert('Mật khẩu mới phải có ít nhất 6 ký tự!')
+    if (!validation.isValid) {
+      const errorMessages = Object.values(validation.errors).join('\n')
+      alert(errorMessages)
       return
     }
 
@@ -691,6 +714,11 @@ export default function Profile() {
                           placeholder="Nhập họ và tên"
                           required
                         />
+                        {formErrors.fullName && (
+                          <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '4px' }}>
+                            {formErrors.fullName}
+                          </div>
+                        )}
                       </div>
                       <div className="form-group">
                         <label className="form-label">
@@ -737,6 +765,11 @@ export default function Profile() {
                           <option value="Male">Nam</option>
                           <option value="Female">Nữ</option>
                         </select>
+                        {formErrors.gender && (
+                          <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '4px' }}>
+                            {formErrors.gender}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -750,6 +783,11 @@ export default function Profile() {
                           type="date"
                           required
                         />
+                        {formErrors.dateOfBirth && (
+                          <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '4px' }}>
+                            {formErrors.dateOfBirth}
+                          </div>
+                        )}
                       </div>
                       <div className="form-group">
                         <label className="form-label">Địa chỉ *</label>
@@ -760,6 +798,11 @@ export default function Profile() {
                           placeholder="Nhập địa chỉ"
                           required
                         />
+                        {formErrors.address && (
+                          <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '4px' }}>
+                            {formErrors.address}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
