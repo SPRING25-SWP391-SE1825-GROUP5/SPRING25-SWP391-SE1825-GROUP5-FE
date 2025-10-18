@@ -12,6 +12,7 @@ import { syncFromLocalStorage } from '@/store/authSlice'
 import {
   validateRegisterFormStrict,
   validatePassword,
+  mapServerErrorsToFields,
 } from '@/utils/validation'
 
 export default function Register() {
@@ -39,6 +40,31 @@ export default function Register() {
   const [showPasswordPopup, setShowPasswordPopup] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  // Real-time validation functions
+  const validateField = (fieldName: string, value: string) => {
+    const validation = validateRegisterFormStrict({
+      fullName: fieldName === 'fullName' ? value : fullName,
+      email: fieldName === 'email' ? value : email,
+      password: fieldName === 'password' ? value : password,
+      confirmPassword: fieldName === 'confirmPassword' ? value : confirmPassword,
+      phoneNumber: fieldName === 'phoneNumber' ? value : phoneNumber,
+      dateOfBirth: fieldName === 'dateOfBirth' ? value : dateOfBirth,
+      gender: fieldName === 'gender' ? value as 'MALE' | 'FEMALE' : gender as 'MALE' | 'FEMALE',
+      address: fieldName === 'address' ? value : address,
+      avatarUrl: ''
+    })
+    
+    if (validation.errors[fieldName]) {
+      setErrors(prev => ({ ...prev, [fieldName]: validation.errors[fieldName] }))
+    } else {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[fieldName]
+        return newErrors
+      })
+    }
+  }
 
   const redirect = new URLSearchParams(location.search).get('redirect') || '/auth/login'
   const googleBtnRef = useRef<HTMLDivElement | null>(null)
@@ -148,11 +174,36 @@ export default function Register() {
         address,
         avatarUrl: ''
       })
-      alert('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
+      toast.success('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
       navigate(redirect, { replace: true })
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Đăng ký thất bại'
-      alert(msg)
+      console.log('Registration error:', err)
+      console.log('Error response:', err?.response?.data)
+      
+      const response = err?.response?.data
+      const msg = response?.message || err?.message || 'Đăng ký thất bại'
+      
+      let hasFieldErrors = false
+      
+      // Handle specific field errors from server
+      if (response?.errors) {
+        console.log('Server errors:', response.errors)
+        const fieldErrors = mapServerErrorsToFields(response.errors)
+        console.log('Mapped field errors:', fieldErrors)
+        
+        // Set field-specific errors
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors(prev => ({ ...prev, ...fieldErrors }))
+          console.log('Set field errors:', fieldErrors)
+          hasFieldErrors = true
+        }
+      }
+      
+      // Always show error message (either field-specific or general)
+      if (!hasFieldErrors) {
+        console.log('Showing general error:', msg)
+        toast.error(msg)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -191,13 +242,19 @@ export default function Register() {
             <form onSubmit={onSubmit}>
               <div className="register__form-grid">
                 <div className="form-group">
-                  <label htmlFor="fullName" className="form-group__label">Họ và tên</label>
+                  <label htmlFor="fullName" className="form-group__label">Họ và tên <span className="required-asterisk">*</span></label>
                   <input
                     type="text"
                     id="fullName"
                     className="form-group__input"
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={(e) => {
+                      setFullName(e.target.value)
+                      if (e.target.value.trim()) {
+                        validateField('fullName', e.target.value)
+                      }
+                    }}
+                    onBlur={(e) => validateField('fullName', e.target.value)}
                     placeholder=" "
                     required
                   />
@@ -205,13 +262,19 @@ export default function Register() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="email" className="form-group__label">Email</label>
+                  <label htmlFor="email" className="form-group__label">Email <span className="required-asterisk">*</span></label>
                   <input
                     type="email"
                     id="email"
                     className="form-group__input"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (e.target.value.trim()) {
+                        validateField('email', e.target.value)
+                      }
+                    }}
+                    onBlur={(e) => validateField('email', e.target.value)}
                     placeholder=" "
                     required
                   />
@@ -219,13 +282,19 @@ export default function Register() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="phoneNumber" className="form-group__label">Số điện thoại</label>
+                  <label htmlFor="phoneNumber" className="form-group__label">Số điện thoại <span className="required-asterisk">*</span></label>
                   <input
                     type="tel"
                     id="phoneNumber"
                     className="form-group__input"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value)
+                      if (e.target.value.trim()) {
+                        validateField('phoneNumber', e.target.value)
+                      }
+                    }}
+                    onBlur={(e) => validateField('phoneNumber', e.target.value)}
                     placeholder=" "
                     required
                   />
@@ -233,13 +302,19 @@ export default function Register() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="dateOfBirth" className="form-group__label">Ngày sinh</label>
+                  <label htmlFor="dateOfBirth" className="form-group__label">Ngày sinh <span className="required-asterisk">*</span></label>
                   <input
                     type="date"
                     id="dateOfBirth"
                     className="form-group__input"
                     value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    onChange={(e) => {
+                      setDateOfBirth(e.target.value)
+                      if (e.target.value) {
+                        validateField('dateOfBirth', e.target.value)
+                      }
+                    }}
+                    onBlur={(e) => validateField('dateOfBirth', e.target.value)}
                     placeholder=" "
                     required
                   />
@@ -247,12 +322,18 @@ export default function Register() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="gender" className="form-group__label">Giới tính</label>
+                  <label htmlFor="gender" className="form-group__label">Giới tính <span className="required-asterisk">*</span></label>
                   <select
                     id="gender"
                     className="form-group__input"
                     value={gender}
-                    onChange={(e) => setGender(e.target.value as any)}
+                    onChange={(e) => {
+                      setGender(e.target.value as any)
+                      if (e.target.value) {
+                        validateField('gender', e.target.value)
+                      }
+                    }}
+                    onBlur={(e) => validateField('gender', e.target.value)}
                     required
                   >
                     <option value="" disabled>Giới tính</option>
@@ -269,7 +350,13 @@ export default function Register() {
                     id="address"
                     className="form-group__input"
                     value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                    onChange={(e) => {
+                      setAddress(e.target.value)
+                      if (e.target.value.trim()) {
+                        validateField('address', e.target.value)
+                      }
+                    }}
+                    onBlur={(e) => validateField('address', e.target.value)}
                     placeholder=" "
                   />
                   {errors.address && <p className="register__error">{errors.address}</p>}
@@ -277,7 +364,7 @@ export default function Register() {
 
                 <div className="form-group password-field">
                   <div className="password-input-wrapper">
-                    <label htmlFor="password" className="form-group__label">Mật khẩu</label>
+                    <label htmlFor="password" className="form-group__label">Mật khẩu <span className="required-asterisk">*</span></label>
                     <input
                       type={showPassword ? 'text' : 'password'}
                       id="password"
@@ -286,7 +373,11 @@ export default function Register() {
                       onChange={(e) => {
                         setPassword(e.target.value)
                         updatePasswordStrength(e.target.value)
+                        if (e.target.value.trim()) {
+                          validateField('password', e.target.value)
+                        }
                       }}
+                      onBlur={(e) => validateField('password', e.target.value)}
                       onFocus={() => setShowPasswordPopup(true)}
                       placeholder=" "
                       required
@@ -302,7 +393,7 @@ export default function Register() {
                   {errors.password && <p className="register__error">{errors.password}</p>}
 
                   {showPasswordPopup && (
-                    <div className="password-popup">
+                    <div className="password-popup password-popup-below">
                       <div className="password-popup-header">
                         <h4>Mật khẩu mạnh</h4>
                         <button
@@ -360,13 +451,19 @@ export default function Register() {
 
                 <div className="form-group">
                   <div className="password-input-wrapper">
-                    <label htmlFor="confirmPassword" className="form-group__label">Xác nhận mật khẩu</label>
+                    <label htmlFor="confirmPassword" className="form-group__label">Xác nhận mật khẩu <span className="required-asterisk">*</span></label>
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
                       id="confirmPassword"
                       className="form-group__input"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value)
+                        if (e.target.value.trim()) {
+                          validateField('confirmPassword', e.target.value)
+                        }
+                      }}
+                      onBlur={(e) => validateField('confirmPassword', e.target.value)}
                       placeholder=" "
                       required
                     />

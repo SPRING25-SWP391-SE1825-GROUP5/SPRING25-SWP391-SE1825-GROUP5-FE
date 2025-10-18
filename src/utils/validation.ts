@@ -83,11 +83,11 @@ export const validatePassword = (password: string): FieldValidation => {
  */
 export const validateConfirmPassword = (password: string, confirmPassword: string): FieldValidation => {
   if (!confirmPassword) {
-    return { isValid: false, error: 'Please confirm your password' }
+    return { isValid: false, error: 'Vui lòng xác nhận mật khẩu' }
   }
 
   if (password !== confirmPassword) {
-    return { isValid: false, error: 'Passwords do not match' }
+    return { isValid: false, error: 'Mật khẩu xác nhận không khớp' }
   }
 
   return { isValid: true }
@@ -100,22 +100,22 @@ export const validateConfirmPassword = (password: string, confirmPassword: strin
  * @param fieldName - Field name for error message
  * @returns Validation result
  */
-export const validateName = (name: string, fieldName: string = 'Name'): FieldValidation => {
+export const validateName = (name: string, fieldName: string = 'Tên'): FieldValidation => {
   if (!name) {
-    return { isValid: false, error: `${fieldName} is required` }
+    return { isValid: false, error: `${fieldName} là bắt buộc` }
   }
 
   if (name.trim().length < 2) {
-    return { isValid: false, error: `${fieldName} must be at least 2 characters long` }
+    return { isValid: false, error: `${fieldName} phải có ít nhất 2 ký tự` }
   }
 
   if (name.trim().length > 50) {
-    return { isValid: false, error: `${fieldName} must be less than 50 characters` }
+    return { isValid: false, error: `${fieldName} tối đa 50 ký tự` }
   }
 
   const nameRegex = /^[a-zA-Z\s'-]+$/
   if (!nameRegex.test(name.trim())) {
-    return { isValid: false, error: `${fieldName} can only contain letters, spaces, hyphens, and apostrophes` }
+    return { isValid: false, error: `${fieldName} chỉ được chứa chữ cái, khoảng trắng, dấu gạch ngang và dấu nháy đơn` }
   }
 
   return { isValid: true }
@@ -134,7 +134,7 @@ export const validatePhone = (phone: string): FieldValidation => {
 
   const phoneRegex = /^[+]?[1-9][\d]{0,15}$/
   if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
-    return { isValid: false, error: 'Please enter a valid phone number' }
+    return { isValid: false, error: 'Vui lòng nhập số điện thoại hợp lệ' }
   }
 
   return { isValid: true }
@@ -240,7 +240,7 @@ export const validateChangePasswordForm = (data: {
 
   // Current password validation
   if (!data.currentPassword) {
-    errors.currentPassword = 'Current password is required'
+    errors.currentPassword = 'Mật khẩu hiện tại là bắt buộc'
   }
 
   // New password validation
@@ -257,7 +257,7 @@ export const validateChangePasswordForm = (data: {
 
   // Check if new password is different from current
   if (data.currentPassword && data.newPassword && data.currentPassword === data.newPassword) {
-    errors.newPassword = 'New password must be different from current password'
+    errors.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại'
   }
 
   return {
@@ -356,6 +356,89 @@ export const validateAddress255 = (address?: string): FieldValidation => {
   return { isValid: true }
 }
 
+// Duplicate validation functions
+export const validateEmailNotExists = (email: string): FieldValidation => {
+  // This would typically make an API call to check if email exists
+  // For now, return valid - actual check happens on server
+  return { isValid: true }
+}
+
+export const validatePhoneNotExists = (phone: string): FieldValidation => {
+  // This would typically make an API call to check if phone exists
+  // For now, return valid - actual check happens on server
+  return { isValid: true }
+}
+
+// Server error mapping utility
+export const mapServerErrorsToFields = (serverErrors: any): Record<string, string> => {
+  const fieldErrors: Record<string, string> = {}
+  
+  if (!serverErrors) return fieldErrors
+  
+  console.log('Mapping server errors:', serverErrors)
+  
+  // Common server error patterns
+  const errorMappings: Record<string, string> = {
+    'email': 'Email này đã được sử dụng',
+    'phoneNumber': 'Số điện thoại này đã được sử dụng',
+    'phone': 'Số điện thoại này đã được sử dụng',
+    'fullName': 'Họ tên không hợp lệ',
+    'password': 'Mật khẩu không hợp lệ',
+    'confirmPassword': 'Xác nhận mật khẩu không khớp',
+    'dateOfBirth': 'Ngày sinh không hợp lệ',
+    'gender': 'Giới tính không hợp lệ',
+    'address': 'Địa chỉ không hợp lệ'
+  }
+  
+  // Handle different server error formats
+  if (Array.isArray(serverErrors)) {
+    // Handle array format: ["Email already exists", "Phone already exists"]
+    serverErrors.forEach((error: string) => {
+      if (error.toLowerCase().includes('email')) {
+        fieldErrors.email = 'Email này đã được sử dụng'
+      } else if (error.toLowerCase().includes('phone')) {
+        fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
+      } else if (error.toLowerCase().includes('password')) {
+        fieldErrors.password = 'Mật khẩu không hợp lệ'
+      }
+    })
+  } else if (typeof serverErrors === 'object') {
+    // Handle object format: { email: "Email already exists", phoneNumber: "Phone already exists" }
+    Object.keys(serverErrors).forEach(key => {
+      const errorMessage = serverErrors[key]
+      if (errorMessage) {
+        // Check for duplicate errors
+        if (errorMessage.toLowerCase().includes('already exists') || 
+            errorMessage.toLowerCase().includes('already registered') ||
+            errorMessage.toLowerCase().includes('đã tồn tại') ||
+            errorMessage.toLowerCase().includes('đã được sử dụng')) {
+          
+          if (key.toLowerCase().includes('email')) {
+            fieldErrors.email = 'Email này đã được sử dụng'
+          } else if (key.toLowerCase().includes('phone')) {
+            fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
+          } else {
+            fieldErrors[key] = errorMappings[key] || errorMessage
+          }
+        } else {
+          // Use predefined mapping or fallback to server message
+          fieldErrors[key] = errorMappings[key] || errorMessage
+        }
+      }
+    })
+  } else if (typeof serverErrors === 'string') {
+    // Handle string format: "Email already exists"
+    if (serverErrors.toLowerCase().includes('email')) {
+      fieldErrors.email = 'Email này đã được sử dụng'
+    } else if (serverErrors.toLowerCase().includes('phone')) {
+      fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
+    }
+  }
+  
+  console.log('Mapped field errors:', fieldErrors)
+  return fieldErrors
+}
+
 // Login V2: email or phone allowed
 export const validateLoginFormV2 = (data: { emailOrPhone: string; password: string }): ValidationResult => {
   const errors: Record<string, string> = {}
@@ -386,6 +469,6 @@ export const validateRegisterFormStrict = (data: {
   const dobV = validateDOB16(data.dateOfBirth); if (!dobV.isValid) errors.dateOfBirth = dobV.error!
   const genderV = validateGender(data.gender); if (!genderV.isValid) errors.gender = genderV.error!
   const addrV = validateAddress255(data.address); if (!addrV.isValid) errors.address = addrV.error!
-  const avatarUrlV = validateAddress255(data.address); if (!avatarUrlV.isValid) errors.address = addrV.error!
+  const avatarUrlV = validateAddress255(data.avatarUrl); if (!avatarUrlV.isValid) errors.avatarUrl = avatarUrlV.error!
   return { isValid: Object.keys(errors).length === 0, errors }
 }
