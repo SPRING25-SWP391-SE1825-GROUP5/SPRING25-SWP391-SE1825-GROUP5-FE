@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAppSelector } from '@/store/hooks'
 import AppHeader from './AppHeader'
 
@@ -11,6 +11,10 @@ import './AppLayout.scss'
 export default function AppLayout() {
   const user = useAppSelector((s) => s.auth.user)
   const hasEmailBanner = user && !user.emailVerified
+  const location = useLocation()
+  
+  // Hide ChatWidget on contact page (full chat interface)
+  const isContactPage = location.pathname === '/contact'
 
   return (
     <div className="app-layout">
@@ -20,8 +24,8 @@ export default function AppLayout() {
       </main>
       <Footer />
       
-      {/* Chat Widget - Only show for authenticated users */}
-      {user && (
+      {/* Chat Widget - Only show for authenticated users and NOT on contact page */}
+      {user && !isContactPage && (
         <ChatWidget 
           position="bottom-right"
           theme="light"

@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import './assets/styles/color-theme.css'
 import './styles/global.scss'
 import './styles/scrollbar.scss'
 import { AppRouter } from './router'
@@ -27,21 +28,25 @@ createRoot(document.getElementById('root')!).render(
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: 'var(--gradient-secondary)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-primary)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            fontFamily: "'Poppins', sans-serif",
           },
           success: {
             duration: 3000,
             iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+              primary: 'var(--success-500)',
+              secondary: 'var(--text-inverse)',
             },
           },
           error: {
             duration: 4000,
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: 'var(--error-500)',
+              secondary: 'var(--text-inverse)',
             },
           },
         }}

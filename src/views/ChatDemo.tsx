@@ -32,7 +32,7 @@ const ChatDemo: React.FC = () => {
       {
         id: 'user3',
         name: 'Lê Văn C',
-        role: 'manager',
+        role: 'admin',
         isOnline: true,
         avatar: 'https://via.placeholder.com/40x40/ff9800/ffffff?text=C'
       }
@@ -41,9 +41,9 @@ const ChatDemo: React.FC = () => {
     const mockMessages: ChatMessage[] = [
       {
         id: 'msg1',
+        conversationId: 'conv1',
         senderId: 'user1',
         senderName: 'Nguyễn Văn A',
-        senderAvatar: 'https://via.placeholder.com/40x40/1976d2/ffffff?text=A',
         content: 'Xin chào! Tôi có thể hỗ trợ gì cho bạn?',
         timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
         type: 'text',
@@ -51,6 +51,7 @@ const ChatDemo: React.FC = () => {
       },
       {
         id: 'msg2',
+        conversationId: 'conv1',
         senderId: 'current-user',
         senderName: 'Bạn',
         content: 'Tôi muốn đặt lịch bảo dưỡng xe điện',
@@ -60,9 +61,9 @@ const ChatDemo: React.FC = () => {
       },
       {
         id: 'msg3',
+        conversationId: 'conv1',
         senderId: 'user1',
         senderName: 'Nguyễn Văn A',
-        senderAvatar: 'https://via.placeholder.com/40x40/1976d2/ffffff?text=A',
         content: 'Tất nhiên! Bạn có thể cho tôi biết loại xe và thời gian mong muốn không?',
         timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
         type: 'text',
@@ -76,7 +77,8 @@ const ChatDemo: React.FC = () => {
         participants: [mockUsers[0], { id: 'current-user', name: 'Bạn', role: 'customer', isOnline: true }],
         lastMessage: mockMessages[mockMessages.length - 1],
         unreadCount: 1,
-        isActive: true,
+        isPinned: false,
+        isArchived: false,
         createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
         updatedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString()
       },
@@ -85,6 +87,7 @@ const ChatDemo: React.FC = () => {
         participants: [mockUsers[1], { id: 'current-user', name: 'Bạn', role: 'customer', isOnline: true }],
         lastMessage: {
           id: 'msg4',
+          conversationId: 'conv2',
           senderId: 'user2',
           senderName: 'Trần Thị B',
           content: 'Xe của bạn đã sẵn sàng để lấy',
@@ -93,7 +96,8 @@ const ChatDemo: React.FC = () => {
           isRead: true
         },
         unreadCount: 0,
-        isActive: true,
+        isPinned: false,
+        isArchived: false,
         createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
         updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
       }
