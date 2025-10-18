@@ -6,8 +6,6 @@ import { syncFromLocalStorage } from "@/store/authSlice";
 import { AuthService, googleAuthService } from "@/services/authService";
 import { validateLoginFormV2 } from "@/utils/validation";
 import { LOADING_MESSAGES } from "@/config/ui";
-import logo from "@/assets/images/logo-black.webp";
-import "./LoginPage.scss";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
@@ -20,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const googleBtnRef = useRef<HTMLDivElement | null>(null);
 
 
@@ -29,9 +28,12 @@ export default function LoginPage() {
       if (formError.emailOrPhone) {
         setFormError((prev) => ({ ...prev, emailOrPhone: "" }));
       }
+      if (fieldErrors.emailOrPhone) {
+        setFieldErrors((prev) => ({ ...prev, emailOrPhone: "" }));
+      }
       if (serverError) setServerError(null);
     },
-    [formError.emailOrPhone, serverError]
+    [formError.emailOrPhone, fieldErrors.emailOrPhone, serverError]
   );
 
   const handlePasswordChange = useCallback(
@@ -40,9 +42,12 @@ export default function LoginPage() {
       if (formError.password) {
         setFormError((prev) => ({ ...prev, password: "" }));
       }
+      if (fieldErrors.password) {
+        setFieldErrors((prev) => ({ ...prev, password: "" }));
+      }
       if (serverError) setServerError(null);
     },
-    [formError.password, serverError]
+    [formError.password, fieldErrors.password, serverError]
   );
 
   const redirect = new URLSearchParams(location.search).get("redirect");
@@ -135,10 +140,12 @@ export default function LoginPage() {
     e.preventDefault();
     setServerError(null);
     setFormError({});
+    setFieldErrors({});
 
     const validation = validateLoginFormV2({ emailOrPhone, password });
     if (!validation.isValid) {
       setFormError(validation.errors);
+      setFieldErrors(validation.errors);
       return;
     }
 
@@ -178,15 +185,23 @@ export default function LoginPage() {
 
       // Handle field-specific errors
       if ((error as any)?.response?.data?.errors) {
-        const fieldErrors = (error as any).response.data.errors;
+        const apiFieldErrors = (error as any).response.data.errors;
         const nextFormError: Record<string, string> = {};
-        fieldErrors.forEach((msg: string) => {
+        const nextFieldErrors: Record<string, string> = {};
+        
+        apiFieldErrors.forEach((msg: string) => {
           const m = msg.toLowerCase();
-          if (m.includes("email") || m.includes("phone"))
+          if (m.includes("email") || m.includes("phone")) {
             nextFormError.emailOrPhone = msg;
-          if (m.includes("password")) nextFormError.password = msg;
+            nextFieldErrors.emailOrPhone = msg;
+          }
+          if (m.includes("password")) {
+            nextFormError.password = msg;
+            nextFieldErrors.password = msg;
+          }
         });
         setFormError(nextFormError);
+        setFieldErrors(nextFieldErrors);
       }
     } finally {
       toast.dismiss(loadingId);
@@ -226,153 +241,435 @@ export default function LoginPage() {
   }, [handleGoogleCredential])
 
   return (
-    <div className="login">
-      <div className="login__container">
-        {/* Left side - Image/Visual */}
-        <div className="login__visual">
-          <div className="login__image-container">
-            <img 
-              src="/src/assets/images/ev-charging.svg" 
-              alt="EV Service Center" 
-              className="login__hero-image"
-            />
-            <div className="login__hero-content">
-              <h2>Chào mừng đến EV Service Center</h2>
-              <p>Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp cho xe điện của bạn</p>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: 1000,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    }}>
+      {/* Overlay */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        background: 'white',
+        animation: 'fadeIn 0.3s ease-out'
+      }} />
+
+      {/* Modal Container */}
+      <div className="modal-container" style={{
+        position: 'relative',
+        background: 'white',
+        borderRadius: '16px',
+        width: '1000px',
+        height: '650px',
+        maxHeight: '90vh',
+        overflow: 'hidden',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+        animation: 'slideUp 0.3s ease-out',
+        color: '#2d3748',
+        display: 'flex'
+      }}>
+        {/* Left Side - Visual Area (500px) */}
+        <div style={{
+          width: '500px',
+          background: 'linear-gradient(135deg, #10b981, #059669)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative'
+        }}>
+          {/* Visual Content */}
+          <div style={{
+            color: 'white',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '64px',
+              marginBottom: '24px'
+            }}>
+              🚗
+            </div>
+            <div style={{
+              fontSize: '32px',
+              fontWeight: '700',
+              color: 'white',
+              marginBottom: '8px'
+            }}>
+              EV Service
+            </div>
+            <div style={{
+              fontSize: '18px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              marginBottom: '24px'
+            }}>
+              Center
+            </div>
+            <div style={{
+              fontSize: '16px',
+              color: 'rgba(255, 255, 255, 0.9)',
+              lineHeight: '1.6',
+              maxWidth: '300px'
+            }}>
+              Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp cho xe điện của bạn
             </div>
           </div>
         </div>
 
-        {/* Right side - Login Form */}
-        <div className="login__form-container">
-        <h1 className="login__title">Đăng Nhập</h1>
-        <p className="login__subtitle">
-          Chưa có tài khoản?{" "}
-          <Link to="/auth/register" className="login__signup-link">
-            Đăng Ký
-          </Link>
-        </p>
-
-        <div className="login__grid">
-          {/* Left Column - Form */}
-          <div className="login__form">
-            <form onSubmit={onSubmit}>
-              <div className="form-group">
-                <label htmlFor="emailOrPhone" className="form-group__label">
-                  Email hoặc Số điện thoại
-                </label>
-                <input
-                  id="emailOrPhone"
-                  type="text"
-                  value={emailOrPhone}
-                  onChange={(e) => handleEmailOrPhoneChange(e.target.value)}
-                  className="form-group__input"
-                  placeholder=" "
-                  aria-invalid={!!formError.emailOrPhone}
-                  required
-                />
-
-                {formError.emailOrPhone && (
-                  <p className="login__error">{formError.emailOrPhone}</p>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="password" className="form-group__label">
-                  Mật khẩu
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => handlePasswordChange(e.target.value)}
-                  className="form-group__input"
-                  placeholder=" "
-                  required
-                />
-
-                <Link to="/auth/forgot-password" className="form-group__forgot-link">
-                  Quên mật khẩu?
-                </Link>
-                {formError.password && (
-                  <p className="login__error">{formError.password}</p>
-                )}
-              </div>
-
-              {serverError &&
-                !formError.password &&
-                !formError.emailOrPhone && (
-                  <p className="login__error">{serverError}</p>
-                )}
-
-              <button type="submit" className="btn btn--primary">
-                Tiếp tục
-              </button>
-            </form>
-          </div>
-
-          {/* Divider */}
-          <div className="login__divider">
-            <div className="login__divider-line"></div>
-            <span className="login__divider-text">hoặc</span>
-          </div>
-
-          {/* Right Column - Social Login */}
-          <div className="login__social">
-            {/* Google Identity Services Button */}
-            <div ref={googleBtnRef} className="google-button-container"></div>
-
-            {/* Fallback button if Google button couldn't render */}
-            <button
-              type="button"
-              className="btn btn--google btn--google-enhanced"
-              onClick={onGoogleButtonClick}
-              style={{ display: 'none' }}
+        {/* Right Side - Form (500px) */}
+        <div style={{
+          width: '500px',
+          padding: '80px 60px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          background: 'white'
+        }}>
+          {/* Title */}
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#2d3748',
+            margin: '0 0 12px 0',
+            textAlign: 'left',
+            lineHeight: '1.2'
+          }}>
+            Đăng nhập
+          </h1>
+          
+          {/* Subtitle */}
+          <p style={{
+            fontSize: '16px',
+            color: '#4a5568',
+            margin: '0 0 32px 0',
+            textAlign: 'left',
+            lineHeight: '1.5'
+          }}>
+            Chưa có tài khoản?{" "}
+            <Link 
+              to="/auth/register" 
+              style={{
+                color: '#10b981',
+                textDecoration: 'none',
+                fontWeight: '500'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#059669'
+                e.currentTarget.style.textDecoration = 'underline'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#10b981'
+                e.currentTarget.style.textDecoration = 'none'
+              }}
             >
-              <div className="btn__icon">
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
+              Đăng ký
+            </Link>
+          </p>
+
+        {/* Form */}
+        <form onSubmit={onSubmit}>
+          {/* Email/Phone Field */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '16px',
+              color: fieldErrors.emailOrPhone ? '#f87171' : '#2d3748',
+              marginBottom: '8px',
+              fontWeight: '500',
+              transition: 'color 0.3s ease'
+            }}>
+              Email
+            </label>
+            <input
+              type="text"
+              value={emailOrPhone}
+              onChange={(e) => handleEmailOrPhoneChange(e.target.value)}
+              placeholder=" "
+              required
+              style={{
+                width: '100%',
+                padding: '16px 20px',
+                border: `1.5px solid ${fieldErrors.emailOrPhone ? '#f87171' : '#e2e8f0'}`,
+                borderRadius: '12px',
+                background: 'white',
+                color: '#2d3748',
+                fontSize: '16px',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box',
+                outline: 'none',
+                height: '56px'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#10b981'
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = fieldErrors.emailOrPhone ? '#f87171' : '#e2e8f0'
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.boxShadow = 'none'
+              }}
+            />
+            {fieldErrors.emailOrPhone && (
+              <div style={{
+                color: '#f87171',
+                fontSize: '12px',
+                marginTop: '8px',
+                animation: 'slideDown 0.3s ease-out'
+              }}>
+                {fieldErrors.emailOrPhone}
               </div>
-              <span className="btn__text">Tiếp tục với Google</span>
-            </button>
+            )}
           </div>
+
+          {/* Password Field */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '16px',
+              color: fieldErrors.password ? '#f87171' : '#2d3748',
+              marginBottom: '8px',
+              fontWeight: '500',
+              transition: 'color 0.3s ease'
+            }}>
+              Mật khẩu
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => handlePasswordChange(e.target.value)}
+              placeholder=" "
+              required
+              style={{
+                width: '100%',
+                padding: '16px 20px',
+                border: `1.5px solid ${fieldErrors.password ? '#f87171' : '#e2e8f0'}`,
+                borderRadius: '12px',
+                background: 'white',
+                color: '#2d3748',
+                fontSize: '16px',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box',
+                outline: 'none',
+                height: '56px'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#10b981'
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = fieldErrors.password ? '#f87171' : '#e2e8f0'
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.boxShadow = 'none'
+              }}
+            />
+            <Link 
+              to="/auth/forgot-password" 
+              style={{
+                display: 'inline-block',
+                marginTop: '6px',
+                fontSize: '14px',
+                color: '#10b981',
+                textDecoration: 'none',
+                fontWeight: '500'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.textDecoration = 'underline'
+                e.currentTarget.style.color = '#059669'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.textDecoration = 'none'
+                e.currentTarget.style.color = '#10b981'
+              }}
+            >
+              Quên mật khẩu?
+            </Link>
+            {fieldErrors.password && (
+              <div style={{
+                color: '#f87171',
+                fontSize: '12px',
+                marginTop: '8px',
+                animation: 'slideDown 0.3s ease-out'
+              }}>
+                {fieldErrors.password}
+              </div>
+            )}
+          </div>
+
+          {/* Server Error */}
+          {serverError && !formError.password && !formError.emailOrPhone && (
+            <div style={{
+              color: '#f87171',
+              fontSize: '14px',
+              marginBottom: '16px',
+              textAlign: 'left',
+              fontWeight: '500'
+            }}>
+              {serverError}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button 
+            type="submit" 
+            style={{
+              width: '100%',
+              padding: '18px 24px',
+              background: 'linear-gradient(90deg, #10b981, #059669)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+              marginBottom: '20px',
+              height: '56px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(90deg, #059669, #047857)'
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(90deg, #10b981, #059669)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)'
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            Tiếp tục
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'rgba(255, 255, 255, 0.6)',
+          fontSize: '14px',
+          margin: '20px 0',
+          opacity: 0.9
+        }}>
+          <div style={{
+            flex: 1,
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
+            margin: '0 12px'
+          }}></div>
+          <span>hoặc</span>
+          <div style={{
+            flex: 1,
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
+            margin: '0 12px'
+          }}></div>
+        </div>
+
+        {/* Google Login */}
+        <div style={{ marginBottom: '20px' }}>
+          <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center' }}></div>
         </div>
 
         {/* Footer */}
-        <div className="login__footer">
-          <div className="login__footer-links">
-            <a href="/terms" className="login__footer-link">
+        <div style={{
+          fontSize: '13px',
+          color: 'rgba(255, 255, 255, 0.6)',
+          lineHeight: '1.6',
+          textAlign: 'center'
+        }}>
+          <div style={{ marginBottom: '8px' }}>
+            <a href="/terms" style={{
+              color: '#60a5fa',
+              textDecoration: 'none',
+              fontWeight: '500'
+            }}>
               Điều khoản sử dụng
             </a>
-            <span className="login__footer-separator">•</span>
-            <a href="/privacy" className="login__footer-link">
+            <span style={{ margin: '0 8px' }}>•</span>
+            <a href="/privacy" style={{
+              color: '#60a5fa',
+              textDecoration: 'none',
+              fontWeight: '500'
+            }}>
               Chính sách bảo mật
             </a>
           </div>
-          <p className="login__recaptcha">
-            Trang web này được bảo vệ bởi reCAPTCHA Enterprise.{" "}
-            <a
-              href="https://policies.google.com/privacy"
-              className="login__recaptcha-link"
-            >
-              Chính sách bảo mật của Google
-            </a>{" "}
-            và{" "}
-            <a
-              href="https://policies.google.com/terms"
-              className="login__recaptcha-link"
-            >
-              Điều khoản dịch vụ
-            </a>{" "}
-            áp dụng.
-          </p>
         </div>
         </div>
       </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+            max-height: 0;
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+            max-height: 100px;
+          }
+        }
+        
+        input::placeholder {
+          color: rgba(255, 255, 255, 0.6);
+        }
+        
+        @media (max-width: 1000px) {
+          .modal-container {
+            width: 90% !important;
+            max-width: 700px !important;
+            height: auto !important;
+            flex-direction: column !important;
+          }
+          
+          .modal-container > div:first-child {
+            width: 100% !important;
+            height: 280px !important;
+          }
+          
+          .modal-container > div:last-child {
+            width: 100% !important;
+            padding: 50px 40px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .modal-container {
+            padding: 24px !important;
+            margin: 16px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
