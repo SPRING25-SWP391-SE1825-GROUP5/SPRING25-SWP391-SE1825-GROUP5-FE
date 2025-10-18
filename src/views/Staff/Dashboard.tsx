@@ -17,6 +17,7 @@ import AppointmentsPage from '@/components/staff/AppointmentsPage'
 import ServiceOrdersPage from '@/components/staff/ServiceOrdersPage'
 import SettingsPage from '@/components/staff/SettingsPage'
 import DashboardContent from '@/components/staff/DashboardContent'
+import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
 import './staff.scss'
 
 export default function StaffDashboard() {
@@ -37,6 +38,8 @@ export default function StaffDashboard() {
         return <InventoryPage />
       case 'settings':
         return <SettingsPage />
+      case 'technician-schedule':
+        return <TechnicianSchedulePage />
       default:
         return <DashboardContent />
     }
@@ -292,6 +295,37 @@ export default function StaffDashboard() {
                   {!sidebarCollapsed && item.label}
                 </div>
               ))}
+
+              {/* Technician Schedule Link */}
+              <div 
+                onClick={() => setActivePage('technician-schedule')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: activePage === 'technician-schedule' ? 'var(--primary-500)' : 'var(--text-secondary)',
+                  background: activePage === 'technician-schedule' ? 'var(--primary-50)' : 'transparent',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '4px'
+                }}
+                onMouseEnter={(e) => {
+                  if (activePage !== 'technician-schedule') {
+                    e.currentTarget.style.background = 'var(--primary-50)'
+                    e.currentTarget.style.color = 'var(--primary-500)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activePage !== 'technician-schedule') {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = 'var(--text-secondary)'
+                  }
+                }}
+              >
+                <Calendar size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
+                {!sidebarCollapsed && 'Lịch kỹ thuật viên'}
+              </div>
             </div>
           </nav>
         </div>
