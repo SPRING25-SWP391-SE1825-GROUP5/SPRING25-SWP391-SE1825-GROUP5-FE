@@ -89,7 +89,7 @@ export const VehicleService = {
     searchTerm?: string
   } = {}): Promise<VehicleListResponse> {
     const defaultParams = { pageNumber: 1, pageSize: 10, ...params }
-    const { data } = await api.get<VehicleListResponse>('/Vehicle', { params: defaultParams })
+    const { data } = await api.get<VehicleListResponse>('/vehicle', { params: defaultParams })
     return data
   },
 
@@ -101,7 +101,7 @@ export const VehicleService = {
    * @throws {Error} When vehicle not found or request fails
    */
   async getVehicleById(id: number): Promise<VehicleResponse> {
-    const { data } = await api.get<VehicleResponse>(`/Vehicle/${id}`)
+    const { data } = await api.get<VehicleResponse>(`/vehicle/${id}`)
     return data
   },
 
@@ -113,7 +113,7 @@ export const VehicleService = {
    * @throws {Error} When creation fails
    */
   async createVehicle(vehicleData: CreateVehicleRequest): Promise<VehicleResponse> {
-    const { data } = await api.post<VehicleResponse>('/Vehicle', vehicleData)
+    const { data } = await api.post<VehicleResponse>('/vehicle', vehicleData)
     return data
   },
 
@@ -126,7 +126,7 @@ export const VehicleService = {
    * @throws {Error} When update fails
    */
   async updateVehicle(id: number, vehicleData: UpdateVehicleRequest): Promise<VehicleResponse> {
-    const { data } = await api.put<VehicleResponse>(`/Vehicle/${id}`, vehicleData)
+    const { data } = await api.put<VehicleResponse>(`/vehicle/${id}`, vehicleData)
     return data
   },
 
@@ -138,7 +138,7 @@ export const VehicleService = {
    * @throws {Error} When request fails
    */
   async getVehicleCustomer(id: number): Promise<{ success: boolean; message: string; data: any }> {
-    const { data } = await api.get(`/Vehicle/${id}/customer`)
+    const { data } = await api.get(`/vehicle/${id}/customer`)
     return data
   },
 
@@ -150,7 +150,7 @@ export const VehicleService = {
    * @throws {Error} When vehicle not found or request fails
    */
   async searchVehicle(vinOrLicensePlate: string): Promise<VehicleResponse> {
-    const { data } = await api.get<VehicleResponse>(`/Vehicle/search/${encodeURIComponent(vinOrLicensePlate)}`)
+    const { data } = await api.get<VehicleResponse>(`/vehicle/search/${encodeURIComponent(vinOrLicensePlate)}`)
     return data
   },
 
@@ -163,7 +163,7 @@ export const VehicleService = {
    * @throws {Error} When update fails
    */
   async updateMileage(vehicleId: number, mileageData: UpdateMileageRequest): Promise<VehicleResponse> {
-    const { data } = await api.post<VehicleResponse>(`/Vehicle/${vehicleId}/mileage`, mileageData)
+    const { data } = await api.post<VehicleResponse>(`/vehicle/${vehicleId}/mileage`, mileageData)
     return data
   },
 
@@ -177,7 +177,7 @@ export const VehicleService = {
    */
   async getNextServiceDue(vehicleId: number, serviceId?: number): Promise<NextServiceDueResponse> {
     const params = serviceId ? { serviceId } : {}
-    const { data } = await api.get<NextServiceDueResponse>(`/Vehicle/${vehicleId}/next-service-due`, { params })
+    const { data } = await api.get<NextServiceDueResponse>(`/vehicle/${vehicleId}/next-service-due`, { params })
     return data
   },
 
@@ -190,7 +190,7 @@ export const VehicleService = {
    */
   async getCustomerVehicles(customerId?: number): Promise<VehicleListResponse> {
     const params = customerId ? { customerId } : {}
-    const { data } = await api.get<VehicleListResponse>('/Vehicle', { params })
+    const { data } = await api.get<VehicleListResponse>('/vehicle', { params })
     return data
   }
 }
