@@ -107,6 +107,21 @@ export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, 
   }
 })
 
+export const logoutUser = createAsyncThunk('auth/logoutUser', async (_, { rejectWithValue, dispatch }) => {
+  try {
+    // Call logout API
+    await AuthService.logout()
+    // Dispatch local logout action to clear state
+    dispatch(logout())
+    return { success: true }
+  } catch (err: any) {
+    // Even if API call fails, we should still clear local state
+    dispatch(logout())
+    const msg = err?.response?.data?.message || err?.message || 'Logout failed'
+    return rejectWithValue(msg)
+  }
+})
+
 const slice = createSlice({
   name: 'auth',
   initialState,
