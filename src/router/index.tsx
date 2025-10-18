@@ -40,6 +40,8 @@ const AdminReports = lazy(() => import('@/views/Admin/Reports'))
 const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
+const ChatDemo = lazy(() => import('@/views/ChatDemo'))
+const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
@@ -63,6 +65,8 @@ const router = createBrowserRouter([
       { path: 'packages', element: suspense(<Packages />) },
       { path: 'contact', element: suspense(<Contact />) },
       { path: 'booking', element: suspense(<Booking />) },
+      { path: 'chat-demo', element: suspense(<ChatDemo />) },
+      { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
 
       { path: 'dashboard', element: <RequireAuth>{suspense(<Dashboard />)}</RequireAuth> },
       { path: 'profile', element: suspense(<Profile />) },
