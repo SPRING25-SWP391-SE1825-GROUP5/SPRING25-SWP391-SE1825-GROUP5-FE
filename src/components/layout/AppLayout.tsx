@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { useAppSelector } from '@/store/hooks'
 import AppHeader from './AppHeader'
-import { AppFooter } from './AppFooter'
+import { Footer } from '@/components/common'
 import './AppLayout.scss'
 
 export default function AppLayout() {
@@ -14,7 +14,7 @@ export default function AppLayout() {
       <main className={`main-content ${hasEmailBanner ? 'has-email-banner' : ''}`}>
         <Outlet />
       </main>
-      <AppFooter />
+      <Footer />
     </div>
   )
 }

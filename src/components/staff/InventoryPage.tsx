@@ -11,8 +11,8 @@ export default function InventoryPage() {
   const [inventorySearchTerm, setInventorySearchTerm] = useState('')
   const [inventoryFilterCategory, setInventoryFilterCategory] = useState('all')
 
-  // Mock data for inventory items
-  const mockInventoryData = [
+  // Inventory items data
+  const inventoryData = [
     {
       id: 1,
       name: 'Lọc dầu OE 123',
@@ -143,7 +143,7 @@ export default function InventoryPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Use mock data
-      setInventoryItems(mockInventoryData)
+      setInventoryItems(inventoryData)
     } catch (err) {
       console.error('Error loading inventory:', err)
     } finally {

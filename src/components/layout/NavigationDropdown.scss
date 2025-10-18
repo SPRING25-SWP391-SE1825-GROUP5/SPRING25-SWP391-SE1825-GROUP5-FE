@@ -1,19 +1,20 @@
 /* Header Dropdown Component */
 .header-dropdown {
-  --header-height: 57px;
+  --header-height: 90px;
   --banner-height: 56px;
   --transition-duration: 300ms;
   --dropdown-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --hover-color: #e3f2fd;
-  --active-color: #1976d2;
+  --hover-color: rgba(16, 185, 129, 0.1);
+  --active-color: #10b981;
   
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  background: white;
-  border-bottom: 1px solid #e5e5e5;
+  background: rgba(59, 130, 246, 0.1);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
   font-family: 'Poppins', sans-serif;
   display: flex;
   flex-direction: column;
@@ -33,13 +34,22 @@
 
 .email-verification-banner__container {
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 20px; /* Mobile-first: compact */
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   height: var(--banner-height);
+  
+  /* Tablet: medium padding */
+  @media (min-width: 768px) {
+    padding: 0 28px;
+  }
+  
+  /* Desktop: spacious padding */
+  @media (min-width: 1024px) {
+    padding: 0 32px;
+  }
 }
 
 .email-verification-banner__left {
@@ -135,14 +145,24 @@
 }
 
 .header-dropdown__container {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 1400px;
   height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 20px; /* Mobile-first: compact */
   flex-shrink: 0;
+  gap: 40px;
+  
+  /* Tablet: medium padding */
+  @media (min-width: 768px) {
+    padding: 0 32px;
+  }
+  
+  /* Desktop: spacious padding */
+  @media (min-width: 1024px) {
+    padding: 0 40px;
+  }
 }
 
 /* Header Sections */
@@ -158,9 +178,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  flex-shrink: 0;
   min-width: 0;
-  margin: 0 24px;
+  flex: 1;
 }
 
 .header-right-section {
@@ -168,7 +188,7 @@
   align-items: center;
   justify-content: flex-end;
   flex-shrink: 0;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -237,7 +257,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 0.5rem;
+  gap: 1rem;
   
   .mobile-nav & {
     flex-direction: column;
@@ -267,7 +287,7 @@
   padding: 0.75rem 1rem;
   font-size: 0.95rem;
   font-weight: 500;
-  color: #333;
+  color: #1e293b;
   text-decoration: none;
   border: none;
   background: none;
@@ -388,7 +408,7 @@
 .dropdown-section-title {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #000;
+  color: #1e293b;
   margin: 0 0 1rem 0;
   padding: 0 1rem;
   text-transform: uppercase;
@@ -422,7 +442,7 @@
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
-  color: #333;
+  color: #1e293b;
   text-decoration: none;
   border: none;
   background: none;
@@ -488,7 +508,7 @@
   height: 40px;
   border: none;
   background: none;
-  color: #333;
+  color: #1e293b;
   cursor: pointer;
   border-radius: 6px;
   transition: all var(--transition-duration) ease;
@@ -527,7 +547,7 @@
   
   &:hover {
     background: #f8f9fa;
-    color: #333;
+    color: #1e293b;
   }
 }
 
@@ -542,7 +562,7 @@
   }
   
   .header-right-section {
-    gap: 6px;
+    gap: 4px;
   }
   
   .email-verification-banner__container {

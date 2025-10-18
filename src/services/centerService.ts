@@ -190,7 +190,7 @@ export const CenterService = {
     return data
   },
 
-  // Get center statistics (mock data for now)
+  // Get center statistics
   async getCenterStats(): Promise<{
     totalCenters: number
     activeCenters: number

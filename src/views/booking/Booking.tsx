@@ -4,6 +4,8 @@ import { ServiceManagementService, Service } from '@/services/serviceManagementS
 import { VehicleService, Vehicle } from '@/services/vehicleService'
 import { CenterService, Center } from '@/services/centerService'
 import { BookingService, AvailabilityResponse, TimeSlotAvailability, TechnicianAvailability } from '@/services/bookingService'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCheckCircle, faTimes, faInfoCircle, faCar, faWrench, faClock, faUser, faMapMarkerAlt, faCalendarAlt, faBolt } from '@fortawesome/free-solid-svg-icons'
 import './booking.scss'
 
 // Notification component
@@ -20,26 +22,11 @@ const Notification: React.FC<NotificationProps> = ({ type, message, onClose, sho
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return (
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M6 10L8.5 12.5L14 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )
+        return <FontAwesomeIcon icon={faCheckCircle} />
       case 'error':
-        return (
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M12 8L8 12M8 8L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )
+        return <FontAwesomeIcon icon={faTimes} />
       default:
-        return (
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M10 6V10M10 14H10.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )
+        return <FontAwesomeIcon icon={faInfoCircle} />
     }
   }
 
@@ -87,9 +74,7 @@ const Notification: React.FC<NotificationProps> = ({ type, message, onClose, sho
             onClick={onClose}
             className={`${colors.text} hover:opacity-70 transition-opacity ml-2`}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
       </div>
@@ -743,27 +728,10 @@ export default function Booking() {
                         alignItems: 'center',
                         gap: '0.75rem'
                       }}>
-                        <svg 
-                          width="24" 
-                          height="24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                          style={{ color: '#004030' }}
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" 
-                          />
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a3 3 0 01-3 3H9a3 3 0 01-3-3V9a3 3 0 013-3h4a3 3 0 013 3v6z" 
-                          />
-                        </svg>
+                        <FontAwesomeIcon 
+                          icon={faCar} 
+                          style={{ color: '#004030', fontSize: '24px' }}
+                        />
                         Thông tin xe mới
                       </h3>
                     </div>

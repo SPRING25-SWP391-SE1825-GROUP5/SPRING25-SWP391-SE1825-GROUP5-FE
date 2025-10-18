@@ -7854,7 +7854,7 @@ export default function AdminDashboard() {
 
 
 
-  // Mock data for dashboard stats
+  // Dashboard stats
 
   const stats = [
 
