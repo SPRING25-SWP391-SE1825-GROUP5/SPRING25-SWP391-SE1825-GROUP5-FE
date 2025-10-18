@@ -333,14 +333,18 @@ export const validateVNPhone10 = (phone: string): FieldValidation => {
   return { isValid: true }
 }
 
-// DOB: at least 16 years old
+// DOB: at least 16 years old, maximum 120 years old
 export const validateDOB16 = (dateStr: string): FieldValidation => {
   if (!dateStr) return { isValid: false, error: 'Ngày sinh là bắt buộc' }
   const dob = new Date(dateStr)
   if (isNaN(dob.getTime())) return { isValid: false, error: 'Ngày sinh không hợp lệ' }
   const today = new Date()
   const sixteen = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate())
+  const oneHundredTwenty = new Date(today.getFullYear() - 120, today.getMonth(), today.getDate())
+  
   if (dob > sixteen) return { isValid: false, error: 'Bạn phải đủ 16 tuổi' }
+  if (dob < oneHundredTwenty) return { isValid: false, error: 'Ngày sinh không hợp lệ' }
+  
   return { isValid: true }
 }
 
