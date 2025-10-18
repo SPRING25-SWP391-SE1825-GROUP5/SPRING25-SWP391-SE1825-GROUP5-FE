@@ -22,11 +22,50 @@ export type TechnicianListResponse = {
 export const TechnicianService = {
     async list(params: { pageNumber?: number; pageSize?: number; searchTerm?: string; centerId?: number } = {}) {
         const { data } = await api.get('/Technician', { params })
-        // Some endpoints wrap in data.result, normalize
-        if (Array.isArray(data?.data)) return data.data
-        if (Array.isArray(data)) return data
-        if (Array.isArray(data?.data?.technicians)) return data.data.technicians
-        return []
+                if (data?.success && data?.data) {
+            return {
+                technicians: data.data.technicians || data.data,
+                totalCount: data.data.totalCount || 0,
+                pageNumber: data.data.pageNumber || 1,
+                pageSize: data.data.pageSize || 10,
+                totalPages: data.data.totalPages || 0
+            }
+        }
+        
+        // Fallback: trả về array trực tiếp
+        if (Array.isArray(data?.data)) return { technicians: data.data, totalCount: data.data.length, pageNumber: 1, pageSize: 10, totalPages: 1 }
+        if (Array.isArray(data)) return { technicians: data, totalCount: data.length, pageNumber: 1, pageSize: 10, totalPages: 1 }
+        if (Array.isArray(data?.data?.technicians)) return { technicians: data.data.technicians, totalCount: data.data.technicians.length, pageNumber: 1, pageSize: 10, totalPages: 1 }
+        
+        return { technicians: [], totalCount: 0, pageNumber: 1, pageSize: 10, totalPages: 0 }
+    },
+
+    // Lấy thống kê số lượng technician
+    async getStats() {
+        try {
+            const { data } = await api.get('/Technician', { params: { pageSize: 1 } })
+            
+            if (data?.success && data?.data) {
+                return {
+                    totalTechnicians: data.data.totalCount || 0,
+                    activeTechnicians: data.data.technicians?.filter((t: any) => t.isActive).length || 0,
+                    inactiveTechnicians: data.data.technicians?.filter((t: any) => !t.isActive).length || 0
+                }
+            }
+            
+            return {
+                totalTechnicians: 0,
+                activeTechnicians: 0,
+                inactiveTechnicians: 0
+            }
+        } catch (error) {
+            console.error('Error fetching technician stats:', error)
+            return {
+                totalTechnicians: 0,
+                activeTechnicians: 0,
+                inactiveTechnicians: 0
+            }
+        }
     },
 }
 

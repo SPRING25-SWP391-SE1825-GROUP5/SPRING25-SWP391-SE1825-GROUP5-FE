@@ -18,32 +18,21 @@ import type {
   ValidateUserAssignmentResponse
 } from '@/types/staff'
 
-/**
- * Staff Management Service
- * Handles all staff and technician management operations
- */
-export const StaffService = {
-  // ==================== STAFF MANAGEMENT ====================
 
-  /**
-   * Get paginated list of staff
-   */
+export const StaffService = {
+
   async getStaffList(params: StaffListParams = {}): Promise<StaffListResponse> {
     const { data } = await api.get<StaffListResponse>('/StaffManagement/staff', { params })
     return data
   },
 
-  /**
-   * Get staff by ID
-   */
+
   async getStaffById(staffId: number): Promise<StaffResponse> {
     const { data } = await api.get<StaffResponse>(`/StaffManagement/staff/${staffId}`)
     return data
   },
 
-  /**
-   * Create staff from existing user
-   */
+
   async createStaffFromUser(staffData: CreateStaffFromUserRequest): Promise<StaffResponse> {
     try {
       const { data } = await api.post<StaffResponse>('/StaffManagement/staff/from-user', staffData)
@@ -65,27 +54,16 @@ export const StaffService = {
     }
   },
 
-  /**
-   * Update staff information
-   */
   async updateStaff(staffId: number, staffData: UpdateStaffRequest): Promise<StaffResponse> {
     const { data } = await api.put<StaffResponse>(`/StaffManagement/staff/${staffId}`, staffData)
     return data
   },
 
-  // ==================== TECHNICIAN MANAGEMENT ====================
-
-  /**
-   * Get paginated list of technicians
-   */
   async getTechnicianList(params: TechnicianListParams): Promise<TechnicianListResponse> {
     const { data } = await api.get<TechnicianListResponse>('/StaffManagement/technician', { params })
     return data
   },
 
-  /**
-   * Create technician from existing user
-   */
   async createTechnicianFromUser(technicianData: CreateTechnicianFromUserRequest): Promise<TechnicianResponse> {
     try {
       const { data } = await api.post<TechnicianResponse>('/StaffManagement/technician/from-user', technicianData)
@@ -107,19 +85,12 @@ export const StaffService = {
     }
   },
 
-  /**
-   * Update technician information
-   */
+
   async updateTechnician(technicianId: number, technicianData: UpdateTechnicianRequest): Promise<TechnicianResponse> {
     const { data } = await api.put<TechnicianResponse>(`/StaffManagement/technician/${technicianId}`, technicianData)
     return data
   },
 
-  // ==================== UTILITY METHODS ====================
-
-  /**
-   * Get staff statistics
-   */
   async getStaffStats(centerId?: number): Promise<{
     totalStaff: number
     activeStaff: number
