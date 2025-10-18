@@ -322,6 +322,10 @@ export default function Users() {
             e.currentTarget.style.transform = "translateY(0)"
             e.currentTarget.style.boxShadow = "var(--shadow-sm)"
           }}
+          onClick={() => {
+            // Feature under development - no action
+            alert("Chức năng thêm người dùng đang được phát triển!")
+          }}
         >
           <Plus size={18} /> Thêm người dùng
         </button>
