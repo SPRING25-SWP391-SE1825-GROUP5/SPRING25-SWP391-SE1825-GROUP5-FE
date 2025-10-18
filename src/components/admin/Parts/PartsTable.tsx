@@ -127,8 +127,22 @@ export default function PartsTable({
                 letterSpacing: '0.05em'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🆔</span>
+                  <span>ID</span>
+                </div>
+              </th>
+              <th style={{
+                padding: '16px 24px',
+                textAlign: 'left',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: '#374151',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>🏷️</span>
-                  <span>Mã SP</span>
+                  <span>Mã sản phẩm</span>
                 </div>
               </th>
               <th style={{
@@ -264,6 +278,35 @@ export default function PartsTable({
                       width: '8px',
                       height: '8px',
                       borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #6b7280 0%, #374151 100%)'
+                    }} />
+                    <span style={{
+                      fontFamily: 'monospace',
+                      background: '#f3f4f6',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      color: '#6b7280'
+                    }}>
+                      {part.id}
+                    </span>
+                  </div>
+                </td>
+                <td style={{
+                  padding: '20px 24px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  color: '#1f2937'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
                       background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
                     }} />
                     <span style={{
@@ -273,7 +316,7 @@ export default function PartsTable({
                       borderRadius: '4px',
                       fontSize: '12px'
                     }}>
-                      {part.id}
+                      {part.partNumber}
                     </span>
                   </div>
                 </td>
