@@ -33,7 +33,12 @@ export type {
 // Booking Services
 export { BookingService } from './bookingService'
 export type {
-  AvailabilityQuery
+  AvailabilityParams,
+  AvailabilityResponse,
+  TimeSlotAvailability,
+  TechnicianAvailability,
+  ReservationRequest,
+  ReservationResponse
 } from './bookingService'
 
 // Service Management Services
