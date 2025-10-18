@@ -127,7 +127,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
 
             const [centersData, usersData, statsData] = await Promise.all([
                 CenterService.getCenters({ pageSize: 1000 }),
-                UserService.getUsers({ pageSize: 1000 }),
+                UserService.getUsers({ pageSize: 1000, role: 'staff' }),
                 StaffService.getStaffStats()
             ])
 
@@ -1240,7 +1240,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                  }}
                              >
                                  <Plus size={16} />
-                                 Thêm mới
+                                 Phân công
                              </button>
                          </div>
                     </div>
