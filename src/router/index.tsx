@@ -37,7 +37,6 @@ const TechnicianChecklists = lazy(() => import('@/views/Technician/Checklists'))
 const TechnicianPartsRequest = lazy(() => import('@/views/Technician/PartsRequest'))
 const AdminDashboard = lazy(() => import('@/views/Admin/Dashboard'))
 const AdminReports = lazy(() => import('@/views/Admin/Reports'))
-const AdminStaffManagement = lazy(() => import('@/views/Admin/StaffManagement'))
 const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
@@ -114,7 +113,7 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<AdminDashboard />) },
       { path: 'users', element: suspense(<Users />) },
       { path: 'reports', element: suspense(<AdminReports />) },
-      { path: 'staff-management', element: suspense(<AdminStaffManagement />) },
+
     ],
   },
   // Auth routes without header/footer

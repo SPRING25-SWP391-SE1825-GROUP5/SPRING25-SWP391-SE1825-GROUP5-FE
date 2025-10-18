@@ -121,6 +121,7 @@ import ServicesManagement from '../../components/manager/ServicesManagement'
 import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
 
 import CenterManagement from '../../components/admin/CenterManagement'
+import StaffManagement from '../../components/admin/StaffManagement'
 
 import { useAppSelector } from '@/store/hooks'
 
