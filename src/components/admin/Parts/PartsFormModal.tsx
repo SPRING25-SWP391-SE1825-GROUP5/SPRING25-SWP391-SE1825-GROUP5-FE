@@ -31,6 +31,7 @@ const suppliers = [
 
 export default function PartsFormModal({ isOpen, onClose, onSubmit, editingPart }: PartsFormModalProps) {
   const [formData, setFormData] = useState<PartFormData>({
+    partNumber: '',
     name: '',
     category: '',
     stock: 0,
@@ -43,6 +44,7 @@ export default function PartsFormModal({ isOpen, onClose, onSubmit, editingPart 
   useEffect(() => {
     if (editingPart) {
       setFormData({
+        partNumber: editingPart.partNumber,
         name: editingPart.name,
         category: editingPart.category,
         stock: editingPart.stock,
@@ -51,6 +53,7 @@ export default function PartsFormModal({ isOpen, onClose, onSubmit, editingPart 
       })
     } else {
       setFormData({
+        partNumber: '',
         name: '',
         category: '',
         stock: 0,
@@ -63,6 +66,10 @@ export default function PartsFormModal({ isOpen, onClose, onSubmit, editingPart 
 
   const validateForm = (): boolean => {
     const newErrors: Partial<PartFormData> = {}
+
+    if (!formData.partNumber.trim()) {
+      newErrors.partNumber = 'Mã sản phẩm là bắt buộc'
+    }
 
     if (!formData.name.trim()) {
       newErrors.name = 'Tên sản phẩm là bắt buộc'
@@ -247,6 +254,90 @@ export default function PartsFormModal({ isOpen, onClose, onSubmit, editingPart 
         </div>
 
         <form onSubmit={handleSubmit} style={{ position: 'relative' }}>
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '15px',
+              fontWeight: '700',
+              color: '#374151',
+              marginBottom: '10px'
+            }}>
+              <span style={{
+                width: '20px',
+                height: '20px',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: '#ffffff'
+              }}>🏷️</span>
+              Mã sản phẩm *
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={formData.partNumber}
+                onChange={(e) => handleInputChange('partNumber', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: `2px solid ${errors.partNumber ? '#ef4444' : '#e5e7eb'}`,
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  outline: 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  background: '#ffffff',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                  fontWeight: '500',
+                  fontFamily: 'monospace'
+                }}
+                placeholder="Nhập mã sản phẩm..."
+                onFocus={(e) => {
+                  e.target.style.borderColor = errors.partNumber ? '#ef4444' : '#8b5cf6'
+                  e.target.style.boxShadow = errors.partNumber 
+                    ? '0 0 0 3px rgba(239, 68, 68, 0.1)' 
+                    : '0 0 0 3px rgba(139, 92, 246, 0.1)'
+                  e.target.style.transform = 'translateY(-1px)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = errors.partNumber ? '#ef4444' : '#e5e7eb'
+                  e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                  e.target.style.transform = 'translateY(0)'
+                }}
+              />
+              {formData.partNumber && (
+                <div style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#10b981',
+                  fontSize: '18px'
+                }}>
+                  ✓
+                </div>
+              )}
+            </div>
+            {errors.partNumber && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: '#ef4444',
+                fontSize: '13px',
+                marginTop: '6px',
+                fontWeight: '500'
+              }}>
+                <span>⚠️</span>
+                <span>{errors.partNumber}</span>
+              </div>
+            )}
+          </div>
+
           <div style={{ marginBottom: '24px' }}>
             <label style={{
               display: 'flex',
