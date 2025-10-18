@@ -26,6 +26,7 @@ import {
     BarChart3
 } from 'lucide-react'
 import { StaffService } from '@/services/staffService'
+import { TechnicianService } from '@/services/technicianService'
 import { CenterService } from '@/services/centerService'
 import { UserService } from '@/services/userService'
 import type {
@@ -53,6 +54,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
     const [technicians, setTechnicians] = useState<Technician[]>([])
     const [centers, setCenters] = useState<Center[]>([])
     const [users, setUsers] = useState<any[]>([])
+    const [technicianUsers, setTechnicianUsers] = useState<any[]>([])
 
     const [staffPagination, setStaffPagination] = useState({
         pageNumber: 1,
@@ -125,17 +127,28 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
             setLoading(true)
             setError(null)
 
-            const [centersData, usersData, statsData] = await Promise.all([
+            const [centersData, staffUsersData, technicianUsersData, staffStatsData, technicianStatsData] = await Promise.all([
                 CenterService.getCenters({ pageSize: 1000 }),
                 UserService.getUsers({ pageSize: 1000, role: 'staff' }),
-                StaffService.getStaffStats()
+                UserService.getUsers({ pageSize: 1000, role: 'technician' }),
+                StaffService.getStaffStats(),
+                TechnicianService.getStats()
             ])
 
             setCenters(centersData.centers)
-            setUsers(usersData.data.users)
-            setStats(statsData)
+            setUsers(staffUsersData.data.users)
+            setTechnicianUsers(technicianUsersData.data.users)
+            
+            // Kết hợp thống kê từ staff và technician
+            setStats({
+                ...staffStatsData,
+                totalTechnicians: technicianStatsData.totalTechnicians,
+                activeTechnicians: technicianStatsData.activeTechnicians,
+                inactiveTechnicians: technicianStatsData.inactiveTechnicians
+            })
 
-            console.log('Users data:', usersData.data.users)
+            console.log('Staff users data:', staffUsersData.data.users)
+            console.log('Technician users data:', technicianUsersData.data.users)
             console.log('Centers data:', centersData.centers)
 
         } catch (err: any) {
@@ -172,17 +185,32 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
         try {
             setLoading(true)
 
-            const response = await StaffService.getTechnicianList({
-                ...technicianFilters,
-                pageNumber: technicianPagination.pageNumber,
-                pageSize: technicianPagination.pageSize
-            })
+            const [response, statsData] = await Promise.all([
+                TechnicianService.list({
+                    pageNumber: technicianPagination.pageNumber,
+                    pageSize: technicianPagination.pageSize,
+                    searchTerm: technicianFilters.searchTerm || undefined,
+                    centerId: technicianFilters.centerId || undefined
+                }),
+                TechnicianService.getStats()
+            ])
 
-            setTechnicians(response.data.technicians)
+            // Cập nhật danh sách technician
+            setTechnicians(response.technicians)
+            
+            // Cập nhật thông tin pagination
             setTechnicianPagination(prev => ({
                 ...prev,
-                totalCount: response.data.totalCount,
-                totalPages: response.data.totalPages
+                totalCount: response.totalCount,
+                totalPages: response.totalPages
+            }))
+
+            // Cập nhật thống kê technician
+            setStats(prev => ({
+                ...prev,
+                totalTechnicians: statsData.totalTechnicians,
+                activeTechnicians: statsData.activeTechnicians,
+                inactiveTechnicians: statsData.inactiveTechnicians
             }))
 
         } catch (err: any) {
@@ -1639,7 +1667,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                     }}
                                 >
                                     <option value="">{loading ? 'Đang tải người dùng...' : 'Chọn người dùng'}</option>
-                                    {users.map(user => (
+                                    {(activeTab === 'staff' ? users : technicianUsers).map(user => (
                                         <option key={user.id || user.userId} value={user.id || user.userId}>
                                             {user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim()} - {user.email}
                                         </option>
