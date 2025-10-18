@@ -65,7 +65,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     if (message.trim()) {
       const newMessage: ChatMessage = {
         id: `user-${Date.now()}`,
-        senderId: user?.userId || 'current-user',
+        senderId: String(user?.userId || 'current-user'),
         senderName: user?.fullName || 'Bạn',
         content: message.trim(),
         timestamp: new Date().toISOString(),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { setActiveConversation, addMessage, setMessages } from '@/store/chatSlice'
+import { setActiveConversation, addMessage, setMessages, setConversations } from '@/store/chatSlice'
 import { ChatService } from '@/services/chatService'
 import ConversationList from './ConversationList'
 import MessageList from './MessageList'
@@ -23,7 +23,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
     activeConversationId: state.chat.activeConversationId,
     conversations: state.chat.conversations,
     messages: state.chat.messages,
-    currentUserId: state.auth.user?.userId || ''
+    currentUserId: String(state.auth.user?.userId || '')
   }))
 
   const [showConversationList, setShowConversationList] = useState(false)
