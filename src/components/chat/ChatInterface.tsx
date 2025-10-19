@@ -11,7 +11,7 @@
  * - Thông tin chi tiết về người dùng
  * - State riêng biệt, không ảnh hưởng đến ChatWidget
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { setConversations, setActiveConversation, addConversation, setMessages } from '@/store/chatSlice'
 import ChatList from './ChatList'
@@ -31,32 +31,37 @@ const ChatInterface: React.FC = () => {
   const { conversations, activeConversationId } = useAppSelector((state) => state.chat)
   const selectedConversation = conversations.find(conv => conv.id === activeConversationId) || null
 
-  const currentUser: ChatUser | null = authUser ? {
-    id: authUser.id?.toString() || '1',
-    name: authUser.fullName || 'Nguyễn Văn A',
-    avatar: authUser.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-    role: 'customer',
-    isOnline: true
-  } : {
-    id: '1',
-    name: 'Nguyễn Văn A',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-    role: 'customer',
-    isOnline: true
-  }
+  const currentUser: ChatUser | null = useMemo(() => {
+    if (authUser) {
+      return {
+        id: authUser.id?.toString() || '1',
+        name: authUser.fullName || 'Nguyễn Văn A',
+        avatar: authUser.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+        role: 'customer',
+        isOnline: true
+      }
+    }
+    return {
+      id: '1',
+      name: 'Nguyễn Văn A',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+      role: 'customer',
+      isOnline: true
+    }
+  }, [authUser?.id, authUser?.fullName, authUser?.avatar])
 
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.id) {
       loadConversations()
     }
-  }, [currentUser])
+  }, [currentUser?.id])
 
   const loadConversations = async () => {
     try {
       const convs = await ChatService.getConversations()
       dispatch(setConversations(convs))
-      if (convs.length > 0 && !activeConversationId) {
+      if (convs.length > 0 && (!activeConversationId || !convs.some(c => c.id === activeConversationId))) {
         dispatch(setActiveConversation(convs[0].id))
       }
     } catch (error) {

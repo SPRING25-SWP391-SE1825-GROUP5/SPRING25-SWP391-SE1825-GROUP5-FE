@@ -9,9 +9,23 @@ import type {
 } from '@/types/chat'
 
 export class ChatService {
+  // Simple de-duplication and throttling for conversation fetches
+  private static inFlightConversations?: Promise<ChatConversation[]>
+  private static lastConversationsAt = 0
+  private static cachedConversations: ChatConversation[] = []
+  private static readonly CONVERSATIONS_TTL_MS = 3000
   // Get all conversations for current user
   static async getConversations(): Promise<ChatConversation[]> {
-    try {
+    const now = Date.now()
+    // Return cached data within TTL to avoid burst requests
+    if (now - ChatService.lastConversationsAt < ChatService.CONVERSATIONS_TTL_MS && ChatService.cachedConversations.length) {
+      return ChatService.cachedConversations
+    }
+    // Return in-flight promise if a request is already running
+    if (ChatService.inFlightConversations) {
+      return ChatService.inFlightConversations
+    }
+    ChatService.inFlightConversations = (async () => {
       const response = await api.get('/conversation/my-conversations')
       const items: any[] = response?.data?.data || []
       return items.map((c: any) => {
@@ -60,9 +74,17 @@ export class ChatService {
         }
         return conv
       })
+    })()
+    try {
+      const data = await ChatService.inFlightConversations
+      ChatService.cachedConversations = data
+      ChatService.lastConversationsAt = Date.now()
+      return data
     } catch (error) {
       console.error('Error fetching conversations:', error)
       throw error
+    } finally {
+      ChatService.inFlightConversations = undefined
     }
   }
 
