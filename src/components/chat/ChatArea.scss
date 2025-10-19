@@ -22,9 +22,10 @@
 
       h3 {
         margin: 0 0 0.5rem 0;
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #004030; // Primary 500 - dark green
+        font-size: 1.75rem; // Larger for emphasis
+        font-weight: 700;
+        color: #ffffff; // White for contrast on dark gradient
+        font-family: var(--font-family-primary, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji");
       }
 
       p {
@@ -303,6 +304,13 @@
         padding: 0.75rem 1rem;
         position: relative;
         word-wrap: break-word;
+
+          .message-sender {
+            margin: 0 0 0.25rem 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #065f4f; // Dark green tone for sender name
+          }
 
         p {
           margin: 0 0 0.25rem 0;

@@ -54,17 +54,10 @@ const ChatInterface: React.FC = () => {
 
   const loadConversations = async () => {
     try {
-      // Use mock data for demo
-      dispatch(setConversations(mockConversations))
-      
-      // Load mock messages for each conversation
-      Object.entries(mockMessages).forEach(([conversationId, messages]) => {
-        dispatch(setMessages({ conversationId, messages }))
-      })
-      
-      // Set first conversation as active if none selected
-      if (mockConversations.length > 0 && !activeConversationId) {
-        dispatch(setActiveConversation(mockConversations[0].id))
+      const convs = await ChatService.getConversations()
+      dispatch(setConversations(convs))
+      if (convs.length > 0 && !activeConversationId) {
+        dispatch(setActiveConversation(convs[0].id))
       }
     } catch (error) {
       console.error('Error loading conversations:', error)

@@ -137,6 +137,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     // Đảm bảo so sánh string với string
     const isCurrentUser = String(message.senderId) === String(currentUser.id)
     const isLink = message.type === 'link' && message.content.includes('http')
+    const senderDisplayName = message.senderName || (isCurrentUser ? currentUser.name : getOtherParticipant()?.name || 'Người dùng')
     
     // Logic: tin nhắn có senderId '1' (user) hiển thị bên phải, còn lại bên trái
     const isUserMessage = message.senderId === '1'
@@ -144,6 +145,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     return (
       <div key={message.id} className={`message ${isUserMessage ? 'message--sent' : 'message--received'}`}>
         <div className="message-content">
+          <div className="message-sender">{senderDisplayName}</div>
           {isLink && message.content.includes('youtube.com') ? (
             <div className="link-preview">
               <div className="link-content">
@@ -175,8 +177,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       <div className="chat-area">
         <div className="chat-area__empty">
           <div className="empty-state">
-            <h3>Chọn một cuộc trò chuyện</h3>
-            <p>Bắt đầu trò chuyện với nhân viên hỗ trợ</p>
+            <h3 style={{ color: '#ffffff' }}>Chọn một cuộc trò chuyện</h3>
           </div>
         </div>
       </div>

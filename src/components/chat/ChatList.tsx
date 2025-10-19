@@ -80,21 +80,26 @@ const ChatList: React.FC<ChatListProps> = ({
     }
   }, [])
 
+  const authUser = useAppSelector((state) => state.auth.user)
+
   const getParticipantName = useCallback((conversation: ChatConversation) => {
-    const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
-    return otherParticipant?.name || 'Unknown'
-  }, [])
+    // Ưu tiên hiển thị tên người KHÁC người dùng hiện tại
+    const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
+    const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
+    return otherParticipant?.name || conversation.participants[0]?.name || 'Người dùng'
+  }, [authUser?.id, authUser?.userId])
 
   const getParticipantAvatar = useCallback((conversation: ChatConversation) => {
-    const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
+    const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
+    const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
     return otherParticipant?.avatar || '/default-avatar.png'
-  }, [])
+  }, [authUser?.id, authUser?.userId])
 
   const getParticipantRole = useCallback((conversation: ChatConversation) => {
-    // Find the participant that is not the current user (customer)
-    const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
-    return otherParticipant?.role || 'staff'
-  }, [])
+    const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
+    const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
+    return otherParticipant?.role || 'customer'
+  }, [authUser?.id, authUser?.userId])
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -107,10 +112,11 @@ const ChatList: React.FC<ChatListProps> = ({
 
   const getRoleLabel = useCallback((role: string) => {
     switch (role) {
+      case 'customer': return 'Khách hàng'
       case 'technician': return 'Kỹ thuật viên'
       case 'staff': return 'Nhân viên'
       case 'admin': return 'Quản trị viên'
-      default: return 'Nhân viên'
+      default: return 'Khách hàng'
     }
   }, [])
 
