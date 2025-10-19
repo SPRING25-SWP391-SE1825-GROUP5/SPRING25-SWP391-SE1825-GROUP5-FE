@@ -9,14 +9,82 @@ import type {
 } from '@/types/chat'
 
 export class ChatService {
+  // Simple de-duplication and throttling for conversation fetches
+  private static inFlightConversations?: Promise<ChatConversation[]>
+  private static lastConversationsAt = 0
+  private static cachedConversations: ChatConversation[] = []
+  private static readonly CONVERSATIONS_TTL_MS = 3000
   // Get all conversations for current user
   static async getConversations(): Promise<ChatConversation[]> {
+    const now = Date.now()
+    // Return cached data within TTL to avoid burst requests
+    if (now - ChatService.lastConversationsAt < ChatService.CONVERSATIONS_TTL_MS && ChatService.cachedConversations.length) {
+      return ChatService.cachedConversations
+    }
+    // Return in-flight promise if a request is already running
+    if (ChatService.inFlightConversations) {
+      return ChatService.inFlightConversations
+    }
+    ChatService.inFlightConversations = (async () => {
+      const response = await api.get('/conversation/my-conversations')
+      const items: any[] = response?.data?.data || []
+      return items.map((c: any) => {
+        const convId = String(c.id || c.conversationId || c.conversationID || c.ConversationId)
+        const members: any[] = c.members || c.participants || []
+        const participants = members.map((m: any) => {
+          const inferredId = m.userId || m.id || m.memberId || m.UserId || m.MemberId || m.user?.id || m.user?.userId
+          const inferredName = m.userName || m.userFullName || m.fullName || m.name || m.UserFullName || m.FullName || m.user?.fullName || m.user?.full_name || m.user?.name || m.profile?.fullName
+          const inferredAvatar = m.userAvatar || m.avatarUrl || m.avatar || m.user?.avatarUrl || m.user?.avatar
+          const roleRaw = (m.roleInConversation || m.role || m.RoleInConversation || '').toString().toUpperCase()
+          const mappedRole = roleRaw === 'CUSTOMER' ? 'customer' : roleRaw.includes('TECH') ? 'technician' : roleRaw.includes('STAFF') ? 'staff' : roleRaw.includes('ADMIN') ? 'admin' : 'customer'
+
+          return {
+            id: String(inferredId || ''),
+            name: inferredName || 'Người dùng',
+            avatar: inferredAvatar || undefined,
+            role: mappedRole as any,
+            isOnline: Boolean(m.isOnline || m.isActive || m.user?.isActive),
+          }
+        })
+
+        const lm = c.lastMessage || c.LastMessage || null
+        const lastMessage = lm ? {
+          id: String(lm.messageId || lm.id || ''),
+          conversationId: convId,
+          senderId: String(lm.senderUserId || lm.senderGuestSessionId || ''),
+          senderName: lm.senderName || '',
+          content: lm.content || '',
+          timestamp: lm.createdAt || c.lastMessageAt || c.updatedAt || new Date().toISOString(),
+          type: 'text' as const,
+          isRead: true,
+        } : undefined
+
+        const createdAt = c.createdAt || new Date().toISOString()
+        const updatedAt = c.updatedAt || c.lastMessageAt || createdAt
+
+        const conv: ChatConversation = {
+          id: convId,
+          participants,
+          lastMessage: lastMessage as any,
+          unreadCount: Number(c.unreadCount || 0),
+          isPinned: Boolean(c.isPinned || false),
+          isArchived: Boolean(c.isArchived || false),
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+        }
+        return conv
+      })
+    })()
     try {
-      const response = await api.get('/chat/conversations')
-      return response.data.data || []
+      const data = await ChatService.inFlightConversations
+      ChatService.cachedConversations = data
+      ChatService.lastConversationsAt = Date.now()
+      return data
     } catch (error) {
       console.error('Error fetching conversations:', error)
       throw error
+    } finally {
+      ChatService.inFlightConversations = undefined
     }
   }
 

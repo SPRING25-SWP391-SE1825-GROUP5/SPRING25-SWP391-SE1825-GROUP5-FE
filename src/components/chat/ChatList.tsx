@@ -23,18 +23,10 @@ const ChatList: React.FC<ChatListProps> = ({
   const [loadingAvatars, setLoadingAvatars] = useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const [avatarErrors, setAvatarErrors] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setFilteredConversations(conversations)
-    
-    // Preload images to reduce stuttering
-    conversations.forEach(conversation => {
-      const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
-      if (otherParticipant?.avatar) {
-        const img = new Image()
-        img.src = otherParticipant.avatar
-      }
-    })
   }, [conversations])
 
   const handleSearch = useCallback((query: string) => {
@@ -80,21 +72,32 @@ const ChatList: React.FC<ChatListProps> = ({
     }
   }, [])
 
+  const authUser = useAppSelector((state) => state.auth.user)
+
   const getParticipantName = useCallback((conversation: ChatConversation) => {
-    const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
-    return otherParticipant?.name || 'Unknown'
-  }, [])
+    // Ưu tiên hiển thị tên người KHÁC người dùng hiện tại
+    const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
+    const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
+    return otherParticipant?.name || conversation.participants[0]?.name || 'Người dùng'
+  }, [authUser?.id, authUser?.userId])
 
   const getParticipantAvatar = useCallback((conversation: ChatConversation) => {
-    const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
+    const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
+    const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
+    
+    // If avatar already failed, use data URI placeholder
+    if (avatarErrors.has(conversation.id)) {
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='
+    }
+    
     return otherParticipant?.avatar || '/default-avatar.png'
-  }, [])
+  }, [authUser?.id, authUser?.userId, avatarErrors])
 
   const getParticipantRole = useCallback((conversation: ChatConversation) => {
-    // Find the participant that is not the current user (customer)
-    const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
-    return otherParticipant?.role || 'staff'
-  }, [])
+    const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
+    const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
+    return otherParticipant?.role || 'customer'
+  }, [authUser?.id, authUser?.userId])
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -107,10 +110,11 @@ const ChatList: React.FC<ChatListProps> = ({
 
   const getRoleLabel = useCallback((role: string) => {
     switch (role) {
+      case 'customer': return 'Khách hàng'
       case 'technician': return 'Kỹ thuật viên'
       case 'staff': return 'Nhân viên'
       case 'admin': return 'Quản trị viên'
-      default: return 'Nhân viên'
+      default: return 'Khách hàng'
     }
   }, [])
 
@@ -124,13 +128,25 @@ const ChatList: React.FC<ChatListProps> = ({
 
   const handleImageError = useCallback((conversationId: string, e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement
+    
+    // Prevent infinite loop by checking if we already tried the fallback
+    if (avatarErrors.has(conversationId)) {
+      // Use a data URI placeholder instead of another file request
+      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='
+      return
+    }
+    
+    // Mark this conversation as having avatar error to prevent retry loop
+    setAvatarErrors(prev => new Set(prev).add(conversationId))
+    
+    // Try fallback image only once
     target.src = '/default-avatar.png'
     setLoadingAvatars(prev => {
       const newSet = new Set(prev)
       newSet.delete(conversationId)
       return newSet
     })
-  }, [])
+  }, [avatarErrors])
 
   const handleImageLoadStart = useCallback((conversationId: string) => {
     setLoadingAvatars(prev => new Set(prev).add(conversationId))
@@ -294,7 +310,7 @@ const ChatList: React.FC<ChatListProps> = ({
                   <img 
                     src={conversation.participantAvatar} 
                     alt={conversation.participantName}
-                    onLoadStart={() => handleImageLoadStart(conversation.id)}
+                    loading="lazy"
                     onLoad={() => handleImageLoad(conversation.id)}
                     onError={(e) => handleImageError(conversation.id, e)}
                     style={{
