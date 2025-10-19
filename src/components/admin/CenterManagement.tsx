@@ -5,9 +5,20 @@ import {
   X, 
   Plus, 
   CheckCircle, 
-  Search 
+  Search,
+  Eye,
+  Users,
+  Wrench,
+  Circle,
+  AlertCircle,
+  Building2,
+  UserX,
+  WrenchIcon,
+  RotateCcw
 } from 'lucide-react'
 import { CenterService, type Center, type CenterListParams } from '../../services/centerService'
+import { StaffService } from '../../services/staffService'
+import { TechnicianService } from '../../services/technicianService'
 
 export default function CenterManagement() {
   const [centers, setCenters] = useState<Center[]>([])
@@ -39,6 +50,21 @@ export default function CenterManagement() {
   })
   
   const [togglingCenterId, setTogglingCenterId] = useState<number | null>(null)
+  
+  // Detail modal states
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [selectedCenterDetail, setSelectedCenterDetail] = useState<Center | null>(null)
+  const [centerStaff, setCenterStaff] = useState<any[]>([])
+  const [centerTechnicians, setCenterTechnicians] = useState<any[]>([])
+  const [loadingDetails, setLoadingDetails] = useState(false)
+  
+  // Stats states
+  const [stats, setStats] = useState({
+    totalCenters: 0,
+    activeCenters: 0,
+    inactiveCenters: 0
+  })
+  const [loadingStats, setLoadingStats] = useState(false)
 
   // Real-time validation
   const validateField = (field: string, value: string) => {
@@ -75,6 +101,31 @@ export default function CenterManagement() {
     }
     
     setFieldErrors(errors)
+  }
+
+  const fetchStats = async () => {
+    try {
+      setLoadingStats(true)
+      
+      // Fetch all centers for stats
+      const allCentersResponse = await CenterService.getCenters({ pageNumber: 1, pageSize: 1000 })
+      const allCenters = allCentersResponse?.centers || []
+      
+      // Calculate center stats
+      const totalCenters = allCenters.length
+      const activeCenters = allCenters.filter(center => center.isActive).length
+      const inactiveCenters = totalCenters - activeCenters
+      
+      setStats({
+        totalCenters,
+        activeCenters,
+        inactiveCenters
+      })
+    } catch (err: any) {
+      console.error('Error fetching stats:', err)
+    } finally {
+      setLoadingStats(false)
+    }
   }
 
   const fetchCenters = async () => {
@@ -241,8 +292,31 @@ export default function CenterManagement() {
     }
   }
 
+  const openDetailModal = async (center: Center) => {
+    try {
+      setSelectedCenterDetail(center)
+      setDetailModalOpen(true)
+      setLoadingDetails(true)
+      
+      // Fetch staff and technicians for this center
+      const [staffResponse, technicianResponse] = await Promise.all([
+        StaffService.getStaffList({ centerId: center.centerId, pageSize: 1000 }),
+        TechnicianService.list({ centerId: center.centerId, pageSize: 1000 })
+      ])
+      
+      setCenterStaff(staffResponse.data.staff || [])
+      setCenterTechnicians(technicianResponse.technicians || [])
+    } catch (err: any) {
+      console.error('Error fetching center details:', err)
+      alert(`Lỗi khi tải chi tiết trung tâm: ${err.message || 'Unknown error'}`)
+    } finally {
+      setLoadingDetails(false)
+    }
+  }
+
   useEffect(() => {
     fetchCenters()
+    fetchStats()
   }, [page, pageSize, searchTerm, city, onlyActive])
 
   return (
@@ -323,6 +397,150 @@ export default function CenterManagement() {
             <Plus size={18} />
             Thêm trung tâm
           </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '20px',
+        marginBottom: '32px'
+      }}>
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '16px',
+          border: '1px solid var(--border-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          transition: 'all 0.2s ease'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <Building2 size={20} />
+            </div>
+            <div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500'
+              }}>
+                Tổng trung tâm
+              </div>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: 'var(--text-primary)'
+              }}>
+                {loadingStats ? '...' : stats.totalCenters}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '16px',
+          border: '1px solid var(--border-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          transition: 'all 0.2s ease'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, var(--success-500), var(--success-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <Circle size={20} fill="currentColor" />
+            </div>
+            <div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500'
+              }}>
+                Đang hoạt động
+              </div>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: 'var(--text-primary)'
+              }}>
+                {loadingStats ? '...' : stats.activeCenters}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '16px',
+          border: '1px solid var(--border-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          transition: 'all 0.2s ease'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, var(--error-500), var(--error-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <AlertCircle size={20} fill="currentColor" />
+            </div>
+            <div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500'
+              }}>
+                Ngừng hoạt động
+              </div>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: 'var(--text-primary)'
+              }}>
+                {loadingStats ? '...' : stats.inactiveCenters}
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* Filters */}
@@ -508,7 +726,7 @@ export default function CenterManagement() {
                 e.currentTarget.style.background = 'var(--bg-secondary)'
               }}
             >
-              <Search size={16} />
+              <RotateCcw size={16} />
               Làm mới
             </button>
           </div>
@@ -600,9 +818,9 @@ export default function CenterManagement() {
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              fontSize: '24px'
+              color: 'var(--text-tertiary)'
             }}>
-              🏢
+              <Building2 size={32} />
             </div>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
               Không tìm thấy trung tâm nào
@@ -626,15 +844,6 @@ export default function CenterManagement() {
                   background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
                   color: 'white'
                 }}>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    ID
-                  </th>
                   <th style={{
                     padding: '16px 20px',
                     textAlign: 'left',
@@ -713,14 +922,6 @@ export default function CenterManagement() {
                       color: 'var(--text-primary)',
                       fontWeight: '600'
                     }}>
-                      #{center.centerId}
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      fontWeight: '600'
-                    }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{
                           width: '32px',
@@ -733,7 +934,7 @@ export default function CenterManagement() {
                           color: 'white',
                           flexShrink: 0
                         }}>
-                          <Globe size={16} />
+                          <Building2 size={16} />
                         </div>
                         {center.centerName}
                       </div>
@@ -790,9 +991,20 @@ export default function CenterManagement() {
                         color: center.isActive ? 'var(--success-700)' : 'var(--error-700)',
                         fontSize: '12px',
                         fontWeight: '600',
-                        border: `1px solid ${center.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
+                        border: `1px solid ${center.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
+                        whiteSpace: 'nowrap'
                       }}>
-                        {center.isActive ? '🟢' : '🔴'} {center.isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
+                        {center.isActive ? (
+                          <>
+                            <Circle size={12} fill="currentColor" />
+                            Hoạt động
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle size={12} fill="currentColor" />
+                            Ngừng hoạt động
+                          </>
+                        )}
                       </div>
                     </td>
                     <td style={{
@@ -807,22 +1019,56 @@ export default function CenterManagement() {
                       padding: '16px 20px',
                       textAlign: 'center'
                     }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '8px', 
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); openEditForm(center); }}
+                          onClick={(e) => { e.stopPropagation(); openDetailModal(center); }}
                           style={{
-                            padding: '8px 12px',
+                            padding: '8px',
                             border: '2px solid var(--border-primary)',
                             borderRadius: '8px',
                             background: 'var(--bg-card)',
                             color: 'var(--text-primary)',
                             cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: '600',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px',
-                            transition: 'all 0.2s ease'
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease',
+                            width: '36px',
+                            height: '36px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--primary-500)'
+                            e.currentTarget.style.background = 'var(--primary-50)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--border-primary)'
+                            e.currentTarget.style.background = 'var(--bg-card)'
+                          }}
+                          title="Xem chi tiết trung tâm"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditForm(center); }}
+                          style={{
+                            padding: '8px',
+                            border: '2px solid var(--border-primary)',
+                            borderRadius: '8px',
+                            background: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease',
+                            width: '36px',
+                            height: '36px'
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.borderColor = 'var(--primary-500)'
@@ -834,27 +1080,26 @@ export default function CenterManagement() {
                           }}
                           title="Sửa trung tâm"
                         >
-                          <Edit size={14} />
-                          Sửa
+                          <Edit size={16} />
                         </button>
                         
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleCenterStatus(center.centerId); }}
                           disabled={togglingCenterId === center.centerId}
                           style={{
-                            padding: '8px 12px',
+                            padding: '8px',
                             border: '2px solid var(--border-primary)',
                             borderRadius: '8px',
                             background: togglingCenterId === center.centerId ? 'var(--text-tertiary)' : 'var(--bg-card)',
                             color: togglingCenterId === center.centerId ? 'var(--text-secondary)' : 'var(--text-primary)',
                             cursor: togglingCenterId === center.centerId ? 'not-allowed' : 'pointer',
-                            fontSize: '12px',
-                            fontWeight: '600',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px',
+                            justifyContent: 'center',
                             transition: 'all 0.2s ease',
-                            opacity: togglingCenterId === center.centerId ? 0.7 : 1
+                            opacity: togglingCenterId === center.centerId ? 0.7 : 1,
+                            width: '36px',
+                            height: '36px'
                           }}
                           onMouseEnter={(e) => {
                             if (togglingCenterId !== center.centerId) {
@@ -870,8 +1115,7 @@ export default function CenterManagement() {
                           }}
                           title={center.isActive ? 'Tắt trung tâm' : 'Bật trung tâm'}
                         >
-                          <CheckCircle size={14} />
-                          {togglingCenterId === center.centerId ? 'Đang cập nhật...' : (center.isActive ? 'Tắt' : 'Bật')}
+                          <CheckCircle size={16} />
                         </button>
                       </div>
                     </td>
@@ -1060,7 +1304,8 @@ export default function CenterManagement() {
                     resize: 'vertical',
                     transition: 'all 0.2s ease',
                     outline: 'none',
-                    fontFamily: 'inherit'
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box'
                   }}
                   placeholder="Nhập địa chỉ trung tâm"
                   onFocus={(e) => {
@@ -1089,7 +1334,8 @@ export default function CenterManagement() {
                   fontSize: '14px', 
                   fontWeight: '600',
                   color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  marginBottom: '8px',
+                  
                 }}>
                   Số điện thoại <span style={{ color: 'var(--error-500)' }}>*</span>
                 </label>
@@ -1108,7 +1354,8 @@ export default function CenterManagement() {
                     color: 'var(--text-primary)', 
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   placeholder="Nhập số điện thoại (VD: 0123456789)"
                   onFocus={(e) => {
@@ -1230,6 +1477,410 @@ export default function CenterManagement() {
                 >
                   {formSubmitting ? 'Đang lưu...' : (formMode === 'create' ? 'Tạo Trung tâm' : 'Cập nhật Trung tâm')}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailModalOpen && selectedCenterDetail && (
+        <div style={{ 
+          position: 'fixed', 
+          inset: 0, 
+          background: 'rgba(0,0,0,0.6)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          zIndex: 2000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{ 
+            background: 'var(--bg-card)', 
+            color: 'var(--text-primary)', 
+            borderRadius: '20px',
+            border: '1px solid var(--border-primary)', 
+            width: '900px', 
+            maxWidth: '95vw', 
+            maxHeight: '90vh',
+            overflow: 'auto',
+            padding: '32px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+            animation: 'modalSlideIn 0.3s ease-out'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '24px',
+              paddingBottom: '16px',
+              borderBottom: '2px solid var(--border-primary)'
+            }}>
+              <div>
+                <h3 style={{ 
+                  margin: '0 0 4px 0', 
+                  fontSize: '24px', 
+                  fontWeight: '700',
+                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  Chi tiết Trung tâm
+                </h3>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '14px', 
+                  color: 'var(--text-secondary)' 
+                }}>
+                  {selectedCenterDetail.centerName}
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailModalOpen(false)}
+                style={{ 
+                  border: 'none', 
+                  background: 'var(--bg-secondary)', 
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--error-50)'
+                  e.currentTarget.style.color = 'var(--error-600)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-secondary)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Center Info */}
+            <div style={{
+              background: 'var(--bg-secondary)',
+              padding: '20px',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <h4 style={{ 
+                margin: '0 0 16px 0', 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: 'var(--text-primary)'
+              }}>
+                Thông tin Trung tâm
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tên trung tâm</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedCenterDetail.centerName}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Số điện thoại</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedCenterDetail.phoneNumber}
+                  </div>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Địa chỉ</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedCenterDetail.address}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Trạng thái</div>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    background: selectedCenterDetail.isActive ? 'var(--success-50)' : 'var(--error-50)',
+                    color: selectedCenterDetail.isActive ? 'var(--success-700)' : 'var(--error-700)',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    border: `1px solid ${selectedCenterDetail.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
+                  }}>
+                    {selectedCenterDetail.isActive ? (
+                      <>
+                        <Circle size={12} fill="currentColor" />
+                        Hoạt động
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={12} fill="currentColor" />
+                        Ngừng hoạt động
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày tạo</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {new Date(selectedCenterDetail.createdAt).toLocaleDateString('vi-VN')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Staff and Technicians */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              {/* Staff Section */}
+              <div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  marginBottom: '16px' 
+                }}>
+                  <Users size={20} style={{ color: 'var(--primary-500)' }} />
+                  <h4 style={{ 
+                    margin: 0, 
+                    fontSize: '18px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)'
+                  }}>
+                    Nhân viên ({centerStaff.length})
+                  </h4>
+                </div>
+                
+                {loadingDetails ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px', 
+                    color: 'var(--text-secondary)' 
+                  }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      border: '3px solid var(--border-primary)',
+                      borderTop: '3px solid var(--primary-500)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      margin: '0 auto 16px'
+                    }} />
+                    <p style={{ margin: 0, fontSize: '14px' }}>Đang tải nhân viên...</p>
+                  </div>
+                ) : centerStaff.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px', 
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-primary)'
+                  }}>
+                    <UserX size={32} style={{ margin: '0 auto 12px', opacity: 0.5, color: 'var(--text-tertiary)' }} />
+                    <p style={{ margin: 0, fontSize: '14px' }}>Chưa có nhân viên nào</p>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    maxHeight: '300px', 
+                    overflow: 'auto',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-primary)'
+                  }}>
+                    {centerStaff.map((staff, index) => (
+                      <div key={staff.staffId || index} style={{
+                        padding: '16px',
+                        borderBottom: index < centerStaff.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '16px',
+                          fontWeight: '600'
+                        }}>
+                          {staff.userFullName?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            fontSize: '14px', 
+                            fontWeight: '600', 
+                            color: 'var(--text-primary)',
+                            marginBottom: '2px'
+                          }}>
+                            {staff.userFullName || 'Không có tên'}
+                          </div>
+                          <div style={{ 
+                            fontSize: '12px', 
+                            color: 'var(--text-secondary)'
+                          }}>
+                            ID: {staff.staffId}
+                          </div>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          background: staff.isActive ? 'var(--success-50)' : 'var(--error-50)',
+                          color: staff.isActive ? 'var(--success-700)' : 'var(--error-700)',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          border: `1px solid ${staff.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
+                        }}>
+                          {staff.isActive ? (
+                            <>
+                              <Circle size={8} fill="currentColor" />
+                              Hoạt động
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle size={8} fill="currentColor" />
+                              Không hoạt động
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Technicians Section */}
+              <div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  marginBottom: '16px' 
+                }}>
+                  <Wrench size={20} style={{ color: 'var(--primary-500)' }} />
+                  <h4 style={{ 
+                    margin: 0, 
+                    fontSize: '18px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)'
+                  }}>
+                    Kỹ thuật viên ({centerTechnicians.length})
+                  </h4>
+                </div>
+                
+                {loadingDetails ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px', 
+                    color: 'var(--text-secondary)' 
+                  }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      border: '3px solid var(--border-primary)',
+                      borderTop: '3px solid var(--primary-500)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      margin: '0 auto 16px'
+                    }} />
+                    <p style={{ margin: 0, fontSize: '14px' }}>Đang tải kỹ thuật viên...</p>
+                  </div>
+                ) : centerTechnicians.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px', 
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-primary)'
+                  }}>
+                    <WrenchIcon size={32} style={{ margin: '0 auto 12px', opacity: 0.5, color: 'var(--text-tertiary)' }} />
+                    <p style={{ margin: 0, fontSize: '14px' }}>Chưa có kỹ thuật viên nào</p>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    maxHeight: '300px', 
+                    overflow: 'auto',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-primary)'
+                  }}>
+                    {centerTechnicians.map((technician, index) => (
+                      <div key={technician.technicianId || index} style={{
+                        padding: '16px',
+                        borderBottom: index < centerTechnicians.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '16px',
+                          fontWeight: '600'
+                        }}>
+                          {technician.userFullName?.charAt(0)?.toUpperCase() || 'T'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            fontSize: '14px', 
+                            fontWeight: '600', 
+                            color: 'var(--text-primary)',
+                            marginBottom: '2px'
+                          }}>
+                            {technician.userFullName || 'Không có tên'}
+                          </div>
+                          <div style={{ 
+                            fontSize: '12px', 
+                            color: 'var(--text-secondary)'
+                          }}>
+                            ID: {technician.technicianId}
+                          </div>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          background: technician.isActive ? 'var(--success-50)' : 'var(--error-50)',
+                          color: technician.isActive ? 'var(--success-700)' : 'var(--error-700)',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          border: `1px solid ${technician.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
+                        }}>
+                          {technician.isActive ? (
+                            <>
+                              <Circle size={8} fill="currentColor" />
+                              Hoạt động
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle size={8} fill="currentColor" />
+                              Không hoạt động
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
