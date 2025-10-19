@@ -1,0 +1,89 @@
+.star-rating {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &--readonly {
+    pointer-events: none;
+  }
+
+  &--sm {
+    .star-rating__star {
+      padding: 2px;
+    }
+  }
+
+  &--md {
+    .star-rating__star {
+      padding: 4px;
+    }
+  }
+
+  &--lg {
+    .star-rating__star {
+      padding: 6px;
+    }
+  }
+
+  &__label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  &__container {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+
+  &__star {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #000000; /* Màu đen cho stars chưa active */
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      color: #FFC107; /* Màu vàng cam khi hover */
+      transform: scale(1.1);
+    }
+
+    &--active {
+      color: #FFC107; /* Màu vàng cam cho stars đã được chọn */
+    }
+
+    &:disabled {
+      cursor: default;
+      
+      &:hover {
+        transform: none;
+      }
+    }
+  }
+
+  &__text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .star-rating {
+    &__star {
+      color: var(--border-primary);
+      
+      &--active {
+        color: var(--warning-400);
+      }
+    }
+  }
+}
