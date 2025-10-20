@@ -22,7 +22,7 @@ export type TechnicianListResponse = {
 export const TechnicianService = {
     async list(params: { pageNumber?: number; pageSize?: number; searchTerm?: string; centerId?: number } = {}) {
         const { data } = await api.get('/Technician', { params })
-                if (data?.success && data?.data) {
+        if (data?.success && data?.data) {
             return {
                 technicians: data.data.technicians || data.data,
                 totalCount: data.data.totalCount || 0,
@@ -31,12 +31,12 @@ export const TechnicianService = {
                 totalPages: data.data.totalPages || 0
             }
         }
-        
+
         // Fallback: trả về array trực tiếp
         if (Array.isArray(data?.data)) return { technicians: data.data, totalCount: data.data.length, pageNumber: 1, pageSize: 10, totalPages: 1 }
         if (Array.isArray(data)) return { technicians: data, totalCount: data.length, pageNumber: 1, pageSize: 10, totalPages: 1 }
         if (Array.isArray(data?.data?.technicians)) return { technicians: data.data.technicians, totalCount: data.data.technicians.length, pageNumber: 1, pageSize: 10, totalPages: 1 }
-        
+
         return { technicians: [], totalCount: 0, pageNumber: 1, pageSize: 10, totalPages: 0 }
     },
 
@@ -44,7 +44,7 @@ export const TechnicianService = {
     async getStats() {
         try {
             const { data } = await api.get('/Technician', { params: { pageSize: 1 } })
-            
+
             if (data?.success && data?.data) {
                 return {
                     totalTechnicians: data.data.totalCount || 0,
@@ -52,7 +52,7 @@ export const TechnicianService = {
                     inactiveTechnicians: data.data.technicians?.filter((t: any) => !t.isActive).length || 0
                 }
             }
-            
+
             return {
                 totalTechnicians: 0,
                 activeTechnicians: 0,
@@ -66,6 +66,40 @@ export const TechnicianService = {
                 inactiveTechnicians: 0
             }
         }
+    },
+
+    // Availability by center and date
+    async getCenterTechniciansAvailability(centerId: number, date: string, extra?: { serviceId?: number }) {
+        const endpoint = `/Technician/centers/${centerId}/technicians/availability`
+        const candidates = [
+            { date, serviceId: extra?.serviceId },
+            { workDate: date, serviceId: extra?.serviceId },
+            { date },
+            { workDate: date },
+        ]
+        let lastErr: any
+        for (const params of candidates) {
+            try {
+                const { data } = await api.get(endpoint, { params })
+                return data
+            } catch (e: any) {
+                lastErr = e
+                if (e?.response?.status && e.response.status >= 500) break
+            }
+        }
+        throw lastErr
+    },
+
+    // Availability of a technician for a date
+    async getTechnicianAvailability(technicianId: number, date: string) {
+        const { data } = await api.get(`/Technician/${technicianId}/availability`, { params: { date } })
+        return data
+    },
+
+    // Time slots of a technician (optional date filter)
+    async getTechnicianTimeSlots(technicianId: number, date?: string) {
+        const { data } = await api.get(`/Technician/${technicianId}/timeslots`, { params: { date } })
+        return data
     },
 }
 

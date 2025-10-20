@@ -1,4 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Center, CenterService } from '@/services/centerService'
+import { getCenterAvailability } from '@/services/bookingFlowService'
+import { TechnicianService, TechnicianListItem } from '@/services/technicianService'
 
 interface LocationTimeInfo {
   centerId: string
@@ -6,6 +9,7 @@ interface LocationTimeInfo {
   address?: string
   date: string
   time: string
+  technicianSlotId?: number
 }
 
 interface LocationTimeStepProps {
@@ -20,19 +24,31 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const [month, setMonth] = useState<number>(today.getMonth())
   const [year, setYear] = useState<number>(today.getFullYear())
   
-  // Demo danh sách trung tâm với toạ độ (sau sẽ lấy từ API)
-  const centers = [
-    { id: 'ct-1', name: 'AutoEV Center Quận 1', lat: 10.7756587, lng: 106.7004238, query: 'AutoEV Center Quận 1' },
-    { id: 'ct-2', name: 'AutoEV Center Quận 7', lat: 10.737, lng: 106.721, query: 'AutoEV Center Quận 7' },
-    { id: 'ct-3', name: 'AutoEV Center Thủ Đức', lat: 10.849, lng: 106.768, query: 'AutoEV Center Thủ Đức' }
-  ]
+  const [centers, setCenters] = useState<Array<{ id: string; name: string; lat?: number; lng?: number; query: string }>>([])
+  const [slots, setSlots] = useState<Array<{ technicianSlotId: number; slotTime: string; isAvailable: boolean; technicianId?: number }>>([])
+  const [loadingCenters, setLoadingCenters] = useState(false)
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [technicians, setTechnicians] = useState<TechnicianListItem[]>([])
+  const [loadingTechs, setLoadingTechs] = useState(false)
 
-  // Demo technicians
-  const technicians = [
-    { id: 't-1', name: 'Nguyễn Văn A', specialty: 'Pin & Điện', avatar: 'https://i.pravatar.cc/80?img=12' },
-    { id: 't-2', name: 'Trần Văn B', specialty: 'Động cơ & Truyền động', avatar: 'https://i.pravatar.cc/80?img=14' },
-    { id: 't-3', name: 'Lê Văn C', specialty: 'Hệ thống phanh', avatar: 'https://i.pravatar.cc/80?img=16' }
-  ]
+  // Load centers from API
+  useEffect(() => {
+    const loadCenters = async () => {
+      setLoadingCenters(true)
+      try {
+        const res = await CenterService.getActiveCenters()
+        const mapped = (res.centers || []).map((c: Center) => ({ id: String(c.centerId), name: c.centerName, query: c.address }))
+        setCenters(mapped)
+      } catch (e) {
+        setCenters([])
+      } finally {
+        setLoadingCenters(false)
+      }
+    }
+    loadCenters()
+  }, [])
+
+  // Demo technicians removed — now load by center via API
 
   const toRad = (deg: number) => (deg * Math.PI) / 180
   const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -49,15 +65,67 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
     navigator.geolocation.getCurrentPosition((pos) => {
       const { latitude, longitude } = pos.coords
       // Tìm trung tâm gần nhất
-      let best = centers[0]
-      let bestKm = haversineKm(latitude, longitude, centers[0].lat, centers[0].lng)
-      for (let i = 1; i < centers.length; i++) {
-        const km = haversineKm(latitude, longitude, centers[i].lat, centers[i].lng)
-        if (km < bestKm) { bestKm = km; best = centers[i] }
+      if (centers.length > 0) {
+        const best = centers[0]
+        onUpdate({ centerId: best.id, address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` })
       }
-      onUpdate({ centerId: best.id, address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` })
     })
   }
+
+  // Load availability when center/date/technician changes
+  useEffect(() => {
+    const load = async () => {
+      if (!data.centerId || !data.date) { setSlots([]); return }
+      setLoadingSlots(true)
+      try {
+        // First try new BE endpoint if present
+        try {
+          const centerAvail = await TechnicianService.getCenterTechniciansAvailability(Number(data.centerId), data.date)
+          if (Array.isArray(centerAvail?.technicianSlots)) {
+            setSlots(centerAvail.technicianSlots.map((s: any) => ({ technicianSlotId: s.technicianSlotId, slotTime: s.slotLabel || s.slotTime, isAvailable: s.isAvailable, technicianId: s.technicianId })))
+            return
+          }
+        } catch (_e) { /* fallback below */ }
+
+        // If technician selected: fetch their timeslots to get precise mapping
+        if (data.technicianId) {
+          try {
+            const ts = await TechnicianService.getTechnicianTimeSlots(Number(data.technicianId), data.date)
+            if (Array.isArray(ts)) {
+              setSlots(ts.map((t: any) => ({ technicianSlotId: t.technicianSlotId || t.id || t.slotId, slotTime: t.slotLabel || t.slotTime, isAvailable: t.isAvailable !== false, technicianId: Number(data.technicianId) })))
+              return
+            }
+          } catch (_e) { /* fallback below */ }
+        }
+
+        // Fallback to schedule mapping
+        const resp = await getCenterAvailability(Number(data.centerId), data.date)
+        setSlots((resp.technicianSlots || []).map(s => ({ technicianSlotId: s.technicianSlotId, slotTime: s.slotTime, isAvailable: s.isAvailable })))
+      } catch (e) {
+        setSlots([])
+      } finally {
+        setLoadingSlots(false)
+      }
+    }
+    load()
+  }, [data.centerId, data.date, data.technicianId])
+
+  // Load technicians by center
+  useEffect(() => {
+    const loadTechs = async () => {
+      if (!data.centerId) { setTechnicians([]); return }
+      setLoadingTechs(true)
+      try {
+        const res = await TechnicianService.list({ centerId: Number(data.centerId), pageSize: 100 })
+        setTechnicians(res.technicians || [])
+      } catch (_e) {
+        setTechnicians([])
+      } finally {
+        setLoadingTechs(false)
+      }
+    }
+    loadTechs()
+  }, [data.centerId])
 
   const days = useMemo(() => {
     const firstDay = new Date(year, month, 1)
@@ -140,17 +208,19 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         <div className="form-group lt-tech">
           <label>Kỹ thuật viên *</label>
           <div className="tech-list">
-            {technicians.map(t => (
+            {loadingTechs && <div>Đang tải kỹ thuật viên...</div>}
+            {!loadingTechs && technicians.length === 0 && (
+              <div style={{ color: '#9ca3af', padding: '8px 0' }}>Hiện trung tâm chưa có kỹ thuật viên khả dụng</div>
+            )}
+            {!loadingTechs && technicians.map(t => (
               <button
-                key={t.id}
+                key={t.technicianId}
                 type="button"
-                className={`tech-item ${data.technicianId === t.id ? 'selected' : ''}`}
-                onClick={() => onUpdate({ technicianId: t.id })}
+                className={`tech-item ${data.technicianId === String(t.technicianId) ? 'selected' : ''}`}
+                onClick={() => onUpdate({ technicianId: String(t.technicianId) })}
               >
-                <img src={t.avatar} alt={t.name} className="tech-avatar" />
                 <div className="tech-meta">
-                  <div className="tech-name">{t.name}</div>
-                  <div className="tech-specialty">{t.specialty}</div>
+                  <div className="tech-name">{t.userFullName}</div>
                 </div>
               </button>
             ))}
@@ -186,16 +256,17 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         </div>
         <div className="form-group lt-times">
           <label>Khung giờ *</label>
-          {/* Time slots - demo, sẽ bind API */}
           <div className="time-slots">
-            {['08:00','09:00','10:00','13:00','14:00','15:00','16:00'].map(slot => (
+            {loadingSlots && <div>Đang tải khung giờ...</div>}
+            {!loadingSlots && slots.map(s => (
               <button
-                key={slot}
+                key={s.technicianSlotId}
                 type="button"
-                className={`time-slot ${data.time === slot ? 'selected' : ''}`}
-                onClick={() => onUpdate({ time: slot })}
+                className={`time-slot ${data.technicianSlotId === s.technicianSlotId ? 'selected' : ''}`}
+                onClick={() => s.isAvailable && onUpdate({ time: s.slotTime, technicianSlotId: s.technicianSlotId, technicianId: s.technicianId ? String(s.technicianId) : data.technicianId })}
+                disabled={!s.isAvailable}
               >
-                {slot}
+                {s.slotTime}
               </button>
             ))}
           </div>

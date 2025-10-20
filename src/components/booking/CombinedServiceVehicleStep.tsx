@@ -1,4 +1,8 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { ServiceManagementService, type Service as BackendService } from '@/services/serviceManagementService'
+import { CustomerService } from '@/services/customerService'
+import { VehicleService, type Vehicle } from '@/services/vehicleService'
+import CreateVehicleModal from './CreateVehicleModal'
 
 interface VehicleInfo {
   carModel: string
@@ -28,13 +32,49 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   onNext,
   onPrev
 }) => {
-  const availableServices = [
-    { id: 'battery-check', name: 'Kiểm tra pin' },
-    { id: 'motor-check', name: 'Kiểm tra động cơ' },
-    { id: 'brake-check', name: 'Kiểm tra phanh' },
-    { id: 'tire-check', name: 'Kiểm tra lốp' },
-    { id: 'charging-check', name: 'Kiểm tra hệ thống sạc' }
-  ]
+  const [services, setServices] = useState<BackendService[]>([])
+  const [servicesLoading, setServicesLoading] = useState(false)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [vehiclesLoading, setVehiclesLoading] = useState(false)
+  const [openCreate, setOpenCreate] = useState(false)
+
+  // Load active services
+  useEffect(() => {
+    const loadServices = async () => {
+      setServicesLoading(true)
+      try {
+        const res = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+        setServices(res.services || [])
+      } catch (_e) {
+        setServices([])
+      } finally {
+        setServicesLoading(false)
+      }
+    }
+    loadServices()
+  }, [])
+
+  // Load current customer's vehicles
+  useEffect(() => {
+    const loadVehicles = async () => {
+      setVehiclesLoading(true)
+      try {
+        const me = await CustomerService.getCurrentCustomer()
+        const customerId = me?.data?.customerId
+        if (customerId) {
+          const v = await VehicleService.getCustomerVehicles(customerId)
+          setVehicles(v?.data?.vehicles || [])
+        } else {
+          setVehicles([])
+        }
+      } catch (_e) {
+        setVehicles([])
+      } finally {
+        setVehiclesLoading(false)
+      }
+    }
+    loadVehicles()
+  }, [])
 
   const handleServiceToggle = (serviceId: string) => {
     // Single-select behavior (radio-like): keep at most one service
@@ -62,18 +102,21 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       <form onSubmit={handleSubmit} className="csv-grid">
         <div className="csv-section card">
           <h3 className="csv-section-title">Chọn dịch vụ</h3>
-          <div className="service-list">
-            {availableServices.map(service => (
-              <label key={service.id} className="service-item">
-                <input
-                  type="checkbox"
-                  checked={serviceData.services[0] === service.id}
-                  onChange={() => handleServiceToggle(service.id)}
-                />
-                <span>{service.name}</span>
-              </label>
-            ))}
-          </div>
+          {servicesLoading && <div>Đang tải dịch vụ...</div>}
+          {!servicesLoading && (
+            <div className="service-list">
+              {services.map(service => (
+                <label key={service.id} className="service-item">
+                  <input
+                    type="checkbox"
+                    checked={serviceData.services[0] === String(service.id)}
+                    onChange={() => handleServiceToggle(String(service.id))}
+                  />
+                  <span>{service.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
           <div className="form-group">
             <label>Ghi chú thêm</label>
             <textarea
@@ -86,6 +129,27 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
         <div className="csv-section card">
           <h3 className="csv-section-title">Thông tin xe</h3>
+          {/* Select existing vehicle to autofill */}
+          <div className="form-group">
+            <label>Chọn xe có sẵn</label>
+            <select
+              value={vehicles.find(v => v.licensePlate === vehicleData.licensePlate)?.vehicleId || ''}
+              onChange={(e) => {
+                const vid = Number(e.target.value)
+                const v = vehicles.find(x => x.vehicleId === vid)
+                if (v) {
+                  onUpdateVehicle({ licensePlate: v.licensePlate, carModel: v.vin })
+                }
+              }}
+            >
+              <option value="">—</option>
+              {vehiclesLoading && <option value="" disabled>Đang tải...</option>}
+              {!vehiclesLoading && vehicles.map(v => (
+                <option key={v.vehicleId} value={v.vehicleId}>{v.licensePlate} — {v.vin}</option>
+              ))}
+            </select>
+            <button type="button" className="btn-secondary" onClick={() => setOpenCreate(true)} style={{ marginTop: 8 }}>+ Tạo xe mới</button>
+          </div>
           <div className="form-group">
             <label>Dòng xe *</label>
             <select
@@ -118,6 +182,16 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
             />
           </div>
         </div>
+
+        <CreateVehicleModal
+          open={openCreate}
+          onClose={() => setOpenCreate(false)}
+          onCreated={(veh) => {
+            setVehicles((list) => [veh, ...list])
+            onUpdateVehicle({ licensePlate: veh.licensePlate, carModel: veh.vin })
+            setOpenCreate(false)
+          }}
+        />
 
         <div className="form-actions">
           <button type="button" onClick={onPrev} className="btn-secondary">

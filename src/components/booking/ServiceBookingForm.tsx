@@ -7,6 +7,10 @@ import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
 import LocationTimeStep from './LocationTimeStep'
 import AccountStep from './AccountStep'
 import ConfirmationStep from './ConfirmationStep'
+import { VehicleService } from '@/services/vehicleService'
+import { CustomerService } from '@/services/customerService'
+import { ServiceManagementService } from '@/services/serviceManagementService'
+import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
 
 // Types
 interface CustomerInfo {
@@ -32,6 +36,7 @@ interface LocationTimeInfo {
   address?: string
   date: string
   time: string
+  technicianSlotId?: number
 }
 
 interface AccountInfo {
@@ -185,14 +190,88 @@ const ServiceBookingForm: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      // TODO: Gọi API để tạo booking
-      console.log('Submitting booking data:', bookingData)
-      
-      // Hiển thị thông báo thành công
-      alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
-      
-      // Reset form hoặc redirect
-      // window.location.href = '/booking-success'
+      // Resolve current user -> customerId
+      const me = await CustomerService.getCurrentCustomer()
+      const customerId: number | null = me?.data?.customerId || null
+      if (!customerId) throw new Error('Không xác định được khách hàng')
+
+      // Resolve vehicle: nếu đã có xe theo biển số -> dùng luôn, ngược lại tạo mới
+      const license = bookingData.vehicleInfo.licensePlate.trim()
+      if (!license) throw new Error('Thiếu biển số xe')
+
+      // Thử lấy danh sách xe của khách và tìm theo biển số
+      let vehicleId: number | null = null
+      try {
+        const list = await VehicleService.getCustomerVehicles(customerId)
+        const found = list?.data?.vehicles?.find?.((v: any) => (v.licensePlate || '').toLowerCase() === license.toLowerCase())
+        if (found?.vehicleId) {
+          vehicleId = Number(found.vehicleId)
+        }
+      } catch (_) {}
+
+      // Nếu chưa có, thử API search theo VIN/biển số
+      if (!vehicleId) {
+        try {
+          const sr = await VehicleService.searchVehicle(license)
+          if (sr?.data?.vehicleId) vehicleId = Number(sr.data.vehicleId)
+        } catch (_) {}
+      }
+
+      // Nếu vẫn chưa có, tạo xe mới
+      if (!vehicleId) {
+        const createVeh = await VehicleService.createVehicle({
+          customerId,
+          vin: bookingData.vehicleInfo.carModel || 'UNKNOWN',
+          licensePlate: license,
+          color: 'Unknown',
+          currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
+          lastServiceDate: undefined,
+          purchaseDate: undefined
+        })
+        vehicleId = Number(createVeh?.data?.vehicleId)
+      }
+
+      if (!vehicleId) throw new Error('Không thể xác định VehicleID')
+
+      // Choose serviceId or packageCode
+      let serviceId: number | undefined = undefined
+      if (bookingData.serviceInfo.services.length > 0) {
+        // If UI stored service ids as strings, pick first and map via service list
+        const svcList = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+        const first = svcList.services[0]
+        serviceId = first?.id
+      }
+
+      // Hold slot before creating booking
+      if (!bookingData.locationTimeInfo.technicianSlotId || !bookingData.locationTimeInfo.centerId) {
+        throw new Error('Thiếu slot hoặc trung tâm')
+      }
+      const hold = await holdSlot({
+        centerId: Number(bookingData.locationTimeInfo.centerId),
+        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId)
+      })
+
+      // Create booking
+      const resp = await createBooking({
+        customerId,
+        vehicleId: Number(vehicleId),
+        centerId: Number(bookingData.locationTimeInfo.centerId),
+        bookingDate: bookingData.locationTimeInfo.date,
+        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
+        specialRequests: bookingData.serviceInfo.notes,
+        serviceId,
+        holdId: hold.holdId
+      })
+
+      const bookingId = resp.bookingId
+      // Payment link
+      const link = await createBookingPaymentLink(Number(bookingId))
+      if (link?.checkoutUrl) {
+        window.location.href = link.checkoutUrl
+        return
+      }
+
+      alert('Tạo booking thành công, nhưng không lấy được link thanh toán.')
     } catch (error) {
       console.error('Error submitting booking:', error)
       alert('Có lỗi xảy ra. Vui lòng thử lại.')
