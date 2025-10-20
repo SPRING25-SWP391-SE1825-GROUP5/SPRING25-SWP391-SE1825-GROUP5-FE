@@ -229,3 +229,41 @@ button:focus::after,
   --_connector: var(--progress-connector);
 }
 
+/* ---- Unified Buttons ---- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .75rem 1.25rem;
+  background: var(--primary-500);
+  color: #ffffff;
+  border: 1px solid var(--primary-500);
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.btn-primary:hover { filter: brightness(1.05); box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { background: #e5e7eb; border-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; box-shadow: none; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .7rem 1.15rem;
+  background: transparent;
+  color: var(--primary-500);
+  border: 2px solid var(--primary-500);
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.btn-secondary:hover { background: var(--primary-50); }
+.btn-secondary:active { transform: translateY(1px); }
+.btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+
