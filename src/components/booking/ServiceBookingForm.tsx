@@ -28,9 +28,9 @@ interface ServiceInfo {
 }
 
 interface LocationTimeInfo {
-  province: string
-  ward: string
-  serviceType: 'workshop' | 'mobile'
+  centerId: string
+  technicianId: string
+  address?: string
   date: string
   time: string
 }
@@ -72,9 +72,9 @@ const ServiceBookingForm: React.FC = () => {
       notes: ''
     },
     locationTimeInfo: {
-      province: '',
-      ward: '',
-      serviceType: 'workshop',
+      centerId: '',
+      technicianId: '',
+      address: '',
       date: '',
       time: ''
     },
@@ -109,20 +109,18 @@ const ServiceBookingForm: React.FC = () => {
   // Kiểm tra xem bước hiện tại đã hoàn thành chưa
   const isStepCompleted = (step: number): boolean => {
     if (isGuest) {
-      // Khách vãng lai: 6 bước
+      // Khách vãng lai: 5 bước (dịch vụ -> xe -> địa điểm -> tài khoản -> xác nhận)
       switch (step) {
         case 1:
-          return !!(bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
+          return bookingData.serviceInfo.services.length > 0
         case 2:
           return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
         case 3:
-          return bookingData.serviceInfo.services.length > 0
+          return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 4:
-          return !!(bookingData.locationTimeInfo.province && bookingData.locationTimeInfo.ward && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
+          return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword && bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
         case 5:
-          return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword)
-        case 6:
-          return true // Bước xác nhận luôn có thể hoàn thành
+          return true
         default:
           return false
       }
@@ -134,7 +132,7 @@ const ServiceBookingForm: React.FC = () => {
         case 2:
           return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
         case 3:
-          return !!(bookingData.locationTimeInfo.province && bookingData.locationTimeInfo.ward && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
+          return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 4:
           return true // Bước xác nhận luôn có thể hoàn thành
         default:
@@ -146,7 +144,7 @@ const ServiceBookingForm: React.FC = () => {
   // Cập nhật completed steps khi data thay đổi
   useEffect(() => {
     const newCompletedSteps: number[] = []
-    const maxSteps = isGuest ? 6 : 4
+    const maxSteps = isGuest ? 5 : 4
     for (let i = 1; i <= maxSteps; i++) {
       if (isStepCompleted(i)) {
         newCompletedSteps.push(i)
@@ -156,7 +154,7 @@ const ServiceBookingForm: React.FC = () => {
   }, [bookingData, isGuest])
 
   const handleNext = () => {
-    const maxSteps = isGuest ? 6 : 4
+    const maxSteps = isGuest ? 5 : 4
     if (currentStep < maxSteps) {
       setCurrentStep(currentStep + 1)
     }
@@ -201,17 +199,9 @@ const ServiceBookingForm: React.FC = () => {
   const renderCurrentStep = () => {
     // Logic điều hướng thông minh dựa trên trạng thái đăng nhập
     if (isGuest) {
-      // Khách vãng lai: 6 bước đầy đủ
+      // Khách vãng lai: 5 bước
       switch (currentStep) {
         case 1:
-          return (
-            <CustomerInfoStep
-              data={bookingData.customerInfo}
-              onUpdate={(data) => updateBookingData('customerInfo', data)}
-              onNext={handleNext}
-            />
-          )
-        case 2:
           return (
             <VehicleInfoStep
               data={bookingData.vehicleInfo}
@@ -220,7 +210,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 3:
+        case 2:
           return (
             <ServiceSelectionStep
               data={bookingData.serviceInfo}
@@ -229,7 +219,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 4:
+        case 3:
           return (
             <LocationTimeStep
               data={bookingData.locationTimeInfo}
@@ -238,7 +228,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 5:
+        case 4:
           return (
             <AccountStep
               data={bookingData.accountInfo || { username: '', password: '', confirmPassword: '' }}
@@ -247,7 +237,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 6:
+        case 5:
           return (
             <ConfirmationStep
               data={bookingData}
@@ -309,7 +299,7 @@ const ServiceBookingForm: React.FC = () => {
       {/* Header */}
       <div className="booking-header">
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
-        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ bảo dưỡng xe điện</p>
+        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ xe điện</p>
       </div>
 
       {/* Steps Progress Indicator */}
@@ -331,7 +321,7 @@ const ServiceBookingForm: React.FC = () => {
           max-width: 1200px;
           margin: 0 auto;
           padding: 2rem;
-          background: #ffffff;
+          background: var(--bg-card);
           min-height: 100vh;
         }
 
@@ -343,23 +333,23 @@ const ServiceBookingForm: React.FC = () => {
         .booking-title {
           font-size: 2rem;
           font-weight: 700;
-          color: #1e293b;
+          color: var(--text-primary);
           margin-bottom: 0.5rem;
           letter-spacing: -0.025em;
         }
 
         .booking-subtitle {
           font-size: 1rem;
-          color: #64748b;
+          color: var(--text-secondary);
           margin: 0;
         }
 
         .booking-content {
-          background: #ffffff;
+          background: var(--bg-card);
           border-radius: 16px;
           padding: 2rem;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-primary);
         }
 
         @media (max-width: 768px) {

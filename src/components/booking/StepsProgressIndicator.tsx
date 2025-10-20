@@ -15,12 +15,12 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
   isGuest
 }) => {
   const steps = isGuest ? [
-    // Khách vãng lai: 6 bước
+    // Khách vãng lai: 5 bước (đưa đăng ký tài khoản + TT khách hàng xuống cuối)
     { 
       number: 1, 
-      label: 'Thông tin khách hàng', 
-      icon: User,
-      description: 'Họ tên, SĐT, Email'
+      label: 'Dịch vụ', 
+      icon: Wrench,
+      description: 'Chọn dịch vụ cần thiết'
     },
     { 
       number: 2, 
@@ -30,24 +30,18 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
     },
     { 
       number: 3, 
-      label: 'Dịch vụ', 
-      icon: Wrench,
-      description: 'Chọn dịch vụ cần thiết'
-    },
-    { 
-      number: 4, 
       label: 'Địa điểm & Thời gian', 
       icon: MapPin,
       description: 'Nơi và thời gian thực hiện'
     },
     { 
-      number: 5, 
-      label: 'Đăng ký tài khoản', 
+      number: 4, 
+      label: 'Thông tin liên hệ', 
       icon: UserPlus,
-      description: 'Tạo tài khoản mới'
+      description: 'Họ tên, SĐT, Email, Mật khẩu'
     },
     { 
-      number: 6, 
+      number: 5, 
       label: 'Xác nhận cuối cùng', 
       icon: CheckCircle,
       description: 'Hoàn tất đặt lịch'
@@ -98,31 +92,31 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
     switch (status) {
       case 'completed':
         return {
-          circle: '#10b981', // Green
-          text: '#10b981',
-          background: '#f0fdf4',
-          border: '#10b981'
+          circle: 'var(--progress-completed)',
+          text: 'var(--progress-completed)',
+          background: 'var(--primary-50)',
+          border: 'var(--progress-completed)'
         }
       case 'current':
         return {
-          circle: '#3b82f6', // Blue
-          text: '#3b82f6',
-          background: '#eff6ff',
-          border: '#3b82f6'
+          circle: 'var(--progress-current)',
+          text: 'var(--progress-current)',
+          background: 'var(--primary-50)',
+          border: 'var(--progress-current)'
         }
       case 'pending':
         return {
-          circle: '#9ca3af', // Gray
-          text: '#6b7280',
+          circle: 'var(--progress-pending)',
+          text: 'var(--text-secondary)',
           background: '#f9fafb',
-          border: '#e5e7eb'
+          border: 'var(--border-primary)'
         }
       default:
         return {
-          circle: '#9ca3af',
-          text: '#6b7280',
+          circle: 'var(--progress-pending)',
+          text: 'var(--text-secondary)',
           background: '#f9fafb',
-          border: '#e5e7eb'
+          border: 'var(--border-primary)'
         }
     }
   }
@@ -197,7 +191,7 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
                   <div 
                     className="connector-line"
                     style={{
-                      backgroundColor: completedSteps.includes(step.number) ? '#10b981' : '#e5e7eb'
+                      backgroundColor: completedSteps.includes(step.number) ? 'var(--progress-completed)' : 'var(--progress-connector)'
                     }}
                   />
                 </div>
