@@ -73,9 +73,17 @@ export const CenterService = {
     const { data } = await api.get('/center', { params })
     console.log('getCenters response:', data)
 
-    // Handle different response formats
-    if (data.success && data.data) {
-      return data.data
+    // Handle the response format from your API
+    if (data.success && data.data && data.data.centers) {
+      return {
+        centers: data.data.centers,
+        pageNumber: 1,
+        pageSize: data.data.centers.length,
+        totalPages: 1,
+        totalCount: data.data.centers.length,
+        hasPreviousPage: false,
+        hasNextPage: false
+      }
     } else if (data.centers) {
       return data
     } else {
@@ -88,9 +96,17 @@ export const CenterService = {
     const { data } = await api.get('/center/active', { params })
     console.log('getActiveCenters response:', data)
 
-    // Handle different response formats
-    if (data.success && data.data) {
-      return data.data
+    // Handle the response format from your API
+    if (data.success && data.data && data.data.centers) {
+      return {
+        centers: data.data.centers,
+        pageNumber: 1,
+        pageSize: data.data.centers.length,
+        totalPages: 1,
+        totalCount: data.data.centers.length,
+        hasPreviousPage: false,
+        hasNextPage: false
+      }
     } else if (data.centers) {
       return data
     } else {

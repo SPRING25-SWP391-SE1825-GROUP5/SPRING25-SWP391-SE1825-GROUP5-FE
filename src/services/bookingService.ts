@@ -19,9 +19,12 @@ export type CreateBookingRequest = {
   vehicleId: number
   centerId: number
   bookingDate: string
-  timeSlotId: number
-  serviceIds: number[]
+  slotId: number  // Changed from timeSlotId to slotId
+  serviceId: number  // Changed from serviceIds to serviceId (single service)
+  customerId: number  // Added required customerId
   notes?: string
+  specialRequests?: string
+  request: string
 }
 
 export type BookingListParams = {

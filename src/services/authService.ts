@@ -118,49 +118,72 @@ export type ChangePasswordRequest = {
 
 export const AuthService = {
   async register(payload: RegisterRequest) {
-    const { data } = await api.post<BasicSuccess<{ email: string; fullName: string; registeredAt: string }>>(
-      '/auth/register',
-      payload
-    )
-    return data
+    try {
+      const { data } = await api.post<BasicSuccess<{ email: string; fullName: string; registeredAt: string }>>(
+        '/auth/register',
+        payload
+      )
+      return data
+    } catch (error: any) {
+      console.error('Register error:', error)
+
+      return {
+        success: false,
+        message: error?.userMessage || error?.message || 'Đăng ký thất bại. Vui lòng thử lại.',
+        data: null
+      }
+    }
   },
 
   async login(payload: LoginRequest) {
-    // Map frontend field names to backend field names
-    const requestPayload = {
-      Email: payload.emailOrPhone,
-      Password: payload.password
-    }
+    try {
+      // Map frontend field names to backend field names
+      const requestPayload = {
+        Email: payload.emailOrPhone,
+        Password: payload.password
+      }
 
-    const { data } = await api.post<any>('/auth/login', requestPayload)
+      const { data } = await api.post<any>('/auth/login', requestPayload)
 
-    // Normalize backend response into FE-standard shape
-    // Accepted backend shapes (examples):
-    // 1) { success, message, data: { accessToken, refreshToken, userId, fullName, role, emailVerified, ... } }
-    // 2) { token, refreshToken, user: { ... } }
-    const src = data || {}
-    const d = src.data ?? src
+      // Normalize backend response into FE-standard shape
+      // Accepted backend shapes (examples):
+      // 1) { success, message, data: { accessToken, refreshToken, userId, fullName, role, emailVerified, ... } }
+      // 2) { token, refreshToken, user: { ... } }
+      const src = data || {}
+      const d = src.data ?? src
 
-    const token = d.accessToken ?? d.token ?? null
-    const refreshToken = d.refreshToken ?? null
+      const token = d.accessToken ?? d.token ?? null
+      const refreshToken = d.refreshToken ?? null
 
-    const user = {
-      id: d.userId ?? d.user?.id ?? d.id ?? null,
-      fullName: d.fullName ?? d.user?.fullName ?? '',
-      email: d.email ?? d.user?.email ?? '',
-      role: (d.role ?? d.user?.role ?? 'customer'),
-      emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
-      avatar: d.avatar ?? d.user?.avatar ?? null,
-    }
+      const user = {
+        id: d.userId ?? d.user?.id ?? d.id ?? null,
+        fullName: d.fullName ?? d.user?.fullName ?? '',
+        email: d.email ?? d.user?.email ?? '',
+        role: (d.role ?? d.user?.role ?? 'customer'),
+        emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
+        avatar: d.avatar ?? d.user?.avatar ?? null,
+      }
 
-    return {
-      success: src.success !== false,
-      message: src.message ?? 'Login success',
-      data: {
-        token,
-        refreshToken,
-        user,
-      },
+      return {
+        success: src.success !== false,
+        message: src.message ?? 'Đăng nhập thành công',
+        errors: src.errors || null,
+        data: {
+          token,
+          refreshToken,
+          user,
+        },
+      }
+    } catch (error: any) {
+      console.error('Login error:', error)
+
+      // Return user-friendly error message
+      return {
+        success: false,
+        message: error?.userMessage || error?.message || 'Đăng nhập thất bại. Vui lòng thử lại.',
+        errors: error?.response?.data?.errors || [error?.userMessage || error?.message || 'Đăng nhập thất bại. Vui lòng thử lại.'],
+        data: null
+      }
     }
   },
 

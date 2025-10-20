@@ -2,6 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global Reset for Header Positioning */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  isolation: isolate;
+}
+
+/* Ensure main content starts right below header */
+main, .main-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  isolation: isolate;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure header is always positioned correctly */
+.header-dropdown {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  background: #FFFFFF !important;
+  z-index: 10001 !important;
+  overflow: visible !important; /* Không cắt dropdown */
+}
+
+/* Force container to center without margins */
+.header-dropdown__container {
+  max-width: 1920px !important;
+  width: 100% !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+}
+
+/* Force header sections to align correctly */
+.header-logo-section {
+  flex: 0 0 auto !important;
+  justify-content: flex-start !important;
+}
+
+.header-menu-section {
+  flex: 1 !important;
+  justify-content: center !important;
+}
+
+.header-right-section {
+  flex: 0 0 auto !important;
+  justify-content: flex-end !important;
+  margin-left: auto !important; /* Force push to right */
+}
+
 /* Global Custom Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 10px !important;
@@ -93,5 +153,27 @@ ul::-webkit-scrollbar-thumb:hover,
 ol::-webkit-scrollbar-thumb:hover,
 li::-webkit-scrollbar-thumb:hover {
   background: #2e7d32 !important;
+}
+
+/* Loại bỏ hoàn toàn ::after trên tất cả button */
+button::after,
+.btn::after,
+button:active::after,
+.btn:active::after,
+button:hover::after,
+.btn:hover::after,
+button:focus::after,
+.btn:focus::after {
+  display: none !important;
+  content: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: none !important;
+  border: none !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
 }
 

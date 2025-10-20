@@ -84,6 +84,20 @@ export type {
   CustomerResponse
 } from './customerService'
 
+// Payment Services
+export { PaymentService } from './paymentService'
+export type {
+  PaymentMethod,
+  PaymentStatus,
+  PaymentRequest,
+  PaymentResponse,
+  PaymentStatusResponse,
+  VNPayPaymentRequest,
+  VNPayPaymentResponse,
+  QRPaymentRequest,
+  QRPaymentResponse
+} from './paymentService'
+
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'
 // export { OrderService } from './orderService'
