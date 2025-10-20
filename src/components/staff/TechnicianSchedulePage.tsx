@@ -356,7 +356,7 @@ export default function TechnicianSchedulePage() {
           TechnicianService.list({ pageNumber: 1, pageSize: 100 }),
           TimeSlotService.list(true),
         ])
-        setTechnicians(techs || [])
+        setTechnicians(techs.technicians || [])
         setSlots(ts || [])
       } catch {
         setTechnicians([])

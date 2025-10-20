@@ -17,6 +17,7 @@
     "@reduxjs/toolkit": "^2.9.0",
     "@types/qrcode": "^1.5.5",
     "axios": "^1.12.2",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.544.0",
