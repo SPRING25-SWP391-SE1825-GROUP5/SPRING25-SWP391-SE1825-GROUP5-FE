@@ -184,13 +184,12 @@ export const VehicleService = {
   /**
    * Get vehicles for current customer
    * 
-   * @param customerId - Customer ID (optional, defaults to current user)
+   * @param customerId - Customer ID (required)
    * @returns Promise with customer's vehicles
    * @throws {Error} When request fails
    */
-  async getCustomerVehicles(customerId?: number): Promise<VehicleListResponse> {
-    const params = customerId ? { customerId } : {}
-    const { data } = await api.get<VehicleListResponse>('/Vehicle', { params })
+  async getCustomerVehicles(customerId: number): Promise<VehicleListResponse> {
+    const { data } = await api.get<VehicleListResponse>(`/Customer/${customerId}/vehicles`)
     return data
   }
 }

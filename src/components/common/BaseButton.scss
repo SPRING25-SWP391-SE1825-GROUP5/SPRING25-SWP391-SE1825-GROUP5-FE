@@ -150,17 +150,4 @@
   to { transform: rotate(360deg); }
 }
 
-/* Ripple effect (optional but pretty) */
-.btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(255,255,255,0.2);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.btn:active::after {
-  opacity: 1;
-  transition: opacity 0s;
-}
+/* Ripple effect removed */

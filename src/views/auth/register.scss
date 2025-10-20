@@ -176,6 +176,12 @@ body {
     color: #2d4a2d;
     margin-bottom: 8px;
     font-weight: 500;
+
+    .required-asterisk {
+      color: #EF4444;
+      font-weight: 600;
+      margin-left: 2px;
+    }
   }
 
   &__input {
@@ -205,6 +211,15 @@ body {
     &:not(:placeholder-shown) + .form-group__label {
       color: #2d4a2d;
     }
+  }
+}
+
+// Password input wrapper with proper padding for eye icon
+.password-input-wrapper {
+  position: relative;
+
+  .form-group__input {
+    padding-right: 48px; // Extra padding for eye icon
   }
 }
 
@@ -277,6 +292,15 @@ body {
   font-weight: 400;
 }
 
+// General Error Messages
+.register__error {
+  color: #EF4444;
+  font-size: 12px;
+  margin-top: 8px;
+  font-weight: 400;
+  display: block;
+}
+
 // Password Field with Eye Icon
 .password-field {
   position: relative;
@@ -284,16 +308,29 @@ body {
 
 .password-toggle {
   position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 12px;
+  top: calc(50% + 5px); // Hạ xuống 5px để căn giữa chính xác
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: 0;
   color: #9CA3AF;
   transition: color 0.2s ease;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
 
   &:hover {
     color: #6B7280;
@@ -342,6 +379,21 @@ body {
     border-top: 7px solid transparent;
     border-bottom: 7px solid transparent;
   }
+
+  // Popup positioned below the input
+  &.password-popup-below {
+    position: static;
+    left: auto;
+    top: auto;
+    width: 100%;
+    margin-top: 12px;
+    animation: slideDown 0.2s ease-out;
+
+    &::before,
+    &::after {
+      display: none;
+    }
+  }
 }
 
 @keyframes slideIn {
@@ -352,6 +404,17 @@ body {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

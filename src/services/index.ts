@@ -33,7 +33,12 @@ export type {
 // Booking Services
 export { BookingService } from './bookingService'
 export type {
-  AvailabilityQuery
+  AvailabilityParams,
+  AvailabilityResponse,
+  TimeSlotAvailability,
+  TechnicianAvailability,
+  ReservationRequest,
+  ReservationResponse
 } from './bookingService'
 
 // Service Management Services
@@ -78,6 +83,30 @@ export type {
   QuickCreateCustomerRequest,
   CustomerResponse
 } from './customerService'
+
+// Payment Services
+export { PaymentService } from './paymentService'
+export type {
+  PaymentMethod,
+  PaymentStatus,
+  PaymentRequest,
+  PaymentResponse,
+  PaymentStatusResponse,
+  VNPayPaymentRequest,
+  VNPayPaymentResponse,
+  QRPaymentRequest,
+  QRPaymentResponse
+} from './paymentService'
+
+// Chat Services
+export { ChatService } from './chatService'
+export type {
+  ChatUser,
+  ChatMessage,
+  ChatConversation,
+  ChatState,
+  ChatNotification
+} from '@/types/chat'
 
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'

@@ -1,0 +1,383 @@
+import React, { useState, useEffect } from 'react'
+import { useAppSelector } from '@/store/hooks'
+import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
+import StepsProgressIndicator from './StepsProgressIndicator'
+import CustomerInfoStep from './CustomerInfoStep'
+import VehicleInfoStep from './VehicleInfoStep'
+import ServiceSelectionStep from './ServiceSelectionStep'
+import LocationTimeStep from './LocationTimeStep'
+import AccountStep from './AccountStep'
+import ConfirmationStep from './ConfirmationStep'
+
+// Types
+interface CustomerInfo {
+  fullName: string
+  phone: string
+  email: string
+}
+
+interface VehicleInfo {
+  carModel: string
+  mileage: string
+  licensePlate: string
+}
+
+interface ServiceInfo {
+  services: string[]
+  notes: string
+}
+
+interface LocationTimeInfo {
+  province: string
+  ward: string
+  serviceType: 'workshop' | 'mobile'
+  date: string
+  time: string
+}
+
+interface AccountInfo {
+  username: string
+  password: string
+  confirmPassword: string
+}
+
+interface BookingData {
+  customerInfo: CustomerInfo
+  vehicleInfo: VehicleInfo
+  serviceInfo: ServiceInfo
+  locationTimeInfo: LocationTimeInfo
+  accountInfo?: AccountInfo
+  images: File[]
+}
+
+const ServiceBookingForm: React.FC = () => {
+  const [currentStep, setCurrentStep] = useState(1)
+  const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
+  const [completedSteps, setCompletedSteps] = useState<number[]>([])
+  const auth = useAppSelector((s) => s.auth)
+  
+  const [bookingData, setBookingData] = useState<BookingData>({
+    customerInfo: {
+      fullName: '',
+      phone: '',
+      email: ''
+    },
+    vehicleInfo: {
+      carModel: '',
+      mileage: '',
+      licensePlate: ''
+    },
+    serviceInfo: {
+      services: [],
+      notes: ''
+    },
+    locationTimeInfo: {
+      province: '',
+      ward: '',
+      serviceType: 'workshop',
+      date: '',
+      time: ''
+    },
+    accountInfo: {
+      username: '',
+      password: '',
+      confirmPassword: ''
+    },
+    images: []
+  })
+
+  // Đồng bộ trạng thái đăng nhập và tự điền thông tin khách hàng
+  useEffect(() => {
+    const loggedIn = !!auth?.token
+    setIsGuest(!loggedIn)
+
+    if (loggedIn && auth.user) {
+      setBookingData((prev) => ({
+        ...prev,
+        customerInfo: {
+          fullName: auth.user.fullName || prev.customerInfo.fullName,
+          phone: auth.user.phoneNumber || prev.customerInfo.phone,
+          email: auth.user.email || prev.customerInfo.email
+        }
+      }))
+
+      // Nếu đang ở bước 1 (thông tin KH) thì tự động qua bước 1 (dịch vụ) cho user đã đăng nhập
+      // Không cần thay đổi step vì logic renderCurrentStep đã xử lý
+    }
+  }, [auth?.token, auth?.user])
+
+  // Kiểm tra xem bước hiện tại đã hoàn thành chưa
+  const isStepCompleted = (step: number): boolean => {
+    if (isGuest) {
+      // Khách vãng lai: 6 bước
+      switch (step) {
+        case 1:
+          return !!(bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
+        case 2:
+          return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
+        case 3:
+          return bookingData.serviceInfo.services.length > 0
+        case 4:
+          return !!(bookingData.locationTimeInfo.province && bookingData.locationTimeInfo.ward && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
+        case 5:
+          return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword)
+        case 6:
+          return true // Bước xác nhận luôn có thể hoàn thành
+        default:
+          return false
+      }
+    } else {
+      // Đã đăng nhập: 4 bước
+      switch (step) {
+        case 1:
+          return bookingData.serviceInfo.services.length > 0
+        case 2:
+          return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
+        case 3:
+          return !!(bookingData.locationTimeInfo.province && bookingData.locationTimeInfo.ward && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
+        case 4:
+          return true // Bước xác nhận luôn có thể hoàn thành
+        default:
+          return false
+      }
+    }
+  }
+
+  // Cập nhật completed steps khi data thay đổi
+  useEffect(() => {
+    const newCompletedSteps: number[] = []
+    const maxSteps = isGuest ? 6 : 4
+    for (let i = 1; i <= maxSteps; i++) {
+      if (isStepCompleted(i)) {
+        newCompletedSteps.push(i)
+      }
+    }
+    setCompletedSteps(newCompletedSteps)
+  }, [bookingData, isGuest])
+
+  const handleNext = () => {
+    const maxSteps = isGuest ? 6 : 4
+    if (currentStep < maxSteps) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
+
+  const handlePrev = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+
+  const handleStepClick = (step: number) => {
+    // Chỉ cho phép click vào các bước đã hoàn thành hoặc bước tiếp theo
+    if (step <= currentStep || completedSteps.includes(step - 1)) {
+      setCurrentStep(step)
+    }
+  }
+
+  const updateBookingData = (section: keyof BookingData, data: any) => {
+    setBookingData(prev => ({
+      ...prev,
+      [section]: { ...prev[section], ...data }
+    }))
+  }
+
+  const handleSubmit = async () => {
+    try {
+      // TODO: Gọi API để tạo booking
+      console.log('Submitting booking data:', bookingData)
+      
+      // Hiển thị thông báo thành công
+      alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+      
+      // Reset form hoặc redirect
+      // window.location.href = '/booking-success'
+    } catch (error) {
+      console.error('Error submitting booking:', error)
+      alert('Có lỗi xảy ra. Vui lòng thử lại.')
+    }
+  }
+
+  const renderCurrentStep = () => {
+    // Logic điều hướng thông minh dựa trên trạng thái đăng nhập
+    if (isGuest) {
+      // Khách vãng lai: 6 bước đầy đủ
+      switch (currentStep) {
+        case 1:
+          return (
+            <CustomerInfoStep
+              data={bookingData.customerInfo}
+              onUpdate={(data) => updateBookingData('customerInfo', data)}
+              onNext={handleNext}
+            />
+          )
+        case 2:
+          return (
+            <VehicleInfoStep
+              data={bookingData.vehicleInfo}
+              onUpdate={(data) => updateBookingData('vehicleInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 3:
+          return (
+            <ServiceSelectionStep
+              data={bookingData.serviceInfo}
+              onUpdate={(data) => updateBookingData('serviceInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 4:
+          return (
+            <LocationTimeStep
+              data={bookingData.locationTimeInfo}
+              onUpdate={(data) => updateBookingData('locationTimeInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 5:
+          return (
+            <AccountStep
+              data={bookingData.accountInfo || { username: '', password: '', confirmPassword: '' }}
+              onUpdate={(data) => updateBookingData('accountInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 6:
+          return (
+            <ConfirmationStep
+              data={bookingData}
+              isGuest={isGuest}
+              onSubmit={handleSubmit}
+              onPrev={handlePrev}
+            />
+          )
+        default:
+          return null
+      }
+    } else {
+      // Đã đăng nhập: 4 bước (bỏ qua bước 1 và 5)
+      switch (currentStep) {
+        case 1:
+          return (
+            <ServiceSelectionStep
+              data={bookingData.serviceInfo}
+              onUpdate={(data) => updateBookingData('serviceInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 2:
+          return (
+            <VehicleInfoStep
+              data={bookingData.vehicleInfo}
+              onUpdate={(data) => updateBookingData('vehicleInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 3:
+          return (
+            <LocationTimeStep
+              data={bookingData.locationTimeInfo}
+              onUpdate={(data) => updateBookingData('locationTimeInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 4:
+          return (
+            <ConfirmationStep
+              data={bookingData}
+              isGuest={isGuest}
+              onSubmit={handleSubmit}
+              onPrev={handlePrev}
+            />
+          )
+        default:
+          return null
+      }
+    }
+  }
+
+  return (
+    <div className="service-booking-form">
+      {/* Header */}
+      <div className="booking-header">
+        <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
+        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ bảo dưỡng xe điện</p>
+      </div>
+
+      {/* Steps Progress Indicator */}
+      <StepsProgressIndicator
+        currentStep={currentStep}
+        completedSteps={completedSteps}
+        onStepClick={handleStepClick}
+        isGuest={isGuest}
+      />
+
+      {/* Current Step Content */}
+      <div className="booking-content">
+        {renderCurrentStep()}
+      </div>
+
+      {/* CSS Styles */}
+      <style>{`
+        .service-booking-form {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 2rem;
+          background: #ffffff;
+          min-height: 100vh;
+        }
+
+        .booking-header {
+          text-align: center;
+          margin-bottom: 3rem;
+        }
+
+        .booking-title {
+          font-size: 2rem;
+          font-weight: 700;
+          color: #1e293b;
+          margin-bottom: 0.5rem;
+          letter-spacing: -0.025em;
+        }
+
+        .booking-subtitle {
+          font-size: 1rem;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .booking-content {
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 2rem;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e5e7eb;
+        }
+
+        @media (max-width: 768px) {
+          .service-booking-form {
+            padding: 1rem;
+          }
+          
+          .booking-title {
+            font-size: 1.5rem;
+          }
+          
+          .booking-content {
+            padding: 1.5rem;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+export default ServiceBookingForm

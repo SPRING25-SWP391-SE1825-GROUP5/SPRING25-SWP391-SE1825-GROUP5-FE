@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronDown, Menu, X } from 'lucide-react'
 import { useAppSelector } from '@/store/hooks'
-import { AuthService } from '@/services/authService'
-import EmailVerificationModal from '@/components/common/EmailVerificationModal'
 import './NavigationDropdown.scss'
+import { ServiceManagementService, type Service } from '@/services/serviceManagementService'
 
 // Types for dropdown content
 export interface DropdownItem {
@@ -78,11 +77,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const headerRef = useRef<HTMLElement>(null)
   const user = useAppSelector((s) => s.auth.user)
-  
-  // Email verification banner state
-  const [bannerLoading, setBannerLoading] = useState(false)
-  const [bannerMessage, setBannerMessage] = useState<string | null>(null)
-  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  const [serviceItems, setServiceItems] = useState<DropdownItem[]>([])
 
   // Check if mobile
   useEffect(() => {
@@ -102,6 +97,19 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
       clearTimeout(timeoutRef.current)
     }
     setActiveDropdown(itemId)
+    // Lazy-load services when hovering Dịch vụ
+    if (itemId === 'services' && serviceItems.length === 0) {
+      ServiceManagementService.getActiveServices({ pageSize: 100 })
+        .then(res => {
+          const items: DropdownItem[] = (res.services || []).map(s => ({
+            id: String(s.id),
+            label: s.name,
+            href: '/services',
+          }))
+          setServiceItems(items)
+        })
+        .catch(() => {})
+    }
   }
 
   const handleMouseLeave = () => {
@@ -117,21 +125,6 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     onMobileMenuToggle?.(newState)
   }
 
-  // Email verification banner functions
-  const handleResendVerification = async () => {
-    if (!user?.email || bannerLoading) return
-    setBannerLoading(true)
-    setBannerMessage(null)
-    try {
-      const resp = await AuthService.resendVerification(user.email)
-      setBannerMessage(resp?.message || 'Đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư.')
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Không thể gửi lại email xác thực. Vui lòng thử lại.'
-      setBannerMessage(msg)
-    } finally {
-      setBannerLoading(false)
-    }
-  }
 
   const getDropdownWidth = (width?: string) => {
     switch (width) {
@@ -247,13 +240,11 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     return null
   }
 
-  const hasEmailBanner = user && !user.emailVerified
-
   return (
     <>
       <header 
         ref={headerRef}
-        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
+        className={`header-dropdown ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,
@@ -263,50 +254,23 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
         } as React.CSSProperties}
         role="banner"
       >
-        {/* Email Verification Banner - integrated into header */}
-        {hasEmailBanner && (
-          <div className="email-verification-banner">
-            <div className="email-verification-banner__container">
-              <div className="email-verification-banner__left">
-                <span className="email-verification-banner__icon">⚠️</span>
-                <p className="email-verification-banner__msg">
-                  Tài khoản của bạn chưa được xác thực email. Hãy xác thực để bảo mật và sử dụng đầy đủ tính năng.
-                </p>
-              </div>
-              <div className="email-verification-banner__actions">
-                {bannerMessage && <span className="email-verification-banner__hint">{bannerMessage}</span>}
-                <button 
-                  className="email-verification-banner__btn email-verification-banner__btn--secondary" 
-                  onClick={handleResendVerification} 
-                  disabled={bannerLoading}
-                >
-                  {bannerLoading ? 'Đang gửi...' : 'Gửi lại email'}
-                </button>
-                <button 
-                  className="email-verification-banner__btn email-verification-banner__btn--primary" 
-                  onClick={() => setShowVerifyModal(true)}
-                >
-                  Xác thực email
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <div className="header-dropdown__container">
           {/* Logo Section */}
           <div className="header-logo-section">
-        {logo && (
-          <div className="header-logo">
-            {logo.href ? (
-              <NavLink to={logo.href} aria-label="Go to homepage">
-                <img src={logo.src} alt={logo.alt} />
-              </NavLink>
-            ) : (
-              <img src={logo.src} alt={logo.alt} />
+            {logo && (
+              <>
+                <div className="header-logo">
+                  {logo.href ? (
+                    <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
+                      <img src={logo.src} alt={logo.alt} />
+                    </NavLink>
+                  ) : (
+                    <img src={logo.src} alt={logo.alt} />
+                  )}
+                </div>
+              </>
             )}
           </div>
-        )}
-      </div>
 
       {/* Menu Section */}
       <div className="header-menu-section">
@@ -315,9 +279,18 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
             {menuItems.map(item => (
               <li 
                 key={item.id}
-                className="nav-item"
-                onMouseEnter={() => handleMouseEnter(item.id)}
-                onMouseLeave={handleMouseLeave}
+                className={`nav-item ${activeDropdown === item.id ? 'open' : ''}`}
+                onMouseEnter={() => {
+                  // Bật dropdown cho tất cả items có dropdown
+                  if (item.dropdown || item.id === 'services') {
+                    handleMouseEnter(item.id)
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (item.dropdown || item.id === 'services') {
+                    handleMouseLeave()
+                  }
+                }}
               >
                 {item.href ? (
                   <NavLink
@@ -338,20 +311,18 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
                     {item.dropdown && <ChevronDown className="nav-arrow" />}
                   </NavLink>
                 ) : (
-                  <button
-                    className="nav-button"
+                  // Render a non-link button styled like other nav items (used for 'services')
+                  <div
+                    className="nav-link"
+                    role="button"
                     aria-expanded={activeDropdown === item.id ? 'true' : 'false'}
-                    aria-haspopup={item.dropdown ? 'true' : 'false'}
+                    aria-haspopup={true}
+                    tabIndex={0}
                   >
                     {item.icon && <span className="nav-icon">{item.icon}</span>}
                     <span className="nav-label">{item.label}</span>
-                    {item.badge && (
-                      <span className="nav-badge" aria-label={`${item.badge} items`}>
-                        {item.badge}
-                      </span>
-                    )}
-                    {item.dropdown && <ChevronDown className="nav-arrow" />}
-                  </button>
+                    <ChevronDown className="nav-arrow" />
+                  </div>
                 )}
 
                 {/* Dropdown */}
@@ -364,8 +335,52 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
                     }}
                     role="menu"
                     aria-labelledby={`nav-${item.id}`}
+                    onMouseEnter={() => {
+                      if (item.dropdown) {
+                        setActiveDropdown(item.id)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (item.dropdown) {
+                        handleMouseLeave()
+                      }
+                    }}
                   >
                     {renderDropdownContent(item.dropdown)}
+                  </div>
+                )}
+                
+                {/* Services dropdown (special case with API data) */}
+                {item.id === 'services' && (
+                  <div 
+                    className={`dropdown ${activeDropdown === item.id ? 'active' : ''} simple`}
+                    style={{
+                      width: getDropdownWidth('sm'),
+                      ...getDropdownPosition('left', 'sm')
+                    }}
+                    role="menu"
+                    aria-labelledby={`nav-${item.id}`}
+                    onMouseEnter={() => setActiveDropdown(item.id)}
+                    onMouseLeave={() => handleMouseLeave()}
+                  >
+                    <div className="dropdown-simple-content">
+                      {serviceItems.map(s => (
+                        <div key={s.id} className="dropdown-item">
+                          <NavLink 
+                            to={s.href || '/services'} 
+                            className="dropdown-link"
+                            onClick={() => setActiveDropdown(null)}
+                          >
+                            <span className="dropdown-label">{s.label}</span>
+                          </NavLink>
+                        </div>
+                      ))}
+                      {serviceItems.length === 0 && (
+                        <div className="dropdown-item">
+                          <span className="dropdown-label">Đang tải...</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </li>
@@ -455,15 +470,6 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
       </nav>
         </div>
       </header>
-      
-      {/* Email Verification Modal */}
-      {showVerifyModal && (
-        <EmailVerificationModal
-          isOpen={showVerifyModal}
-          onClose={() => setShowVerifyModal(false)}
-          userEmail={user?.email || ''}
-        />
-      )}
     </>
   )
 }

@@ -14,11 +14,11 @@ import RequireAuth from '@/components/routes/RequireAuth'
 const SavartHomepage = lazy(() => import('@/views/SavartHomepage'))
 const About = lazy(() => import('@/views/About'))
 const Services = lazy(() => import('@/views/Services'))
-const Contact = lazy(() => import('@/views/Contact'))
+const ProtectedContact = lazy(() => import('@/views/ProtectedContact'))
 const Products = lazy(() => import('@/views/Products'))
 const Promotions = lazy(() => import('@/views/Promotions'))
 const Packages = lazy(() => import('@/views/Packages'))
-const Booking = lazy(() => import('@/views/booking/Booking'))
+const ServiceBookingView = lazy(() => import('@/views/ServiceBookingView'))
 const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
 const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
@@ -37,10 +37,11 @@ const TechnicianChecklists = lazy(() => import('@/views/Technician/Checklists'))
 const TechnicianPartsRequest = lazy(() => import('@/views/Technician/PartsRequest'))
 const AdminDashboard = lazy(() => import('@/views/Admin/Dashboard'))
 const AdminReports = lazy(() => import('@/views/Admin/Reports'))
-const AdminStaffManagement = lazy(() => import('@/views/Admin/StaffManagement'))
 const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
+const ChatDemo = lazy(() => import('@/views/ChatDemo'))
+const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
@@ -62,8 +63,10 @@ const router = createBrowserRouter([
       { path: 'products', element: suspense(<Products />) },
       { path: 'promotions', element: suspense(<Promotions />) },
       { path: 'packages', element: suspense(<Packages />) },
-      { path: 'contact', element: suspense(<Contact />) },
-      { path: 'booking', element: suspense(<Booking />) },
+      { path: 'contact', element: suspense(<ProtectedContact />) },
+      { path: 'booking', element: suspense(<ServiceBookingView />) },
+      { path: 'chat-demo', element: suspense(<ChatDemo />) },
+      { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
 
       { path: 'dashboard', element: <RequireAuth>{suspense(<Dashboard />)}</RequireAuth> },
       { path: 'profile', element: suspense(<Profile />) },
@@ -114,7 +117,7 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<AdminDashboard />) },
       { path: 'users', element: suspense(<Users />) },
       { path: 'reports', element: suspense(<AdminReports />) },
-      { path: 'staff-management', element: suspense(<AdminStaffManagement />) },
+
     ],
   },
   // Auth routes without header/footer

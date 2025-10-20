@@ -70,12 +70,20 @@ export type NearbyCenter = {
 export const CenterService = {
   // Get all centers with pagination and filters
   async getCenters(params: CenterListParams = {}): Promise<CenterListResponse> {
-    const { data } = await api.get('/Center', { params })
+    const { data } = await api.get('/center', { params })
     console.log('getCenters response:', data)
-    
-    // Handle different response formats
-    if (data.success && data.data) {
-      return data.data
+
+    // Handle the response format from your API
+    if (data.success && data.data && data.data.centers) {
+      return {
+        centers: data.data.centers,
+        pageNumber: 1,
+        pageSize: data.data.centers.length,
+        totalPages: 1,
+        totalCount: data.data.centers.length,
+        hasPreviousPage: false,
+        hasNextPage: false
+      }
     } else if (data.centers) {
       return data
     } else {
@@ -85,12 +93,20 @@ export const CenterService = {
 
   // Get active centers only
   async getActiveCenters(params: CenterListParams = {}): Promise<CenterListResponse> {
-    const { data } = await api.get('/Center/active', { params })
+    const { data } = await api.get('/center/active', { params })
     console.log('getActiveCenters response:', data)
-    
-    // Handle different response formats
-    if (data.success && data.data) {
-      return data.data
+
+    // Handle the response format from your API
+    if (data.success && data.data && data.data.centers) {
+      return {
+        centers: data.data.centers,
+        pageNumber: 1,
+        pageSize: data.data.centers.length,
+        totalPages: 1,
+        totalCount: data.data.centers.length,
+        hasPreviousPage: false,
+        hasNextPage: false
+      }
     } else if (data.centers) {
       return data
     } else {
@@ -100,9 +116,9 @@ export const CenterService = {
 
   // Get center by ID
   async getCenterById(id: number): Promise<Center> {
-    const { data } = await api.get(`/Center/${id}`)
+    const { data } = await api.get(`/center/${id}`)
     console.log('getCenterById response:', data)
-    
+
     if (data.success && data.data) {
       return data.data
     } else if (data.centerId) {
@@ -114,9 +130,9 @@ export const CenterService = {
 
   // Create new center
   async createCenter(center: CreateCenterRequest): Promise<Center> {
-    const { data } = await api.post('/Center', center)
+    const { data } = await api.post('/center', center)
     console.log('createCenter response:', data)
-    
+
     if (data.success && data.data) {
       return data.data
     } else if (data.centerId) {
@@ -128,9 +144,9 @@ export const CenterService = {
 
   // Update center
   async updateCenter(id: number, center: UpdateCenterRequest): Promise<Center> {
-    const { data } = await api.put(`/Center/${id}`, center)
+    const { data } = await api.put(`/center/${id}`, center)
     console.log('updateCenter response:', data)
-    
+
     if (data.success && data.data) {
       return data.data
     } else if (data.centerId) {
@@ -143,9 +159,9 @@ export const CenterService = {
   // Toggle center active status
   async toggleCenterStatus(id: number): Promise<Center> {
     try {
-      const { data, status } = await api.patch(`/Center/${id}/toggle-active`)
+      const { data, status } = await api.patch(`/center/${id}/toggle-active`)
       console.log('toggleCenterStatus response:', data)
-      
+
       if (status >= 200 && status < 300) {
         if (data?.success && data?.data) {
           return data.data
@@ -161,10 +177,10 @@ export const CenterService = {
       throw new Error('Unexpected response status from server')
     } catch (error: any) {
       console.error('Error toggling center status:', error)
-      
+
       // Extract detailed error message
       let errorMessage = 'Unknown error'
-      
+
       if (error.response?.data) {
         if (typeof error.response.data === 'string') {
           errorMessage = error.response.data
@@ -179,18 +195,18 @@ export const CenterService = {
       } else if (error.message) {
         errorMessage = error.message
       }
-      
+
       throw new Error(`Không thể cập nhật trạng thái: ${errorMessage}`)
     }
   },
 
   // Get nearby centers
   async getNearbyCenters(params: NearbyCentersParams): Promise<NearbyCenter[]> {
-    const { data } = await api.get('/Center/nearby', { params })
+    const { data } = await api.get('/center/nearby', { params })
     return data
   },
 
-  // Get center statistics (mock data for now)
+  // Get center statistics
   async getCenterStats(): Promise<{
     totalCenters: number
     activeCenters: number
@@ -202,15 +218,15 @@ export const CenterService = {
       // Get all centers to calculate stats
       const response = await this.getCenters({ pageSize: 1000 })
       const centers = response.centers
-      
+
       const totalCenters = centers.length
       const activeCenters = centers.filter(c => c.isActive).length
       const inactiveCenters = totalCenters - activeCenters
-      
-      // Mock data for bookings and revenue
-      const totalBookings = Math.floor(Math.random() * 100) + 50
-      const totalRevenue = Math.floor(Math.random() * 100000000) + 50000000
-      
+
+      // TODO: Get real data from booking API
+      const totalBookings = 0
+      const totalRevenue = 0
+
       return {
         totalCenters,
         activeCenters,
@@ -230,24 +246,18 @@ export const CenterService = {
     }
   },
 
-  // Get center performance data (mock data)
+  // Get center performance data - TODO: Replace with real API
   async getCenterPerformance(): Promise<{
     center: string
     bookings: number
     revenue: number
     rating: number
   }[]> {
-    // Mock performance data
-    return [
-      { center: 'Trung tâm Hà Nội', bookings: 45, revenue: 12000000, rating: 4.8 },
-      { center: 'Trung tâm TP.HCM', bookings: 38, revenue: 15000000, rating: 4.6 },
-      { center: 'Trung tâm Đà Nẵng', bookings: 28, revenue: 8000000, rating: 4.7 },
-      { center: 'Trung tâm Cần Thơ', bookings: 22, revenue: 6000000, rating: 4.5 },
-      { center: 'Trung tâm Hải Phòng', bookings: 35, revenue: 10000000, rating: 4.9 }
-    ]
+    // TODO: Implement real API call
+    return []
   },
 
-  // Get recent center activities (mock data)
+  // Get recent center activities - TODO: Replace with real API
   async getRecentActivities(limit: number = 10): Promise<{
     id: string
     center: string
@@ -256,50 +266,7 @@ export const CenterService = {
     timestamp: string
     type: 'booking' | 'maintenance' | 'inventory' | 'staff'
   }[]> {
-    // Mock recent activities
-    const activities = [
-      {
-        id: 'ACT001',
-        center: 'Trung tâm Hà Nội',
-        activity: 'Đặt lịch bảo dưỡng xe điện',
-        user: 'Nguyễn Văn A',
-        timestamp: '2024-01-15T09:30:00Z',
-        type: 'booking' as const
-      },
-      {
-        id: 'ACT002',
-        center: 'Trung tâm TP.HCM',
-        activity: 'Hoàn thành sửa chữa động cơ',
-        user: 'Trần Thị B',
-        timestamp: '2024-01-15T14:20:00Z',
-        type: 'maintenance' as const
-      },
-      {
-        id: 'ACT003',
-        center: 'Trung tâm Đà Nẵng',
-        activity: 'Nhập kho phụ tùng mới',
-        user: 'Lê Văn C',
-        timestamp: '2024-01-15T11:15:00Z',
-        type: 'inventory' as const
-      },
-      {
-        id: 'ACT004',
-        center: 'Trung tâm Cần Thơ',
-        activity: 'Thêm nhân viên mới',
-        user: 'Phạm Thị D',
-        timestamp: '2024-01-15T16:45:00Z',
-        type: 'staff' as const
-      },
-      {
-        id: 'ACT005',
-        center: 'Trung tâm Hải Phòng',
-        activity: 'Cập nhật thông tin trung tâm',
-        user: 'Hoàng Văn E',
-        timestamp: '2024-01-15T13:30:00Z',
-        type: 'maintenance' as const
-      }
-    ]
-    
-    return activities.slice(0, limit)
+    // TODO: Implement real API call
+    return []
   }
 }

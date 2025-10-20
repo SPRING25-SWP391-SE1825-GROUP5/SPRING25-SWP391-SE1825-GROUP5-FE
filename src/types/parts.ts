@@ -1,5 +1,6 @@
 export interface Part {
   id: string
+  partNumber: string
   name: string
   category: string
   stock: number
@@ -10,6 +11,7 @@ export interface Part {
 }
 
 export interface PartFormData {
+  partNumber: string
   name: string
   category: string
   stock: number

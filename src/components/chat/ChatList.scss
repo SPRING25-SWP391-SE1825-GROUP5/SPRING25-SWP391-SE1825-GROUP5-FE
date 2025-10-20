@@ -1,0 +1,596 @@
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #F7F9FA; // Light gray background
+  border-radius: 20px; // Soft rounded corners for entire chat list
+  overflow: hidden; // Ensure content doesn't overflow rounded corners
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #cce5e0; // Primary 100
+    background: linear-gradient(135deg, #084839, #0a5a4a, #065f4f); // Dark green gradient
+    box-shadow: 0 2px 8px rgba(8, 72, 57, 0.3); // Subtle shadow with green tint
+    border-radius: 20px 20px 0 0; // Soft rounded top corners
+    min-height: 90px; // Đặt min-height cố định
+
+    h2 {
+      margin: 0;
+      font-family: var(--font-family-primary);
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      line-height: var(--line-height-tight);
+      color: #ffffff; // White text for contrast with dark green background
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .search-toggle-btn {
+      background: rgba(255, 255, 255, 0.1); // Semi-transparent white background
+      color: #ffffff; // White color for icon
+      border: 1px solid #ffffff; // White border
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2); // More opaque white on hover
+        color: #ffffff; // Keep white color
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+      }
+    }
+
+    .new-chat-btn {
+      background: #2ECC71; // AutoEV brand green
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(46, 204, 113, 0.2);
+
+      &:hover {
+        background: #27AE60; // AutoEV darker green
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3);
+      }
+    }
+  }
+
+  &__search {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #cce5e0; // Primary 100
+    animation: slideDown 0.3s ease-out; // Smooth slide down animation
+
+    .search-input {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: #f8f9fa;
+      border-radius: 12px; // Bo góc nhiều hơn
+      padding: 0.75rem 1rem;
+      transition: all 0.2s ease;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+      &:focus-within {
+        background: white;
+        box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.1); // AutoEV green
+        border-color: #2ECC71; // AutoEV brand green
+      }
+
+      svg {
+        color: #9ca3af;
+        margin-right: 0.75rem;
+        opacity: 0.6; // Icon kính lúp mờ
+        width: 20px; // Tăng kích thước icon
+        height: 20px; // Tăng kích thước icon
+      }
+
+      input {
+        flex: 1;
+        border: none;
+        background: none;
+        outline: none;
+        font-size: 0.9rem;
+        color: #111827;
+
+        &::placeholder {
+          color: #9ca3af;
+          font-style: italic;
+        }
+      }
+    }
+  }
+
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+    margin: 0 4px; // Thêm margin để phù hợp với conversation-item margin
+    scroll-behavior: smooth; // Smooth scrolling
+    -webkit-overflow-scrolling: touch; // iOS smooth scrolling
+    contain: layout style paint; // Tối ưu rendering
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+
+      &:hover {
+        background: #94a3b8;
+      }
+    }
+  }
+
+  &__loading {
+    padding: 1rem;
+
+    .loading-skeleton {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .conversation-skeleton {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+
+        .avatar-skeleton {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .content-skeleton {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+
+          .name-skeleton {
+            height: 16px;
+            width: 60%;
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+          }
+
+          .message-skeleton {
+            height: 12px;
+            width: 80%;
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+          }
+        }
+      }
+    }
+  }
+
+  .error-message {
+    padding: 1rem;
+    text-align: center;
+    color: #ef4444;
+
+    p {
+      margin: 0 0 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .retry-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #dc2626;
+      }
+    }
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #6b7280;
+    font-family: var(--font-family-primary);
+
+    p {
+      margin: 0 0 1rem 0;
+      font-family: var(--font-family-primary);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-normal);
+    }
+
+    .start-chat-btn {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #059669;
+        transform: translateY(-1px);
+      }
+    }
+  }
+
+  &__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 0 0 20px 20px; // Soft rounded bottom corners
+  }
+
+  .conversations {
+    display: flex;
+    flex-direction: column;
+    contain: layout style paint;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 12px 16px; // Tăng padding theo yêu cầu
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-left 0.15s ease; // Tối ưu transition
+    border-bottom: 1px solid #f3f4f6;
+    border-radius: 8px; // Bo góc
+    margin: 0 8px; // Margin để tạo khoảng cách
+    will-change: background-color; // Chỉ cần background-color
+    contain: layout style; // Tối ưu rendering
+    font-family: var(--font-family-primary); // Đồng bộ font
+
+    &:hover {
+      background: #f5f5f5; // Màu hover theo yêu cầu
+      // Loại bỏ transform để tránh giật hình
+    }
+
+    &.active {
+      background: #10b981; // Green background for active state
+      border-left: 4px solid #059669; // Darker green border
+      
+      // Đổi tất cả text thành màu trắng khi active
+      .conversation-name {
+        color: #ffffff !important;
+      }
+      
+      .conversation-time {
+        color: #ffffff !important;
+      }
+      
+      .last-message {
+        color: #ffffff !important;
+      }
+      
+      .participant-role {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.2); // Semi-transparent white background for role tag
+      }
+    }
+
+    .conversation-avatar {
+      position: relative;
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px; // Cố định kích thước để tránh layout shift
+      background: #f3f4f6; // Background mặc định
+      border-radius: 50%; // Bo góc cho container
+      overflow: hidden; // Ẩn phần thừa
+      contain: layout style paint; // Tối ưu rendering
+
+      img {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e5e7eb;
+        transition: opacity 0.2s ease;
+        display: block; // Tránh inline spacing
+        background: #f3f4f6; // Background fallback
+        will-change: opacity; // Tối ưu GPU
+        image-rendering: -webkit-optimize-contrast; // Tối ưu chất lượng ảnh
+        image-rendering: crisp-edges; // Tối ưu chất lượng ảnh
+        backface-visibility: hidden; // Tối ưu rendering
+        transform: translateZ(0); // Force GPU acceleration
+      }
+
+      // Loading state
+      &.loading {
+        background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+
+      .role-indicator {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        font-weight: 600;
+        color: white;
+        contain: layout; // Tối ưu rendering
+      }
+    }
+
+    .conversation-content {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      contain: layout; // Tối ưu rendering
+
+      .conversation-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.25rem;
+        min-height: 20px; // Cố định chiều cao để tránh layout shift
+
+        .conversation-name {
+          margin: 0;
+          font-family: var(--font-family-primary);
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-semibold);
+          line-height: var(--line-height-tight);
+          color: #111827;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .conversation-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          flex-shrink: 0;
+
+          .pin-icon {
+            color: #10b981;
+          }
+
+          .conversation-time {
+            font-family: var(--font-family-primary);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-normal);
+            color: #6b7280;
+          }
+        }
+      }
+
+      .conversation-preview {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-height: 18px; // Cố định chiều cao để tránh layout shift
+
+        .last-message {
+          margin: 0;
+          font-family: var(--font-family-primary);
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-normal);
+          line-height: var(--line-height-tight);
+          color: #6b7280;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+          contain: layout; // Tối ưu rendering
+        }
+
+        .unread-badge {
+          background: #2ECC71; // AutoEV brand green
+          color: white;
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 0.25rem 0.5rem;
+          border-radius: 12px; // Chuẩn hóa border radius
+          min-width: 20px;
+          height: 20px;
+          text-align: center;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          box-shadow: 0 2px 4px rgba(46, 204, 113, 0.3);
+          contain: layout; // Tối ưu rendering
+          
+          // Chấm xanh cho unread count = 1
+          &.dot {
+            width: 8px;
+            height: 8px;
+            min-width: 8px;
+            padding: 0;
+            border-radius: 50%;
+            background: #27AE60; // AutoEV darker green cho chấm
+          }
+        }
+      }
+
+      .conversation-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 0.25rem;
+
+        .participant-role {
+          font-family: var(--font-family-primary);
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-medium);
+          color: white;
+          padding: 0.25rem 0.5rem;
+          border-radius: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .more-btn {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: 4px;
+          transition: all 0.2s;
+          opacity: 0;
+
+          &:hover {
+            background: #f3f4f6;
+            color: #6b7280;
+          }
+        }
+      }
+
+      &:hover .more-btn {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 100px;
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .chat-list {
+    &__header {
+      padding: 0.75rem 1rem;
+      min-height: 80px; // Giảm min-height cho mobile
+
+      h2 {
+        font-size: 1.1rem;
+      }
+
+      .header-actions {
+        gap: 0.375rem;
+      }
+
+      .search-toggle-btn,
+      .new-chat-btn {
+        width: 36px;
+        height: 36px;
+      }
+    }
+
+    &__search {
+      padding: 0.75rem 1rem;
+    }
+
+    .conversation-item {
+      padding: 0.75rem 1rem;
+
+      .conversation-avatar {
+        img {
+          width: 40px;
+          height: 40px;
+        }
+      }
+
+      .conversation-content {
+        .conversation-header {
+          .conversation-name {
+            font-size: 0.85rem;
+          }
+
+          .conversation-time {
+            font-size: 0.7rem;
+          }
+        }
+
+        .conversation-preview {
+          .last-message {
+            font-size: 0.75rem;
+          }
+        }
+      }
+    }
+  }
+}

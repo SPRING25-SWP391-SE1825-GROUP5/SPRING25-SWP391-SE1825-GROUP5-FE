@@ -3,7 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart,
   User,
-  Search,
+  Bell,
+  Download,
   Wrench,
   Package,
   Gift,
@@ -12,104 +13,84 @@ import {
   Settings,
   Zap,
   Brain,
-  Calendar
+  Calendar,
+  LogOut,
+  UserCircle,
+  ChevronDown
 } from 'lucide-react'
 import NavigationDropdown, { type MenuItem } from './NavigationDropdown'
 import logo from '@/assets/images/logo-black.webp'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout, syncFromLocalStorage } from '@/store/authSlice'
+import { AuthService } from '@/services'
 import toast from 'react-hot-toast'
 
 const NewAppHeader: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showUserDropdown, setShowUserDropdown] = useState(false)
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
 
   // Sync localStorage on mount
   useEffect(() => {
+    console.log('AppHeader: Syncing from localStorage...')
     dispatch(syncFromLocalStorage())
   }, [dispatch])
 
+  // Debug user state
+  useEffect(() => {
+    console.log('AppHeader: User state changed:', user)
+    console.log('AppHeader: localStorage token:', localStorage.getItem('authToken') || localStorage.getItem('token'))
+    console.log('AppHeader: localStorage user:', localStorage.getItem('user'))
+  }, [user])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.user-dropdown-container')) {
+        setShowUserDropdown(false)
+      }
+      if (!target.closest('.notification-dropdown-container')) {
+        setShowNotificationDropdown(false)
+      }
+    }
+
+      document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      // Try to call API logout first (may fail if token expired)
+      try {
+        await AuthService.logout()
+      } catch (apiError) {
+        console.log('API logout failed (token may be expired):', apiError)
+        // Continue with local logout even if API fails
+      }
+      
+      // Always clear local state
+      dispatch(logout())
+      toast.success('Đăng xuất thành công!')
+      navigate('/')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Force clear local state even if everything fails
+    dispatch(logout())
+    toast.success('Đăng xuất thành công!')
+    navigate('/')
+  }
+  }
+
+  // Menu items
   const menuItems: MenuItem[] = [
     {
       id: 'services',
       label: 'Dịch vụ',
-      href: '/services',
-      dropdown: {
-        type: 'mega',
-        width: 'lg',
-        align: 'left',
-        sections: [
-          {
-            id: 'maintenance',
-            title: 'Bảo dưỡng định kỳ',
-            items: [
-              {
-                id: 'basic-maintenance',
-                label: 'Bảo dưỡng cơ bản',
-                href: '/services',
-                icon: <Wrench size={16} />,
-                description: 'Kiểm tra và bảo dưỡng cơ bản cho xe điện'
-              },
-              {
-                id: 'advanced-maintenance',
-                label: 'Bảo dưỡng nâng cao',
-                href: '/services',
-                icon: <Settings size={16} />,
-                description: 'Bảo dưỡng chuyên sâu với công nghệ hiện đại'
-              },
-              {
-                id: 'premium-maintenance',
-                label: 'Bảo dưỡng cao cấp',
-                href: '/services',
-                icon: <Zap size={16} />,
-                description: 'Dịch vụ cao cấp với AI diagnostics'
-              }
-            ]
-          },
-          {
-            id: 'ai-features',
-            title: 'AI Features',
-            items: [
-              {
-                id: 'ai-diagnostics',
-                label: 'Chẩn đoán AI',
-                href: '/services',
-                icon: <Brain size={16} />,
-                description: 'Chẩn đoán thông minh với công nghệ AI'
-              },
-              {
-                id: 'predictive',
-                label: 'Dự đoán hỏng hóc',
-                href: '/services',
-                icon: <Search size={16} />,
-                description: 'Dự đoán và phòng ngừa sự cố'
-              }
-            ]
-          },
-          {
-            id: 'management',
-            title: 'Management Tools',
-            items: [
-              {
-                id: 'tracking',
-                label: 'Theo dõi tiến độ',
-                href: '/services',
-                icon: <Calendar size={16} />,
-                description: 'Theo dõi tiến trình bảo dưỡng'
-              },
-              {
-                id: 'schedule',
-                label: 'Quản lý lịch',
-                href: '/booking',
-                icon: <Calendar size={16} />,
-                description: 'Đặt lịch và quản lý appointment'
-              }
-            ]
-          }
-        ]
-      }
+      // dropdown sẽ được gắn động theo API trong NavigationDropdown thông qua menuItems
     },
     {
       id: 'products',
@@ -118,21 +99,20 @@ const NewAppHeader: React.FC = () => {
       dropdown: {
         type: 'mega',
         width: 'md',
-        align: 'left',
         sections: [
           {
-            id: 'parts',
+            id: 'main-parts',
             title: 'Phụ tùng chính',
             items: [
               {
-                id: 'battery',
+                id: 'battery-charger',
                 label: 'Pin & Bộ sạc',
                 href: '/products',
                 icon: <Zap size={16} />,
                 description: 'Pin lithium-ion cao cấp'
               },
               {
-                id: 'motor',
+                id: 'electric-motor',
                 label: 'Động cơ điện',
                 href: '/products',
                 icon: <Settings size={16} />,
@@ -145,7 +125,7 @@ const NewAppHeader: React.FC = () => {
             title: 'Phụ kiện',
             items: [
               {
-                id: 'cables',
+                id: 'charging-cable',
                 label: 'Cáp sạc',
                 href: '/products',
                 icon: <Package size={16} />
@@ -168,11 +148,10 @@ const NewAppHeader: React.FC = () => {
       dropdown: {
         type: 'simple',
         width: 'sm',
-        align: 'left',
         sections: [
           {
-            id: 'current-promotions',
-            title: 'Khuyến mãi hiện tại',
+            id: 'promo-items',
+            title: '',
             items: [
               {
                 id: 'flash-sale',
@@ -187,7 +166,7 @@ const NewAppHeader: React.FC = () => {
                 icon: <User size={16} />
               },
               {
-                id: 'seasonal',
+                id: 'seasonal-offers',
                 label: 'Ưu đãi mùa',
                 href: '/promotions',
                 icon: <Gift size={16} />
@@ -204,11 +183,10 @@ const NewAppHeader: React.FC = () => {
       dropdown: {
         type: 'simple',
         width: 'sm',
-        align: 'left',
         sections: [
           {
-            id: 'service-packages',
-            title: 'Gói dịch vụ',
+            id: 'package-items',
+            title: '',
             items: [
               {
                 id: 'basic-package',
@@ -241,66 +219,147 @@ const NewAppHeader: React.FC = () => {
     }
   ]
 
+  // Right items (icons and buttons)
   const rightItems = (
     <>
-                <button 
-        className="header-icon-btn hide-mobile"
-        aria-label="Search"
-                >
-        <Search size={20} />
-                </button>
+      {/* Download App Section - removed as requested */}
+
+      {/* Notification Dropdown - Only show when logged in */}
+      {user && (
+      <div className="notification-dropdown-container">
+        <button 
+          className="header-icon-btn"
+          aria-label="Notifications"
+            onMouseEnter={() => setShowNotificationDropdown(true)}
+            onMouseLeave={() => setShowNotificationDropdown(false)}
+        >
+          <Bell size={20} />
+          <span className="notification-badge">2</span>
+        </button>
+        
+          <div 
+            className={`dropdown notification-dropdown ${showNotificationDropdown ? 'active' : ''}`}
+            onMouseEnter={() => setShowNotificationDropdown(true)}
+            onMouseLeave={() => setShowNotificationDropdown(false)}
+          >
+            {/* Header với tabs */}
+            <div className="notification-header">
+              <div className="notification-tabs">
+                <button className="notification-tab active">Dịch vụ</button>
+                <button className="notification-tab">Hệ thống</button>
+              </div>
+              <button className="mark-all-read">
+                <span>✓</span> Đã đọc
+              </button>
+            </div>
             
+            {/* Content area */}
+            <div className="notification-content">
+              <div className="notification-item">
+                <div className="notification-text">
+                  <div className="notification-title">Đặt lịch thành công</div>
+                  <div className="notification-time">2 phút trước</div>
+                </div>
+              </div>
+              
+              <div className="notification-item">
+                <div className="notification-text">
+                  <div className="notification-title">Nhắc nhở bảo dưỡng</div>
+                  <div className="notification-time">1 giờ trước</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="notification-footer">
+              <button className="view-all-btn">
+                Xem toàn bộ
+                <ChevronDown size={16} />
+              </button>
+            </div>
+            </div>
+          </div>
+        )}
+            
+      {/* Shopping Cart - Only show when logged in */}
+      {user && (
       <NavLink
         to="/cart"
-                className="header-icon-btn" 
+        className="header-icon-btn" 
         aria-label="Shopping cart"
       >
         <ShoppingCart size={20} />
         <span className="cart-badge">3</span>
       </NavLink>
+      )}
 
-            {user ? (
-        <>
-          <NavLink
-            to="/profile"
-            className="header-icon-btn"
-            aria-label="User profile"
-            title={user.fullName}
+      {/* Login/User Section */}
+      {user ? (
+          <div className="user-dropdown-container">
+            <button
+              className="header-icon-btn"
+            onMouseEnter={() => setShowUserDropdown(true)}
+            onMouseLeave={() => setShowUserDropdown(false)}
+            aria-label="User menu"
           >
-            <User size={20} />
-          </NavLink>
-                <button
-            className="login-btn hide-mobile"
-                  onClick={() => {
-                    dispatch(logout())
-                    toast.success('Đã đăng xuất')
-                    navigate('/')
-                  }}
-                >
-                  Đăng xuất
-                </button>
-        </>
-            ) : (
-              <>
+            <UserCircle size={20} />
+            </button>
+            
+          <div 
+            className={`dropdown ${showUserDropdown ? 'active' : ''}`}
+            onMouseEnter={() => setShowUserDropdown(true)}
+            onMouseLeave={() => setShowUserDropdown(false)}
+          >
+            <div className="dropdown-simple-content">
+              {/* Show user full name on hover */}
+              {user?.fullName && (
+                <div className="dropdown-item">
+                  <div className="dropdown-link" style={{ cursor: 'default' }}>
+                    <User size={16} />
+                    <span className="dropdown-label">{user.fullName}</span>
+                  </div>
+                </div>
+              )}
+              <div className="dropdown-item">
+                <NavLink to="/profile" className="dropdown-link">
+                  <User size={16} />
+                  <span className="dropdown-label">Hồ sơ</span>
+                </NavLink>
+                  </div>
+              <div className="dropdown-item">
+                  <button 
+                  className="dropdown-link dropdown-link--logout"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={16} />
+                  <span className="dropdown-label">Đăng xuất</span>
+                  </button>
+                </div>
+              </div>
+          </div>
+        </div>
+      ) : (
           <NavLink
             to="/auth/login"
-            className="login-btn hide-mobile"
+            className="login-btn"
           >
-                          Đăng nhập
+            Đăng nhập
           </NavLink>
+      )}
+
+      {/* Booking Button - Only show when not logged in */}
+      {!user && (
           <NavLink
             to="/booking"
             className="booking-btn"
           >
-                  Đặt chỗ ngay
+            Đặt chỗ ngay
           </NavLink>
-              </>
-            )}
+      )}
     </>
   )
 
   return (
-    <>
       <NavigationDropdown
         menuItems={menuItems}
         logo={{
@@ -314,118 +373,12 @@ const NewAppHeader: React.FC = () => {
         mobileBreakpoint={1024}
         showMobileMenu={showMobileMenu}
         onMobileMenuToggle={setShowMobileMenu}
-        headerHeight="57px"
+      headerHeight="64px"
         dropdownShadow="0 8px 30px rgba(0, 0, 0, 0.12)"
-        hoverColor="#e3f2fd"
-        activeColor="#1976d2"
-      />
-      
-      {/* Custom styles for right items */}
-      <style>{`
-        .header-icon-btn {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          border: none;
-          background: none;
-          color: #333;
-          text-decoration: none;
-          border-radius: 8px;
-          transition: all 300ms ease;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .header-icon-btn:hover {
-          background: #f3f4f6;
-          color: #1976d2;
-          transform: translateY(-1px);
-        }
-        
-        .cart-badge {
-          position: absolute;
-          top: -4px;
-          right: -4px;
-          background: #ef4444;
-          color: white;
-          font-size: 0.65rem;
-          font-weight: 600;
-          padding: 0.125rem 0.375rem;
-          border-radius: 10px;
-          min-width: 18px;
-          text-align: center;
-          line-height: 1;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .login-btn {
-          padding: 0.5rem 1rem;
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: #374151;
-          text-decoration: none;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          transition: all 300ms ease;
-          white-space: nowrap;
-          background: white;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .login-btn:hover {
-          color: #1976d2;
-          background: #f8fafc;
-          border-color: #1976d2;
-          transform: translateY(-1px);
-        }
-        
-        .booking-btn {
-          padding: 0.5rem 1.25rem;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: white;
-          text-decoration: none;
-          background: #1f2937;
-          border: none;
-          border-radius: 8px;
-          transition: all 300ms ease;
-          white-space: nowrap;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .booking-btn:hover {
-          background: #374151;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(31, 41, 55, 0.3);
-        }
-        
-        @media (max-width: 1023px) {
-          .hide-mobile {
-            display: none !important;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .header-icon-btn {
-            width: 32px;
-            height: 32px;
-          }
-          
-          .login-btn, .booking-btn {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.8rem;
-          }
-        }
-      `}</style>
-    </>
+      hoverColor="rgba(16, 185, 129, 0.1)"
+      activeColor="#10b981"
+    />
   )
 }
 
 export default NewAppHeader
-

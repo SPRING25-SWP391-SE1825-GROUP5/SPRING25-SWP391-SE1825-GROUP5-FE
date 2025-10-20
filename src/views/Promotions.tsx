@@ -2,16 +2,63 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { savePromotion, unsavePromotion } from '@/store/promoSlice'
+import { PromotionService, type Promotion } from '@/services/promotionService'
+import { handleApiError } from '@/utils/errorHandler'
+import toast from 'react-hot-toast'
+import { 
+  Gift, 
+  Percent, 
+  DollarSign, 
+  Truck, 
+  Bookmark, 
+  BookmarkCheck,
+  Sparkles,
+  CheckCircle,
+  Clock,
+  Tag,
+  ShoppingCart,
+  Heart,
+  Star
+} from 'lucide-react'
 
 export default function Promotions() {
   const dispatch = useAppDispatch()
   const promo = useAppSelector((state) => state.promo)
   const [searchParams] = useSearchParams()
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [promotions, setPromotions] = useState<Promotion[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Get URL parameters
   const categoryParam = searchParams.get('category')
   const typeParam = searchParams.get('type')
+
+  // Load promotions from API
+  useEffect(() => {
+    const loadPromotions = async () => {
+      setLoading(true)
+      setError(null)
+      
+      try {
+        const result = await PromotionService.getActivePromotions()
+        
+        if (result.data && result.data.length > 0) {
+          setPromotions(result.data)
+        } else {
+          setError('Không có khuyến mãi nào')
+        }
+      } catch (error) {
+        const errorMessage = 'Không thể tải danh sách khuyến mãi'
+        setError(errorMessage)
+        handleApiError(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPromotions()
+  }, [])
 
   // Update filter based on URL params
   useEffect(() => {
@@ -40,174 +87,63 @@ export default function Promotions() {
     return promo?.savedPromotions?.some(p => p.id === promotionId) || false
   }
 
-  // All available promotions (including more options)
-  const availablePromotions = [
-    {
-      id: 'promo1',
-      code: 'NEWUSER20',
-      title: 'Giảm 20% cho khách hàng mới',
-      description: 'Dành cho đơn hàng đầu tiên từ 1 triệu VNĐ',
-      type: 'percentage' as const,
-      value: 20,
-      minOrder: 1000000,
-      maxDiscount: 500000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 1,
-      usedCount: 0,
-      category: ['parts', 'accessories'],
-      image: 'https://via.placeholder.com/300x150/22c55e/ffffff?text=20%25+OFF'
-    },
-    {
-      id: 'promo2',
-      code: 'FREESHIP',
-      title: 'Miễn phí vận chuyển',
-      description: 'Áp dụng cho tất cả đơn hàng từ 500K',
-      type: 'shipping' as const,
-      value: 200000,
-      minOrder: 500000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 999,
-      usedCount: 45,
-      image: 'https://via.placeholder.com/300x150/3b82f6/ffffff?text=FREE+SHIP'
-    },
-    {
-      id: 'promo3',
-      code: 'SAVE500K',
-      title: 'Giảm 500K',
-      description: 'Cho đơn hàng từ 5 triệu VNĐ',
-      type: 'fixed' as const,
-      value: 500000,
-      minOrder: 5000000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 100,
-      usedCount: 23,
-      category: ['equipment'],
-      image: 'https://via.placeholder.com/300x150/ef4444/ffffff?text=500K+OFF'
-    },
-    {
-      id: 'promo4',
-      code: 'BIRTHDAY15',
-      title: 'Sinh nhật 15%',
-      description: 'Khuyến mãi sinh nhật tháng này',
-      type: 'percentage' as const,
-      value: 15,
-      minOrder: 2000000,
-      maxDiscount: 1000000,
-      validFrom: '2024-01-01',
-      validTo: '2024-01-31',
-      isActive: true,
-      usageLimit: 1,
-      usedCount: 0,
-      image: 'https://via.placeholder.com/300x150/f59e0b/ffffff?text=15%25+BIRTHDAY'
-    },
-    {
-      id: 'promo5',
-      code: 'MEMBER10',
-      title: 'Thành viên VIP 10%',
-      description: 'Dành cho thành viên VIP',
-      type: 'percentage' as const,
-      value: 10,
-      minOrder: 1500000,
-      maxDiscount: 300000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 5,
-      usedCount: 2,
-      image: 'https://via.placeholder.com/300x150/8b5cf6/ffffff?text=VIP+10%25'
-    },
-    {
-      id: 'promo6',
-      code: 'WEEKEND30',
-      title: 'Cuối tuần giảm 30%',
-      description: 'Khuyến mãi đặc biệt cuối tuần',
-      type: 'percentage' as const,
-      value: 30,
-      minOrder: 3000000,
-      maxDiscount: 1000000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 50,
-      usedCount: 12,
-      category: ['parts'],
-      image: 'https://via.placeholder.com/300x150/ec4899/ffffff?text=30%25+WEEKEND'
-    },
-    {
-      id: 'promo7',
-      code: 'BULK1M',
-      title: 'Mua sỉ giảm 1 triệu',
-      description: 'Cho đơn hàng từ 10 triệu VNĐ',
-      type: 'fixed' as const,
-      value: 1000000,
-      minOrder: 10000000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 20,
-      usedCount: 5,
-      category: ['equipment'],
-      image: 'https://via.placeholder.com/300x150/6366f1/ffffff?text=1M+BULK'
-    },
-    {
-      id: 'promo8',
-      code: 'STUDENT15',
-      title: 'Học sinh - sinh viên 15%',
-      description: 'Giảm giá đặc biệt cho học sinh, sinh viên',
-      type: 'percentage' as const,
-      value: 15,
-      minOrder: 800000,
-      maxDiscount: 400000,
-      validFrom: '2024-01-01',
-      validTo: '2024-12-31',
-      isActive: true,
-      usageLimit: 200,
-      usedCount: 67,
-      image: 'https://via.placeholder.com/300x150/14b8a6/ffffff?text=STUDENT+15%25'
-    }
-  ]
-
-  // Filter categories
+  // Filter categories based on actual data
   const filterCategories = [
-    { id: 'all', label: 'Tất cả', count: availablePromotions.length },
-    { id: 'percentage', label: 'Giảm %', count: availablePromotions.filter(p => p.type === 'percentage').length },
-    { id: 'fixed', label: 'Giảm tiền', count: availablePromotions.filter(p => p.type === 'fixed').length },
-    { id: 'shipping', label: 'Free ship', count: availablePromotions.filter(p => p.type === 'shipping').length },
+    { id: 'all', label: 'Tất cả', count: Array.isArray(promotions) ? promotions.length : 0 },
+    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENTAGE').length : 0 },        
+    { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'FIXED').length : 0 },
+    { id: 'shipping', label: 'Free ship', count: 0 },
     { id: 'saved', label: 'Đã lưu', count: promo?.savedPromotions?.length || 0 }
   ]
 
   // Filter promotions based on active filter
   const filteredPromotions = () => {
+    if (!Array.isArray(promotions)) return []
+    
     switch (activeFilter) {
       case 'percentage':
-        return availablePromotions.filter(p => p.type === 'percentage')
+        return promotions.filter(p => p.discountType === 'PERCENTAGE')        
       case 'fixed':
-        return availablePromotions.filter(p => p.type === 'fixed')
+        return promotions.filter(p => p.discountType === 'FIXED')
       case 'shipping':
-        return availablePromotions.filter(p => p.type === 'shipping')
+        return promotions.filter(p => p.discountType === 'FIXED') // Fallback since SHIPPING doesn't exist
       case 'saved':
-        return availablePromotions.filter(p => isPromotionSaved(p.id))
+        return promotions.filter(p => isPromotionSaved(String(p.promotionId)))
       default:
-        return availablePromotions
+        return promotions
     }
   }
 
   const getPromotionBadge = (promotion: any) => {
     switch (promotion.type) {
       case 'percentage':
-        return { text: `${promotion.value}%`, color: '#000000' }
+        return { 
+          text: `${promotion.value}%`, 
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <Percent size={16} />
+        }
       case 'fixed':
-        return { text: `${(promotion.value / 1000)}K`, color: '#000000' }
+        return { 
+          text: `${(promotion.value / 1000)}K`, 
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <DollarSign size={16} />
+        }
       case 'shipping':
-        return { text: 'FREE', color: '#000000' }
+        return { 
+          text: 'FREE', 
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <Truck size={16} />
+        }
       default:
-        return { text: 'NEW', color: '#000000' }
+        return { 
+          text: 'NEW', 
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <Sparkles size={16} />
+        }
     }
   }
 
@@ -251,16 +187,18 @@ export default function Promotions() {
 
   const pageInfo = getPageTitle()
 
+
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
       minHeight: 'calc(100vh - 64px)',
-      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif'
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+      marginTop: '64px'
     }}>
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
-        padding: '48px 48px 96px'
+        padding: '32px 24px 64px'
       }}>
         {/* Breadcrumb */}
         {pageInfo.showBreadcrumb && (
@@ -306,37 +244,43 @@ export default function Promotions() {
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            gap: '12px',
-            marginBottom: '16px'
+            gap: '16px',
+            marginBottom: '20px'
           }}>
-            {/* Tailwind-style icon */}
             <div style={{
-              width: '32px',
-              height: '32px',
-              background: '#000000',
-              borderRadius: '4px',
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
-              fontSize: '18px',
-              fontWeight: 'bold'
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
             }}>
-              %
+              <Gift size={24} />
             </div>
             <h1 style={{
-              fontSize: '36px',
-              fontWeight: '500',
-              color: '#000000',
-              margin: '0'
+              fontSize: '40px',
+              fontWeight: '700',
+              color: '#1e293b',
+              margin: '0',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
             }}>
               {pageInfo.showBreadcrumb ? pageInfo.type || pageInfo.category : pageInfo.category}
             </h1>
           </div>
           <p style={{
             fontSize: '18px',
-            color: '#666666',
-            margin: '0'
+            color: '#64748b',
+            margin: '0',
+            maxWidth: '600px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            lineHeight: '1.6'
           }}>
             {pageInfo.showBreadcrumb 
               ? `Khám phá các ${pageInfo.type?.toLowerCase() || pageInfo.category.toLowerCase()} đặc biệt dành cho bạn`
@@ -388,46 +332,77 @@ export default function Promotions() {
           </div>
         )}
 
-        {/* Filter Tabs */}
+        {/* Loading State */}
+        {loading && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '200px',
+            fontSize: '18px',
+            color: '#666666'
+          }}>
+            Đang tải khuyến mãi...
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '200px',
+            fontSize: '18px',
+            color: '#ef4444',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Filter Tabs - Only show when not loading and no error */}
+        {!loading && !error && (
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          marginBottom: '48px',
-          borderBottom: '1px solid #e5e5e5'
+            marginBottom: '48px'
         }}>
           <div style={{
             display: 'flex',
-            gap: '2px',
+            gap: '8px',
             background: '#ffffff',
-            border: '2px solid #000000',
-            borderRadius: '8px',
-            padding: '4px'
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '6px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
           }}>
             {filterCategories.map(category => (
               <button
                 key={category.id}
                 onClick={() => setActiveFilter(category.id)}
                 style={{
-                  padding: '12px 24px',
+                  padding: '12px 20px',
                   border: 'none',
-                  background: activeFilter === category.id ? '#000000' : '#ffffff',
-                  color: activeFilter === category.id ? '#ffffff' : '#000000',
-                  borderRadius: '4px',
+                  background: activeFilter === category.id ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+                  color: activeFilter === category.id ? '#ffffff' : '#64748b',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   fontSize: '14px',
                   fontWeight: '600',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '8px',
+                  boxShadow: activeFilter === category.id ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
                 }}
               >
                 {category.label}
                 <span style={{
-                  background: activeFilter === category.id ? '#ffffff' : '#000000',
-                  color: activeFilter === category.id ? '#000000' : '#ffffff',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
+                  background: activeFilter === category.id ? 'rgba(255, 255, 255, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                  color: activeFilter === category.id ? '#ffffff' : '#10b981',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: '600'
                 }}>
@@ -437,7 +412,10 @@ export default function Promotions() {
             ))}
           </div>
         </div>
+        )}
 
+        {/* Promotions Grid - Only show when not loading and no error */}
+        {!loading && !error && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
@@ -446,33 +424,42 @@ export default function Promotions() {
           {filteredPromotions().map(promotion => {
             const badge = getPromotionBadge(promotion)
             return (
-            <div key={promotion.id} style={{
+            <div key={promotion.promotionId} style={{
               background: '#ffffff',
-              border: '2px solid #000000',
-              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
               overflow: 'hidden',
-              transition: 'all 0.2s ease',
-              position: 'relative'
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)'
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.15)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)'
             }}>
               <div style={{
                 width: '100%',
-                height: '150px',
-                background: '#f5f5f5',
+                height: '120px',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.1))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
-                borderBottom: '2px solid #000000'
+                borderBottom: '1px solid #e2e8f0'
               }}>
                 {/* Large promotion icon */}
                 <div style={{
-                  fontSize: '48px',
-                  fontWeight: 'bold',
-                  color: '#000000'
+                  color: '#10b981',
+                  opacity: 0.8
                 }}>
-                  {promotion.type === 'percentage' ? '%' : 
-                   promotion.type === 'fixed' ? '$' : 
-                   promotion.type === 'shipping' ? '📦' : '★'}
+                  {promotion.discountType === 'PERCENTAGE' ? <Percent size={48} /> :
+                   promotion.discountType === 'FIXED' ? <DollarSign size={48} /> :
+                   promotion.discountType === 'SHIPPING' ? <Truck size={48} /> : <Sparkles size={48} />}
                 </div>
                 
                 {/* Promotion Badge */}
@@ -480,32 +467,42 @@ export default function Promotions() {
                   position: 'absolute',
                   top: '12px',
                   left: '12px',
-                  background: '#000000',
-                  color: '#ffffff',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
+                  background: badge.bgColor,
+                  color: badge.color,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: '700',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  border: `1px solid ${badge.color}20`
                 }}>
+                  {badge.icon}
                   {badge.text}
                 </div>
                 
                 {/* Saved Badge */}
-                {isPromotionSaved(promotion.id) && (
+                {isPromotionSaved(String(promotion.promotionId)) && (
                   <div style={{
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    background: '#000000',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
                     color: '#ffffff',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
                     fontSize: '10px',
-                    fontWeight: '700'
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
                   }}>
-                    ✓ LƯU
+                    <BookmarkCheck size={12} />
+                    LƯU
                   </div>
                 )}
               </div>
@@ -517,56 +514,62 @@ export default function Promotions() {
                   alignItems: 'flex-start',
                   marginBottom: '16px'
                 }}>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <h3 style={{
                       fontSize: '18px',
                       fontWeight: '600',
-                      color: '#000000',
-                      margin: '0 0 8px 0'
+                      color: '#1e293b',
+                      margin: '0 0 8px 0',
+                      lineHeight: '1.4'
                     }}>
-                      {promotion.title}
+                      {promotion.description}
                     </h3>
                     <div style={{
                       fontSize: '14px',
-                      color: '#666666',
+                      color: '#10b981',
                       fontFamily: 'monospace',
                       marginBottom: '8px',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
                     }}>
+                      <Tag size={14} />
                       Mã: {promotion.code}
                     </div>
                   </div>
                   
                   <button
-                    onClick={() => isPromotionSaved(promotion.id) 
-                      ? handleUnsavePromotion(promotion.id)
+                    onClick={() => isPromotionSaved(String(promotion.promotionId)) 
+                      ? handleUnsavePromotion(String(promotion.promotionId))
                       : handleSavePromotion(promotion)
                     }
                     style={{
-                      background: isPromotionSaved(promotion.id) ? '#000000' : '#ffffff',
-                      border: '2px solid #000000',
-                      borderRadius: '4px',
-                      width: '32px',
-                      height: '32px',
+                      background: isPromotionSaved(String(promotion.promotionId)) 
+                        ? 'linear-gradient(135deg, #10b981, #059669)' 
+                        : 'transparent',
+                      border: `2px solid ${isPromotionSaved(String(promotion.promotionId)) ? '#10b981' : '#e2e8f0'}`,
+                      borderRadius: '8px',
+                      width: '40px',
+                      height: '40px',
                       cursor: 'pointer',
-                      color: isPromotionSaved(promotion.id) ? '#ffffff' : '#000000',
-                      transition: 'all 0.2s ease',
+                      color: isPromotionSaved(String(promotion.promotionId)) ? '#ffffff' : '#10b981',
+                      transition: 'all 0.3s ease',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '16px',
-                      fontWeight: 'bold'
+                      boxShadow: isPromotionSaved(String(promotion.promotionId)) ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
                     }}
                   >
-                    {isPromotionSaved(promotion.id) ? '✓' : '+'}
+                    {isPromotionSaved(String(promotion.promotionId)) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
                   </button>
                 </div>
 
                 <p style={{
                   fontSize: '14px',
-                  color: '#666666',
-                  lineHeight: '1.5',
-                  marginBottom: '16px'
+                  color: '#64748b',
+                  lineHeight: '1.6',
+                  marginBottom: '20px'
                 }}>
                   {promotion.description}
                 </p>
@@ -575,227 +578,53 @@ export default function Promotions() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: '12px',
-                  color: '#000000',
-                  fontWeight: '600'
+                  gap: '12px'
                 }}>
-                  <span style={{
-                    background: '#f5f5f5',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    border: '1px solid #000000'
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    flex: 1
                   }}>
-                    {promotion.minOrder ? `Tối thiểu ${formatPrice(promotion.minOrder)}` : 'Không giới hạn'}
+                    <Clock size={14} color="#10b981" />
+                    <span style={{
+                  fontSize: '12px',
+                      color: '#10b981',
+                  fontWeight: '600'
+                  }}>
+                    {promotion.minOrderAmount ? `Tối thiểu ${formatPrice(promotion.minOrderAmount)}` : 'Không giới hạn'}
                   </span>
-                  <span style={{
-                    background: '#000000',
+                  </div>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
                     color: '#ffffff',
-                    padding: '4px 8px',
-                    borderRadius: '4px'
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
                   }}>
-                    Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usedCount : '∞'} lượt
+                    <Star size={14} />
+                  <span style={{
+                      fontSize: '12px',
+                      fontWeight: '600'
+                  }}>
+                    Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usageCount : '∞'} lượt
                   </span>
+                  </div>
                 </div>
               </div>
             </div>
             )
           })}
         </div>
+        )}
 
-        {/* Stats Summary */}
-        <div style={{
-          marginTop: '48px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '24px'
-        }}>
-          <div style={{
-            padding: '24px',
-            background: '#ffffff',
-            borderRadius: '8px',
-            textAlign: 'center',
-            border: '2px solid #000000'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              background: '#000000',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              color: '#ffffff',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}>
-              ✓
-            </div>
-            <h4 style={{ fontSize: '24px', fontWeight: '700', color: '#000000', margin: '0 0 4px 0' }}>
-              {promo?.savedPromotions?.length || 0}
-            </h4>
-            <p style={{ fontSize: '14px', color: '#666666', margin: '0', fontWeight: '600' }}>
-              Khuyến mãi đã lưu
-            </p>
-          </div>
-          
-          <div style={{
-            padding: '24px',
-            background: '#ffffff',
-            borderRadius: '8px',
-            textAlign: 'center',
-            border: '2px solid #000000'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              background: '#000000',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              color: '#ffffff',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}>
-              #
-            </div>
-            <h4 style={{ fontSize: '24px', fontWeight: '700', color: '#000000', margin: '0 0 4px 0' }}>
-              {availablePromotions.length}
-            </h4>
-            <p style={{ fontSize: '14px', color: '#666666', margin: '0', fontWeight: '600' }}>
-              Khuyến mãi khả dụng
-            </p>
-          </div>
-          
-          <div style={{
-            padding: '24px',
-            background: '#ffffff',
-            borderRadius: '8px',
-            textAlign: 'center',
-            border: '2px solid #000000'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              background: '#000000',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              color: '#ffffff',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}>
-              %
-            </div>
-            <h4 style={{ fontSize: '24px', fontWeight: '700', color: '#000000', margin: '0 0 4px 0' }}>
-              30%
-            </h4>
-            <p style={{ fontSize: '14px', color: '#666666', margin: '0', fontWeight: '600' }}>
-              Giảm tối đa
-            </p>
-          </div>
-        </div>
-
-        {/* How to use */}
-        <div style={{
-          marginTop: '48px',
-          padding: '32px',
-          background: '#ffffff',
-          borderRadius: '8px',
-          border: '2px solid #000000'
-        }}>
-          <h3 style={{
-            fontSize: '20px',
-            fontWeight: '700',
-            color: '#000000',
-            margin: '0 0 24px 0',
-            textAlign: 'center'
-          }}>
-            📋 Cách sử dụng khuyến mãi
-          </h3>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '24px'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                background: '#000000',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-                color: '#ffffff',
-                fontSize: '20px',
-                fontWeight: '700'
-              }}>
-                1
-              </div>
-              <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#000000', margin: '0 0 8px 0' }}>
-                Lưu khuyến mãi
-              </h4>
-              <p style={{ fontSize: '14px', color: '#666666', margin: '0', lineHeight: '1.5' }}>
-                Click vào nút + để lưu khuyến mãi yêu thích
-              </p>
-            </div>
-            
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                background: '#000000',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-                color: '#ffffff',
-                fontSize: '20px',
-                fontWeight: '700'
-              }}>
-                2
-              </div>
-              <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#000000', margin: '0 0 8px 0' }}>
-                Mua sắm
-              </h4>
-              <p style={{ fontSize: '14px', color: '#666666', margin: '0', lineHeight: '1.5' }}>
-                Thêm sản phẩm vào giỏ hàng và tiến hành thanh toán
-              </p>
-            </div>
-            
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                background: '#000000',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-                color: '#ffffff',
-                fontSize: '20px',
-                fontWeight: '700'
-              }}>
-                3
-              </div>
-              <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#000000', margin: '0 0 8px 0' }}>
-                Áp dụng & tiết kiệm
-              </h4>
-              <p style={{ fontSize: '14px', color: '#666666', margin: '0', lineHeight: '1.5' }}>
-                Chọn khuyến mãi phù hợp tại trang thanh toán
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
-import { 
-  Users, 
-  Package, 
-  FileText, 
-  Settings, 
-  TrendingUp, 
+import {
+  Users,
+  Package,
+  Package2,
+  FileText,
+  Settings,
+  TrendingUp,
   Calendar,
   DollarSign,
   Activity,
@@ -19,6 +20,7 @@ import {
   Menu,
   LogOut,
   Globe,
+  Gift,
   Edit,
   X,
   Plus,
@@ -61,6 +63,9 @@ import UsersComponent from './Users'
 import ServicesManagement from '../../components/manager/ServicesManagement'
 import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
 import CenterManagement from '../../components/admin/CenterManagement'
+import StaffManagement from '../../components/admin/StaffManagement'
+import PromotionManagement from '../../components/admin/PromotionManagement'
+import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import { useAppSelector } from '@/store/hooks'
 
 // Parts Management Component
@@ -145,10 +150,10 @@ function PartsManagementContent() {
   }
 
   const filteredParts = partsData.filter(part => {
-    const matchesSearch = !filters.search || 
+    const matchesSearch = !filters.search ||
       part.name.toLowerCase().includes(filters.search.toLowerCase()) ||
       part.id.toLowerCase().includes(filters.search.toLowerCase())
-    
+
     const matchesStatus = !filters.status || part.status === filters.status
     const matchesSupplier = !filters.supplier || part.supplier === filters.supplier
 
@@ -159,7 +164,7 @@ function PartsManagementContent() {
   const totalValue = partsData.reduce((sum, part) => sum + (part.price * part.stock), 0)
   const lowStockParts = partsData.filter(part => part.stock < 15).length
   const outOfStockParts = partsData.filter(part => part.stock === 0).length
-  
+
 
   useEffect(() => {
     const fetchAllParts = async () => {
@@ -221,9 +226,9 @@ function PartsManagementContent() {
   }, [allParts, pageNumber, pageSize])
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: 'var(--bg-secondary)', 
+    <div style={{
+      padding: '24px',
+      background: 'var(--bg-secondary)',
       minHeight: '100vh',
       fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
     }}>
@@ -273,9 +278,9 @@ function PartsManagementContent() {
             Quản lý kho phụ tùng và linh kiện xe điện
           </p>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
+          <button
             style={{
               background: 'var(--bg-tertiary)',
               color: 'var(--text-primary)',
@@ -302,7 +307,7 @@ function PartsManagementContent() {
             <FileText size={16} />
             Xuất Excel
           </button>
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             style={{
               background: 'var(--primary-500)',
@@ -333,7 +338,7 @@ function PartsManagementContent() {
         </div>
       </div>
 
-      
+
 
       {/* Stats */}
       <div style={{
@@ -371,7 +376,7 @@ function PartsManagementContent() {
             color: 'var(--error-500)',
             bgColor: 'var(--error-50)'
           },
-          
+
         ].map((stat, index) => (
           <div
             key={index}
@@ -466,7 +471,7 @@ function PartsManagementContent() {
                 type="text"
                 placeholder="Tìm theo tên, mã sản phẩm..."
                 value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '8px 12px 8px 36px',
@@ -501,7 +506,7 @@ function PartsManagementContent() {
               </label>
               <select
                 value={filters[filterType]}
-                onChange={(e) => setFilters({...filters, [filterType]: e.target.value})}
+                onChange={(e) => setFilters({ ...filters, [filterType]: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -601,7 +606,7 @@ function PartsManagementContent() {
                   fontWeight: '600',
                   color: 'var(--text-primary)'
                 }}>Nhà cung cấp</th>
-                
+
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'right',
@@ -616,7 +621,7 @@ function PartsManagementContent() {
                   fontWeight: '600',
                   color: 'var(--text-primary)'
                 }}>Đánh giá</th>
-                
+
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'center',
@@ -639,12 +644,12 @@ function PartsManagementContent() {
                   borderBottom: '1px solid var(--border-primary)',
                   transition: 'background-color 0.2s ease'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--primary-50)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--primary-50)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
                 >
                   <td style={{
                     padding: '16px 24px',
@@ -668,7 +673,7 @@ function PartsManagementContent() {
                   }}>
                     {part.supplier}
                   </td>
-                  
+
                   <td style={{
                     padding: '16px 24px',
                     textAlign: 'right',
@@ -686,7 +691,7 @@ function PartsManagementContent() {
                   }}>
                     {'—'}
                   </td>
-                  
+
                   <td style={{
                     padding: '16px 24px',
                     textAlign: 'center'
@@ -707,7 +712,7 @@ function PartsManagementContent() {
                     textAlign: 'center'
                   }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                      <button 
+                      <button
                         onClick={() => {
                           setEditingPart(part)
                           setIsModalOpen(true)
@@ -737,7 +742,7 @@ function PartsManagementContent() {
                         <Settings size={12} />
                         Sửa
                       </button>
-                      <button 
+                      <button
                         onClick={() => setDeleteConfirm({ isOpen: true, partId: part.id })}
                         style={{
                           background: 'var(--error-500)',
@@ -879,189 +884,189 @@ function PartsManagementContent() {
                 ×
               </button>
             </div>
-            
+
             {/* Content */}
             <div style={{ padding: '24px' }}>
               {/* Avatar Section */}
 
               {/* Form create part */}
-{!editingPart && (
-  <div
-    style={{
-      background: 'var(--bg-card)',
-      padding: '24px',
-      borderRadius: '12px',
-      boxShadow: 'var(--shadow-sm)',
-      marginBottom: '24px',
-    }}
-  >
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        maxWidth: '500px',
-        margin: '0 auto',
-      }}
-    >
-      {/* Mã phụ tùng */}
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#374151',
-            marginBottom: '8px',
-          }}
-        >
-          Mã phụ tùng
-        </label>
-        <input
-          value={newPart.partNumber}
-          onChange={(e) => setNewPart({ ...newPart, partNumber: e.target.value })}
-          placeholder="Nhập mã phụ tùng"
-          style={{
-            width: '100%',
-            padding: '12px 14px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '14px',
-            outline: 'none',
-            transition: 'border-color 0.2s ease',
-            boxSizing: 'border-box',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-        />
-      </div>
+              {!editingPart && (
+                <div
+                  style={{
+                    background: 'var(--bg-card)',
+                    padding: '24px',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--shadow-sm)',
+                    marginBottom: '24px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '20px',
+                      maxWidth: '500px',
+                      margin: '0 auto',
+                    }}
+                  >
+                    {/* Mã phụ tùng */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          color: '#374151',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Mã phụ tùng
+                      </label>
+                      <input
+                        value={newPart.partNumber}
+                        onChange={(e) => setNewPart({ ...newPart, partNumber: e.target.value })}
+                        placeholder="Nhập mã phụ tùng"
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease',
+                          boxSizing: 'border-box',
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                        onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                      />
+                    </div>
 
-      {/* Tên phụ tùng */}
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#374151',
-            marginBottom: '8px',
-          }}
-        >
-          Tên phụ tùng
-        </label>
-        <input
-          value={newPart.partName}
-          onChange={(e) => setNewPart({ ...newPart, partName: e.target.value })}
-          placeholder="Nhập tên phụ tùng"
-          style={{
-            width: '100%',
-            padding: '12px 14px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '14px',
-            outline: 'none',
-            transition: 'border-color 0.2s ease',
-            boxSizing: 'border-box',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-        />
-      </div>
+                    {/* Tên phụ tùng */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          color: '#374151',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Tên phụ tùng
+                      </label>
+                      <input
+                        value={newPart.partName}
+                        onChange={(e) => setNewPart({ ...newPart, partName: e.target.value })}
+                        placeholder="Nhập tên phụ tùng"
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease',
+                          boxSizing: 'border-box',
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                        onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                      />
+                    </div>
 
-      {/* Thương hiệu và Đơn giá - 2 cột */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '20px',
-        }}
-      >
-        {/* Thương hiệu */}
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#374151',
-              marginBottom: '8px',
-            }}
-          >
-            Thương hiệu
-          </label>
-          <input
-            value={newPart.brand}
-            onChange={(e) => setNewPart({ ...newPart, brand: e.target.value })}
-            placeholder="Nhập thương hiệu"
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none',
-              transition: 'border-color 0.2s ease',
-              boxSizing: 'border-box',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-            onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-          />
-        </div>
+                    {/* Thương hiệu và Đơn giá - 2 cột */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '20px',
+                      }}
+                    >
+                      {/* Thương hiệu */}
+                      <div>
+                        <label
+                          style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#374151',
+                            marginBottom: '8px',
+                          }}
+                        >
+                          Thương hiệu
+                        </label>
+                        <input
+                          value={newPart.brand}
+                          onChange={(e) => setNewPart({ ...newPart, brand: e.target.value })}
+                          placeholder="Nhập thương hiệu"
+                          style={{
+                            width: '100%',
+                            padding: '12px 14px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            transition: 'border-color 0.2s ease',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                        />
+                      </div>
 
-        {/* Đơn giá */}
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#374151',
-              marginBottom: '8px',
-            }}
-          >
-            Đơn giá
-          </label>
-          <input
-            type="number"
-            value={newPart.unitPrice}
-            onChange={(e) => setNewPart({ ...newPart, unitPrice: Number(e.target.value) })}
-            placeholder="Nhập đơn giá"
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none',
-              transition: 'border-color 0.2s ease',
-              boxSizing: 'border-box',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-            onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-          />
-        </div>
-      </div>
+                      {/* Đơn giá */}
+                      <div>
+                        <label
+                          style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#374151',
+                            marginBottom: '8px',
+                          }}
+                        >
+                          Đơn giá
+                        </label>
+                        <input
+                          type="number"
+                          value={newPart.unitPrice}
+                          onChange={(e) => setNewPart({ ...newPart, unitPrice: Number(e.target.value) })}
+                          placeholder="Nhập đơn giá"
+                          style={{
+                            width: '100%',
+                            padding: '12px 14px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            transition: 'border-color 0.2s ease',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
+                        />
+                      </div>
+                    </div>
 
-      {/* Checkbox hoạt động */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          marginTop: '8px',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={newPart.isActive}
-          onChange={(e) => setNewPart({ ...newPart, isActive: e.target.checked })}
-          style={{ width: '16px', height: '16px' }}
-        />
-        <span style={{ fontSize: '15px', color: '#111827' }}>Hoạt động</span>
-      </div>
-    </div>
-  </div>
-)}
+                    {/* Checkbox hoạt động */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginTop: '8px',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newPart.isActive}
+                        onChange={(e) => setNewPart({ ...newPart, isActive: e.target.checked })}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <span style={{ fontSize: '15px', color: '#111827' }}>Hoạt động</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
 
               {/* Form edit part */}
@@ -1314,17 +1319,17 @@ function PartsManagementContent() {
                           isActive: editingPart.isActive
                         }
                         const res = await api.put(`/Part/${editingPart.id}`, payload)
-                        
+
                         // Cập nhật lại danh sách
                         setAllParts((prev) => {
-                          const updated = prev.map(p => 
-                            p.id === editingPart.id 
+                          const updated = prev.map(p =>
+                            p.id === editingPart.id
                               ? { ...p, name: editingPart.name, supplier: editingPart.supplier, price: editingPart.price, isActive: editingPart.isActive }
                               : p
                           )
                           return updated
                         })
-                        
+
                         setIsModalOpen(false)
                         setEditingPart(null)
                       } catch (e) {
@@ -1394,7 +1399,7 @@ function PartsManagementContent() {
                 Xác nhận xóa phụ tùng
               </h3>
             </div>
-            
+
             {/* Content */}
             <div style={{ padding: '24px' }}>
               <p style={{
@@ -1405,7 +1410,7 @@ function PartsManagementContent() {
               }}>
                 Bạn có chắc chắn muốn xóa phụ tùng này không? Hành động này sẽ xóa vĩnh viễn dữ liệu và không thể hoàn tác.
               </p>
-              
+
               {/* Action Buttons */}
               <div style={{
                 display: 'flex',
@@ -1526,7 +1531,7 @@ function SystemSettingsContent() {
 
   const handleSave = async (tabId) => {
     setSaveStatus('saving')
-    
+
     setTimeout(() => {
       setSaveStatus('success')
       setTimeout(() => setSaveStatus(null), 3000)
@@ -1976,9 +1981,9 @@ function SystemSettingsContent() {
   )
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: 'var(--bg-secondary)', 
+    <div style={{
+      padding: '24px',
+      background: 'var(--bg-secondary)',
       minHeight: '100vh',
       fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
     }}>
@@ -2039,15 +2044,15 @@ function SystemSettingsContent() {
               borderRadius: '6px',
               fontSize: '14px',
               fontWeight: '500',
-              background: saveStatus === 'success' ? '#dcfce7' : 
-                         saveStatus === 'saving' ? '#fef3c7' : '#fee2e2',
-              color: saveStatus === 'success' ? '#166534' : 
-                     saveStatus === 'saving' ? '#92400e' : '#991b1b'
+              background: saveStatus === 'success' ? '#dcfce7' :
+                saveStatus === 'saving' ? '#fef3c7' : '#fee2e2',
+              color: saveStatus === 'success' ? '#166534' :
+                saveStatus === 'saving' ? '#92400e' : '#991b1b'
             }}>
               {saveStatus === 'saving' && <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />}
               {saveStatus === 'success' && <CheckCircle size={14} />}
-              {saveStatus === 'success' ? 'Đã lưu thành công' : 
-               saveStatus === 'saving' ? 'Đang lưu...' : 'Đã đặt lại'}
+              {saveStatus === 'success' ? 'Đã lưu thành công' :
+                saveStatus === 'saving' ? 'Đang lưu...' : 'Đã đặt lại'}
             </div>
           )}
         </div>
@@ -2347,11 +2352,11 @@ function BookingManagementContent() {
   }
 
   const filteredBookings = bookingsData.filter(booking => {
-    const matchesSearch = !filters.search || 
+    const matchesSearch = !filters.search ||
       booking.customerName.toLowerCase().includes(filters.search.toLowerCase()) ||
       booking.id.toLowerCase().includes(filters.search.toLowerCase()) ||
       booking.licensePlate.toLowerCase().includes(filters.search.toLowerCase())
-    
+
     const matchesStatus = !filters.status || booking.status === filters.status
     const matchesServiceType = !filters.serviceType || booking.serviceType === filters.serviceType
     const matchesPriority = !filters.priority || booking.priority === filters.priority
@@ -2372,17 +2377,17 @@ function BookingManagementContent() {
   }
 
   const handleStatusChange = (bookingId, newStatus) => {
-    setBookingsData(prev => 
-      prev.map(booking => 
+    setBookingsData(prev =>
+      prev.map(booking =>
         booking.id === bookingId ? { ...booking, status: newStatus } : booking
       )
     )
   }
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: 'var(--bg-secondary)', 
+    <div style={{
+      padding: '24px',
+      background: 'var(--bg-secondary)',
       minHeight: '100vh',
       fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
     }}>
@@ -2432,9 +2437,9 @@ function BookingManagementContent() {
             Quản lý lịch đặt bảo trì và sửa chữa xe điện
           </p>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
+          <button
             style={{
               background: 'var(--bg-tertiary)',
               color: 'var(--text-primary)',
@@ -2461,7 +2466,7 @@ function BookingManagementContent() {
             <Download size={16} />
             Xuất báo cáo
           </button>
-          <button 
+          <button
             style={{
               background: 'var(--primary-500)',
               color: 'var(--text-inverse)',
@@ -2628,7 +2633,7 @@ function BookingManagementContent() {
                 type="text"
                 placeholder="Tên khách hàng, mã booking..."
                 value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '8px 12px 8px 36px',
@@ -2659,12 +2664,12 @@ function BookingManagementContent() {
                 color: 'var(--text-secondary)',
                 marginBottom: '6px'
               }}>
-                {filterType === 'status' ? 'Trạng thái' : 
-                 filterType === 'serviceType' ? 'Loại dịch vụ' : 'Độ ưu tiên'}
+                {filterType === 'status' ? 'Trạng thái' :
+                  filterType === 'serviceType' ? 'Loại dịch vụ' : 'Độ ưu tiên'}
               </label>
               <select
                 value={filters[filterType]}
-                onChange={(e) => setFilters({...filters, [filterType]: e.target.value})}
+                onChange={(e) => setFilters({ ...filters, [filterType]: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -2812,12 +2817,12 @@ function BookingManagementContent() {
                     borderBottom: '1px solid var(--border-primary)',
                     transition: 'background-color 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--primary-50)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--primary-50)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
                   >
                     <td style={{
                       padding: '16px 24px',
@@ -2906,7 +2911,7 @@ function BookingManagementContent() {
                       textAlign: 'center'
                     }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button 
+                        <button
                           onClick={() => handleViewDetails(booking)}
                           style={{
                             background: 'var(--primary-500)',
@@ -3002,7 +3007,7 @@ function BookingManagementContent() {
                 ×
               </button>
             </div>
-            
+
             {/* Content */}
             <div style={{ padding: '24px' }}>
               {/* Customer Info */}
@@ -3183,7 +3188,7 @@ function BookingManagementContent() {
                     {selectedBooking.status}
                   </span>
                 </div>
-                
+
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {selectedBooking.status === 'Chờ xác nhận' && (
                     <button
@@ -3263,225 +3268,23 @@ export default function AdminDashboard() {
       case 'users':
         return <UsersComponent />
       case 'staff':
-        return (
-          <div style={{ padding: '24px', background: 'var(--bg-secondary)', minHeight: '100vh' }}>
-            <h1 style={{ 
-              fontSize: '32px', 
-              fontWeight: '700', 
-              color: 'var(--text-primary)',
-              margin: '0 0 8px 0'
-            }}>
-              Quản lý nhân sự
-            </h1>
-            <p style={{ 
-              fontSize: '16px', 
-              color: 'var(--text-secondary)',
-              margin: '0 0 32px 0'
-            }}>
-              Quản lý thông tin nhân viên, phòng ban và hiệu suất làm việc
-            </p>
-            
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)',
-              marginBottom: '24px'
-            }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                fontWeight: '600', 
-                color: 'var(--text-primary)',
-                margin: '0 0 16px 0'
-              }}>
-                Thống kê nhân sự
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                <div style={{
-                  background: 'var(--primary-50)',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--primary-500)' }}>6</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Tổng nhân viên</div>
-                </div>
-                <div style={{
-                  background: 'var(--success-50)',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--success-500)' }}>5</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Đang làm việc</div>
-                </div>
-                <div style={{
-                  background: 'var(--error-50)',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--error-500)' }}>1</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Nghỉ việc</div>
-                </div>
-                <div style={{
-                  background: 'var(--warning-50)',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--warning-500)' }}>0</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Nghỉ phép</div>
-                </div>
-                <div style={{
-                  background: 'var(--info-50)',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--info-500)' }}>5</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Phòng ban</div>
-                </div>
-                <div style={{
-                  background: 'var(--warning-50)',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--warning-500)' }}>4.6</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Hiệu suất TB</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)',
-              marginBottom: '24px'
-            }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                fontWeight: '600', 
-                color: 'var(--text-primary)',
-                margin: '0 0 16px 0'
-              }}>
-                Bộ lọc và tìm kiếm
-              </h3>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative', flex: '1', minWidth: '300px' }}>
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo tên, email, SĐT hoặc vị trí..."
-                    style={{
-                      width: '100%',
-                      padding: '12px 12px 12px 44px',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      background: 'var(--bg-input)',
-                      color: 'var(--text-primary)'
-                    }}
-                  />
-                </div>
-                <select style={{
-                  padding: '12px 16px',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
-                  minWidth: '150px'
-                }}>
-                  <option value="all">Tất cả phòng ban</option>
-                  <option value="Kỹ thuật">Kỹ thuật</option>
-                  <option value="Dịch vụ khách hàng">Dịch vụ khách hàng</option>
-                  <option value="Quản lý">Quản lý</option>
-                </select>
-                <select style={{
-                  padding: '12px 16px',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
-                  minWidth: '150px'
-                }}>
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Đang làm việc</option>
-                  <option value="inactive">Nghỉ việc</option>
-                  <option value="on-leave">Nghỉ phép</option>
-                </select>
-                <button style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 20px',
-                  background: 'var(--primary-500)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}>
-                  + Thêm nhân viên
-                </button>
-              </div>
-            </div>
-
-            <div style={{
-              background: 'var(--bg-card)',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid var(--border-primary)',
-                background: 'var(--bg-tertiary)'
-              }}>
-                <h3 style={{ 
-                  fontSize: '18px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-primary)',
-                  margin: '0'
-                }}>
-                  Danh sách nhân viên (6)
-                </h3>
-              </div>
-              <div style={{ padding: '24px' }}>
-                <div style={{ 
-                  background: 'var(--bg-tertiary)', 
-                  padding: '20px', 
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Bảng danh sách nhân viên sẽ được hiển thị ở đây...
-                  <br />
-                  <small style={{ fontSize: '12px', marginTop: '8px', display: 'block' }}>
-                    Bao gồm: Thông tin cá nhân, phòng ban, vị trí, trạng thái, lương, hiệu suất và các thao tác
-                  </small>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
+        return <StaffManagement />
       case 'parts':
         return <PartsManagementContent />
       case 'services':
-        return isAdmin 
-          ? <ServicesManagementAdmin /> 
-          : <ServicesManagement allowCreate={false}/>
+        return isAdmin
+          ? <ServicesManagementAdmin />
+          : <ServicesManagement allowCreate={false} />
       case 'service-centers':
         return <CenterManagement />
       case 'settings':
         return <SystemSettingsContent />
       case 'bookings':
         return <BookingManagementContent />
+      case 'promotions':
+        return <PromotionManagement />
+      case 'service-packages':
+        return <ServicePackageManagement />
       case 'reports':
         return (
           <div>
@@ -3507,16 +3310,16 @@ export default function AdminDashboard() {
     <>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ 
-          fontSize: '32px', 
-          fontWeight: '700', 
+        <h1 style={{
+          fontSize: '32px',
+          fontWeight: '700',
           color: 'var(--text-primary)',
           margin: '0 0 8px 0'
         }}>
           Dashboard
         </h1>
-        <p style={{ 
-          fontSize: '16px', 
+        <p style={{
+          fontSize: '16px',
           color: 'var(--text-secondary)',
           margin: '0'
         }}>
@@ -3525,7 +3328,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div 
+      <div
         className="admin-stats-grid"
         style={{
           display: 'grid',
@@ -3536,7 +3339,7 @@ export default function AdminDashboard() {
         }}
       >
         {stats.map((stat, index) => (
-          <div 
+          <div
             key={index}
             style={{
               background: 'var(--bg-card)',
@@ -3579,8 +3382,8 @@ export default function AdminDashboard() {
                 {stat.change}
               </div>
             </div>
-            <h3 style={{ 
-              fontSize: '14px', 
+            <h3 style={{
+              fontSize: '14px',
               color: 'var(--text-secondary)',
               margin: '0 0 8px 0',
               fontWeight: '500'
@@ -3588,15 +3391,15 @@ export default function AdminDashboard() {
               {stat.title}
             </h3>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              <span style={{ 
-                fontSize: '28px', 
-                fontWeight: '700', 
+              <span style={{
+                fontSize: '28px',
+                fontWeight: '700',
                 color: 'var(--text-primary)'
               }}>
                 {stat.value}
               </span>
-              <span style={{ 
-                fontSize: '14px', 
+              <span style={{
+                fontSize: '14px',
                 color: 'var(--text-secondary)'
               }}>
                 {stat.unit}
@@ -3608,15 +3411,15 @@ export default function AdminDashboard() {
 
       {/* Charts Section */}
       <div style={{ marginBottom: '32px', width: '100%' }}>
-        <h2 style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
+        <h2 style={{
+          fontSize: '20px',
+          fontWeight: '600',
           color: 'var(--text-primary)',
           margin: '0 0 24px 0'
         }}>
           Biểu đồ thống kê
         </h2>
-        
+
         {/* Revenue Chart */}
         <div style={{
           background: 'var(--bg-card)',
@@ -3626,9 +3429,9 @@ export default function AdminDashboard() {
           marginBottom: '24px',
           boxShadow: 'var(--shadow-sm)'
         }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 20px 0'
           }}>
@@ -3637,17 +3440,17 @@ export default function AdminDashboard() {
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-              <XAxis 
-                dataKey="month" 
+              <XAxis
+                dataKey="month"
                 stroke="var(--text-secondary)"
                 fontSize={12}
               />
-              <YAxis 
+              <YAxis
                 stroke="var(--text-secondary)"
                 fontSize={12}
                 tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
               />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
@@ -3680,9 +3483,9 @@ export default function AdminDashboard() {
             border: '1px solid var(--border-primary)',
             boxShadow: 'var(--shadow-sm)'
           }}>
-            <h3 style={{ 
-              fontSize: '18px', 
-              fontWeight: '600', 
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
               color: 'var(--text-primary)',
               margin: '0 0 20px 0'
             }}>
@@ -3703,7 +3506,7 @@ export default function AdminDashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-primary)',
@@ -3725,9 +3528,9 @@ export default function AdminDashboard() {
             border: '1px solid var(--border-primary)',
             boxShadow: 'var(--shadow-sm)'
           }}>
-            <h3 style={{ 
-              fontSize: '18px', 
-              fontWeight: '600', 
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
               color: 'var(--text-primary)',
               margin: '0 0 20px 0'
             }}>
@@ -3736,16 +3539,16 @@ export default function AdminDashboard() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={customerGrowthData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   stroke="var(--text-secondary)"
                   fontSize={12}
                 />
-                <YAxis 
+                <YAxis
                   stroke="var(--text-secondary)"
                   fontSize={12}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-primary)',
@@ -3770,9 +3573,9 @@ export default function AdminDashboard() {
           boxShadow: 'var(--shadow-sm)',
           marginBottom: '24px'
         }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 20px 0'
           }}>
@@ -3781,19 +3584,19 @@ export default function AdminDashboard() {
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={partsInventoryData} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-              <XAxis 
+              <XAxis
                 type="number"
                 stroke="var(--text-secondary)"
                 fontSize={12}
               />
-              <YAxis 
-                dataKey="name" 
+              <YAxis
+                dataKey="name"
                 type="category"
                 stroke="var(--text-secondary)"
                 fontSize={12}
                 width={100}
               />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
@@ -3816,9 +3619,9 @@ export default function AdminDashboard() {
       <div className="content-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', width: '100%' }}>
         {/* Quick Actions */}
         <div>
-          <h2 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 24px 0'
           }}>
@@ -3865,16 +3668,16 @@ export default function AdminDashboard() {
                   <action.icon size={20} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
+                  <h3 style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
                     color: 'var(--text-primary)',
                     margin: '0 0 4px 0'
                   }}>
                     {action.title}
                   </h3>
-                  <p style={{ 
-                    fontSize: '12px', 
+                  <p style={{
+                    fontSize: '12px',
                     color: 'var(--text-secondary)',
                     margin: '0'
                   }}>
@@ -3889,9 +3692,9 @@ export default function AdminDashboard() {
 
         {/* Recent Activities */}
         <div>
-          <h2 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 24px 0'
           }}>
@@ -3904,7 +3707,7 @@ export default function AdminDashboard() {
             overflow: 'hidden'
           }}>
             {recentActivities.map((activity, index) => (
-              <div 
+              <div
                 key={activity.id}
                 style={{
                   padding: '16px 20px',
@@ -3918,30 +3721,30 @@ export default function AdminDashboard() {
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: activity.type === 'order' ? 'var(--success-500)' : 
-                             activity.type === 'inventory' ? 'var(--info-500)' :
-                             activity.type === 'maintenance' ? 'var(--warning-500)' : 'var(--primary-500)',
+                  background: activity.type === 'order' ? 'var(--success-500)' :
+                    activity.type === 'inventory' ? 'var(--info-500)' :
+                      activity.type === 'maintenance' ? 'var(--warning-500)' : 'var(--primary-500)',
                   flexShrink: 0
                 }} />
                 <div style={{ flex: 1 }}>
-                  <p style={{ 
-                    fontSize: '14px', 
-                    fontWeight: '500', 
+                  <p style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
                     color: 'var(--text-primary)',
                     margin: '0 0 2px 0'
                   }}>
                     {activity.action}
                   </p>
-                  <p style={{ 
-                    fontSize: '12px', 
+                  <p style={{
+                    fontSize: '12px',
                     color: 'var(--text-secondary)',
                     margin: '0'
                   }}>
                     {activity.description}
                   </p>
                 </div>
-                <span style={{ 
-                  fontSize: '11px', 
+                <span style={{
+                  fontSize: '11px',
                   color: 'var(--text-tertiary)',
                   whiteSpace: 'nowrap'
                 }}>
@@ -4002,7 +3805,7 @@ export default function AdminDashboard() {
     { name: 'Đèn LED', stock: 35, minStock: 25, color: 'var(--success-500)' }
   ]
 
-  // Mock data for dashboard stats
+
   const stats = [
     {
       title: 'Tổng doanh thu',
@@ -4159,16 +3962,16 @@ export default function AdminDashboard() {
           >
             <Menu size={20} />
           </button>
-          <h1 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
+          <h1 style={{
+            fontSize: '20px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: 0
           }}>
             Admin Panel
           </h1>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ position: 'relative' }}>
             <Search size={20} style={{ color: 'var(--text-tertiary)' }} />
@@ -4208,9 +4011,9 @@ export default function AdminDashboard() {
             }}>
               A
             </div>
-            <span style={{ 
-              fontSize: '14px', 
-              fontWeight: '500', 
+            <span style={{
+              fontSize: '14px',
+              fontWeight: '500',
               color: 'var(--text-primary)'
             }}>
               Admin User
@@ -4221,7 +4024,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Sidebar */}
-      <div 
+      <div
         className={`admin-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
         style={{
           width: sidebarCollapsed ? '80px' : '280px',
@@ -4236,9 +4039,9 @@ export default function AdminDashboard() {
       >
         <div style={{ padding: '24px' }}>
           {/* Logo */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             marginBottom: '32px',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
@@ -4259,16 +4062,16 @@ export default function AdminDashboard() {
             </div>
             {!sidebarCollapsed && (
               <div>
-                <h1 style={{ 
-                  fontSize: '20px', 
-                  fontWeight: '700', 
+                <h1 style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
                   color: 'var(--text-primary)',
                   margin: '0'
                 }}>
                   Admin Panel
                 </h1>
-                <p style={{ 
-                  fontSize: '12px', 
+                <p style={{
+                  fontSize: '12px',
                   color: 'var(--text-secondary)',
                   margin: '0'
                 }}>
@@ -4281,9 +4084,9 @@ export default function AdminDashboard() {
           {/* Navigation */}
           <nav>
             <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ 
-                fontSize: '12px', 
-                fontWeight: '600', 
+              <h3 style={{
+                fontSize: '12px',
+                fontWeight: '600',
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
@@ -4292,7 +4095,7 @@ export default function AdminDashboard() {
               }}>
                 Tổng quan
               </h3>
-              <div 
+              <div
                 onClick={() => setActivePage('dashboard')}
                 style={{
                   display: 'flex',
@@ -4325,9 +4128,9 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ 
-                fontSize: '12px', 
-                fontWeight: '600', 
+              <h3 style={{
+                fontSize: '12px',
+                fontWeight: '600',
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
@@ -4339,14 +4142,16 @@ export default function AdminDashboard() {
               {[
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
+                { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
                 { icon: Calendar, label: 'Booking', page: 'bookings', route: '/admin/bookings' },
+                { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings', route: '/admin/settings' },
                 { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
               ].map((item, index) => (
-                <div 
+                <div
                   key={index}
                   onClick={() => setActivePage(item.page)}
                   style={{
@@ -4406,7 +4211,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Content */}
-      <div 
+      <div
         className="admin-main-content"
         style={{
           marginLeft: sidebarCollapsed ? '80px' : '280px',

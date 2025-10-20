@@ -101,6 +101,66 @@ export type ServiceListResponse = {
   totalPages: number
 }
 
+// ServicePackage Types
+export type ServicePackage = {
+  packageId: number
+  packageName: string
+  packageCode: string
+  description?: string
+  serviceId: number
+  serviceName: string
+  totalCredits: number
+  price: number
+  discountPercent?: number
+  isActive: boolean
+  validFrom?: string
+  validTo?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateServicePackageRequest = {
+  packageName: string
+  packageCode: string
+  description?: string
+  serviceId: number
+  totalCredits: number
+  price: number
+  discountPercent?: number
+  isActive?: boolean
+  validFrom?: string
+  validTo?: string
+}
+
+export type UpdateServicePackageRequest = {
+  packageName?: string
+  packageCode?: string
+  description?: string
+  serviceId?: number
+  totalCredits?: number
+  price?: number
+  discountPercent?: number
+  isActive?: boolean
+  validFrom?: string
+  validTo?: string
+}
+
+export type ServicePackageListParams = {
+  pageNumber?: number
+  pageSize?: number
+  serviceId?: number
+  activeOnly?: boolean
+  searchTerm?: string
+}
+
+export type ServicePackageListResponse = {
+  packages: ServicePackage[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+}
+
 export const ServiceManagementService = {
   async getServices(params: ServiceListParams = {}): Promise<ServiceListResponse> {
     const backendParams = {
@@ -110,11 +170,15 @@ export const ServiceManagementService = {
       categoryId: params.categoryId
     }
 
-    const { data } = await api.get('/Service', { params: backendParams })
+    const { data } = await api.get('/Service/active', { params: backendParams })
+    console.log('Raw API response:', data)
+
     const envelope = data as BackendListEnvelope<BackendServiceListData> | BackendServiceListData
     const payload: BackendServiceListData = (envelope as any)?.data
       ? (envelope as BackendListEnvelope<BackendServiceListData>).data
       : (envelope as BackendServiceListData)
+
+    console.log('Extracted payload:', payload)
 
     const rawList: BackendService[] | undefined = (payload.services && Array.isArray(payload.services))
       ? payload.services
@@ -122,7 +186,10 @@ export const ServiceManagementService = {
         ? payload.items
         : (Array.isArray(envelope) ? (envelope as unknown as BackendService[]) : [])
 
+    console.log('Raw services list:', rawList)
+
     const services = (rawList || []).map(mapBackendServiceToService)
+    console.log('Mapped services:', services)
 
     return {
       services,
@@ -142,7 +209,7 @@ export const ServiceManagementService = {
       categoryId: params.categoryId
     }
 
-    const { data } = await api.get('/Service/active', { params: backendParams })
+    const { data } = await api.get('/service/active', { params: backendParams })
     const envelope = data as BackendListEnvelope<BackendServiceListData> | BackendServiceListData
     const payload: BackendServiceListData = (envelope as any)?.data
       ? (envelope as BackendListEnvelope<BackendServiceListData>).data
@@ -170,15 +237,14 @@ export const ServiceManagementService = {
     try {
       const response = await this.getServices({ pageSize: 1000 })
       const services = response.services
-      
+
       const totalServices = services.length
       const activeServices = services.filter(s => s.isActive).length
-      
-      // Mock data
-      const serviceBookings = Math.floor(Math.random() * 50) + 20
-      const serviceRevenue = Math.floor(Math.random() * 50000000) + 10000000
-      const completionRate = Math.floor(Math.random() * 20) + 80
-      
+
+      const serviceBookings = 0
+      const serviceRevenue = 0
+      const completionRate = 0
+
       return {
         totalServices,
         serviceBookings,
@@ -199,78 +265,19 @@ export const ServiceManagementService = {
     }
   },
 
-  // Get service performance data - mock data
+  // Get service performance data - TODO: Replace with real API
   async getServicePerformance(): Promise<ServicePerformance[]> {
-    return [
-      { service: 'Bảo dưỡng định kỳ', bookings: Math.floor(Math.random() * 30) + 15, revenue: Math.floor(Math.random() * 15000000) + 5000000 },
-      { service: 'Sửa chữa động cơ', bookings: Math.floor(Math.random() * 25) + 10, revenue: Math.floor(Math.random() * 20000000) + 8000000 },
-      { service: 'Thay lốp xe', bookings: Math.floor(Math.random() * 20) + 8, revenue: Math.floor(Math.random() * 8000000) + 3000000 },
-      { service: 'Bảo dưỡng phanh', bookings: Math.floor(Math.random() * 18) + 6, revenue: Math.floor(Math.random() * 12000000) + 4000000 },
-      { service: 'Kiểm tra điện', bookings: Math.floor(Math.random() * 15) + 5, revenue: Math.floor(Math.random() * 6000000) + 2000000 }
-    ]
+    return []
   },
 
-  // Get recent service bookings - mock data
+  // Get recent service bookings - TODO: Replace with real API
   async getRecentBookings(limit: number = 10): Promise<ServiceBooking[]> {
-    const mockBookings: ServiceBooking[] = [
-      {
-        id: 'BK001',
-        service: 'Bảo dưỡng định kỳ',
-        customer: 'Nguyễn Văn A',
-        branch: 'Chi nhánh Hà Nội',
-        status: 'completed',
-        price: 500000,
-        date: '2024-01-15',
-        time: '09:00'
-      },
-      {
-        id: 'BK002',
-        service: 'Sửa chữa động cơ',
-        customer: 'Trần Thị B',
-        branch: 'Chi nhánh TP.HCM',
-        status: 'in_progress',
-        price: 1200000,
-        date: '2024-01-14',
-        time: '14:30'
-      },
-      {
-        id: 'BK003',
-        service: 'Thay lốp xe',
-        customer: 'Lê Văn C',
-        branch: 'Chi nhánh Đà Nẵng',
-        status: 'scheduled',
-        price: 800000,
-        date: '2024-01-16',
-        time: '10:00'
-      },
-      {
-        id: 'BK004',
-        service: 'Bảo dưỡng phanh',
-        customer: 'Phạm Thị D',
-        branch: 'Chi nhánh Hà Nội',
-        status: 'completed',
-        price: 600000,
-        date: '2024-01-13',
-        time: '16:00'
-      },
-      {
-        id: 'BK005',
-        service: 'Kiểm tra điện',
-        customer: 'Hoàng Văn E',
-        branch: 'Chi nhánh TP.HCM',
-        status: 'in_progress',
-        price: 400000,
-        date: '2024-01-12',
-        time: '11:30'
-      }
-    ]
-    
-    return mockBookings.slice(0, limit)
+    return []
   },
 
   // Get service by ID
   async getServiceById(id: number): Promise<Service> {
-    const { data } = await api.get(`/Service/${id}`)
+    const { data } = await api.get(`/service/${id}`)
     const maybeService: BackendService | undefined = (data as any)?.data?.service ?? (data as any)?.data ?? data
     return mapBackendServiceToService(maybeService as BackendService)
   },
@@ -278,12 +285,12 @@ export const ServiceManagementService = {
   // Create new service
   async createService(service: Omit<Service, 'id' | 'createAt'> & { notes?: string }): Promise<Service> {
     console.log('Creating service with data:', service)
-    
+
     const backendService = mapServiceToBackendService(service)
 
-    const { data } = await api.post('/Service', backendService)
+    const { data } = await api.post('/service', backendService)
     console.log('Create service response:', data)
-    
+
     const maybeService: BackendService | undefined = (data as any)?.data?.service ?? (data as any)?.data ?? data
     return mapBackendServiceToService(maybeService as BackendService)
   },
@@ -292,10 +299,10 @@ export const ServiceManagementService = {
   async updateService(id: number, service: Partial<Service> & { notes?: string }): Promise<Service> {
     try {
       console.log('Updating service:', { id, service })
-      
+
       const backendService = {
         ...mapServiceToBackendService(service),
-        serviceId: id 
+        serviceId: id
       }
 
       console.log('Sending update payload:', backendService)
@@ -304,24 +311,24 @@ export const ServiceManagementService = {
       let response
       try {
         // First try: PUT with ID in URL
-        response = await api.put(`/Service/${id}`, backendService)
+        response = await api.put(`/service/${id}`, backendService)
         console.log('Update successful with endpoint /Service/${id}')
       } catch (firstError: any) {
         console.log('First endpoint failed, trying alternative...', firstError.message)
-        
+
         // Second try: PUT with ID in body only
-        response = await api.put('/Service', backendService)
+        response = await api.put('/service', backendService)
         console.log('Update successful with endpoint /Service')
       }
 
       console.log('Update response:', response.data)
-      
+
       const maybeService: BackendService | undefined = (response.data as any)?.data?.service ?? (response.data as any)?.data ?? response.data
-      
+
       if (!maybeService) {
         throw new Error('Invalid response format from server')
       }
-      
+
       return mapBackendServiceToService(maybeService as BackendService)
     } catch (error: any) {
       console.error('Error in updateService:', {
@@ -333,20 +340,316 @@ export const ServiceManagementService = {
     }
   },
 
-  // Update service status (toggle active/inactive)
   async updateServiceStatus(id: number): Promise<Service> {
-    const { data } = await api.patch(`/Service/${id}/toggle-active`)
+    const { data } = await api.patch(`/service/${id}/toggle-active`)
     const maybeService: BackendService | undefined = (data as any)?.data?.service ?? (data as any)?.data ?? data
     return mapBackendServiceToService(maybeService as BackendService)
   },
 
-  // Get service categories
   async getServiceCategories(): Promise<string[]> {
     try {
-      const { data } = await api.get('/Service/categories')
+      const { data } = await api.get('/service/categories')
       return data
     } catch (error) {
       return []
+    }
+  },
+
+  async getServicePackages(params: ServicePackageListParams = {}): Promise<ServicePackageListResponse> {
+    try {
+      const backendParams = {
+        pageNumber: params.pageNumber,
+        pageSize: params.pageSize,
+        serviceId: params.serviceId,
+        activeOnly: params.activeOnly,
+        searchTerm: params.searchTerm
+      }
+
+      console.log('Fetching service packages with params:', backendParams)
+      const { data } = await api.get('/ServicePackages', { params: backendParams })
+      console.log('ServicePackages API response:', data)
+
+  
+      let packages: ServicePackage[] = []
+      
+      if (data && Array.isArray(data)) {
+        packages = data
+      } else if (data?.data && Array.isArray(data.data)) {
+        packages = data.data
+      } else if (data?.packages && Array.isArray(data.packages)) {
+        packages = data.packages
+      } else if (data?.success && data?.data) {
+        packages = Array.isArray(data.data) ? data.data : []
+      }
+
+      console.log('Mapped packages:', packages)
+
+      return {
+        packages,
+        totalCount: packages.length,
+        pageNumber: params.pageNumber || 1,
+        pageSize: params.pageSize || 10,
+        totalPages: Math.ceil(packages.length / (params.pageSize || 10))
+      }
+    } catch (error: any) {
+      console.error('Error fetching service packages:', error)
+      throw new Error(error.response?.data?.message || `Failed to fetch service packages: ${error.message}`)
+    }
+  },
+
+  async getServicePackageById(id: number): Promise<ServicePackage> {
+    try {
+      console.log('Fetching service package by ID:', id)
+      const { data } = await api.get(`/ServicePackages/${id}`)
+      console.log('ServicePackage by ID response:', data)
+
+      // Handle different response formats
+      if (data && typeof data === 'object') {
+        if (data.data && typeof data.data === 'object') {
+          return data.data
+        } else if (data.packageId) {
+          return data
+        }
+      }
+      
+      throw new Error('Invalid response format from server')
+    } catch (error: any) {
+      console.error('Error fetching service package by ID:', error)
+      throw new Error(error.response?.data?.message || `Failed to fetch service package: ${error.message}`)
+    }
+  },
+
+  async getServicePackageByCode(code: string): Promise<ServicePackage> {
+    try {
+      console.log('Fetching service package by code:', code)
+      const { data } = await api.get(`/ServicePackages/code/${code}`)
+      console.log('ServicePackage by code response:', data)
+
+      // Handle different response formats
+      if (data && typeof data === 'object') {
+        if (data.data && typeof data.data === 'object') {
+          return data.data
+        } else if (data.packageId) {
+          return data
+        }
+      }
+      
+      throw new Error('Invalid response format from server')
+    } catch (error: any) {
+      console.error('Error fetching service package by code:', error)
+      throw new Error(error.response?.data?.message || `Failed to fetch service package: ${error.message}`)
+    }
+  },
+
+  async createServicePackage(packageData: CreateServicePackageRequest): Promise<ServicePackage> {
+    try {
+      console.log('Creating service package with data:', packageData)
+      
+      // Validate required fields
+      if (!packageData.packageName?.trim()) {
+        throw new Error('Tên gói dịch vụ là bắt buộc')
+      }
+      if (!packageData.packageCode?.trim()) {
+        throw new Error('Mã gói dịch vụ là bắt buộc')
+      }
+      if (!packageData.serviceId || packageData.serviceId <= 0) {
+        throw new Error('Dịch vụ là bắt buộc')
+      }
+      if (!packageData.totalCredits || packageData.totalCredits <= 0) {
+        throw new Error('Tổng số credit phải lớn hơn 0')
+      }
+      if (packageData.price < 0) {
+        throw new Error('Giá gói phải lớn hơn hoặc bằng 0')
+      }
+
+      const { data } = await api.post('/ServicePackages', packageData)
+      console.log('Create service package response:', data)
+      if (data && typeof data === 'object') {
+        if (data.data && typeof data.data === 'object') {
+          return data.data
+        } else if (data.packageId) {
+          return data
+        }
+      }
+      
+      throw new Error('Invalid response format from server')
+    } catch (error: any) {
+      console.error('Error creating service package:', error)
+      throw new Error(error.response?.data?.message || `Failed to create service package: ${error.message}`)
+    }
+  },
+
+  async updateServicePackage(id: number, packageData: UpdateServicePackageRequest): Promise<ServicePackage> {
+    try {
+      console.log('Updating service package:', { id, packageData })
+      
+      // Validate ID
+      if (!id || id <= 0) {
+        throw new Error('ID gói dịch vụ không hợp lệ')
+      }
+
+      // Validate fields if provided
+      if (packageData.packageName !== undefined && !packageData.packageName?.trim()) {
+        throw new Error('Tên gói dịch vụ không được để trống')
+      }
+      if (packageData.packageCode !== undefined && !packageData.packageCode?.trim()) {
+        throw new Error('Mã gói dịch vụ không được để trống')
+      }
+      if (packageData.serviceId !== undefined && packageData.serviceId <= 0) {
+        throw new Error('Dịch vụ không hợp lệ')
+      }
+      if (packageData.totalCredits !== undefined && packageData.totalCredits <= 0) {
+        throw new Error('Tổng số credit phải lớn hơn 0')
+      }
+      if (packageData.price !== undefined && packageData.price < 0) {
+        throw new Error('Giá gói phải lớn hơn hoặc bằng 0')
+      }
+      if (packageData.discountPercent !== undefined && (packageData.discountPercent < 0 || packageData.discountPercent > 100)) {
+        throw new Error('Phần trăm giảm giá phải từ 0 đến 100')
+      }
+
+      const { data } = await api.put(`/ServicePackages/${id}`, packageData)
+      console.log('Update service package response:', data)
+
+      // Handle different response formats
+      if (data && typeof data === 'object') {
+        if (data.data && typeof data.data === 'object') {
+          return data.data
+        } else if (data.packageId) {
+          return data
+        }
+      }
+      
+      throw new Error('Invalid response format from server')
+    } catch (error: any) {
+      console.error('Error updating service package:', error)
+      throw new Error(error.response?.data?.message || `Failed to update service package: ${error.message}`)
+    }
+  },
+
+  async deleteServicePackage(id: number): Promise<void> {
+    try {
+      console.log('Deleting service package with ID:', id)
+      
+      // Validate ID
+      if (!id || id <= 0) {
+        throw new Error('ID gói dịch vụ không hợp lệ')
+      }
+
+      await api.delete(`/ServicePackages/${id}`)
+      console.log('Service package deleted successfully')
+    } catch (error: any) {
+      console.error('Error deleting service package:', error)
+      throw new Error(error.response?.data?.message || `Failed to delete service package: ${error.message}`)
+    }
+  },
+
+  async getActiveServicePackages(params: ServicePackageListParams = {}): Promise<ServicePackageListResponse> {
+    return this.getServicePackages({ ...params, activeOnly: true })
+  },
+
+  // Get service packages by service ID
+  async getServicePackagesByServiceId(serviceId: number, params: ServicePackageListParams = {}): Promise<ServicePackageListResponse> {
+    return this.getServicePackages({ ...params, serviceId })
+  },
+
+  // Check if package code exists
+  async checkPackageCodeExists(code: string, excludeId?: number): Promise<boolean> {
+    try {
+      console.log('Checking if package code exists:', { code, excludeId })
+      const { data } = await api.get(`/ServicePackages/check-code`, { 
+        params: { code, excludeId } 
+      })
+      return data?.exists || false
+    } catch (error: any) {
+      console.error('Error checking package code:', error)
+      return false
+    }
+  },
+
+  // Toggle package active status
+  async togglePackageStatus(id: number): Promise<ServicePackage> {
+    try {
+      console.log('Toggling package status:', id)
+      
+      // First, get the current package to know its current status
+      const currentPackage = await this.getServicePackageById(id)
+      const newStatus = !currentPackage.isActive
+      
+      console.log('Current status:', currentPackage.isActive, 'New status:', newStatus)
+      
+      // Update the package with the new status
+      const updatedPackage = await this.updateServicePackage(id, {
+        isActive: newStatus
+      })
+      
+      console.log('Package status toggled successfully:', updatedPackage)
+      return updatedPackage
+    } catch (error: any) {
+      console.error('Error toggling package status:', error)
+      throw new Error(error.response?.data?.message || `Failed to toggle package status: ${error.message}`)
+    }
+  },
+
+
+  async activatePackage(id: number): Promise<ServicePackage> {
+    try {
+      console.log('Activating package:', id)
+      const updatedPackage = await this.updateServicePackage(id, {
+        isActive: true
+      })
+      console.log('Package activated successfully:', updatedPackage)
+      return updatedPackage
+    } catch (error: any) {
+      console.error('Error activating package:', error)
+      throw new Error(error.response?.data?.message || `Failed to activate package: ${error.message}`)
+    }
+  },
+
+  async deactivatePackage(id: number): Promise<ServicePackage> {
+    try {
+      console.log('Deactivating package:', id)
+      const updatedPackage = await this.updateServicePackage(id, {
+        isActive: false
+      })
+      console.log('Package deactivated successfully:', updatedPackage)
+      return updatedPackage
+    } catch (error: any) {
+      console.error('Error deactivating package:', error)
+      throw new Error(error.response?.data?.message || `Failed to deactivate package: ${error.message}`)
+    }
+  },
+
+
+  async getPackageStats(): Promise<{
+    totalPackages: number
+    activePackages: number
+    inactivePackages: number
+    totalRevenue: number
+  }> {
+    try {
+      const response = await this.getServicePackages({ pageSize: 1000 })
+      const packages = response.packages
+
+      const totalPackages = packages.length
+      const activePackages = packages.filter(p => p.isActive).length
+      const inactivePackages = totalPackages - activePackages
+      const totalRevenue = packages.reduce((sum, p) => sum + p.price, 0)
+
+      return {
+        totalPackages,
+        activePackages,
+        inactivePackages,
+        totalRevenue
+      }
+    } catch (error: any) {
+      console.error('Error getting package stats:', error)
+      return {
+        totalPackages: 0,
+        activePackages: 0,
+        inactivePackages: 0,
+        totalRevenue: 0
+      }
     }
   }
 }
