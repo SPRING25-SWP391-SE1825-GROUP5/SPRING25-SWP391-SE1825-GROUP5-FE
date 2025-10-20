@@ -3,8 +3,7 @@ import { useAppSelector } from '@/store/hooks'
 import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
-import VehicleInfoStep from './VehicleInfoStep'
-import ServiceSelectionStep from './ServiceSelectionStep'
+import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
 import LocationTimeStep from './LocationTimeStep'
 import AccountStep from './AccountStep'
 import ConfirmationStep from './ConfirmationStep'
@@ -109,31 +108,35 @@ const ServiceBookingForm: React.FC = () => {
   // Kiểm tra xem bước hiện tại đã hoàn thành chưa
   const isStepCompleted = (step: number): boolean => {
     if (isGuest) {
-      // Khách vãng lai: 5 bước (dịch vụ -> xe -> địa điểm -> tài khoản -> xác nhận)
+      // Khách vãng lai: 4 bước (Dịch vụ & Xe -> Địa điểm -> Tài khoản -> Xác nhận)
       switch (step) {
         case 1:
-          return bookingData.serviceInfo.services.length > 0
+          return (
+            bookingData.serviceInfo.services.length > 0 &&
+            !!bookingData.vehicleInfo.carModel &&
+            !!bookingData.vehicleInfo.licensePlate
+          )
         case 2:
-          return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
-        case 3:
           return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
-        case 4:
+        case 3:
           return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword && bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
-        case 5:
+        case 4:
           return true
         default:
           return false
       }
     } else {
-      // Đã đăng nhập: 4 bước
+      // Đã đăng nhập: 3 bước (Dịch vụ & Xe -> Địa điểm -> Xác nhận)
       switch (step) {
         case 1:
-          return bookingData.serviceInfo.services.length > 0
+          return (
+            bookingData.serviceInfo.services.length > 0 &&
+            !!bookingData.vehicleInfo.carModel &&
+            !!bookingData.vehicleInfo.licensePlate
+          )
         case 2:
-          return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
-        case 3:
           return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
-        case 4:
+        case 3:
           return true // Bước xác nhận luôn có thể hoàn thành
         default:
           return false
@@ -144,7 +147,7 @@ const ServiceBookingForm: React.FC = () => {
   // Cập nhật completed steps khi data thay đổi
   useEffect(() => {
     const newCompletedSteps: number[] = []
-    const maxSteps = isGuest ? 5 : 4
+    const maxSteps = isGuest ? 4 : 3
     for (let i = 1; i <= maxSteps; i++) {
       if (isStepCompleted(i)) {
         newCompletedSteps.push(i)
@@ -154,7 +157,7 @@ const ServiceBookingForm: React.FC = () => {
   }, [bookingData, isGuest])
 
   const handleNext = () => {
-    const maxSteps = isGuest ? 5 : 4
+    const maxSteps = isGuest ? 4 : 3
     if (currentStep < maxSteps) {
       setCurrentStep(currentStep + 1)
     }
@@ -199,27 +202,20 @@ const ServiceBookingForm: React.FC = () => {
   const renderCurrentStep = () => {
     // Logic điều hướng thông minh dựa trên trạng thái đăng nhập
     if (isGuest) {
-      // Khách vãng lai: 5 bước
+      // Khách vãng lai: 4 bước
       switch (currentStep) {
         case 1:
           return (
-            <VehicleInfoStep
-              data={bookingData.vehicleInfo}
-              onUpdate={(data) => updateBookingData('vehicleInfo', data)}
+            <CombinedServiceVehicleStep
+              vehicleData={bookingData.vehicleInfo}
+              serviceData={bookingData.serviceInfo}
+              onUpdateVehicle={(data) => updateBookingData('vehicleInfo', data)}
+              onUpdateService={(data) => updateBookingData('serviceInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
             />
           )
         case 2:
-          return (
-            <ServiceSelectionStep
-              data={bookingData.serviceInfo}
-              onUpdate={(data) => updateBookingData('serviceInfo', data)}
-              onNext={handleNext}
-              onPrev={handlePrev}
-            />
-          )
-        case 3:
           return (
             <LocationTimeStep
               data={bookingData.locationTimeInfo}
@@ -228,7 +224,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 4:
+        case 3:
           return (
             <AccountStep
               data={bookingData.accountInfo || { username: '', password: '', confirmPassword: '' }}
@@ -237,7 +233,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 5:
+        case 4:
           return (
             <ConfirmationStep
               data={bookingData}
@@ -250,27 +246,20 @@ const ServiceBookingForm: React.FC = () => {
           return null
       }
     } else {
-      // Đã đăng nhập: 4 bước (bỏ qua bước 1 và 5)
+      // Đã đăng nhập: 3 bước
       switch (currentStep) {
         case 1:
           return (
-            <ServiceSelectionStep
-              data={bookingData.serviceInfo}
-              onUpdate={(data) => updateBookingData('serviceInfo', data)}
+            <CombinedServiceVehicleStep
+              vehicleData={bookingData.vehicleInfo}
+              serviceData={bookingData.serviceInfo}
+              onUpdateVehicle={(data) => updateBookingData('vehicleInfo', data)}
+              onUpdateService={(data) => updateBookingData('serviceInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
             />
           )
         case 2:
-          return (
-            <VehicleInfoStep
-              data={bookingData.vehicleInfo}
-              onUpdate={(data) => updateBookingData('vehicleInfo', data)}
-              onNext={handleNext}
-              onPrev={handlePrev}
-            />
-          )
-        case 3:
           return (
             <LocationTimeStep
               data={bookingData.locationTimeInfo}
@@ -279,7 +268,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 4:
+        case 3:
           return (
             <ConfirmationStep
               data={bookingData}

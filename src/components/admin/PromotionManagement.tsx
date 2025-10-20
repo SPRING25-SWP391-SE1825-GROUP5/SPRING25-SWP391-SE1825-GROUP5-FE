@@ -1673,16 +1673,20 @@ export default function PromotionManagement() {
 
   // Handle activate promotion
   const handleActivate = async (id: number) => {
+    // Optimistic UI update: set ACTIVE immediately
+    const prev = promotions
+    setPromotions(prev.map(p => p.promotionId === id ? { ...p, status: 'ACTIVE', isActive: true } : p))
     try {
       setIsLoading(true)
       setError(null)
       console.log('Activating promotion with ID:', id)
-      
       await promotionService.activatePromotion(id)
       setSuccessMessage('Kích hoạt khuyến mãi thành công!')
       setTimeout(() => setSuccessMessage(null), 3000)
       await loadPromotions()
     } catch (error) {
+      // rollback on error
+      setPromotions(prev)
       console.error('Error activating promotion:', error)
       // Extract server message if available
       // @ts-ignore
@@ -1699,16 +1703,18 @@ export default function PromotionManagement() {
 
   // Handle deactivate promotion
   const handleDeactivate = async (id: number) => {
+    const prev = promotions
+    setPromotions(prev.map(p => p.promotionId === id ? { ...p, status: 'INACTIVE', isActive: false } : p))
     try {
       setIsLoading(true)
       setError(null)
       console.log('Deactivating promotion with ID:', id)
-      
       await promotionService.deactivatePromotion(id)
       setSuccessMessage('Vô hiệu hóa khuyến mãi thành công!')
       setTimeout(() => setSuccessMessage(null), 3000)
       await loadPromotions()
     } catch (error) {
+      setPromotions(prev)
       // Extract server message if available
       // @ts-ignore
       const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
