@@ -41,7 +41,8 @@ import {
   AlertCircle,
   User,
   Car,
-  Download
+  Download,
+  Trash2
 } from 'lucide-react'
 import {
   AreaChart,
@@ -87,6 +88,7 @@ function PartsManagementContent() {
 
   const mapApiPartToUi = (p: any) => ({
     id: String(p.partId),
+    partNumber: p.partNumber,
     name: p.partName,
     category: p.brand,
     stock: 0,
@@ -110,8 +112,7 @@ function PartsManagementContent() {
 
   const [filters, setFilters] = useState({
     search: '',
-    status: '',
-    supplier: ''
+    idOrder: 'desc' as 'asc' | 'desc'
   })
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -149,21 +150,28 @@ function PartsManagementContent() {
     }
   }
 
-  const filteredParts = partsData.filter(part => {
-    const matchesSearch = !filters.search ||
-      part.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      part.id.toLowerCase().includes(filters.search.toLowerCase())
+  // Build ordered source list based on full dataset, then paginate
+  const buildOrderedAllParts = () => {
+    const text = (s: string) => (s || '').toLowerCase()
+    const searched = !filters.search
+      ? allParts
+      : allParts.filter((part) =>
+          text(part.name).includes(text(filters.search)) ||
+          String(part.id).toLowerCase().includes(text(filters.search)) ||
+          String((part as any).partNumber || '').toLowerCase().includes(text(filters.search))
+        )
+    const ordered = [...searched].sort((a, b) => {
+      const aid = Number(a.id)
+      const bid = Number(b.id)
+      return filters.idOrder === 'asc' ? aid - bid : bid - aid
+    })
+    return ordered
+  }
 
-    const matchesStatus = !filters.status || part.status === filters.status
-    const matchesSupplier = !filters.supplier || part.supplier === filters.supplier
-
-    return matchesSearch && matchesStatus && matchesSupplier
-  })
-
-  const totalParts = partsData.length
-  const totalValue = partsData.reduce((sum, part) => sum + (part.price * part.stock), 0)
-  const lowStockParts = partsData.filter(part => part.stock < 15).length
-  const outOfStockParts = partsData.filter(part => part.stock === 0).length
+  // Calculate stats based on current filtered results
+  const filteredParts = buildOrderedAllParts()
+  const totalParts = filteredParts.length
+  const totalValue = filteredParts.reduce((sum, part) => sum + part.price, 0)
 
 
   useEffect(() => {
@@ -218,12 +226,15 @@ function PartsManagementContent() {
     fetchAllParts()
   }, [pageSize])
 
-  // derive current page slice from globally sorted full list
+  // derive current page slice from globally sorted full list (ordered by ID)
   useEffect(() => {
+    const ordered = buildOrderedAllParts()
     const start = (pageNumber - 1) * pageSize
     const end = start + pageSize
-    setPartsData(allParts.slice(start, end))
-  }, [allParts, pageNumber, pageSize])
+    setPartsData(ordered.slice(start, end))
+    // Update totalCount for pagination based on filtered results
+    setTotalCount(ordered.length)
+  }, [allParts, pageNumber, pageSize, filters.search, filters.idOrder])
 
   return (
     <div style={{
@@ -361,22 +372,7 @@ function PartsManagementContent() {
             icon: DollarSign,
             color: 'var(--success-500)',
             bgColor: 'var(--success-50)'
-          },
-          {
-            title: 'Sắp hết hàng',
-            value: lowStockParts,
-            icon: TrendingUp,
-            color: 'var(--warning-500)',
-            bgColor: 'var(--warning-50)'
-          },
-          {
-            title: 'Hết hàng',
-            value: outOfStockParts,
-            icon: Activity,
-            color: 'var(--error-500)',
-            bgColor: 'var(--error-50)'
-          },
-
+          }
         ].map((stat, index) => (
           <div
             key={index}
@@ -437,32 +433,34 @@ function PartsManagementContent() {
       {/* Filters */}
       <div style={{
         background: 'var(--bg-card)',
-        padding: '20px',
-        borderRadius: '12px',
-        boxShadow: 'var(--shadow-sm)',
+        padding: '24px',
+        borderRadius: '16px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         border: '1px solid var(--border-primary)',
         marginBottom: '24px'
       }}>
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-          alignItems: 'end'
+          display: 'flex',
+          gap: '20px',
+          alignItems: 'end',
+          width: '100%',
+          boxSizing: 'border-box'
         }}>
-          <div>
+          {/* Search Bar - takes most of the space */}
+          <div style={{ flex: '1', minWidth: 0 }}>
             <label style={{
               display: 'block',
               fontSize: '14px',
-              fontWeight: '500',
-              color: 'var(--text-secondary)',
-              marginBottom: '6px'
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+              marginBottom: '8px'
             }}>
               Tìm kiếm
             </label>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{
+            <div style={{ position: 'relative', width: '100%' }}>
+              <Search size={18} style={{
                 position: 'absolute',
-                left: '12px',
+                left: '14px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 color: 'var(--text-tertiary)'
@@ -474,91 +472,114 @@ function PartsManagementContent() {
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 style={{
                   width: '100%',
-                  padding: '8px 12px 8px 36px',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '6px',
+                  padding: '12px 16px 12px 44px',
+                  border: '2px solid var(--border-primary)',
+                  borderRadius: '12px',
                   fontSize: '14px',
                   outline: 'none',
                   background: 'var(--bg-input)',
                   color: 'var(--text-primary)',
-                  transition: 'border-color 0.2s ease'
+                  transition: 'all 0.3s ease',
+                  boxSizing: 'border-box',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--border-focus)'
+                  e.target.style.borderColor = 'var(--primary-500)'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(34, 197, 94, 0.1)'
+                  e.target.style.transform = 'translateY(-1px)'
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'var(--border-primary)'
+                  e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)'
+                  e.target.style.transform = 'translateY(0)'
                 }}
               />
             </div>
           </div>
 
-          {['status', 'supplier'].map((filterType) => (
-            <div key={filterType}>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: 'var(--text-secondary)',
-                marginBottom: '6px'
-              }}>
-                {filterType === 'status' ? 'Trạng thái' : 'Nhà cung cấp'}
-              </label>
-              <select
-                value={filters[filterType]}
-                onChange={(e) => setFilters({ ...filters, [filterType]: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  outline: 'none',
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Tất cả</option>
-                {filterType === 'status' && ['Còn hàng', 'Sắp hết', 'Hết hàng'].map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-                {filterType === 'supplier' && ['Samsung SDI', 'Delta Electronics', 'Bosch', 'Shimano'].map(supplier => (
-                  <option key={supplier} value={supplier}>{supplier}</option>
-                ))}
-              </select>
-            </div>
-          ))}
-
-          <div>
-            <button
-              onClick={() => setFilters({ search: '', status: '', supplier: '' })}
+          {/* Sort Dropdown - fixed width */}
+          <div style={{ minWidth: '220px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+              marginBottom: '8px'
+            }}>
+              Sắp xếp theo ID
+            </label>
+            <select
+              value={filters.idOrder}
+              onChange={(e) => { setPageNumber(1); setFilters({ ...filters, idOrder: e.target.value as 'asc' | 'desc' }) }}
               style={{
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '6px',
-                padding: '8px 16px',
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid var(--border-primary)',
+                borderRadius: '12px',
                 fontSize: '14px',
-                fontWeight: '500',
+                outline: 'none',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                boxSizing: 'border-box',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                appearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                backgroundPosition: 'right 12px center',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: '16px'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = 'var(--primary-500)'
+                e.target.style.boxShadow = '0 0 0 3px rgba(34, 197, 94, 0.1)'
+                e.target.style.transform = 'translateY(-1px)'
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'var(--border-primary)'
+                e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)'
+                e.target.style.transform = 'translateY(0)'
+              }}
+            >
+              <option value="desc">Giảm dần (mới → cũ)</option>
+              <option value="asc">Tăng dần (cũ → mới)</option>
+            </select>
+          </div>
+
+          {/* Reset Button - fixed width */}
+          <div style={{ minWidth: '140px' }}>
+            <button
+              onClick={() => { setPageNumber(1); setFilters({ search: '', idOrder: 'desc' }) }}
+              style={{
+                background: 'linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px'
+                gap: '8px',
+                boxSizing: 'border-box',
+                boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--primary-50)'
-                e.currentTarget.style.borderColor = 'var(--primary-300)'
+                e.currentTarget.style.background = 'linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%)'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.3)'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--bg-tertiary)'
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
+                e.currentTarget.style.background = 'linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%)'
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.2)'
               }}
             >
-              <div style={{ fontSize: '16px' }}>🔄</div>
+              <RefreshCw size={16} />
               Đặt lại
             </button>
           </div>
@@ -585,6 +606,13 @@ function PartsManagementContent() {
                 background: 'var(--bg-tertiary)',
                 borderBottom: '1px solid var(--border-primary)'
               }}>
+                <th style={{
+                  padding: '16px 24px',
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: 'var(--text-primary)'
+                }}>ID</th>
                 <th style={{
                   padding: '16px 24px',
                   textAlign: 'left',
@@ -639,7 +667,7 @@ function PartsManagementContent() {
               </tr>
             </thead>
             <tbody>
-              {filteredParts.map(part => (
+              {partsData.map(part => (
                 <tr key={part.id} style={{
                   borderBottom: '1px solid var(--border-primary)',
                   transition: 'background-color 0.2s ease'
@@ -658,6 +686,13 @@ function PartsManagementContent() {
                     color: 'var(--text-primary)'
                   }}>
                     {part.id}
+                  </td>
+                  <td style={{
+                    padding: '16px 24px',
+                    fontSize: '14px',
+                    color: 'var(--text-primary)'
+                  }}>
+                    {part.partNumber}
                   </td>
                   <td style={{
                     padding: '16px 24px',
