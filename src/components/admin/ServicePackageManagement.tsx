@@ -363,8 +363,6 @@ export default function ServicePackageManagement() {
       console.log('Deleting package with ID:', packageId)
       await ServiceManagementService.deleteServicePackage(packageId)
       console.log('Package deleted successfully')
-      
-      // Show success message
       alert(`Gói dịch vụ đã được xóa thành công!`)
       
       // Refresh the list
