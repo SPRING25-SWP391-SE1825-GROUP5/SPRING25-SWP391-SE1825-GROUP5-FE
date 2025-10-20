@@ -27,12 +27,18 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({ data, onUpdate, onNex
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Dòng xe *</label>
-          <input
-            type="text"
+          {/* Dropdown - sẽ gắn API master data sau */}
+          <select
             value={data.carModel}
             onChange={(e) => onUpdate({ carModel: e.target.value })}
             required
-          />
+          >
+            <option value="">Chọn dòng xe</option>
+            <option value="autoev-s1">AutoEV S1</option>
+            <option value="autoev-s2">AutoEV S2</option>
+            <option value="autoev-x">AutoEV X</option>
+            <option value="other">Khác</option>
+          </select>
         </div>
         <div className="form-group">
           <label>Số km đã đi</label>
