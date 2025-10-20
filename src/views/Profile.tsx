@@ -34,6 +34,11 @@ import {
   PencilSquareIcon,
   TrashIcon
 } from '@heroicons/react/24/outline'
+import { FeedbackCard } from '@/components/feedback'
+import { mockFeedbackService } from '@/data/mockFeedbackData'
+import { BookingData } from '@/services/feedbackService'
+import { FeedbackData } from '@/components/feedback'
+
 import './profile.scss'
 
 interface UserProfile {
@@ -102,6 +107,7 @@ export default function Profile() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+
   // Vehicle states
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
@@ -117,6 +123,14 @@ export default function Profile() {
     purchaseDate: ''
   })
   const [vehicleFormErrors, setVehicleFormErrors] = useState<Record<string, string>>({})
+  // Maintenance History states
+  const [bookings, setBookings] = useState<BookingData[]>([])
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false)
+  const [maintenanceError, setMaintenanceError] = useState<string | null>(null)
+  const [expandedBookings, setExpandedBookings] = useState<Set<string>>(new Set())
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+
 
   const [profileData, setProfileData] = useState<UserProfile>({
     fullName: '',
@@ -155,6 +169,63 @@ export default function Profile() {
       loadVehicles()
     }
   }, [activeTab, auth.user?.id])
+
+  // Load maintenance history data
+  const loadMaintenanceData = async () => {
+    setMaintenanceLoading(true)
+    setMaintenanceError(null)
+    try {
+      const data = await mockFeedbackService.getBookingsWithFeedback()
+      setBookings(data)
+      
+      // Set first booking as expanded by default
+      if (data.length > 0) {
+        setExpandedBookings(new Set([data[0].id]))
+      }
+    } catch (err: any) {
+      setMaintenanceError('Không thể tải dữ liệu lịch sử bảo dưỡng')
+      console.error('Error loading maintenance data:', err)
+    } finally {
+      setMaintenanceLoading(false)
+    }
+  }
+
+  // Handle toggle expand for booking cards
+  const handleToggleExpand = (bookingId: string) => {
+    setExpandedBookings(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(bookingId)) {
+        newSet.delete(bookingId)
+      } else {
+        newSet.add(bookingId)
+      }
+      return newSet
+    })
+  }
+
+  // Handle feedback submission
+  const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
+    try {
+      await mockFeedbackService.submitFeedback(bookingId, feedback)
+      // Reload data to show updated feedback
+      await loadMaintenanceData()
+    } catch (err: any) {
+      setMaintenanceError('Không thể gửi đánh giá')
+      console.error('Error submitting feedback:', err)
+    }
+  }
+
+  // Handle feedback update
+  const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
+    try {
+      await mockFeedbackService.updateFeedback(bookingId, feedback)
+      // Reload data to show updated feedback
+      await loadMaintenanceData()
+    } catch (err: any) {
+      setMaintenanceError('Không thể cập nhật đánh giá')
+      console.error('Error updating feedback:', err)
+    }
+  }
 
   const loadProfileData = async () => {
     try {
@@ -639,8 +710,8 @@ export default function Profile() {
             <div className="sidebar-divider"></div>
 
             <nav className="sidebar-navigation">
-                  <button
-                className="nav-item active"
+              <button
+                className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
                 onClick={() => setActiveTab('profile')}
               >
                 <div className="nav-icon">
@@ -697,6 +768,21 @@ export default function Profile() {
                   <CogIcon className="w-5 h-5" />
                 </div>
                 <span className="nav-label">Cài đặt</span>
+              </button>
+              
+              <button
+                className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('maintenance')
+                  if (bookings.length === 0) {
+                    loadMaintenanceData()
+                  }
+                }}
+              >
+                <div className="nav-icon">
+                  <FontAwesomeIcon icon={faHistory} />
+                </div>
+                <span className="nav-label">Lịch sử bảo dưỡng</span>
               </button>
             </nav>
 
@@ -1171,6 +1257,161 @@ export default function Profile() {
 
                       </div>
                       </div>
+            </div>
+            )}
+
+            {activeTab === 'maintenance' && (
+              <div className="maintenance-history-container">
+                <BaseCard className="maintenance-history-card">
+                  <div className="card-header">
+                    <h3 className="card-title">
+                      <FontAwesomeIcon icon={faHistory} />
+                      Lịch sử bảo dưỡng
+                    </h3>
+                    <p className="card-subtitle">Xem lịch sử dịch vụ và đánh giá trải nghiệm của bạn</p>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="maintenance-stats">
+                    <div className="stat-item">
+                      <div className="stat-icon">
+                        <FontAwesomeIcon icon={faHistory} />
+                      </div>
+                      <div className="stat-content">
+                        <div className="stat-value">{bookings.length}</div>
+                        <div className="stat-label">Tổng dịch vụ</div>
+                      </div>
+                    </div>
+
+                    <div className="stat-item">
+                      <div className="stat-icon">
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                      </div>
+                      <div className="stat-content">
+                        <div className="stat-value">{bookings.filter(b => b.status === 'completed').length}</div>
+                        <div className="stat-label">Đã hoàn thành</div>
+                      </div>
+                    </div>
+
+                    <div className="stat-item">
+                      <div className="stat-icon">
+                        <FontAwesomeIcon icon={faStar} />
+                      </div>
+                      <div className="stat-content">
+                        <div className="stat-value">{bookings.filter(b => b.feedback).length}</div>
+                        <div className="stat-label">Đã đánh giá</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filters */}
+                  <div className="maintenance-filters">
+                    <div className="filter-search">
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm theo dịch vụ, kỹ thuật viên, phụ tùng..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Status Filter Chips */}
+                    <div className="filter-status-chips">
+                      <button
+                        className={`status-chip ${statusFilter === 'all' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('all')}
+                      >
+                        Tất cả
+                      </button>
+                      <button
+                        className={`status-chip ${statusFilter === 'completed' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('completed')}
+                      >
+                        Hoàn thành
+                      </button>
+                      <button
+                        className={`status-chip ${statusFilter === 'in-progress' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('in-progress')}
+                      >
+                        Đang tiến hành
+                      </button>
+                      <button
+                        className={`status-chip ${statusFilter === 'pending' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('pending')}
+                      >
+                        Chờ xử lý
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Error Message */}
+                  {maintenanceError && (
+                    <div className="maintenance-error">
+                      <FontAwesomeIcon icon={faExclamationTriangle} />
+                      <span>{maintenanceError}</span>
+                    </div>
+                  )}
+
+                  {/* Bookings List */}
+                  {maintenanceLoading ? (
+                    <div className="maintenance-loading">
+                      <div className="loading-spinner"></div>
+                      <p>Đang tải dữ liệu...</p>
+                    </div>
+                  ) : (
+                    <div className="maintenance-list">
+                      {bookings
+                        .filter(booking => {
+                          const matchesSearch = booking.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                               booking.technician.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                               booking.partsUsed.some(part => part.toLowerCase().includes(searchTerm.toLowerCase()))
+                          
+                          const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
+                          
+                          return matchesSearch && matchesStatus
+                        })
+                        .length === 0 ? (
+                        <div className="maintenance-empty">
+                          <div className="empty-icon">
+                            <FontAwesomeIcon icon={faHistory} />
+                          </div>
+                          <h3>Không có dịch vụ nào</h3>
+                          <p>
+                            {searchTerm || statusFilter !== 'all'
+                              ? 'Không tìm thấy dịch vụ phù hợp với bộ lọc'
+                              : 'Bạn chưa có dịch vụ nào trong hệ thống'
+                            }
+                          </p>
+                        </div>
+                      ) : (
+                        bookings
+                          .filter(booking => {
+                            const matchesSearch = booking.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                 booking.technician.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                 booking.partsUsed.some(part => part.toLowerCase().includes(searchTerm.toLowerCase()))
+                            
+                            const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
+                            
+                            return matchesSearch && matchesStatus
+                          })
+                          .map((booking) => (
+                            <FeedbackCard
+                              key={booking.id}
+                              booking={booking}
+                              onSubmitFeedback={handleSubmitFeedback}
+                              onEditFeedback={handleEditFeedback}
+                              isExpanded={expandedBookings.has(booking.id)}
+                              onToggleExpand={handleToggleExpand}
+                            />
+                          ))
+                      )}
+                    </div>
+                  )}
+                </BaseCard>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

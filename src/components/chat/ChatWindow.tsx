@@ -52,7 +52,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
     try {
       setIsLoading(true)
       const response = await ChatService.getConversations()
-      dispatch(setConversations(response.conversations))
+      dispatch(setConversations(response))
     } catch (err: any) {
       setError('Không thể tải danh sách cuộc trò chuyện')
       console.error('Error loading conversations:', err)
@@ -65,7 +65,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
     try {
       setIsLoading(true)
       const response = await ChatService.getMessages(conversationId)
-      dispatch(setMessages({ conversationId, messages: response.messages }))
+      dispatch(setMessages({ conversationId, messages: response }))
     } catch (err: any) {
       setError('Không thể tải tin nhắn')
       console.error('Error loading messages:', err)

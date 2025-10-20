@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { 
-  Globe, 
+  Package, 
   Edit, 
   X, 
   Plus, 
@@ -14,20 +14,32 @@ import {
   Building2,
   UserX,
   WrenchIcon,
-  RotateCcw
+  RotateCcw,
+  DollarSign,
+  CreditCard,
+  Calendar,
+  Tag,
+  Trash2,
+  Power
 } from 'lucide-react'
-import { CenterService, type Center, type CenterListParams } from '../../services/centerService'
-import { StaffService } from '../../services/staffService'
-import { TechnicianService } from '../../services/technicianService'
+import { 
+  ServiceManagementService, 
+  type ServicePackage, 
+  type ServicePackageListParams,
+  type CreateServicePackageRequest,
+  type UpdateServicePackageRequest,
+  type Service
+} from '../../services/serviceManagementService'
 
-export default function CenterManagement() {
-  const [centers, setCenters] = useState<Center[]>([])
+export default function ServicePackageManagement() {
+  const [packages, setPackages] = useState<ServicePackage[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchTerm, setSearchTerm] = useState('')
-  const [city, setCity] = useState('')
+  const [serviceId, setServiceId] = useState<number | null>(null)
   const [onlyActive, setOnlyActive] = useState(false)
   
   // Modal states
@@ -35,67 +47,85 @@ export default function CenterManagement() {
   const [formMode, setFormMode] = useState<'create' | 'update'>('create')
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [selectedCenter, setSelectedCenter] = useState<Center | null>(null)
+  const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null)
   const [formValues, setFormValues] = useState({
-    centerName: '',
-    address: '',
-    phoneNumber: '',
-    isActive: true
+    packageName: '',
+    packageCode: '',
+    description: '',
+    serviceId: 0,
+    totalCredits: 0,
+    price: 0,
+    discountPercent: 0,
+    isActive: true,
+    validFrom: '',
+    validTo: ''
   })
   
   const [fieldErrors, setFieldErrors] = useState({
-    centerName: '',
-    address: '',
-    phoneNumber: ''
+    packageName: '',
+    packageCode: '',
+    serviceId: '',
+    totalCredits: '',
+    price: ''
   })
   
-  const [togglingCenterId, setTogglingCenterId] = useState<number | null>(null)
+  const [deletingPackageId, setDeletingPackageId] = useState<number | null>(null)
   
   // Detail modal states
   const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [selectedCenterDetail, setSelectedCenterDetail] = useState<Center | null>(null)
-  const [centerStaff, setCenterStaff] = useState<any[]>([])
-  const [centerTechnicians, setCenterTechnicians] = useState<any[]>([])
-  const [loadingDetails, setLoadingDetails] = useState(false)
+  const [selectedPackageDetail, setSelectedPackageDetail] = useState<ServicePackage | null>(null)
   
   // Stats states
   const [stats, setStats] = useState({
-    totalCenters: 0,
-    activeCenters: 0,
-    inactiveCenters: 0
+    totalPackages: 0,
+    activePackages: 0,
+    inactivePackages: 0,
+    totalRevenue: 0
   })
   const [loadingStats, setLoadingStats] = useState(false)
 
   // Real-time validation
-  const validateField = (field: string, value: string) => {
+  const validateField = (field: string, value: string | number) => {
     const errors = { ...fieldErrors }
     
     switch (field) {
-      case 'centerName':
-        if (!value.trim()) {
-          errors.centerName = 'Tên trung tâm là bắt buộc'
-        } else if (value.trim().length < 3) {
-          errors.centerName = 'Tên trung tâm phải có ít nhất 3 ký tự'
+      case 'packageName':
+        if (!value || (typeof value === 'string' && !value.trim())) {
+          errors.packageName = 'Tên gói dịch vụ là bắt buộc'
+        } else if (typeof value === 'string' && value.trim().length < 3) {
+          errors.packageName = 'Tên gói dịch vụ phải có ít nhất 3 ký tự'
         } else {
-          errors.centerName = ''
+          errors.packageName = ''
         }
         break
-      case 'address':
-        if (!value.trim()) {
-          errors.address = 'Địa chỉ là bắt buộc'
-        } else if (value.trim().length < 10) {
-          errors.address = 'Địa chỉ phải có ít nhất 10 ký tự'
+      case 'packageCode':
+        if (!value || (typeof value === 'string' && !value.trim())) {
+          errors.packageCode = 'Mã gói dịch vụ là bắt buộc'
+        } else if (typeof value === 'string' && value.trim().length < 2) {
+          errors.packageCode = 'Mã gói dịch vụ phải có ít nhất 2 ký tự'
         } else {
-          errors.address = ''
+          errors.packageCode = ''
         }
         break
-      case 'phoneNumber':
-        if (!value.trim()) {
-          errors.phoneNumber = 'Số điện thoại là bắt buộc'
-        } else if (!/^0\d{9,10}$/.test(value.trim())) {
-          errors.phoneNumber = 'Số điện thoại phải có 10-11 chữ số và bắt đầu bằng 0'
+      case 'serviceId':
+        if (!value || value === 0) {
+          errors.serviceId = 'Dịch vụ là bắt buộc'
         } else {
-          errors.phoneNumber = ''
+          errors.serviceId = ''
+        }
+        break
+      case 'totalCredits':
+        if (!value || (typeof value === 'number' && value <= 0)) {
+          errors.totalCredits = 'Tổng số credit phải lớn hơn 0'
+        } else {
+          errors.totalCredits = ''
+        }
+        break
+      case 'price':
+        if (!value || (typeof value === 'number' && value < 0)) {
+          errors.price = 'Giá gói phải lớn hơn hoặc bằng 0'
+        } else {
+          errors.price = ''
         }
         break
     }
@@ -103,59 +133,82 @@ export default function CenterManagement() {
     setFieldErrors(errors)
   }
 
+  const fetchServices = async () => {
+    try {
+      const response = await ServiceManagementService.getServices({ pageSize: 1000 })
+      setServices(response.services)
+    } catch (err: any) {
+      console.error('Error fetching services:', err)
+    }
+  }
+
   const fetchStats = async () => {
     try {
       setLoadingStats(true)
       
-      // Fetch all centers for stats
-      const allCentersResponse = await CenterService.getCenters({ pageNumber: 1, pageSize: 1000 })
-      const allCenters = allCentersResponse?.centers || []
-      
-      // Calculate center stats
-      const totalCenters = allCenters.length
-      const activeCenters = allCenters.filter(center => center.isActive).length
-      const inactiveCenters = totalCenters - activeCenters
+      // Use the new getPackageStats method
+      const packageStats = await ServiceManagementService.getPackageStats()
       
       setStats({
-        totalCenters,
-        activeCenters,
-        inactiveCenters
+        totalPackages: packageStats.totalPackages,
+        activePackages: packageStats.activePackages,
+        inactivePackages: packageStats.inactivePackages,
+        totalRevenue: packageStats.totalRevenue
       })
     } catch (err: any) {
       console.error('Error fetching stats:', err)
+      // Fallback to manual calculation
+      try {
+        const allPackagesResponse = await ServiceManagementService.getServicePackages({ pageNumber: 1, pageSize: 1000 })
+        const allPackages = allPackagesResponse?.packages || []
+        
+        const totalPackages = allPackages.length
+        const activePackages = allPackages.filter(pkg => pkg.isActive).length
+        const inactivePackages = totalPackages - activePackages
+        const totalRevenue = allPackages.reduce((sum, pkg) => sum + pkg.price, 0)
+        
+        setStats({
+          totalPackages,
+          activePackages,
+          inactivePackages,
+          totalRevenue
+        })
+      } catch (fallbackErr: any) {
+        console.error('Error in fallback stats calculation:', fallbackErr)
+      }
     } finally {
       setLoadingStats(false)
     }
   }
 
-  const fetchCenters = async () => {
+  const fetchPackages = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const params: CenterListParams = { pageNumber: page, pageSize }
+      const params: ServicePackageListParams = { pageNumber: page, pageSize }
       if (searchTerm) params.searchTerm = searchTerm
-      if (city) params.city = city
+      if (serviceId) params.serviceId = serviceId
       
-      console.log('Fetching centers with params:', params)
+      console.log('Fetching packages with params:', params)
       console.log('Only active:', onlyActive)
       
       const response = onlyActive 
-        ? await CenterService.getActiveCenters(params)
-        : await CenterService.getCenters(params)
+        ? await ServiceManagementService.getActiveServicePackages(params)
+        : await ServiceManagementService.getServicePackages(params)
       
-      console.log('Centers response:', response)
+      console.log('Packages response:', response)
       
-      if (response && response.centers) {
-        setCenters(response.centers)
-        console.log('Set centers:', response.centers)
+      if (response && response.packages) {
+        setPackages(response.packages)
+        console.log('Set packages:', response.packages)
       } else {
-        console.warn('No centers found in response:', response)
-        setCenters([])
+        console.warn('No packages found in response:', response)
+        setPackages([])
       }
     } catch (err: any) {
-      console.error('Error fetching centers:', err)
-      setError('Không thể tải danh sách trung tâm: ' + (err.message || 'Unknown error'))
+      console.error('Error fetching packages:', err)
+      setError('Không thể tải danh sách gói dịch vụ: ' + (err.message || 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -163,23 +216,40 @@ export default function CenterManagement() {
 
   const openCreateForm = () => {
     setFormMode('create')
-    setFormValues({ centerName: '', address: '', phoneNumber: '', isActive: true })
+    setFormValues({ 
+      packageName: '', 
+      packageCode: '', 
+      description: '', 
+      serviceId: 0, 
+      totalCredits: 0, 
+      price: 0, 
+      discountPercent: 0, 
+      isActive: true, 
+      validFrom: '', 
+      validTo: '' 
+    })
     setFormError(null)
-    setFieldErrors({ centerName: '', address: '', phoneNumber: '' })
+    setFieldErrors({ packageName: '', packageCode: '', serviceId: '', totalCredits: '', price: '' })
     setFormOpen(true)
   }
 
-  const openEditForm = (center: Center) => {
+  const openEditForm = (pkg: ServicePackage) => {
     setFormMode('update')
-    setSelectedCenter(center)
+    setSelectedPackage(pkg)
     setFormValues({
-      centerName: center.centerName || '',
-      address: center.address || '',
-      phoneNumber: center.phoneNumber || '',
-      isActive: center.isActive
+      packageName: pkg.packageName || '',
+      packageCode: pkg.packageCode || '',
+      description: pkg.description || '',
+      serviceId: pkg.serviceId || 0,
+      totalCredits: pkg.totalCredits || 0,
+      price: pkg.price || 0,
+      discountPercent: pkg.discountPercent || 0,
+      isActive: pkg.isActive,
+      validFrom: pkg.validFrom ? new Date(pkg.validFrom).toISOString().split('T')[0] : '',
+      validTo: pkg.validTo ? new Date(pkg.validTo).toISOString().split('T')[0] : ''
     })
     setFormError(null)
-    setFieldErrors({ centerName: '', address: '', phoneNumber: '' })
+    setFieldErrors({ packageName: '', packageCode: '', serviceId: '', totalCredits: '', price: '' })
     setFormOpen(true)
   }
 
@@ -189,63 +259,74 @@ export default function CenterManagement() {
       setFormError(null)
       
       // Validation
-      if (!formValues.centerName.trim()) {
-        setFormError('Tên trung tâm là bắt buộc')
+      if (!formValues.packageName.trim()) {
+        setFormError('Tên gói dịch vụ là bắt buộc')
         return
       }
-      if (formValues.centerName.trim().length < 3) {
-        setFormError('Tên trung tâm phải có ít nhất 3 ký tự')
-        return
-      }
-      
-      if (!formValues.address.trim()) {
-        setFormError('Địa chỉ là bắt buộc')
-        return
-      }
-      if (formValues.address.trim().length < 10) {
-        setFormError('Địa chỉ phải có ít nhất 10 ký tự')
+      if (formValues.packageName.trim().length < 3) {
+        setFormError('Tên gói dịch vụ phải có ít nhất 3 ký tự')
         return
       }
       
-      if (!formValues.phoneNumber.trim()) {
-        setFormError('Số điện thoại là bắt buộc')
+      if (!formValues.packageCode.trim()) {
+        setFormError('Mã gói dịch vụ là bắt buộc')
         return
       }
-      // More flexible phone validation
-      const phoneRegex = /^0\d{9,10}$/
-      if (!phoneRegex.test(formValues.phoneNumber.trim())) {
-        setFormError('Số điện thoại phải có 10-11 chữ số và bắt đầu bằng 0')
+      if (formValues.packageCode.trim().length < 2) {
+        setFormError('Mã gói dịch vụ phải có ít nhất 2 ký tự')
+        return
+      }
+      
+      if (!formValues.serviceId || formValues.serviceId === 0) {
+        setFormError('Dịch vụ là bắt buộc')
+        return
+      }
+      
+      if (!formValues.totalCredits || formValues.totalCredits <= 0) {
+        setFormError('Tổng số credit phải lớn hơn 0')
+        return
+      }
+      
+      if (formValues.price < 0) {
+        setFormError('Giá gói phải lớn hơn hoặc bằng 0')
         return
       }
       
       // Prepare clean data
       const cleanData = {
-        centerName: formValues.centerName.trim(),
-        address: formValues.address.trim(),
-        phoneNumber: formValues.phoneNumber.trim(),
-        isActive: formValues.isActive
+        packageName: formValues.packageName.trim(),
+        packageCode: formValues.packageCode.trim(),
+        description: formValues.description.trim() || undefined,
+        serviceId: formValues.serviceId,
+        totalCredits: formValues.totalCredits,
+        price: formValues.price,
+        discountPercent: formValues.discountPercent || undefined,
+        isActive: formValues.isActive,
+        validFrom: formValues.validFrom || undefined,
+        validTo: formValues.validTo || undefined
       }
       
       console.log('Submitting form with data:', cleanData)
 
       if (formMode === 'create') {
-        console.log('Creating center...')
-        await CenterService.createCenter(cleanData)
-        console.log('Center created successfully')
+        console.log('Creating package...')
+        await ServiceManagementService.createServicePackage(cleanData as CreateServicePackageRequest)
+        console.log('Package created successfully')
       } else {
-        if (!selectedCenter) {
-          setFormError('Không tìm thấy trung tâm để cập nhật')
+        if (!selectedPackage) {
+          setFormError('Không tìm thấy gói dịch vụ để cập nhật')
           return
         }
-        console.log('Updating center...')
-        await CenterService.updateCenter(selectedCenter.centerId, cleanData)
-        console.log('Center updated successfully')
+        console.log('Updating package...')
+        await ServiceManagementService.updateServicePackage(selectedPackage.packageId, cleanData as UpdateServicePackageRequest)
+        console.log('Package updated successfully')
       }
       
       setFormOpen(false)
-      await fetchCenters()
+      await fetchPackages()
+      await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi gửi form trung tâm:', err)
+      console.error('Lỗi khi gửi form gói dịch vụ:', err)
       
       // Extract detailed error message
       let errorMessage = 'Unknown error'
@@ -266,58 +347,103 @@ export default function CenterManagement() {
         errorMessage = err.message
       }
       
-      setFormError(`Không thể lưu trung tâm: ${errorMessage}`)
+      setFormError(`Không thể lưu gói dịch vụ: ${errorMessage}`)
     } finally {
       setFormSubmitting(false)
     }
   }
 
-  const toggleCenterStatus = async (centerId: number) => {
+  const deletePackage = async (packageId: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa gói dịch vụ này?')) {
+      return
+    }
+
     try {
-      setTogglingCenterId(centerId)
-      console.log('Toggling center status for ID:', centerId)
-      const updatedCenter = await CenterService.toggleCenterStatus(centerId)
-      console.log('Center status updated successfully:', updatedCenter)
+      setDeletingPackageId(packageId)
+      console.log('Deleting package with ID:', packageId)
+      await ServiceManagementService.deleteServicePackage(packageId)
+      console.log('Package deleted successfully')
       
       // Show success message
-      alert(`Trạng thái trung tâm đã được cập nhật thành công!`)
+      alert(`Gói dịch vụ đã được xóa thành công!`)
       
       // Refresh the list
-      await fetchCenters()
+      await fetchPackages()
+      await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi chuyển trạng thái trung tâm:', err)
-      alert(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
+      console.error('Lỗi khi xóa gói dịch vụ:', err)
+      alert(`Lỗi: ${err.message || 'Không thể xóa gói dịch vụ'}`)
     } finally {
-      setTogglingCenterId(null)
+      setDeletingPackageId(null)
     }
   }
 
-  const openDetailModal = async (center: Center) => {
+  const togglePackageStatus = async (packageId: number) => {
     try {
-      setSelectedCenterDetail(center)
-      setDetailModalOpen(true)
-      setLoadingDetails(true)
+      console.log('Toggling package status for ID:', packageId)
+      const updatedPackage = await ServiceManagementService.togglePackageStatus(packageId)
+      console.log('Package status updated successfully:', updatedPackage)
       
-      // Fetch staff and technicians for this center
-      const [staffResponse, technicianResponse] = await Promise.all([
-        StaffService.getStaffList({ centerId: center.centerId, pageSize: 1000 }),
-        TechnicianService.list({ centerId: center.centerId, pageSize: 1000 })
-      ])
+      // Show success message
+      const statusText = updatedPackage.isActive ? 'kích hoạt' : 'tắt'
+      alert(`Gói dịch vụ đã được ${statusText} thành công!`)
       
-      setCenterStaff(staffResponse.data.staff || [])
-      setCenterTechnicians(technicianResponse.technicians || [])
+      // Refresh the list
+      await fetchPackages()
+      await fetchStats()
     } catch (err: any) {
-      console.error('Error fetching center details:', err)
-      alert(`Lỗi khi tải chi tiết trung tâm: ${err.message || 'Unknown error'}`)
-    } finally {
-      setLoadingDetails(false)
+      console.error('Lỗi khi chuyển trạng thái gói dịch vụ:', err)
+      alert(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
     }
   }
+
+  const activatePackage = async (packageId: number) => {
+    try {
+      console.log('Activating package for ID:', packageId)
+      const updatedPackage = await ServiceManagementService.activatePackage(packageId)
+      console.log('Package activated successfully:', updatedPackage)
+      
+      // Show success message
+      alert(`Gói dịch vụ đã được kích hoạt thành công!`)
+      
+      // Refresh the list
+      await fetchPackages()
+      await fetchStats()
+    } catch (err: any) {
+      console.error('Lỗi khi kích hoạt gói dịch vụ:', err)
+      alert(`Lỗi: ${err.message || 'Không thể kích hoạt gói dịch vụ'}`)
+    }
+  }
+
+  const deactivatePackage = async (packageId: number) => {
+    try {
+      console.log('Deactivating package for ID:', packageId)
+      const updatedPackage = await ServiceManagementService.deactivatePackage(packageId)
+      console.log('Package deactivated successfully:', updatedPackage)
+      
+      // Show success message
+      alert(`Gói dịch vụ đã được tắt thành công!`)
+      
+      // Refresh the list
+      await fetchPackages()
+      await fetchStats()
+    } catch (err: any) {
+      console.error('Lỗi khi tắt gói dịch vụ:', err)
+      alert(`Lỗi: ${err.message || 'Không thể tắt gói dịch vụ'}`)
+    }
+  }
+
+  const openDetailModal = async (pkg: ServicePackage) => {
+    setSelectedPackageDetail(pkg)
+    setDetailModalOpen(true)
+  }
+
 
   useEffect(() => {
-    fetchCenters()
+    fetchPackages()
     fetchStats()
-  }, [page, pageSize, searchTerm, city, onlyActive])
+    fetchServices()
+  }, [page, pageSize, searchTerm, serviceId, onlyActive])
 
   return (
     <div style={{ 
@@ -359,14 +485,14 @@ export default function CenterManagement() {
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
-            Quản lý Trung tâm Dịch vụ
+            Quản lý Gói Dịch vụ
           </h2>
           <p style={{ 
             fontSize: '16px', 
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
-            Quản lý và theo dõi các trung tâm dịch vụ xe điện
+            Quản lý và theo dõi các gói dịch vụ xe điện
           </p>
         </div>
         
@@ -395,7 +521,7 @@ export default function CenterManagement() {
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
           }}>
             <Plus size={18} />
-            Thêm trung tâm
+            Thêm gói dịch vụ
           </button>
       </div>
 
@@ -430,7 +556,7 @@ export default function CenterManagement() {
               justifyContent: 'center',
               color: 'white'
             }}>
-              <Building2 size={20} />
+              <Package size={20} />
             </div>
             <div>
               <div style={{
@@ -438,14 +564,14 @@ export default function CenterManagement() {
                 color: 'var(--text-secondary)',
                 fontWeight: '500'
               }}>
-                Tổng trung tâm
+                Tổng gói dịch vụ
               </div>
               <div style={{
                 fontSize: '24px',
                 fontWeight: '700',
                 color: 'var(--text-primary)'
               }}>
-                {loadingStats ? '...' : stats.totalCenters}
+                {loadingStats ? '...' : stats.totalPackages}
               </div>
             </div>
           </div>
@@ -490,7 +616,7 @@ export default function CenterManagement() {
                 fontWeight: '700',
                 color: 'var(--text-primary)'
               }}>
-                {loadingStats ? '...' : stats.activeCenters}
+                {loadingStats ? '...' : stats.activePackages}
               </div>
             </div>
           </div>
@@ -535,7 +661,52 @@ export default function CenterManagement() {
                 fontWeight: '700',
                 color: 'var(--text-primary)'
               }}>
-                {loadingStats ? '...' : stats.inactiveCenters}
+                {loadingStats ? '...' : stats.inactivePackages}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '16px',
+          border: '1px solid var(--border-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          transition: 'all 0.2s ease'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, var(--warning-500), var(--warning-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <DollarSign size={20} />
+            </div>
+            <div>
+              <div style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500'
+              }}>
+                Tổng giá trị
+              </div>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: 'var(--text-primary)'
+              }}>
+                {loadingStats ? '...' : new Intl.NumberFormat('vi-VN').format(stats.totalRevenue)}đ
               </div>
             </div>
           </div>
@@ -578,7 +749,7 @@ export default function CenterManagement() {
                 color: 'var(--text-tertiary)' 
               }} />
               <input
-                placeholder="Tìm kiếm trung tâm..."
+                placeholder="Tìm kiếm gói dịch vụ..."
                 value={searchTerm}
                 onChange={(e) => { setPage(1); setSearchTerm(e.target.value) }}
                 style={{
@@ -613,12 +784,11 @@ export default function CenterManagement() {
               color: 'var(--text-primary)', 
               marginBottom: '8px' 
             }}>
-              Thành phố
+              Dịch vụ
             </label>
-            <input
-              placeholder="Lọc theo thành phố..."
-              value={city}
-              onChange={(e) => { setPage(1); setCity(e.target.value) }}
+            <select
+              value={serviceId || ''}
+              onChange={(e) => { setPage(1); setServiceId(e.target.value ? Number(e.target.value) : null) }}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -627,19 +797,17 @@ export default function CenterManagement() {
                 background: 'var(--bg-secondary)',
                 color: 'var(--text-primary)',
                 fontSize: '14px',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
+                cursor: 'pointer',
+                outline: 'none'
               }}
-              onFocus={(e) => {
-                e.target.style.borderColor = 'var(--primary-500)'
-                e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'var(--border-primary)'
-                e.target.style.boxShadow = 'none'
-              }}
-            />
+            >
+              <option value="">Tất cả dịch vụ</option>
+              {services.map(service => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -700,7 +868,7 @@ export default function CenterManagement() {
 
           <div>
             <button 
-              onClick={fetchCenters}
+              onClick={fetchPackages}
               style={{
                 width: '100%',
                 padding: '12px 20px',
@@ -733,7 +901,7 @@ export default function CenterManagement() {
         </div>
       </div>
 
-      {/* Centers List */}
+      {/* Packages List */}
       <div style={{
         background: 'var(--bg-card)',
         padding: '32px',
@@ -753,7 +921,7 @@ export default function CenterManagement() {
             color: 'var(--text-primary)',
             margin: '0'
           }}>
-            Danh sách Trung tâm
+            Danh sách Gói Dịch vụ
           </h3>
           <div style={{
             padding: '8px 16px',
@@ -763,7 +931,7 @@ export default function CenterManagement() {
             fontSize: '14px',
             fontWeight: '600'
           }}>
-            {centers.length} trung tâm
+            {packages.length} gói dịch vụ
           </div>
         </div>
         
@@ -782,7 +950,7 @@ export default function CenterManagement() {
               animation: 'spin 1s linear infinite',
               margin: '0 auto 16px'
             }} />
-            <p style={{ margin: 0, fontSize: '16px' }}>Đang tải trung tâm...</p>
+            <p style={{ margin: 0, fontSize: '16px' }}>Đang tải gói dịch vụ...</p>
           </div>
         ) : error ? (
           <div style={{ 
@@ -803,7 +971,7 @@ export default function CenterManagement() {
             </div>
             <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
           </div>
-        ) : centers.length === 0 ? (
+        ) : packages.length === 0 ? (
           <div style={{ 
             textAlign: 'center', 
             padding: '60px', 
@@ -820,13 +988,13 @@ export default function CenterManagement() {
               margin: '0 auto 16px',
               color: 'var(--text-tertiary)'
             }}>
-              <Building2 size={32} />
+              <Package size={32} />
             </div>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
-              Không tìm thấy trung tâm nào
+              Không tìm thấy gói dịch vụ nào
             </h4>
             <p style={{ margin: 0, fontSize: '14px' }}>
-              Thử thay đổi bộ lọc hoặc tạo trung tâm mới
+              Thử thay đổi bộ lọc hoặc tạo gói dịch vụ mới
             </p>
           </div>
         ) : (
@@ -851,7 +1019,7 @@ export default function CenterManagement() {
                     fontWeight: '600',
                     border: 'none'
                   }}>
-                    Tên trung tâm
+                    Tên gói
                   </th>
                   <th style={{
                     padding: '16px 20px',
@@ -860,16 +1028,25 @@ export default function CenterManagement() {
                     fontWeight: '600',
                     border: 'none'
                   }}>
-                    Địa chỉ
+                    Dịch vụ
                   </th>
                   <th style={{
                     padding: '16px 20px',
-                    textAlign: 'left',
+                    textAlign: 'center',
                     fontSize: '14px',
                     fontWeight: '600',
                     border: 'none'
                   }}>
-                    Số điện thoại
+                    Credits
+                  </th>
+                  <th style={{
+                    padding: '16px 20px',
+                    textAlign: 'center',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    border: 'none'
+                  }}>
+                    Giá
                   </th>
                   <th style={{
                     padding: '16px 20px',
@@ -887,23 +1064,14 @@ export default function CenterManagement() {
                     fontWeight: '600',
                     border: 'none'
                   }}>
-                    Ngày tạo
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
                     Thao tác
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {centers.map((center, index) => (
+                {packages.map((pkg, index) => (
                   <tr 
-                    key={center.centerId}
+                    key={pkg.packageId}
                     style={{
                       borderBottom: '1px solid var(--border-primary)',
                       transition: 'all 0.2s ease',
@@ -934,48 +1102,64 @@ export default function CenterManagement() {
                           color: 'white',
                           flexShrink: 0
                         }}>
-                          <Building2 size={16} />
+                          <Package size={16} />
                         </div>
-                        {center.centerName}
-                      </div>
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)',
-                      maxWidth: '300px'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '6px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {center.address}
-                      </div>
-                      {center.city && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-tertiary)',
-                          marginTop: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          {center.city}
+                        <div>
+                          <div>{pkg.packageName}</div>
+                          <div style={{ 
+                            fontSize: '12px', 
+                            color: 'var(--text-tertiary)',
+                            marginTop: '2px'
+                          }}>
+                            {pkg.packageCode}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </td>
                     <td style={{
                       padding: '16px 20px',
                       fontSize: '14px',
                       color: 'var(--text-secondary)'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                         {center.phoneNumber}
+                      {pkg.serviceName}
+                    </td>
+                    <td style={{
+                      padding: '16px 20px',
+                      fontSize: '14px',
+                      color: 'var(--text-primary)',
+                      textAlign: 'center',
+                      fontWeight: '600'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        
+                        {pkg.totalCredits}
                       </div>
+                    </td>
+                    <td style={{
+                      padding: '16px 20px',
+                      fontSize: '14px',
+                      color: 'var(--text-primary)',
+                      textAlign: 'center',
+                      fontWeight: '600'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      
+                        {new Intl.NumberFormat('vi-VN').format(pkg.price)}đ
+                      </div>
+                      {pkg.discountPercent && pkg.discountPercent > 0 && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: 'var(--success-600)',
+                          marginTop: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '2px'
+                        }}>
+                          <Tag size={10} />
+                          -{pkg.discountPercent}%
+                        </div>
+                      )}
                     </td>
                     <td style={{
                       padding: '16px 20px',
@@ -987,14 +1171,14 @@ export default function CenterManagement() {
                         gap: '6px',
                         padding: '6px 12px',
                         borderRadius: '20px',
-                        background: center.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                        color: center.isActive ? 'var(--success-700)' : 'var(--error-700)',
+                        background: pkg.isActive ? 'var(--success-50)' : 'var(--error-50)',
+                        color: pkg.isActive ? 'var(--success-700)' : 'var(--error-700)',
                         fontSize: '12px',
                         fontWeight: '600',
-                        border: `1px solid ${center.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
+                        border: `1px solid ${pkg.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
                         whiteSpace: 'nowrap'
                       }}>
-                        {center.isActive ? (
+                        {pkg.isActive ? (
                           <>
                             <Circle size={12} fill="currentColor" />
                             Hoạt động
@@ -1009,14 +1193,6 @@ export default function CenterManagement() {
                     </td>
                     <td style={{
                       padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center'
-                    }}>
-                      {new Date(center.createdAt).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
                       textAlign: 'center'
                     }}>
                       <div style={{ 
@@ -1026,7 +1202,7 @@ export default function CenterManagement() {
                         alignItems: 'center'
                       }}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); openDetailModal(center); }}
+                          onClick={(e) => { e.stopPropagation(); openDetailModal(pkg); }}
                           style={{
                             padding: '8px',
                             border: '2px solid var(--border-primary)',
@@ -1049,13 +1225,13 @@ export default function CenterManagement() {
                             e.currentTarget.style.borderColor = 'var(--border-primary)'
                             e.currentTarget.style.background = 'var(--bg-card)'
                           }}
-                          title="Xem chi tiết trung tâm"
+                          title="Xem chi tiết gói dịch vụ"
                         >
                           <Eye size={16} />
                         </button>
                         
                         <button
-                          onClick={(e) => { e.stopPropagation(); openEditForm(center); }}
+                          onClick={(e) => { e.stopPropagation(); openEditForm(pkg); }}
                           style={{
                             padding: '8px',
                             border: '2px solid var(--border-primary)',
@@ -1078,44 +1254,104 @@ export default function CenterManagement() {
                             e.currentTarget.style.borderColor = 'var(--border-primary)'
                             e.currentTarget.style.background = 'var(--bg-card)'
                           }}
-                          title="Sửa trung tâm"
+                          title="Sửa gói dịch vụ"
                         >
                           <Edit size={16} />
                         </button>
                         
+                        {pkg.isActive ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deactivatePackage(pkg.packageId); }}
+                            style={{
+                              padding: '8px',
+                              border: '2px solid var(--border-primary)',
+                              borderRadius: '8px',
+                              background: 'var(--bg-card)',
+                              color: 'var(--error-600)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease',
+                              width: '36px',
+                              height: '36px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--error-500)'
+                              e.currentTarget.style.background = 'var(--error-50)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--border-primary)'
+                              e.currentTarget.style.background = 'var(--bg-card)'
+                            }}
+                            title="Tắt gói dịch vụ"
+                          >
+                            <Power size={16} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); activatePackage(pkg.packageId); }}
+                            style={{
+                              padding: '8px',
+                              border: '2px solid var(--border-primary)',
+                              borderRadius: '8px',
+                              background: 'var(--bg-card)',
+                              color: 'var(--success-600)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease',
+                              width: '36px',
+                              height: '36px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--success-500)'
+                              e.currentTarget.style.background = 'var(--success-50)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--border-primary)'
+                              e.currentTarget.style.background = 'var(--bg-card)'
+                            }}
+                            title="Kích hoạt gói dịch vụ"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                        )}
+                        
                         <button
-                          onClick={(e) => { e.stopPropagation(); toggleCenterStatus(center.centerId); }}
-                          disabled={togglingCenterId === center.centerId}
+                          onClick={(e) => { e.stopPropagation(); deletePackage(pkg.packageId); }}
+                          disabled={deletingPackageId === pkg.packageId}
                           style={{
                             padding: '8px',
                             border: '2px solid var(--border-primary)',
                             borderRadius: '8px',
-                            background: togglingCenterId === center.centerId ? 'var(--text-tertiary)' : 'var(--bg-card)',
-                            color: togglingCenterId === center.centerId ? 'var(--text-secondary)' : 'var(--text-primary)',
-                            cursor: togglingCenterId === center.centerId ? 'not-allowed' : 'pointer',
+                            background: deletingPackageId === pkg.packageId ? 'var(--text-tertiary)' : 'var(--bg-card)',
+                            color: deletingPackageId === pkg.packageId ? 'var(--text-secondary)' : 'var(--error-600)',
+                            cursor: deletingPackageId === pkg.packageId ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             transition: 'all 0.2s ease',
-                            opacity: togglingCenterId === center.centerId ? 0.7 : 1,
+                            opacity: deletingPackageId === pkg.packageId ? 0.7 : 1,
                             width: '36px',
                             height: '36px'
                           }}
                           onMouseEnter={(e) => {
-                            if (togglingCenterId !== center.centerId) {
-                              e.currentTarget.style.borderColor = center.isActive ? 'var(--error-500)' : 'var(--success-500)'
-                              e.currentTarget.style.background = center.isActive ? 'var(--error-50)' : 'var(--success-50)'
+                            if (deletingPackageId !== pkg.packageId) {
+                              e.currentTarget.style.borderColor = 'var(--error-500)'
+                              e.currentTarget.style.background = 'var(--error-50)'
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (togglingCenterId !== center.centerId) {
+                            if (deletingPackageId !== pkg.packageId) {
                               e.currentTarget.style.borderColor = 'var(--border-primary)'
                               e.currentTarget.style.background = 'var(--bg-card)'
                             }
                           }}
-                          title={center.isActive ? 'Tắt trung tâm' : 'Bật trung tâm'}
+                          title="Xóa gói dịch vụ"
                         >
-                          <CheckCircle size={16} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -1144,7 +1380,7 @@ export default function CenterManagement() {
             color: 'var(--text-primary)', 
             borderRadius: '20px',
             border: '1px solid var(--border-primary)', 
-            width: '600px', 
+            width: '700px', 
             maxWidth: '90vw', 
             maxHeight: '90vh',
             overflow: 'auto',
@@ -1169,7 +1405,7 @@ export default function CenterManagement() {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent'
                 }}>
-                  {formMode === 'create' ? 'Tạo Trung tâm Mới' : 'Cập nhật Trung tâm'}
+                  {formMode === 'create' ? 'Tạo Gói Dịch vụ Mới' : 'Cập nhật Gói Dịch vụ'}
                 </h3>
                 <p style={{ 
                   margin: 0, 
@@ -1177,8 +1413,8 @@ export default function CenterManagement() {
                   color: 'var(--text-secondary)' 
                 }}>
                   {formMode === 'create' 
-                    ? 'Thêm trung tâm dịch vụ mới vào hệ thống' 
-                    : 'Cập nhật thông tin trung tâm dịch vụ'
+                    ? 'Thêm gói dịch vụ mới vào hệ thống' 
+                    : 'Cập nhật thông tin gói dịch vụ'
                   }
                 </p>
               </div>
@@ -1227,55 +1463,106 @@ export default function CenterManagement() {
             )}
             
             <div style={{ display: 'grid', gap: '20px' }}>
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
-                }}>
-                  Tên trung tâm <span style={{ color: 'var(--error-500)' }}>*</span>
-                </label>
-                <input
-                  value={formValues.centerName}
-                  onChange={(e) => {
-                    setFormValues(v => ({ ...v, centerName: e.target.value }))
-                    validateField('centerName', e.target.value)
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${fieldErrors.centerName ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
                     color: 'var(--text-primary)', 
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="Nhập tên trung tâm"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = fieldErrors.centerName ? 'var(--error-500)' : 'var(--primary-500)'
-                    e.target.style.boxShadow = fieldErrors.centerName ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = fieldErrors.centerName ? 'var(--error-500)' : 'var(--border-primary)'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-                {fieldErrors.centerName && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                    marginBottom: '8px' 
                   }}>
-                    {fieldErrors.centerName}
-                  </div>
-                )}
+                    Tên gói dịch vụ <span style={{ color: 'var(--error-500)' }}>*</span>
+                  </label>
+                  <input
+                    value={formValues.packageName}
+                    onChange={(e) => {
+                      setFormValues(v => ({ ...v, packageName: e.target.value }))
+                      validateField('packageName', e.target.value)
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: `2px solid ${fieldErrors.packageName ? 'var(--error-500)' : 'var(--border-primary)'}`, 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Nhập tên gói dịch vụ"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = fieldErrors.packageName ? 'var(--error-500)' : 'var(--primary-500)'
+                      e.target.style.boxShadow = fieldErrors.packageName ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = fieldErrors.packageName ? 'var(--error-500)' : 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                  {fieldErrors.packageName && (
+                    <div style={{ 
+                      color: 'var(--error-600)', 
+                      fontSize: '12px', 
+                      marginTop: '4px' 
+                    }}>
+                      {fieldErrors.packageName}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)', 
+                    marginBottom: '8px' 
+                  }}>
+                    Mã gói dịch vụ <span style={{ color: 'var(--error-500)' }}>*</span>
+                  </label>
+                  <input
+                    value={formValues.packageCode}
+                    onChange={(e) => {
+                      setFormValues(v => ({ ...v, packageCode: e.target.value }))
+                      validateField('packageCode', e.target.value)
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: `2px solid ${fieldErrors.packageCode ? 'var(--error-500)' : 'var(--border-primary)'}`, 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Nhập mã gói dịch vụ"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = fieldErrors.packageCode ? 'var(--error-500)' : 'var(--primary-500)'
+                      e.target.style.boxShadow = fieldErrors.packageCode ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = fieldErrors.packageCode ? 'var(--error-500)' : 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                  {fieldErrors.packageCode && (
+                    <div style={{ 
+                      color: 'var(--error-600)', 
+                      fontSize: '12px', 
+                      marginTop: '4px' 
+                    }}>
+                      {fieldErrors.packageCode}
+                    </div>
+                  )}
+                </div>
               </div>
-              
+
               <div>
                 <label style={{ 
                   display: 'block', 
@@ -1284,19 +1571,16 @@ export default function CenterManagement() {
                   color: 'var(--text-primary)', 
                   marginBottom: '8px' 
                 }}>
-                  Địa chỉ <span style={{ color: 'var(--error-500)' }}>*</span>
+                  Mô tả
                 </label>
                 <textarea
-                  value={formValues.address}
-                  onChange={(e) => {
-                    setFormValues(v => ({ ...v, address: e.target.value }))
-                    validateField('address', e.target.value)
-                  }}
+                  value={formValues.description}
+                  onChange={(e) => setFormValues(v => ({ ...v, description: e.target.value }))}
                   rows={3}
                   style={{ 
                     width: '100%', 
                     padding: '14px 16px', 
-                    border: `2px solid ${fieldErrors.address ? 'var(--error-500)' : 'var(--border-primary)'}`, 
+                    border: '2px solid var(--border-primary)', 
                     borderRadius: '12px', 
                     background: 'var(--bg-secondary)', 
                     color: 'var(--text-primary)', 
@@ -1307,75 +1591,295 @@ export default function CenterManagement() {
                     fontFamily: 'inherit',
                     boxSizing: 'border-box'
                   }}
-                  placeholder="Nhập địa chỉ trung tâm"
+                  placeholder="Nhập mô tả gói dịch vụ"
                   onFocus={(e) => {
-                    e.target.style.borderColor = fieldErrors.address ? 'var(--error-500)' : 'var(--primary-500)'
-                    e.target.style.boxShadow = fieldErrors.address ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    e.target.style.borderColor = 'var(--primary-500)'
+                    e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = fieldErrors.address ? 'var(--error-500)' : 'var(--border-primary)'
+                    e.target.style.borderColor = 'var(--border-primary)'
                     e.target.style.boxShadow = 'none'
                   }}
                 />
-                {fieldErrors.address && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
-                  }}>
-                    {fieldErrors.address}
-                  </div>
-                )}
               </div>
-              
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px',
-                  
-                }}>
-                  Số điện thoại <span style={{ color: 'var(--error-500)' }}>*</span>
-                </label>
-                <input
-                  value={formValues.phoneNumber}
-                  onChange={(e) => {
-                    setFormValues(v => ({ ...v, phoneNumber: e.target.value }))
-                    validateField('phoneNumber', e.target.value)
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${fieldErrors.phoneNumber ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
                     color: 'var(--text-primary)', 
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="Nhập số điện thoại (VD: 0123456789)"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = fieldErrors.phoneNumber ? 'var(--error-500)' : 'var(--primary-500)'
-                    e.target.style.boxShadow = fieldErrors.phoneNumber ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = fieldErrors.phoneNumber ? 'var(--error-500)' : 'var(--border-primary)'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-                {fieldErrors.phoneNumber && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                    marginBottom: '8px' 
                   }}>
-                    {fieldErrors.phoneNumber}
-                  </div>
-                )}
+                    Dịch vụ <span style={{ color: 'var(--error-500)' }}>*</span>
+                  </label>
+                  <select
+                    value={formValues.serviceId}
+                    onChange={(e) => {
+                      setFormValues(v => ({ ...v, serviceId: Number(e.target.value) }))
+                      validateField('serviceId', Number(e.target.value))
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: `2px solid ${fieldErrors.serviceId ? 'var(--error-500)' : 'var(--border-primary)'}`, 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = fieldErrors.serviceId ? 'var(--error-500)' : 'var(--primary-500)'
+                      e.target.style.boxShadow = fieldErrors.serviceId ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = fieldErrors.serviceId ? 'var(--error-500)' : 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  >
+                    <option value={0}>Chọn dịch vụ</option>
+                    {services.map(service => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.serviceId && (
+                    <div style={{ 
+                      color: 'var(--error-600)', 
+                      fontSize: '12px', 
+                      marginTop: '4px' 
+                    }}>
+                      {fieldErrors.serviceId}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)', 
+                    marginBottom: '8px' 
+                  }}>
+                    Tổng số credit <span style={{ color: 'var(--error-500)' }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formValues.totalCredits}
+                    onChange={(e) => {
+                      setFormValues(v => ({ ...v, totalCredits: Number(e.target.value) }))
+                      validateField('totalCredits', Number(e.target.value))
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: `2px solid ${fieldErrors.totalCredits ? 'var(--error-500)' : 'var(--border-primary)'}`, 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Nhập tổng số credit"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = fieldErrors.totalCredits ? 'var(--error-500)' : 'var(--primary-500)'
+                      e.target.style.boxShadow = fieldErrors.totalCredits ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = fieldErrors.totalCredits ? 'var(--error-500)' : 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                  {fieldErrors.totalCredits && (
+                    <div style={{ 
+                      color: 'var(--error-600)', 
+                      fontSize: '12px', 
+                      marginTop: '4px' 
+                    }}>
+                      {fieldErrors.totalCredits}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)', 
+                    marginBottom: '8px' 
+                  }}>
+                    Giá gói <span style={{ color: 'var(--error-500)' }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={formValues.price}
+                    onChange={(e) => {
+                      setFormValues(v => ({ ...v, price: Number(e.target.value) }))
+                      validateField('price', Number(e.target.value))
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: `2px solid ${fieldErrors.price ? 'var(--error-500)' : 'var(--border-primary)'}`, 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Nhập giá gói (VNĐ)"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = fieldErrors.price ? 'var(--error-500)' : 'var(--primary-500)'
+                      e.target.style.boxShadow = fieldErrors.price ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = fieldErrors.price ? 'var(--error-500)' : 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                  {fieldErrors.price && (
+                    <div style={{ 
+                      color: 'var(--error-600)', 
+                      fontSize: '12px', 
+                      marginTop: '4px' 
+                    }}>
+                      {fieldErrors.price}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)', 
+                    marginBottom: '8px' 
+                  }}>
+                    Phần trăm giảm giá (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={formValues.discountPercent}
+                    onChange={(e) => setFormValues(v => ({ ...v, discountPercent: Number(e.target.value) }))}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: '2px solid var(--border-primary)', 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Nhập phần trăm giảm giá"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = 'var(--primary-500)'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)', 
+                    marginBottom: '8px' 
+                  }}>
+                    Có hiệu lực từ
+                  </label>
+                  <input
+                    type="date"
+                    value={formValues.validFrom}
+                    onChange={(e) => setFormValues(v => ({ ...v, validFrom: e.target.value }))}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: '2px solid var(--border-primary)', 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = 'var(--primary-500)'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    color: 'var(--text-primary)', 
+                    marginBottom: '8px' 
+                  }}>
+                    Có hiệu lực đến
+                  </label>
+                  <input
+                    type="date"
+                    value={formValues.validTo}
+                    onChange={(e) => setFormValues(v => ({ ...v, validTo: e.target.value }))}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      border: '2px solid var(--border-primary)', 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-secondary)', 
+                      color: 'var(--text-primary)', 
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = 'var(--primary-500)'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'var(--border-primary)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                </div>
               </div>
               
               <div style={{
@@ -1404,9 +1908,9 @@ export default function CenterManagement() {
                     }}
                   />
                   <div>
-                    <div>Trung tâm đang hoạt động</div>
+                    <div>Gói dịch vụ đang hoạt động</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {formValues.isActive ? 'Trung tâm sẽ hoạt động ngay' : 'Trung tâm sẽ bị tạm ngừng hoạt động'}
+                      {formValues.isActive ? 'Gói dịch vụ sẽ hoạt động ngay' : 'Gói dịch vụ sẽ bị tạm ngừng hoạt động'}
                     </div>
                   </div>
                 </label>
@@ -1475,7 +1979,7 @@ export default function CenterManagement() {
                     }
                   }}
                 >
-                  {formSubmitting ? 'Đang lưu...' : (formMode === 'create' ? 'Tạo Trung tâm' : 'Cập nhật Trung tâm')}
+                  {formSubmitting ? 'Đang lưu...' : (formMode === 'create' ? 'Tạo Gói Dịch vụ' : 'Cập nhật Gói Dịch vụ')}
                 </button>
               </div>
             </div>
@@ -1484,7 +1988,7 @@ export default function CenterManagement() {
       )}
 
       {/* Detail Modal */}
-      {detailModalOpen && selectedCenterDetail && (
+      {detailModalOpen && selectedPackageDetail && (
         <div style={{ 
           position: 'fixed', 
           inset: 0, 
@@ -1500,7 +2004,7 @@ export default function CenterManagement() {
             color: 'var(--text-primary)', 
             borderRadius: '20px',
             border: '1px solid var(--border-primary)', 
-            width: '900px', 
+            width: '600px', 
             maxWidth: '95vw', 
             maxHeight: '90vh',
             overflow: 'auto',
@@ -1525,14 +2029,14 @@ export default function CenterManagement() {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent'
                 }}>
-                  Chi tiết Trung tâm
+                  Chi tiết Gói Dịch vụ
                 </h3>
                 <p style={{ 
                   margin: 0, 
                   fontSize: '14px', 
                   color: 'var(--text-secondary)' 
                 }}>
-                  {selectedCenterDetail.centerName}
+                  {selectedPackageDetail.packageName}
                 </p>
               </div>
               <button
@@ -1562,7 +2066,7 @@ export default function CenterManagement() {
               </button>
             </div>
 
-            {/* Center Info */}
+            {/* Package Info */}
             <div style={{
               background: 'var(--bg-secondary)',
               padding: '20px',
@@ -1576,25 +2080,43 @@ export default function CenterManagement() {
                 fontWeight: '600',
                 color: 'var(--text-primary)'
               }}>
-                Thông tin Trung tâm
+                Thông tin Gói Dịch vụ
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tên trung tâm</div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tên gói</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedCenterDetail.centerName}
+                    {selectedPackageDetail.packageName}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Số điện thoại</div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mã gói</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedCenterDetail.phoneNumber}
+                    {selectedPackageDetail.packageCode}
                   </div>
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Địa chỉ</div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Dịch vụ</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedCenterDetail.address}
+                    {selectedPackageDetail.serviceName}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tổng credits</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedPackageDetail.totalCredits}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giá</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {new Intl.NumberFormat('vi-VN').format(selectedPackageDetail.price)}đ
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giảm giá</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedPackageDetail.discountPercent ? `${selectedPackageDetail.discountPercent}%` : 'Không có'}
                   </div>
                 </div>
                 <div>
@@ -1605,13 +2127,13 @@ export default function CenterManagement() {
                     gap: '6px',
                     padding: '4px 12px',
                     borderRadius: '20px',
-                    background: selectedCenterDetail.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                    color: selectedCenterDetail.isActive ? 'var(--success-700)' : 'var(--error-700)',
+                    background: selectedPackageDetail.isActive ? 'var(--success-50)' : 'var(--error-50)',
+                    color: selectedPackageDetail.isActive ? 'var(--success-700)' : 'var(--error-700)',
                     fontSize: '12px',
                     fontWeight: '600',
-                    border: `1px solid ${selectedCenterDetail.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
+                    border: `1px solid ${selectedPackageDetail.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
                   }}>
-                    {selectedCenterDetail.isActive ? (
+                    {selectedPackageDetail.isActive ? (
                       <>
                         <Circle size={12} fill="currentColor" />
                         Hoạt động
@@ -1627,261 +2149,36 @@ export default function CenterManagement() {
                 <div>
                   <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày tạo</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {new Date(selectedCenterDetail.createdAt).toLocaleDateString('vi-VN')}
+                    {new Date(selectedPackageDetail.createdAt).toLocaleDateString('vi-VN')}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Có hiệu lực từ</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedPackageDetail.validFrom 
+                      ? new Date(selectedPackageDetail.validFrom).toLocaleDateString('vi-VN')
+                      : 'Không xác định'
+                    }
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Có hiệu lực đến</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedPackageDetail.validTo 
+                      ? new Date(selectedPackageDetail.validTo).toLocaleDateString('vi-VN')
+                      : 'Không giới hạn'
+                    }
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Staff and Technicians */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              {/* Staff Section */}
-              <div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  marginBottom: '16px' 
-                }}>
-                  <Users size={20} style={{ color: 'var(--primary-500)' }} />
-                  <h4 style={{ 
-                    margin: 0, 
-                    fontSize: '18px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)'
-                  }}>
-                    Nhân viên ({centerStaff.length})
-                  </h4>
+              {selectedPackageDetail.description && (
+                <div style={{ marginTop: '16px' }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mô tả</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {selectedPackageDetail.description}
+                  </div>
                 </div>
-                
-                {loadingDetails ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
-                    color: 'var(--text-secondary)' 
-                  }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      border: '3px solid var(--border-primary)',
-                      borderTop: '3px solid var(--primary-500)',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                      margin: '0 auto 16px'
-                    }} />
-                    <p style={{ margin: 0, fontSize: '14px' }}>Đang tải nhân viên...</p>
-                  </div>
-                ) : centerStaff.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
-                    color: 'var(--text-secondary)',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-primary)'
-                  }}>
-                    <UserX size={32} style={{ margin: '0 auto 12px', opacity: 0.5, color: 'var(--text-tertiary)' }} />
-                    <p style={{ margin: 0, fontSize: '14px' }}>Chưa có nhân viên nào</p>
-                  </div>
-                ) : (
-                  <div style={{ 
-                    maxHeight: '300px', 
-                    overflow: 'auto',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-primary)'
-                  }}>
-                    {centerStaff.map((staff, index) => (
-                      <div key={staff.staffId || index} style={{
-                        padding: '16px',
-                        borderBottom: index < centerStaff.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '16px',
-                          fontWeight: '600'
-                        }}>
-                          {staff.userFullName?.charAt(0)?.toUpperCase() || 'U'}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            fontSize: '14px', 
-                            fontWeight: '600', 
-                            color: 'var(--text-primary)',
-                            marginBottom: '2px'
-                          }}>
-                            {staff.userFullName || 'Không có tên'}
-                          </div>
-                          <div style={{ 
-                            fontSize: '12px', 
-                            color: 'var(--text-secondary)'
-                          }}>
-                            ID: {staff.staffId}
-                          </div>
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          background: staff.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                          color: staff.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          border: `1px solid ${staff.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
-                        }}>
-                          {staff.isActive ? (
-                            <>
-                              <Circle size={8} fill="currentColor" />
-                              Hoạt động
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle size={8} fill="currentColor" />
-                              Không hoạt động
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Technicians Section */}
-              <div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  marginBottom: '16px' 
-                }}>
-                  <Wrench size={20} style={{ color: 'var(--primary-500)' }} />
-                  <h4 style={{ 
-                    margin: 0, 
-                    fontSize: '18px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)'
-                  }}>
-                    Kỹ thuật viên ({centerTechnicians.length})
-                  </h4>
-                </div>
-                
-                {loadingDetails ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
-                    color: 'var(--text-secondary)' 
-                  }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      border: '3px solid var(--border-primary)',
-                      borderTop: '3px solid var(--primary-500)',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                      margin: '0 auto 16px'
-                    }} />
-                    <p style={{ margin: 0, fontSize: '14px' }}>Đang tải kỹ thuật viên...</p>
-                  </div>
-                ) : centerTechnicians.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
-                    color: 'var(--text-secondary)',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-primary)'
-                  }}>
-                    <WrenchIcon size={32} style={{ margin: '0 auto 12px', opacity: 0.5, color: 'var(--text-tertiary)' }} />
-                    <p style={{ margin: 0, fontSize: '14px' }}>Chưa có kỹ thuật viên nào</p>
-                  </div>
-                ) : (
-                  <div style={{ 
-                    maxHeight: '300px', 
-                    overflow: 'auto',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-primary)'
-                  }}>
-                    {centerTechnicians.map((technician, index) => (
-                      <div key={technician.technicianId || index} style={{
-                        padding: '16px',
-                        borderBottom: index < centerTechnicians.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '16px',
-                          fontWeight: '600'
-                        }}>
-                          {technician.userFullName?.charAt(0)?.toUpperCase() || 'T'}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            fontSize: '14px', 
-                            fontWeight: '600', 
-                            color: 'var(--text-primary)',
-                            marginBottom: '2px'
-                          }}>
-                            {technician.userFullName || 'Không có tên'}
-                          </div>
-                          <div style={{ 
-                            fontSize: '12px', 
-                            color: 'var(--text-secondary)'
-                          }}>
-                            ID: {technician.technicianId}
-                          </div>
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          background: technician.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                          color: technician.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          border: `1px solid ${technician.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
-                        }}>
-                          {technician.isActive ? (
-                            <>
-                              <Circle size={8} fill="currentColor" />
-                              Hoạt động
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle size={8} fill="currentColor" />
-                              Không hoạt động
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>

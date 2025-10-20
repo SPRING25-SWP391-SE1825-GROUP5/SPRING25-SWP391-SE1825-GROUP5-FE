@@ -1,246 +1,293 @@
 import api from './api'
 import type {
+  ChatConversation, 
   ChatMessage,
-  ChatConversation,
   ChatUser,
-  ChatGroup,
-  SendMessageRequest,
-  CreateConversationRequest,
-  ChatApiResponse,
-  MessageListResponse,
-  ConversationListResponse,
-  ChatNotification
+  ChatSearchResult,
+  ChatTypingIndicator,
+  ChatCall 
 } from '@/types/chat'
 
-/**
- * Chat Service
- * Handles all chat-related API operations
- * 
- * @class ChatService
- * @description Service responsible for chat functionality including messages, conversations, and real-time features
- */
-export const ChatService = {
-  // ==================== CONVERSATIONS ====================
+export class ChatService {
+  // Simple de-duplication and throttling for conversation fetches
+  private static inFlightConversations?: Promise<ChatConversation[]>
+  private static lastConversationsAt = 0
+  private static cachedConversations: ChatConversation[] = []
+  private static readonly CONVERSATIONS_TTL_MS = 3000
+  // Get all conversations for current user
+  static async getConversations(): Promise<ChatConversation[]> {
+    const now = Date.now()
+    // Return cached data within TTL to avoid burst requests
+    if (now - ChatService.lastConversationsAt < ChatService.CONVERSATIONS_TTL_MS && ChatService.cachedConversations.length) {
+      return ChatService.cachedConversations
+    }
+    // Return in-flight promise if a request is already running
+    if (ChatService.inFlightConversations) {
+      return ChatService.inFlightConversations
+    }
+    ChatService.inFlightConversations = (async () => {
+      const response = await api.get('/conversation/my-conversations')
+      const items: any[] = response?.data?.data || []
+      return items.map((c: any) => {
+        const convId = String(c.id || c.conversationId || c.conversationID || c.ConversationId)
+        const members: any[] = c.members || c.participants || []
+        const participants = members.map((m: any) => {
+          const inferredId = m.userId || m.id || m.memberId || m.UserId || m.MemberId || m.user?.id || m.user?.userId
+          const inferredName = m.userName || m.userFullName || m.fullName || m.name || m.UserFullName || m.FullName || m.user?.fullName || m.user?.full_name || m.user?.name || m.profile?.fullName
+          const inferredAvatar = m.userAvatar || m.avatarUrl || m.avatar || m.user?.avatarUrl || m.user?.avatar
+          const roleRaw = (m.roleInConversation || m.role || m.RoleInConversation || '').toString().toUpperCase()
+          const mappedRole = roleRaw === 'CUSTOMER' ? 'customer' : roleRaw.includes('TECH') ? 'technician' : roleRaw.includes('STAFF') ? 'staff' : roleRaw.includes('ADMIN') ? 'admin' : 'customer'
 
-  /**
-   * Get user's conversations
-   */
-  async getConversations(params: {
-    pageNumber?: number
-    pageSize?: number
-    searchTerm?: string
-  } = {}): Promise<ConversationListResponse> {
-    const defaultParams = { pageNumber: 1, pageSize: 20, ...params }
-    const { data } = await api.get<ConversationListResponse>('/Chat/conversations', { params: defaultParams })
-    return data
-  },
+          return {
+            id: String(inferredId || ''),
+            name: inferredName || 'Người dùng',
+            avatar: inferredAvatar || undefined,
+            role: mappedRole as any,
+            isOnline: Boolean(m.isOnline || m.isActive || m.user?.isActive),
+          }
+        })
 
-  /**
-   * Get conversation by ID
-   */
-  async getConversation(conversationId: string): Promise<ChatConversation> {
-    const { data } = await api.get<ChatApiResponse<ChatConversation>>(`/Chat/conversations/${conversationId}`)
-    return data.data
-  },
+        const lm = c.lastMessage || c.LastMessage || null
+        const lastMessage = lm ? {
+          id: String(lm.messageId || lm.id || ''),
+          conversationId: convId,
+          senderId: String(lm.senderUserId || lm.senderGuestSessionId || ''),
+          senderName: lm.senderName || '',
+          content: lm.content || '',
+          timestamp: lm.createdAt || c.lastMessageAt || c.updatedAt || new Date().toISOString(),
+          type: 'text' as const,
+          isRead: true,
+        } : undefined
 
-  /**
-   * Create new conversation
-   */
-  async createConversation(conversationData: CreateConversationRequest): Promise<ChatConversation> {
-    const { data } = await api.post<ChatApiResponse<ChatConversation>>('/Chat/conversations', conversationData)
-    return data.data
-  },
+        const createdAt = c.createdAt || new Date().toISOString()
+        const updatedAt = c.updatedAt || c.lastMessageAt || createdAt
 
-  /**
-   * Get or create conversation with specific user
-   */
-  async getOrCreateConversation(userId: string): Promise<ChatConversation> {
-    const { data } = await api.post<ChatApiResponse<ChatConversation>>('/Chat/conversations/with-user', { userId })
-    return data.data
-  },
+        const conv: ChatConversation = {
+          id: convId,
+          participants,
+          lastMessage: lastMessage as any,
+          unreadCount: Number(c.unreadCount || 0),
+          isPinned: Boolean(c.isPinned || false),
+          isArchived: Boolean(c.isArchived || false),
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+        }
+        return conv
+      })
+    })()
+    try {
+      const data = await ChatService.inFlightConversations
+      ChatService.cachedConversations = data
+      ChatService.lastConversationsAt = Date.now()
+      return data
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+      throw error
+    } finally {
+      ChatService.inFlightConversations = undefined
+    }
+  }
 
-  // ==================== MESSAGES ====================
+  // Get conversation by ID
+  static async getConversation(conversationId: string): Promise<ChatConversation> {
+    try {
+      const response = await api.get(`/chat/conversations/${conversationId}`)
+      return response.data.data
+    } catch (error) {
+      console.error('Error fetching conversation:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Get messages for a conversation
-   */
-  async getMessages(conversationId: string, params: {
-    pageNumber?: number
-    pageSize?: number
-    before?: string
-  } = {}): Promise<MessageListResponse> {
-    const defaultParams = { pageNumber: 1, pageSize: 50, ...params }
-    const { data } = await api.get<MessageListResponse>(`/Chat/conversations/${conversationId}/messages`, { params: defaultParams })
-    return data
-  },
+  // Get messages for a conversation
+  static async getMessages(conversationId: string, page: number = 1, limit: number = 50): Promise<ChatMessage[]> {
+    try {
+      const response = await api.get(`/chat/conversations/${conversationId}/messages`, {
+        params: { page, limit }
+      })
+      return response.data.data || []
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Send message to conversation
-   */
-  async sendMessage(messageData: SendMessageRequest): Promise<ChatMessage> {
-    const { data } = await api.post<ChatApiResponse<ChatMessage>>('/Chat/messages', messageData)
-    return data.data
-  },
+  // Send a message
+  static async sendMessage(messageData: { conversationId: string; content: string; type?: 'text' | 'image' | 'file'; attachments?: File[] }): Promise<ChatMessage> {
+    try {
+      const { conversationId, content, type = 'text', attachments } = messageData
+      const formData = new FormData()
+      formData.append('content', content)
+      formData.append('type', type)
+      
+      if (attachments) {
+        attachments.forEach((file, index) => {
+          formData.append(`attachments[${index}]`, file)
+        })
+      }
 
-  /**
-   * Mark messages as read
-   */
-  async markMessagesAsRead(conversationId: string, messageIds: string[]): Promise<void> {
-    await api.patch(`/Chat/conversations/${conversationId}/messages/read`, { messageIds })
-  },
+      const response = await api.post(`/chat/conversations/${conversationId}/messages`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      return response.data.data
+    } catch (error) {
+      console.error('Error sending message:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Delete message
-   */
-  async deleteMessage(messageId: string): Promise<void> {
-    await api.delete(`/Chat/messages/${messageId}`)
-  },
+  // Create new conversation
+  static async createConversation(participantId: string): Promise<ChatConversation> {
+    try {
+      const response = await api.post('/chat/conversations', {
+        participantIds: [participantId]
+      })
+      return response.data.data
+    } catch (error) {
+      console.error('Error creating conversation:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Edit message
-   */
-  async editMessage(messageId: string, content: string): Promise<ChatMessage> {
-    const { data } = await api.patch<ChatApiResponse<ChatMessage>>(`/Chat/messages/${messageId}`, { content })
-    return data.data
-  },
+  // Get available staff/technicians for chat
+  static async getAvailableStaff(): Promise<ChatUser[]> {
+    try {
+      const response = await api.get('/chat/staff/available')
+      return response.data.data || []
+    } catch (error) {
+      console.error('Error fetching available staff:', error)
+      throw error
+    }
+  }
 
-  // ==================== USERS & GROUPS ====================
+  // Get available users for chat
+  static async getAvailableUsers(): Promise<ChatUser[]> {
+    try {
+      const response = await api.get('/chat/users/available')
+      return response.data.data || []
+    } catch (error) {
+      console.error('Error fetching available users:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Get online users
-   */
-  async getOnlineUsers(): Promise<ChatUser[]> {
-    const { data } = await api.get<ChatApiResponse<ChatUser[]>>('/Chat/users/online')
-    return data.data
-  },
+  // Mark messages as read
+  static async markAsRead(conversationId: string, messageIds: string[]): Promise<void> {
+    try {
+      await api.post(`/chat/conversations/${conversationId}/read`, {
+        messageIds
+      })
+    } catch (error) {
+      console.error('Error marking messages as read:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Get available users for chat
-   */
-  async getAvailableUsers(params: {
-    pageNumber?: number
-    pageSize?: number
-    searchTerm?: string
-    role?: string
-  } = {}): Promise<{ users: ChatUser[], total: number }> {
-    const defaultParams = { pageNumber: 1, pageSize: 50, ...params }
-    const { data } = await api.get<ChatApiResponse<{ users: ChatUser[], total: number }>>('/Chat/users/available', { params: defaultParams })
-    return data.data
-  },
+  // Search conversations and messages
+  static async search(query: string): Promise<ChatSearchResult> {
+    try {
+      const response = await api.get('/chat/search', {
+        params: { q: query }
+      })
+      return response.data.data
+    } catch (error) {
+      console.error('Error searching:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Get user groups
-   */
-  async getUserGroups(): Promise<ChatGroup[]> {
-    const { data } = await api.get<ChatApiResponse<ChatGroup[]>>('/Chat/groups')
-    return data.data
-  },
+  // Pin/unpin conversation
+  static async togglePin(conversationId: string, isPinned: boolean): Promise<void> {
+    try {
+      await api.patch(`/chat/conversations/${conversationId}/pin`, {
+        isPinned
+      })
+    } catch (error) {
+      console.error('Error toggling pin:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Create group
-   */
-  async createGroup(groupData: {
-    name: string
-    description?: string
-    participantIds: string[]
-    isPrivate?: boolean
-  }): Promise<ChatGroup> {
-    const { data } = await api.post<ChatApiResponse<ChatGroup>>('/Chat/groups', groupData)
-    return data.data
-  },
+  // Archive conversation
+  static async archiveConversation(conversationId: string): Promise<void> {
+    try {
+      await api.patch(`/chat/conversations/${conversationId}/archive`)
+    } catch (error) {
+      console.error('Error archiving conversation:', error)
+      throw error
+    }
+  }
 
-  // ==================== NOTIFICATIONS ====================
+  // Send typing indicator
+  static async sendTypingIndicator(conversationId: string, isTyping: boolean): Promise<void> {
+    try {
+      await api.post(`/chat/conversations/${conversationId}/typing`, {
+        isTyping
+      })
+    } catch (error) {
+      console.error('Error sending typing indicator:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Get chat notifications
-   */
-  async getNotifications(params: {
-    pageNumber?: number
-    pageSize?: number
-    unreadOnly?: boolean
-  } = {}): Promise<{ notifications: ChatNotification[], total: number }> {
-    const defaultParams = { pageNumber: 1, pageSize: 20, ...params }
-    const { data } = await api.get<ChatApiResponse<{ notifications: ChatNotification[], total: number }>>('/Chat/notifications', { params: defaultParams })
-    return data.data
-  },
+  // Get typing indicators for conversation
+  static async getTypingIndicators(conversationId: string): Promise<ChatTypingIndicator[]> {
+    try {
+      const response = await api.get(`/chat/conversations/${conversationId}/typing`)
+      return response.data.data || []
+    } catch (error) {
+      console.error('Error fetching typing indicators:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Mark notification as read
-   */
-  async markNotificationAsRead(notificationId: string): Promise<void> {
-    await api.patch(`/Chat/notifications/${notificationId}/read`)
-  },
+  // Start voice/video call
+  static async startCall(conversationId: string, type: 'voice' | 'video'): Promise<ChatCall> {
+    try {
+      const response = await api.post(`/chat/conversations/${conversationId}/call`, {
+        type
+      })
+      return response.data.data
+    } catch (error) {
+      console.error('Error starting call:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Mark all notifications as read
-   */
-  async markAllNotificationsAsRead(): Promise<void> {
-    await api.patch('/Chat/notifications/read-all')
-  },
+  // End call
+  static async endCall(callId: string): Promise<void> {
+    try {
+      await api.post(`/chat/calls/${callId}/end`)
+    } catch (error) {
+      console.error('Error ending call:', error)
+      throw error
+    }
+  }
 
-  // ==================== REACTIONS ====================
+  // Get user profile
+  static async getUserProfile(userId: string): Promise<ChatUser> {
+    try {
+      const response = await api.get(`/chat/users/${userId}`)
+      return response.data.data
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+      throw error
+    }
+  }
 
-  /**
-   * Add reaction to message
-   */
-  async addReaction(messageId: string, emoji: string): Promise<void> {
-    await api.post(`/Chat/messages/${messageId}/reactions`, { emoji })
-  },
-
-  /**
-   * Remove reaction from message
-   */
-  async removeReaction(messageId: string, emoji: string): Promise<void> {
-    await api.delete(`/Chat/messages/${messageId}/reactions/${emoji}`)
-  },
-
-  // ==================== TYPING INDICATORS ====================
-
-  /**
-   * Send typing indicator
-   */
-  async sendTypingIndicator(conversationId: string): Promise<void> {
-    await api.post(`/Chat/conversations/${conversationId}/typing`)
-  },
-
-  /**
-   * Stop typing indicator
-   */
-  async stopTypingIndicator(conversationId: string): Promise<void> {
-    await api.delete(`/Chat/conversations/${conversationId}/typing`)
-  },
-
-  // ==================== FILE UPLOAD ====================
-
-  /**
-   * Upload file for chat
-   */
-  async uploadFile(file: File, conversationId: string): Promise<{ fileUrl: string, fileName: string }> {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('conversationId', conversationId)
-
-    const { data } = await api.post<ChatApiResponse<{ fileUrl: string, fileName: string }>>('/Chat/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
-    return data.data
-  },
-
-  // ==================== SEARCH ====================
-
-  /**
-   * Search messages
-   */
-  async searchMessages(params: {
-    query: string
-    conversationId?: string
-    pageNumber?: number
-    pageSize?: number
-  }): Promise<{ messages: ChatMessage[], total: number }> {
-    const defaultParams = { pageNumber: 1, pageSize: 20, ...params }
-    const { data } = await api.get<ChatApiResponse<{ messages: ChatMessage[], total: number }>>('/Chat/search', { params: defaultParams })
-    return data.data
+  // Update user status
+  static async updateUserStatus(isOnline: boolean): Promise<void> {
+    try {
+      await api.patch('/chat/users/status', {
+        isOnline
+      })
+    } catch (error) {
+      console.error('Error updating user status:', error)
+      throw error
+    }
   }
 }
+
+export default ChatService

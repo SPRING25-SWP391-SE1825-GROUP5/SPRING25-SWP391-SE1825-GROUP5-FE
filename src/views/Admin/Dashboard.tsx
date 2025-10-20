@@ -4,6 +4,7 @@ import api from '../../services/api'
 import {
   Users,
   Package,
+  Package2,
   FileText,
   Settings,
   TrendingUp,
@@ -19,6 +20,7 @@ import {
   Menu,
   LogOut,
   Globe,
+  Gift,
   Edit,
   X,
   Plus,
@@ -62,6 +64,8 @@ import ServicesManagement from '../../components/manager/ServicesManagement'
 import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
 import CenterManagement from '../../components/admin/CenterManagement'
 import StaffManagement from '../../components/admin/StaffManagement'
+import PromotionManagement from '../../components/admin/PromotionManagement'
+import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import { useAppSelector } from '@/store/hooks'
 
 // Parts Management Component
@@ -3277,6 +3281,10 @@ export default function AdminDashboard() {
         return <SystemSettingsContent />
       case 'bookings':
         return <BookingManagementContent />
+      case 'promotions':
+        return <PromotionManagement />
+      case 'service-packages':
+        return <ServicePackageManagement />
       case 'reports':
         return (
           <div>
@@ -4134,10 +4142,12 @@ export default function AdminDashboard() {
               {[
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
+                { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
                 { icon: Calendar, label: 'Booking', page: 'bookings', route: '/admin/bookings' },
+                { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings', route: '/admin/settings' },
                 { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
               ].map((item, index) => (

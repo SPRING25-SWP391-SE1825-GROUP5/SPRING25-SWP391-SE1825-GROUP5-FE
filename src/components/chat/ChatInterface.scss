@@ -1,0 +1,280 @@
+.chat-interface {
+  height: 100%; // Sử dụng height từ parent container
+  background: #e6f2f0; // Primary 50 - light green background
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1rem;
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #cce5e0; // Primary 100
+      border-top: 3px solid #4A9782; // Secondary 400
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    p {
+      color: #44444E; // Secondary 800 - system text color
+      font-size: 0.9rem;
+    }
+  }
+
+  &__container {
+    display: flex;
+    height: 100vh;
+    background: linear-gradient(135deg, #CCFF00, #B8E600, #A3CC00); // Bright yellow gradient
+    border-radius: 0 0 24px 24px; // Soft rounded bottom corners
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(204, 255, 0, 0.25); // Enhanced shadow with bright yellow colors
+    border: 1px solid rgba(204, 255, 0, 0.4);
+    border-top: none; // Remove top border to connect with header
+  }
+
+  &__sidebar {
+    width: 270px; // Điều chỉnh để cân bằng với cột bên phải
+    border-right: 1px solid rgba(204, 255, 0, 0.5); // Bright yellow border
+    background: linear-gradient(180deg, #CCFF00, #B8E600); // Bright yellow gradient
+    display: flex;
+    flex-direction: column;
+    border-radius: 20px 0 0 20px; // Soft rounded corners for sidebar
+  }
+
+  &__main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: linear-gradient(180deg, #CCFF00, #B8E600); // Bright yellow gradient
+  }
+
+  &__info {
+    width: 270px; // Điều chỉnh để cân bằng với cột bên trái
+    border-left: 1px solid rgba(204, 255, 0, 0.5); // Bright yellow border
+    background: linear-gradient(180deg, #CCFF00, #B8E600); // Bright yellow gradient
+    display: flex;
+    flex-direction: column;
+    border-radius: 0 20px 20px 0; // Soft rounded corners for info panel
+  }
+}
+
+.new-chat-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .modal-content {
+    position: relative;
+    background: linear-gradient(135deg, #CCFF00, #B8E600, #A3CC00);
+    border: 1px solid rgba(204, 255, 0, 0.5);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(204, 255, 0, 0.3);
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(204, 255, 0, 0.5);
+      background: rgba(255, 255, 255, 0.2);
+
+      h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #004030;
+        font-family: 'Poppins', sans-serif;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #A3CC00;
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+
+        &:hover {
+          background: rgba(204, 255, 0, 0.3);
+          color: #8BB300;
+        }
+      }
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+
+      p {
+        margin: 0 0 1rem 0;
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+
+      .staff-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+
+        .staff-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          transition: all 0.2s;
+
+          &:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+          }
+
+          .staff-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-weight: 600;
+          }
+
+          .staff-info {
+            flex: 1;
+
+            h4 {
+              margin: 0 0 0.25rem 0;
+              font-size: 0.9rem;
+              font-weight: 600;
+              color: #111827;
+            }
+
+            span {
+              font-size: 0.8rem;
+              color: #10b981;
+            }
+          }
+
+          .start-chat-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+              background: #059669;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Responsive design
+@media (max-width: 1024px) {
+  .chat-interface {
+    &__container {
+      .chat-interface__sidebar {
+        width: 270px; // Đảm bảo width nhất quán
+      }
+      
+      .chat-interface__info {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 270px; // Đảm bảo width nhất quán với sidebar
+        z-index: 100;
+        box-shadow: -4px 0 6px -1px rgba(204, 255, 0, 0.3);
+        border-radius: 20px 0 0 20px; // Soft rounded corners for mobile
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-interface {
+    &__container {
+      flex-direction: column;
+      border-radius: 0 0 12px 12px; // Only round bottom corners
+
+      .chat-interface__sidebar {
+        width: 100%;
+        height: 200px;
+        border-right: none;
+        border-bottom: 1px solid rgba(204, 255, 0, 0.5);
+        border-radius: 0; // No border radius for seamless connection
+      }
+
+      .chat-interface__main {
+        flex: 1;
+        min-height: 0;
+      }
+
+      .chat-interface__info {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+        z-index: 100;
+        box-shadow: -4px 0 6px -1px rgba(204, 255, 0, 0.3);
+        border-radius: 0;
+      }
+    }
+  }
+}
+
+// Extra small screens
+@media (max-width: 480px) {
+  .chat-interface {
+    &__container {
+      .chat-interface__sidebar {
+        height: 180px;
+      }
+    }
+  }
+}

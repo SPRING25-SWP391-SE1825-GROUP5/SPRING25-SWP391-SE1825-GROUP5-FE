@@ -104,19 +104,8 @@ export type {
   ChatUser,
   ChatMessage,
   ChatConversation,
-  ChatGroup,
   ChatState,
-  SendMessageRequest,
-  CreateConversationRequest,
-  ChatNotification,
-  ChatWidgetProps,
-  ChatWindowProps,
-  MessageListProps,
-  MessageInputProps,
-  ConversationListProps,
-  ChatApiResponse,
-  MessageListResponse,
-  ConversationListResponse
+  ChatNotification
 } from '@/types/chat'
 
 // TODO: Add other services as they are created

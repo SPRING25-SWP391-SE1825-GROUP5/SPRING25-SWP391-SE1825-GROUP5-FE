@@ -1,5 +1,4 @@
 import api from './api'
-
 // Backend response structure
 export interface BackendPromotion {
     promotionId: number
@@ -132,3 +131,4 @@ export const PromotionService = {
         }
     }
 }
+

@@ -1,0 +1,98 @@
+.contact-page {
+  height: calc(100vh - 57px);
+  width: 100vw;
+  position: fixed;
+  top: 57px; // Đặt dưới header chính (header height = 57px)
+  left: 0;
+  background: linear-gradient(135deg, #CCFF00, #B8E600); // Bright yellow background
+  z-index: 1000;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+
+  // Override any global styles that might interfere
+  * {
+    box-sizing: border-box;
+  }
+
+  // Ensure full height for chat interface
+  .chat-interface {
+    height: calc(100vh - 57px);
+    width: 100vw;
+    margin: 0; // Remove margin to eliminate white space
+    padding: 0; // Remove padding to eliminate white space
+    width: 100vw; // Full width
+    height: calc(100vh - 57px); // Full height minus header
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 1024px) {
+  .contact-page {
+    .chat-interface {
+      margin: 0; // Remove margin to eliminate white space
+      padding: 0; // Remove padding to eliminate white space
+      width: 100vw; // Full width
+      height: calc(100vh - 57px); // Full height minus header
+      
+      &__container {
+        .chat-interface__info {
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 1001;
+          box-shadow: -4px 0 6px -1px rgba(204, 255, 0, 0.3);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .contact-page {
+    .chat-interface {
+      margin: 0; // Remove margin to eliminate white space
+      padding: 0; // Remove padding to eliminate white space
+      width: 100vw; // Full width
+      height: calc(100vh - 57px); // Full height minus header
+      
+      &__container {
+        flex-direction: column;
+
+        .chat-interface__sidebar {
+          height: 200px;
+          border-right: none;
+          border-bottom: 1px solid #4A9782;
+          border-radius: 0; // Remove border radius for seamless connection
+        }
+
+        .chat-interface__main {
+          flex: 1;
+          min-height: 0;
+        }
+
+        .chat-interface__info {
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          width: 100%;
+          z-index: 1001;
+          box-shadow: -4px 0 6px -1px rgba(204, 255, 0, 0.3);
+        }
+      }
+    }
+  }
+}
+
+// Dark mode support (if needed)
+@media (prefers-color-scheme: dark) {
+  .contact-page {
+    background: #002d22; // Primary 700 - dark green
+
+    .chat-interface {
+      background: #003629; // Primary 600 - darker green
+    }
+  }
+}

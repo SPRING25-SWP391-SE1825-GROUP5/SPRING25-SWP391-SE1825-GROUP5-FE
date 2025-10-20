@@ -40,7 +40,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     try {
       setIsLoading(true)
       const response = await ChatService.getAvailableUsers()
-      setAvailableUsers(response.users)
+      setAvailableUsers(response)
     } catch (error) {
       console.error('Error loading available users:', error)
     } finally {
@@ -50,7 +50,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
   const handleStartConversation = async (userId: string) => {
     try {
-      const conversation = await ChatService.getOrCreateConversation(userId)
+      const conversation = await ChatService.createConversation(userId)
       dispatch(addConversation(conversation))
       dispatch(setActiveConversation(conversation.id))
       onSelectConversation(conversation.id)

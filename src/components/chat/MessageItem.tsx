@@ -60,17 +60,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
       {!isOwn && showSenderInfo && (
         <div className="message-item__sender">
           <div className="message-item__sender-avatar">
-            {message.senderAvatar ? (
-              <img 
-                src={message.senderAvatar} 
-                alt={message.senderName} 
-                className="message-item__sender-avatar-img"
-              />
-            ) : (
-              <div className="message-item__sender-avatar-placeholder">
-                {message.senderName.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="message-item__sender-avatar-placeholder">
+              {message.senderName.charAt(0).toUpperCase()}
+            </div>
           </div>
           <span className="message-item__sender-name">{message.senderName}</span>
         </div>
@@ -78,32 +70,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
       <div className="message-item__content">
         <div className={`message-item__bubble ${isOwn ? 'message-item__bubble--own' : 'message-item__bubble--other'}`}>
-          {message.replyTo && (
-            <div className="message-item__reply">
-              <div className="message-item__reply-line"></div>
-              <div className="message-item__reply-content">
-                <span className="message-item__reply-sender">Trả lời tin nhắn</span>
-                <span className="message-item__reply-text">Tin nhắn đã được trả lời</span>
-              </div>
-            </div>
-          )}
 
           <div className="message-item__text">
             {message.content}
           </div>
 
-          {message.reactions && message.reactions.length > 0 && (
-            <div className="message-item__reactions">
-              {message.reactions.map((reaction, index) => (
-                <div key={index} className="message-item__reaction">
-                  <span className="message-item__reaction-emoji">{reaction.emoji}</span>
-                  <span className="message-item__reaction-count">
-                    {message.reactions?.filter(r => r.emoji === reaction.emoji).length}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {showTimestamp && (
