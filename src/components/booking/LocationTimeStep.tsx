@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react'
 interface LocationTimeInfo {
   centerId: string
   technicianId: string
+  address?: string
   date: string
   time: string
 }

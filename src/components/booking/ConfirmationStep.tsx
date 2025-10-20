@@ -1,6 +1,6 @@
 import React from 'react'
 
-interface BookingData {
+interface ConfirmationBookingData {
   customerInfo: {
     fullName: string
     phone: string
@@ -16,9 +16,9 @@ interface BookingData {
     notes: string
   }
   locationTimeInfo: {
-    province: string
-    ward: string
-    serviceType: 'workshop' | 'mobile'
+    centerId: string
+    technicianId: string
+    address?: string
     date: string
     time: string
   }
@@ -31,7 +31,7 @@ interface BookingData {
 }
 
 interface ConfirmationStepProps {
-  data: BookingData
+  data: ConfirmationBookingData
   isGuest: boolean
   onSubmit: () => void
   onPrev: () => void
@@ -75,8 +75,11 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           <h3>Thời gian & Địa điểm</h3>
           <p><strong>Ngày:</strong> {data.locationTimeInfo.date}</p>
           <p><strong>Giờ:</strong> {data.locationTimeInfo.time}</p>
-          <p><strong>Loại:</strong> {data.locationTimeInfo.serviceType === 'workshop' ? 'Tại xưởng' : 'Tại nhà'}</p>
-          <p><strong>Địa điểm:</strong> {data.locationTimeInfo.ward}, {data.locationTimeInfo.province}</p>
+          {data.locationTimeInfo.address && (
+            <p><strong>Địa chỉ:</strong> {data.locationTimeInfo.address}</p>
+          )}
+          <p><strong>Mã trung tâm:</strong> {data.locationTimeInfo.centerId || '—'}</p>
+          <p><strong>Mã kỹ thuật viên:</strong> {data.locationTimeInfo.technicianId || '—'}</p>
         </div>
       </div>
       
