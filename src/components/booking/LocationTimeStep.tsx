@@ -10,6 +10,7 @@ interface LocationTimeInfo {
   date: string
   time: string
   technicianSlotId?: number
+  serviceId?: number
 }
 
 interface LocationTimeStepProps {
@@ -17,9 +18,10 @@ interface LocationTimeStepProps {
   onUpdate: (data: Partial<LocationTimeInfo>) => void
   onNext: () => void
   onPrev: () => void
+  serviceId?: number
 }
 
-const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onNext, onPrev }) => {
+const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onNext, onPrev, serviceId }) => {
   const today = new Date()
   const [month, setMonth] = useState<number>(today.getMonth())
   const [year, setYear] = useState<number>(today.getFullYear())
@@ -78,29 +80,64 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       if (!data.centerId || !data.date) { setSlots([]); return }
       setLoadingSlots(true)
       try {
+        let slotsData: any[] = []
+        
         // First try new BE endpoint if present
         try {
-          const centerAvail = await TechnicianService.getCenterTechniciansAvailability(Number(data.centerId), data.date)
+          const centerAvail = await TechnicianService.getCenterTechniciansAvailability(
+            Number(data.centerId), 
+            data.date, 
+            serviceId ? { serviceId: serviceId } : undefined
+          )
           if (Array.isArray(centerAvail?.technicianSlots)) {
-            setSlots(centerAvail.technicianSlots.map((s: any) => ({ technicianSlotId: s.technicianSlotId, slotTime: s.slotLabel || s.slotTime, isAvailable: s.isAvailable, technicianId: s.technicianId })))
-            return
+            slotsData = centerAvail.technicianSlots
           }
         } catch (_e) { /* fallback below */ }
 
-        // If technician selected: fetch their timeslots to get precise mapping
-        if (data.technicianId) {
+        // If no data from first endpoint and technician selected: fetch their timeslots
+        if (slotsData.length === 0 && data.technicianId) {
           try {
-            const ts = await TechnicianService.getTechnicianTimeSlots(Number(data.technicianId), data.date)
-            if (Array.isArray(ts)) {
-              setSlots(ts.map((t: any) => ({ technicianSlotId: t.technicianSlotId || t.id || t.slotId, slotTime: t.slotLabel || t.slotTime, isAvailable: t.isAvailable !== false, technicianId: Number(data.technicianId) })))
-              return
+            const response = await TechnicianService.getTechnicianTimeSlots(Number(data.technicianId), data.date)
+            // API mới trả về TechnicianDailyScheduleResponse[], cần extract TimeSlots
+            if (response?.success && Array.isArray(response.data)) {
+              // Lấy timeslots từ ngày đầu tiên (vì chỉ query 1 ngày)
+              const firstDaySchedule = response.data[0]
+              if (firstDaySchedule?.timeSlots) {
+                slotsData = firstDaySchedule.timeSlots.map((slot: any) => ({
+                  slotId: slot.slotId,
+                  slotTime: slot.slotTime,
+                  slotLabel: slot.slotLabel,
+                  isAvailable: slot.isAvailable,
+                  technicianSlotId: slot.technicianSlotId
+                }))
+              }
+            } else if (Array.isArray(response)) {
+              // Fallback cho format cũ
+              slotsData = response
             }
           } catch (_e) { /* fallback below */ }
         }
 
-        // Fallback to schedule mapping
-        const resp = await getCenterAvailability(Number(data.centerId), data.date)
-        setSlots((resp.technicianSlots || []).map(s => ({ technicianSlotId: s.technicianSlotId, slotTime: s.slotTime, isAvailable: s.isAvailable })))
+        // Final fallback to schedule mapping
+        if (slotsData.length === 0) {
+          const resp = await getCenterAvailability(Number(data.centerId), data.date, serviceId)
+          slotsData = resp.technicianSlots || []
+        }
+
+        // Map và deduplicate slots
+        const mappedSlots = slotsData.map((s: any) => ({
+          technicianSlotId: s.technicianSlotId || s.id || s.slotId,
+          slotTime: s.slotLabel || s.slotTime,
+          isAvailable: s.isAvailable !== false,
+          technicianId: s.technicianId || Number(data.technicianId)
+        }))
+
+        // Remove duplicates based on technicianSlotId
+        const uniqueSlots = mappedSlots.filter((slot, index, self) => 
+          index === self.findIndex(s => s.technicianSlotId === slot.technicianSlotId)
+        )
+
+        setSlots(uniqueSlots)
       } catch (e) {
         setSlots([])
       } finally {
@@ -108,7 +145,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       }
     }
     load()
-  }, [data.centerId, data.date, data.technicianId])
+  }, [data.centerId, data.date, data.technicianId, serviceId])
 
   // Load technicians by center
   useEffect(() => {
@@ -154,9 +191,11 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   }, [month, year])
 
   const formatISO = (d: Date) => {
-    const m = (d.getMonth() + 1).toString().padStart(2, '0')
+    // Ensure we use UTC to avoid timezone issues
+    const year = d.getFullYear()
+    const month = (d.getMonth() + 1).toString().padStart(2, '0')
     const day = d.getDate().toString().padStart(2, '0')
-    return `${d.getFullYear()}-${m}-${day}`
+    return `${year}-${month}-${day}`
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -258,9 +297,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           <label>Khung giờ *</label>
           <div className="time-slots">
             {loadingSlots && <div>Đang tải khung giờ...</div>}
-            {!loadingSlots && slots.map(s => (
+            {!loadingSlots && slots.map((s, index) => (
               <button
-                key={s.technicianSlotId}
+                key={`${s.technicianSlotId}-${s.technicianId || index}`}
                 type="button"
                 className={`time-slot ${data.technicianSlotId === s.technicianSlotId ? 'selected' : ''}`}
                 onClick={() => s.isAvailable && onUpdate({ time: s.slotTime, technicianSlotId: s.technicianSlotId, technicianId: s.technicianId ? String(s.technicianId) : data.technicianId })}

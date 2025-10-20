@@ -71,12 +71,18 @@ export const TechnicianService = {
     // Availability by center and date
     async getCenterTechniciansAvailability(centerId: number, date: string, extra?: { serviceId?: number }) {
         const endpoint = `/Technician/centers/${centerId}/technicians/availability`
-        const candidates = [
-            { date, serviceId: extra?.serviceId },
-            { workDate: date, serviceId: extra?.serviceId },
-            { date },
-            { workDate: date },
-        ]
+
+        // Chỉ thử các params hợp lệ (không có undefined values)
+        const candidates = []
+
+        if (extra?.serviceId) {
+            candidates.push({ date, serviceId: extra.serviceId })
+            candidates.push({ workDate: date, serviceId: extra.serviceId })
+        } else {
+            candidates.push({ date })
+            candidates.push({ workDate: date })
+        }
+
         let lastErr: any
         for (const params of candidates) {
             try {
@@ -98,7 +104,17 @@ export const TechnicianService = {
 
     // Time slots of a technician (optional date filter)
     async getTechnicianTimeSlots(technicianId: number, date?: string) {
-        const { data } = await api.get(`/Technician/${technicianId}/timeslots`, { params: { date } })
+        // Sử dụng API TechnicianTimeSlot thay vì Technician/timeslots
+        // API này trả về TechnicianDailyScheduleResponse với thông tin đầy đủ hơn
+        const startDate = date ? new Date(date) : new Date()
+        const endDate = date ? new Date(date) : new Date()
+
+        const { data } = await api.get(`/TechnicianTimeSlot/technician/${technicianId}/schedule`, {
+            params: {
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0]
+            }
+        })
         return data
     },
 }

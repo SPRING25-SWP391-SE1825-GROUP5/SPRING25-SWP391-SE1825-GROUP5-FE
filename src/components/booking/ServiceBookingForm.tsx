@@ -58,6 +58,7 @@ const ServiceBookingForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
+  const [currentServiceId, setCurrentServiceId] = useState<number | undefined>(undefined)
   const auth = useAppSelector((s) => s.auth)
   
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -109,6 +110,26 @@ const ServiceBookingForm: React.FC = () => {
       // Không cần thay đổi step vì logic renderCurrentStep đã xử lý
     }
   }, [auth?.token, auth?.user])
+
+  // Update serviceId when serviceInfo changes
+  useEffect(() => {
+    const updateServiceId = async () => {
+      if (bookingData.serviceInfo.services.length > 0) {
+        try {
+          const svcList = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+          const firstServiceId = svcList.services[0]?.id
+          setCurrentServiceId(firstServiceId)
+        } catch (error) {
+          console.error('Error fetching services:', error)
+          setCurrentServiceId(undefined)
+        }
+      } else {
+        setCurrentServiceId(undefined)
+      }
+    }
+
+    updateServiceId()
+  }, [bookingData.serviceInfo.services])
 
   // Kiểm tra xem bước hiện tại đã hoàn thành chưa
   const isStepCompleted = (step: number): boolean => {
@@ -191,34 +212,51 @@ const ServiceBookingForm: React.FC = () => {
   const handleSubmit = async () => {
     try {
       // Resolve current user -> customerId
+      console.log('Getting current customer...')
       const me = await CustomerService.getCurrentCustomer()
+      console.log('Current customer response:', me)
       const customerId: number | null = me?.data?.customerId || null
+      console.log('Customer ID:', customerId)
       if (!customerId) throw new Error('Không xác định được khách hàng')
 
       // Resolve vehicle: nếu đã có xe theo biển số -> dùng luôn, ngược lại tạo mới
       const license = bookingData.vehicleInfo.licensePlate.trim()
       if (!license) throw new Error('Thiếu biển số xe')
+      console.log('License plate:', license)
 
       // Thử lấy danh sách xe của khách và tìm theo biển số
       let vehicleId: number | null = null
       try {
+        console.log('Getting customer vehicles...')
         const list = await VehicleService.getCustomerVehicles(customerId)
+        console.log('Customer vehicles response:', list)
         const found = list?.data?.vehicles?.find?.((v: any) => (v.licensePlate || '').toLowerCase() === license.toLowerCase())
         if (found?.vehicleId) {
           vehicleId = Number(found.vehicleId)
+          console.log('Found existing vehicle ID:', vehicleId)
         }
-      } catch (_) {}
+      } catch (error) {
+        console.error('Error getting customer vehicles:', error)
+      }
 
       // Nếu chưa có, thử API search theo VIN/biển số
       if (!vehicleId) {
         try {
+          console.log('Searching vehicle by license...')
           const sr = await VehicleService.searchVehicle(license)
-          if (sr?.data?.vehicleId) vehicleId = Number(sr.data.vehicleId)
-        } catch (_) {}
+          console.log('Vehicle search response:', sr)
+          if (sr?.data?.vehicleId) {
+            vehicleId = Number(sr.data.vehicleId)
+            console.log('Found vehicle by search ID:', vehicleId)
+          }
+        } catch (error) {
+          console.error('Error searching vehicle:', error)
+        }
       }
 
       // Nếu vẫn chưa có, tạo xe mới
       if (!vehicleId) {
+        console.log('Creating new vehicle...')
         const createVeh = await VehicleService.createVehicle({
           customerId,
           vin: bookingData.vehicleInfo.carModel || 'UNKNOWN',
@@ -228,7 +266,9 @@ const ServiceBookingForm: React.FC = () => {
           lastServiceDate: undefined,
           purchaseDate: undefined
         })
+        console.log('Create vehicle response:', createVeh)
         vehicleId = Number(createVeh?.data?.vehicleId)
+        console.log('Created vehicle ID:', vehicleId)
       }
 
       if (!vehicleId) throw new Error('Không thể xác định VehicleID')
@@ -237,44 +277,88 @@ const ServiceBookingForm: React.FC = () => {
       let serviceId: number | undefined = undefined
       if (bookingData.serviceInfo.services.length > 0) {
         // If UI stored service ids as strings, pick first and map via service list
+        console.log('Getting active services...')
         const svcList = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+        console.log('Services response:', svcList)
         const first = svcList.services[0]
         serviceId = first?.id
+        console.log('Selected service ID:', serviceId)
       }
 
       // Hold slot before creating booking
       if (!bookingData.locationTimeInfo.technicianSlotId || !bookingData.locationTimeInfo.centerId) {
         throw new Error('Thiếu slot hoặc trung tâm')
       }
+      
+      console.log('Location time info:', bookingData.locationTimeInfo)
+      console.log('Holding slot...')
       const hold = await holdSlot({
         centerId: Number(bookingData.locationTimeInfo.centerId),
-        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId)
+        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
+        technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
+        date: bookingData.locationTimeInfo.date
       })
+      console.log('Hold response:', hold)
 
       // Create booking
-      const resp = await createBooking({
+      const bookingPayload = {
         customerId,
         vehicleId: Number(vehicleId),
         centerId: Number(bookingData.locationTimeInfo.centerId),
         bookingDate: bookingData.locationTimeInfo.date,
         technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-        specialRequests: bookingData.serviceInfo.notes,
-        serviceId,
-        holdId: hold.holdId
-      })
-
-      const bookingId = resp.bookingId
-      // Payment link
-      const link = await createBookingPaymentLink(Number(bookingId))
-      if (link?.checkoutUrl) {
-        window.location.href = link.checkoutUrl
-        return
+        technicianId: Number(bookingData.locationTimeInfo.technicianId),
+        specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
+        serviceId: serviceId || undefined
       }
+       console.log('Creating booking with data:', bookingPayload)
+       const resp = await createBooking(bookingPayload)
+       console.log('Booking created successfully:', resp)
 
-      alert('Tạo booking thành công, nhưng không lấy được link thanh toán.')
-    } catch (error) {
+       // Extract bookingId from response - CreateBookingResponse has bookingId directly
+       let bookingId: number | null = null
+       if (resp?.bookingId) {
+         bookingId = Number(resp.bookingId)
+       }
+       
+       console.log('Extracted booking ID:', bookingId)
+       
+       if (!bookingId || isNaN(bookingId)) {
+         console.error('Invalid booking ID:', bookingId, 'from response:', resp)
+         alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+         return
+       }
+
+       // Payment link
+       try {
+         const link = await createBookingPaymentLink(bookingId)
+         console.log('Payment link response:', link)
+         if (link?.checkoutUrl) {
+           // Use success URL from API response or fallback to default
+           const successUrl = link.successUrl || `${window.location.origin}/booking-success?bookingId=${bookingId}&amount=${resp.pricing.totalAmount}`
+           const cancelUrl = link.cancelUrl || `${window.location.origin}/booking`
+           
+           const paymentUrl = new URL(link.checkoutUrl)
+           paymentUrl.searchParams.set('returnUrl', successUrl)
+           paymentUrl.searchParams.set('cancelUrl', cancelUrl)
+           
+           window.location.href = paymentUrl.toString()
+           return
+         }
+       } catch (paymentError) {
+         console.error('Payment link error:', paymentError)
+       }
+
+       alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+    } catch (error: any) {
       console.error('Error submitting booking:', error)
-      alert('Có lỗi xảy ra. Vui lòng thử lại.')
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
+      console.error('Error message:', error.message)
+      
+      // Show user-friendly error message
+      const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đặt lịch'
+      alert(errorMessage)
     }
   }
 
@@ -301,6 +385,7 @@ const ServiceBookingForm: React.FC = () => {
               onUpdate={(data) => updateBookingData('locationTimeInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
+              serviceId={currentServiceId}
             />
           )
         case 3:
@@ -345,6 +430,7 @@ const ServiceBookingForm: React.FC = () => {
               onUpdate={(data) => updateBookingData('locationTimeInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
+              serviceId={currentServiceId}
             />
           )
         case 3:

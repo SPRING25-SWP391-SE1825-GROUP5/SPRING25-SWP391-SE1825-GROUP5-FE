@@ -124,64 +124,75 @@ export default function TechnicianSchedulePage() {
         }
       }
 
-      // Lấy danh sách slot hoạt động để tạo full-day
-      let activeSlots = slots
-      if (!activeSlots || activeSlots.length === 0) {
-        try {
-          activeSlots = await TimeSlotService.list(true)
-          setSlots(activeSlots || [])
-        } catch {
-          activeSlots = []
-        }
-      }
-
-      const slotIds: number[] = Array.isArray(activeSlots)
-        ? activeSlots.map((s: any) => Number(s.slotId)).filter((n) => Number.isFinite(n))
-        : []
-
-      if (slotIds.length === 0) {
-        throw new Error('Không có danh sách khung giờ khả dụng để tạo lịch.')
-      }
-
       const techId = Number(form.technicianId)
       if (!Number.isFinite(techId) || techId <= 0) {
         throw new Error('Kỹ thuật viên không hợp lệ.')
       }
 
-      // Xây dựng khoảng thời gian theo chế độ
-      const range = form.mode === 'ngay'
-        ? { start: new Date(form.workDate).toISOString(), end: new Date(form.workDate).toISOString() }
-        : { start: new Date(form.startDate).toISOString(), end: new Date(form.endDate).toISOString() }
-
-      // Gọi song song tạo lịch cho tất cả slot trong khoảng thời gian
-      const tasks = slotIds.map((slotId) => {
+      if (form.mode === 'tuan') {
+        // Sử dụng API mới cho tạo lịch full tuần
         const payload = {
-          technicianId: techId,
-          slotId,
-          startDate: range.start,
-          endDate: range.end,
+          startDate: new Date(form.startDate).toISOString(),
+          endDate: new Date(form.endDate).toISOString(),
           isAvailable: true,
           notes: form.notes || null,
         }
+        
         // debug payload in dev
-        if (import.meta.env.DEV) console.debug('CreateWeekly payload', payload)
-        return TechnicianTimeSlotService.createWeekly(payload as any)
-      })
+        if (import.meta.env.DEV) console.debug('CreateFullWeekAllSlots payload', payload)
+        
+        const result = await TechnicianTimeSlotService.createFullWeekAllSlots(techId, payload as any)
+        setSuccessMsg('Tạo lịch tuần thành công cho tất cả khung giờ')
+      } else {
+        // Chế độ ngày: sử dụng logic cũ với tất cả slots
+        let activeSlots = slots
+        if (!activeSlots || activeSlots.length === 0) {
+          try {
+            activeSlots = await TimeSlotService.list(true)
+            setSlots(activeSlots || [])
+          } catch {
+            activeSlots = []
+          }
+        }
 
-      const results = await Promise.allSettled(tasks)
-      const failures = results.filter((r) => r.status === 'rejected')
-      const successes = results.length - failures.length
-      if (failures.length === results.length) {
-        // Nếu tất cả thất bại, ném lỗi tổng quát để hiển thị
-        throw new Error('Không thể tạo lịch cho bất kỳ khung giờ nào. Vui lòng kiểm tra lại kỹ thuật viên/khung ngày hoặc quyền truy cập.')
+        const slotIds: number[] = Array.isArray(activeSlots)
+          ? activeSlots.map((s: any) => Number(s.slotId)).filter((n) => Number.isFinite(n))
+          : []
+
+        if (slotIds.length === 0) {
+          throw new Error('Không có danh sách khung giờ khả dụng để tạo lịch.')
+        }
+
+        // Xây dựng khoảng thời gian cho ngày
+        const range = { start: new Date(form.workDate).toISOString(), end: new Date(form.workDate).toISOString() }
+
+        // Gọi song song tạo lịch cho tất cả slot trong ngày
+        const tasks = slotIds.map((slotId) => {
+          const payload = {
+            technicianId: techId,
+            slotId,
+            startDate: range.start,
+            endDate: range.end,
+            isAvailable: true,
+            notes: form.notes || null,
+          }
+          return TechnicianTimeSlotService.createWeekly(payload as any)
+        })
+
+        const results = await Promise.allSettled(tasks)
+        const failures = results.filter((r) => r.status === 'rejected')
+        const successes = results.length - failures.length
+        if (failures.length === results.length) {
+          throw new Error('Không thể tạo lịch cho bất kỳ khung giờ nào. Vui lòng kiểm tra lại kỹ thuật viên/khung ngày hoặc quyền truy cập.')
+        }
+        
+        const firstFailureMsg = (() => {
+          const f = failures[0] as PromiseRejectedResult | undefined
+          const m = (f as any)?.reason?.response?.data?.message || (f as any)?.reason?.message
+          return m ? `; ${String(m)}` : ''
+        })()
+        setSuccessMsg(`Tạo lịch thành công ${successes}/${results.length} khung giờ${firstFailureMsg}`)
       }
-      // Có ít nhất một yêu cầu thành công
-      const firstFailureMsg = (() => {
-        const f = failures[0] as PromiseRejectedResult | undefined
-        const m = (f as any)?.reason?.response?.data?.message || (f as any)?.reason?.message
-        return m ? `; ${String(m)}` : ''
-      })()
-      setSuccessMsg(`Tạo lịch thành công ${successes}/${results.length} khung giờ${firstFailureMsg}`)
       await loadSchedule()
     } catch (err: any) {
       const status = err?.response?.status
@@ -569,7 +580,7 @@ export default function TechnicianSchedulePage() {
           </div>
         </form>
         <div style={{ gridColumn: '1 / -1', color: 'var(--text-tertiary)', fontSize: '14px', marginTop: '5px' }}>
-          {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ 30 phút từ 08:00 đến 17:00 cho mỗi ngày trong 7 ngày.'}
+          {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ cho 7 ngày liên tiếp sử dụng API tối ưu.'}
         </div>
       </div>
 

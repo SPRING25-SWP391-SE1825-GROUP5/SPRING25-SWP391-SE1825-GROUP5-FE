@@ -53,6 +53,11 @@ export const TechnicianTimeSlotService = {
         return data
     },
 
+    async createFullWeekAllSlots(technicianId: number, payload: CreateWeeklyTechnicianTimeSlotRequest) {
+        const { data } = await api.post(`/TechnicianTimeSlot/technician/${technicianId}/full-week-all-slots`, payload)
+        return data
+    },
+
     async createAllTechnicians(payload: { centerId: number; slotId: number; workDate: string; isAvailable: boolean; notes?: string | null }) {
         const { data } = await api.post('/TechnicianTimeSlot/all-technicians', payload)
         return data
