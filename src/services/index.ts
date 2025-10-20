@@ -84,6 +84,20 @@ export type {
   CustomerResponse
 } from './customerService'
 
+// Payment Services
+export { PaymentService } from './paymentService'
+export type {
+  PaymentMethod,
+  PaymentStatus,
+  PaymentRequest,
+  PaymentResponse,
+  PaymentStatusResponse,
+  VNPayPaymentRequest,
+  VNPayPaymentResponse,
+  QRPaymentRequest,
+  QRPaymentResponse
+} from './paymentService'
+
 // Chat Services
 export { ChatService } from './chatService'
 export type {

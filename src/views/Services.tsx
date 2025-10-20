@@ -1,531 +1,133 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Calendar, Handshake, Wrench, Car, Shield, Check } from 'lucide-react'
+import banner from '@/assets/images/banner-dich-vu-sua-chua_1755497298.webp'
+import serviceCommon from '@/assets/images/dich-vu-sua-chua-chung-vinfast_0.webp'
+import policyImage from '@/assets/images/chinh-sach-cam-ket-thoi-gian-sua-chua_0.webp'
 
 export default function Services() {
   const navigate = useNavigate()
-  const [selectedService, setSelectedService] = useState<string | null>(null)
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price)
-  }
-
-  const mainServices = [
-    {
-      id: 'basic-maintenance',
-      title: 'Bảo dưỡng cơ bản',
-      icon: '1',
-      price: 150000,
-      duration: '30-45 phút',
-      description: 'Kiểm tra tổng quát, vệ sinh xe, căn chỉnh cơ bản',
-      includes: [
-        'Kiểm tra phanh và đèn',
-        'Vệ sinh thân xe',
-        'Căn chỉnh tay lái',
-        'Kiểm tra lốp xe',
-        'Tra dầu nhớt'
-      ],
-      recommended: false
-    },
-    {
-      id: 'advanced-maintenance',
-      title: 'Bảo dưỡng nâng cao',
-      icon: '2',
-      price: 300000,
-      duration: '60-90 phút',
-      description: 'Bảo dưỡng toàn diện với kiểm tra chi tiết',
-      includes: [
-        'Tất cả dịch vụ bảo dưỡng cơ bản',
-        'Kiểm tra hệ thống điện',
-        'Thay dầu nhớt cao cấp',
-        'Kiểm tra và căn chỉnh động cơ',
-        'Vệ sinh nội thất',
-        'Bảo dưỡng xích và nhông'
-      ],
-      recommended: true
-    },
-    {
-      id: 'premium-maintenance',
-      title: 'Bảo dưỡng cao cấp',
-      icon: '3',
-      price: 500000,
-      duration: '90-120 phút',
-      description: 'Dịch vụ premium với công nghệ hiện đại nhất',
-      includes: [
-        'Tất cả dịch vụ bảo dưỡng nâng cao',
-        'Chẩn đoán bằng máy tính',
-        'Thay phụ tùng chính hãng',
-        'Đánh bóng và phủ nano',
-        'Kiểm tra an toàn toàn diện',
-        'Bảo hành 6 tháng'
-      ],
-      recommended: false
-    }
-  ]
-
-  const additionalServices = [
-    {
-      id: 'battery-check',
-      title: 'Kiểm tra pin & sạc',
-      icon: 'B',
-      price: 100000,
-      duration: '20-30 phút',
-      description: 'Chẩn đoán tình trạng pin và hệ thống sạc'
-    },
-    {
-      id: 'parts-replacement',
-      title: 'Thay thế phụ tùng',
-      icon: 'P',
-      price: 0,
-      duration: 'Tùy theo phụ tùng',
-      description: 'Phụ tùng chính hãng với bảo hành chính thức'
-    },
-    {
-      id: 'safety-inspection',
-      title: 'Kiểm tra an toàn',
-      icon: 'S',
-      price: 80000,
-      duration: '15-25 phút',
-      description: 'Kiểm tra toàn bộ hệ thống an toàn của xe'
-    },
-    {
-      id: 'performance-tuning',
-      title: 'Tối ưu hiệu suất',
-      icon: 'T',
-      price: 250000,
-      duration: '45-60 phút',
-      description: 'Tối ưu hóa hiệu suất động cơ và hệ thống'
-    }
-  ]
-
-  const handleBookService = (serviceId: string) => {
-    navigate(`/booking?service=${serviceId}`)
-  }
 
   return (
-    <div style={{
-      background: '#ffffff',
-      minHeight: 'calc(100vh - 64px)',
-      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif'
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '48px 48px 96px'
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '12px',
-            marginBottom: '16px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              background: '#000000',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: '18px',
-              fontWeight: 'bold'
-            }}>
-              M
-            </div>
-            <h1 style={{
-              fontSize: '36px',
-              fontWeight: '600',
-              color: '#000000',
-              margin: '0'
-            }}>
-              Dịch vụ Bảo dưỡng
-            </h1>
-          </div>
-          <p style={{
-            fontSize: '18px',
-            color: '#666666',
-            margin: '0',
-            maxWidth: '600px',
-            marginLeft: 'auto',
-            marginRight: 'auto'
-          }}>
-            Chăm sóc xe điện chuyên nghiệp với công nghệ hiện đại và phụ tùng chính hãng
-          </p>
-        </div>
-
-        {/* Main Services */}
-        <div style={{ marginBottom: '64px' }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#000000',
-            marginBottom: '32px',
-            textAlign: 'center'
-          }}>
-            Gói Bảo dưỡng Chính
-          </h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-            gap: '24px'
-          }}>
-            {mainServices.map(service => (
-              <div key={service.id} style={{
-                background: '#ffffff',
-                border: '2px solid #000000',
-                borderRadius: '8px',
-                padding: '32px 24px',
-                textAlign: 'center',
-                position: 'relative',
-                transition: 'transform 0.2s ease',
-                cursor: 'pointer'
-              }}
-              onClick={() => setSelectedService(selectedService === service.id ? null : service.id)}
-              >
-                {/* Recommended Badge */}
-                {service.recommended && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: '#000000',
-                    color: '#ffffff',
-                    padding: '4px 16px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '700'
-                  }}>
-                    PHỔ BIẾN NHẤT
-                  </div>
-                )}
-
-                {/* Service Icon */}
-                <div style={{
-                  width: '64px',
-                  height: '64px',
-                  background: '#000000',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontSize: '32px',
-                  fontWeight: 'bold',
-                  margin: '0 auto 16px'
-                }}>
-                  {service.icon}
-                </div>
-
-                {/* Service Info */}
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  color: '#000000',
-                  margin: '0 0 8px 0'
-                }}>
-                  {service.title}
-                </h3>
-
-                <p style={{
-                  fontSize: '14px',
-                  color: '#666666',
-                  margin: '0 0 16px 0',
-                  lineHeight: '1.5'
-                }}>
-                  {service.description}
-                </p>
-
-                {/* Price & Duration */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '24px',
-                  padding: '12px',
-                  background: '#f5f5f5',
-                  borderRadius: '4px',
-                  border: '1px solid #000000'
-                }}>
-                  <div>
-                    <div style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      color: '#000000'
-                    }}>
-                      {formatPrice(service.price)}
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize: '12px',
-                    color: '#666666',
-                    fontWeight: '600'
-                  }}>
-                    {service.duration}
-                  </div>
-                </div>
-
-                {/* Includes - Show when selected */}
-                {selectedService === service.id && (
-                  <div style={{
-                    marginBottom: '24px',
-                    textAlign: 'left'
-                  }}>
-                    <h4 style={{
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#000000',
-                      margin: '0 0 12px 0'
-                    }}>
-                      Bao gồm:
-                    </h4>
-                    <ul style={{
-                      margin: '0',
-                      padding: '0 0 0 16px',
-                      listStyle: 'none'
-                    }}>
-                      {service.includes.map((item, index) => (
-                        <li key={index} style={{
-                          fontSize: '12px',
-                          color: '#666666',
-                          marginBottom: '4px',
-                          position: 'relative'
-                        }}>
-                          <span style={{
-                            position: 'absolute',
-                            left: '-16px',
-                            color: '#000000',
-                            fontWeight: 'bold'
-                          }}>
-                            ✓
-                          </span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Book Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleBookService(service.id)
-                  }}
-                  style={{
-                    width: '100%',
-                    background: '#000000',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '12px 24px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    textDecoration: 'none'
-                  }}
-                >
-                  Đặt lịch bảo dưỡng
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Additional Services */}
-        <div style={{ marginBottom: '64px' }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#000000',
-            marginBottom: '32px',
-            textAlign: 'center'
-          }}>
-            Dịch vụ Bổ sung
-          </h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '24px'
-          }}>
-            {additionalServices.map(service => (
-              <div key={service.id} style={{
-                background: '#ffffff',
-                border: '2px solid #000000',
-                borderRadius: '8px',
-                padding: '24px',
-                textAlign: 'center'
-              }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  background: '#000000',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  margin: '0 auto 12px'
-                }}>
-                  {service.icon}
-                </div>
-
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#000000',
-                  margin: '0 0 8px 0'
-                }}>
-                  {service.title}
-                </h3>
-
-                <p style={{
-                  fontSize: '12px',
-                  color: '#666666',
-                  margin: '0 0 16px 0',
-                  lineHeight: '1.4'
-                }}>
-                  {service.description}
-                </p>
-
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '16px',
-                  fontSize: '12px'
-                }}>
-                  <span style={{
-                    background: '#000000',
-                    color: '#ffffff',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontWeight: '600'
-                  }}>
-                    {service.price === 0 ? 'Báo giá' : formatPrice(service.price)}
-                  </span>
-                  <span style={{
-                    color: '#666666',
-                    fontWeight: '600'
-                  }}>
-                    {service.duration}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => handleBookService(service.id)}
-                  style={{
-                    width: '100%',
-                    background: '#ffffff',
-                    color: '#000000',
-                    border: '2px solid #000000',
-                    borderRadius: '4px',
-                    padding: '8px 16px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Đặt lịch
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Why Choose Us */}
-        <div style={{
-          background: '#ffffff',
-          border: '2px solid #000000',
-          borderRadius: '8px',
-          padding: '32px',
-          textAlign: 'center'
-        }}>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '600',
-            color: '#000000',
-            marginBottom: '32px'
-          }}>
-            Tại sao chọn dịch vụ của chúng tôi?
-          </h2>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '32px'
-          }}>
-            {[
-              {
-                icon: 'K',
-                title: 'Kỹ thuật viên chuyên nghiệp',
-                description: 'Đội ngũ được đào tạo bài bản với chứng chỉ quốc tế'
-              },
-              {
-                icon: 'T',
-                title: 'Thiết bị hiện đại',
-                description: 'Máy móc và công cụ chuẩn quốc tế, cập nhật liên tục'
-              },
-              {
-                icon: 'W',
-                title: 'Bảo hành tin cậy',
-                description: 'Cam kết bảo hành lên đến 6 tháng cho dịch vụ'
-              },
-              {
-                icon: 'F',
-                title: 'Nhanh chóng',
-                description: 'Hoàn thành đúng hẹn, tiết kiệm thời gian quý báu'
-              }
-            ].map((feature, index) => (
-              <div key={index} style={{ textAlign: 'center' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  background: '#000000',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  margin: '0 auto 12px'
-                }}>
-                  {feature.icon}
-                </div>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#000000',
-                  margin: '0 0 8px 0'
-                }}>
-                  {feature.title}
-                </h3>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#666666',
-                  margin: '0',
-                  lineHeight: '1.4'
-                }}>
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div style={{ background: '#fff', minHeight: 'calc(100vh - 64px)', fontFamily: 'Mulish, serif' }}>
+      {/* Top header area white background */}
+      <div style={{ paddingTop: '64px', paddingBottom: '24px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '56px', fontWeight: 700, margin: '0 0 24px 0', color: '#3C3C3C', lineHeight: 1.15 }}>
+          Dịch vụ sửa chữa
+        </h1>
+        <button
+          onClick={() => navigate('/booking')}
+          style={{
+            background: '#1464F4', color: '#FFFFFF', border: '2px solid #1464F4', padding: '14px 40px', borderRadius: '8px',
+            fontFamily: 'Mulish, serif', fontSize: '16px', fontWeight: 700, letterSpacing: 1, cursor: 'pointer', boxShadow: '0 12px 30px rgba(20,100,244,0.25)'
+          }}
+        >
+          ĐẶT LỊCH DỊCH VỤ
+        </button>
       </div>
+
+      {/* Banner image */}
+      <img src={banner} alt="Dịch vụ sửa chữa" style={{ display: 'block', width: '100%', height: 'auto' }} />
+
+      {/* Process Section - full width */}
+      <section style={{ width: '100%', padding: '64px 24px' }}>
+        <h2 style={{ textAlign: 'center', fontSize: '36px', color: '#3C3C3C', margin: 0 }}>Quy trình dịch vụ</h2>
+        <p style={{ textAlign: 'center', color: '#64748b', marginTop: 8, marginBottom: 40 }}>Chuyên nghiệp và chu đáo với 5 bước</p>
+        {/* Steps grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 32 }}>
+          {/* ...existing steps... */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#1464F4', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={36} color="#fff" />
+            </div>
+            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 1</div>
+            <div style={{ color: '#334155' }}>Nhắc bảo dưỡng & Đặt hẹn</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Handshake size={36} color="#64748b" />
+            </div>
+            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 2</div>
+            <div style={{ color: '#334155' }}>Tiếp nhận và tư vấn</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Wrench size={36} color="#64748b" />
+            </div>
+            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 3</div>
+            <div style={{ color: '#334155' }}>Sửa chữa</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Car size={36} color="#64748b" />
+            </div>
+            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 4</div>
+            <div style={{ color: '#334155' }}>Bàn giao xe</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={36} color="#64748b" />
+            </div>
+            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 5</div>
+            <div style={{ color: '#334155' }}>Chăm sóc sau sửa chữa</div>
+          </div>
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 24, marginTop: 40 }}>
+          <div style={{ color: '#334155', lineHeight: 1.6 }}>
+            <div>Khách hàng mua xe mới và làm dịch vụ tại xưởng sẽ được nhắc bảo dưỡng trước 10 ngày so với ngày dự kiến đến kỳ bảo dưỡng.</div>
+            <div>Các cuộc hẹn trước ít nhất 4 tiếng được tiếp nhận và xác nhận hẹn.</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 24, justifyContent: 'center', marginTop: 32, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('/booking')} style={{ background: '#1464F4', color: '#fff', border: 'none', padding: '16px 28px', borderRadius: 8, fontWeight: 800, minWidth: 280 }}>ĐẶT LỊCH BẢO DƯỠNG</button>
+          <button onClick={() => navigate('/contact')} style={{ background: '#fff', color: '#1464F4', border: '2px solid #1464F4', padding: '16px 28px', borderRadius: 8, fontWeight: 800, minWidth: 280 }}>LIÊN HỆ</button>
+        </div>
+      </section>
+
+      {/* Common repair section - full width with top padding 100px */}
+      <section style={{ width: '100%', padding: '100px 0px 0px', display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 48, alignItems: 'center' }}>
+        <div style={{ paddingRight: 24 }}>
+          <h3 style={{ fontSize: '40px', color: '#3C3C3C', margin: '0 0 30px' }}>Dịch vụ Sửa chữa chung VinFast</h3>
+          <div style={{ color: '#334155', lineHeight: 1.8, marginBottom: 16 }}>
+            VinFast cung cấp dịch vụ sửa chữa chuyên nghiệp với thiết bị hiện đại và đội ngũ kỹ thuật viên được đào tạo bài bản:
+          </div>
+          {[
+            'Chẩn đoán chính xác, sửa chữa hiệu quả, đảm bảo xe luôn vận hành an toàn và ổn định.',
+            'Phụ tùng chính hãng, sẵn có, chất lượng cao.',
+            'Trang thiết bị nhập khẩu từ Ý, Đức, Nhật,... đáp ứng tiêu chuẩn kỹ thuật khắt khe.',
+            'Quản lý lịch sử xe toàn quốc, chăm sóc Khách hàng đồng bộ tại mọi đại lý.',
+            'Kỹ thuật viên VinFast được đào tạo trực tiếp tại nhà máy, đảm bảo tay nghề và chuyên môn cao.'
+          ].map((text, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', color: '#0f172a', marginBottom: 12 }}>
+              <Check size={18} color="#1464F4" style={{ marginTop: 4 }} />
+              <span style={{ color: '#334155' }}>{text}</span>
+            </div>
+          ))}
+        </div>
+        <img src={serviceCommon} alt="Dịch vụ sửa chữa chung" style={{ width: 760, height: 'auto', borderRadius: 8, justifySelf: 'end' }} />
+      </section>
+
+      {/* Policy commitment section - full width with top padding 100px */}
+      <section style={{ width: '100%', padding: '100px 24px 48px', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', columnGap: 48, alignItems: 'center' }}>
+        <div>
+          <h3 style={{ fontSize: '44px', color: '#3C3C3C', margin: '0 0 20px' }}>Chính sách cam kết thời gian sửa chữa</h3>
+          <p style={{ color: '#334155' }}>VinFast cam kết minh bạch và đúng hẹn trong thời gian sửa chữa, nhằm nâng cao trải nghiệm và sự hài lòng của Khách hàng.</p>
+          <div style={{ marginTop: 16 }}>
+            {[
+              'Hỗ trợ 500.000 VNĐ/ngày (đã gồm VAT) nếu thời gian sửa chữa vượt quá cam kết.',
+              'Với lỗi liên quan đến pin hoặc động cơ, Khách hàng sẽ được hỗ trợ mượn pin hoặc xe trong thời gian chờ sửa chữa.',
+              'Áp dụng cho: Tất cả Khách hàng sở hữu ô tô điện và ô tô xăng VinFast.',
+              'Không áp dụng: Vào các ngày nghỉ lễ, Tết theo quy định Nhà nước.'
+            ].map((text, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', color: '#0f172a', marginBottom: 12 }}>
+                <Check size={18} color="#1464F4" style={{ marginTop: 4 }} />
+                <span style={{ color: '#334155' }}>{text}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', padding: 16, borderRadius: 8, color: '#92400E', marginTop: 20 }}>Lưu ý: Nếu được cung cấp xe mượn, Khách hàng tự chi trả chi phí cầu đường, phạt vi phạm… (nếu có).</div>
+        </div>
+        <img src={policyImage} alt="Express Service" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
+      </section>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { syncFromLocalStorage } from "@/store/authSlice";
 import { AuthService, googleAuthService } from "@/services/authService";
 import { validateLoginFormV2 } from "@/utils/validation";
 import { LOADING_MESSAGES } from "@/config/ui";
+import { handleApiError, showSuccessToast } from "@/utils/errorHandler";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
@@ -155,7 +156,7 @@ export default function LoginPage() {
       const result = await AuthService.login({ emailOrPhone, password });
 
       if (result.success) {
-        toast.success("Đăng nhập thành công!");
+        showSuccessToast("Đăng nhập thành công!");
 
         // Store token and user data in localStorage
         localStorage.setItem("token", result.data.token);
@@ -172,16 +173,43 @@ export default function LoginPage() {
           navigate(redirectPath, { replace: true });
         }, 100);
       } else {
-        toast.error(result.message || "Đăng nhập thất bại!");
-        setServerError(result.message || "Đăng nhập thất bại!");
+        // Xử lý lỗi từ AuthService response
+        if (result.errors && Array.isArray(result.errors)) {
+          // Hiển thị lỗi đầu tiên dưới dạng toast
+          handleApiError({ message: result.errors[0] });
+          setServerError(result.errors[0]);
+          
+          // Xử lý field-specific errors
+          const nextFormError: Record<string, string> = {};
+          const nextFieldErrors: Record<string, string> = {};
+          
+          result.errors.forEach((msg: string) => {
+            const m = msg.toLowerCase();
+            if (m.includes("email") || m.includes("phone")) {
+              nextFormError.emailOrPhone = msg;
+              nextFieldErrors.emailOrPhone = msg;
+            }
+            if (m.includes("password")) {
+              nextFormError.password = msg;
+              nextFieldErrors.password = msg;
+            }
+          });
+          
+          // Cập nhật form errors nếu có
+          if (Object.keys(nextFormError).length > 0) {
+            setFormError(nextFormError);
+          }
+          if (Object.keys(nextFieldErrors).length > 0) {
+            setFieldErrors(nextFieldErrors);
+          }
+        } else {
+          handleApiError({ message: result.message });
+          setServerError(result.message || "Đăng nhập thất bại!");
+        }
       }
     } catch (error: unknown) {
-      const errorMessage =
-        (error as any)?.response?.data?.message ||
-        (error as any)?.message ||
-        "Đăng nhập thất bại";
-      toast.error(errorMessage);
-      setServerError(errorMessage);
+      handleApiError(error);
+      setServerError("Đăng nhập thất bại!");
 
       // Handle field-specific errors
       if ((error as any)?.response?.data?.errors) {

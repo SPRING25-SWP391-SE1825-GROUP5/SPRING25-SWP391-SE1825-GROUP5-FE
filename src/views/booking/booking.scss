@@ -1,7 +1,7 @@
 /* Booking page styles (scoped) */
 .booking-page {
-  .booking-content { border-radius: 16px; background: rgba(255,255,255,0.7); backdrop-filter: blur(6px); padding: 16px; }
-
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  
   .booking-step { background: #fff; border: 1px solid var(--border-primary); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); }
   .booking-step h2 { margin: 0 0 12px; color: var(--text-primary); font-size: 20px; }
 
@@ -56,29 +56,71 @@
   .step.active { border-color: var(--primary-400); }
   .step.completed { opacity: .9; }
 
-  /* Service filter + list */
-  .service-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-  .service-toolbar label { display: inline-flex; flex-direction: column; gap: 6px; font-weight: 600; color: var(--text-secondary); }
-  .select-control { padding: 10px 12px; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-input); color: var(--text-primary); outline: none; transition: .2s ease; }
-  .select-control:focus { border-color: var(--primary-400); box-shadow: 0 0 0 3px var(--primary-50); }
+  /* Steps indicator animations */
+  @keyframes progressLine {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
 
-  .input-control { padding: 10px 12px; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-input); color: var(--text-primary); outline: none; transition: .2s ease; }
-  .input-control:focus { border-color: var(--primary-400); box-shadow: 0 0 0 3px var(--primary-50); }
+  .steps-indicator {
+    .step {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      
+      &:hover {
+        transform: scale(1.05);
+      }
+    }
+  }
 
-  .service-categories { display: grid; gap: 12px; }
-  .service-category { border: 1px solid var(--border-primary); border-radius: 12px; background: var(--bg-card); padding: 12px; }
-  .service-category h3 { margin: 0 0 8px; font-size: 16px; color: var(--text-primary); }
-  .service-list { display: grid; gap: 8px; }
+  /* Service Rows - Compact Horizontal Layout */
+  .service-row {
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .service-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 12px rgba(16, 185, 129, 0.15);
+  }
+  
+  .service-row.selected {
+    box-shadow: 0 2px 12px rgba(16, 185, 129, 0.15);
+    transform: translateY(-1px);
+  }
 
-  .service-item { display: grid; grid-template-columns: 20px 1fr; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-primary); border-radius: 10px; background: #fff; cursor: pointer; transition: .2s ease; }
-  .service-item:hover { border-color: var(--primary-300); background: var(--primary-25, #F5FBF9); }
-  .service-item.selected { border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-50); }
-  .service-item input[type="checkbox"] { margin-top: 2px; }
-  .service-info h4 { margin: 0 0 4px; font-size: 15px; color: var(--text-primary); }
-  .service-info p { margin: 0 0 8px; color: var(--text-secondary); font-size: 13px; }
-  .service-details { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--border-primary); font-size: 12px; color: var(--text-secondary); }
-  .price { font-weight: 700; color: var(--success-600, #0E7A3E); }
+  /* Responsive Layout */
+  @media (max-width: 768px) {
+    .service-row {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+      padding: 12px !important;
+    }
+    
+    .service-row > div:last-child {
+      width: 100% !important;
+      justify-content: space-between !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .service-row {
+      padding: 10px 12px !important;
+    }
+    
+    .service-row h3 {
+      font-size: 0.95rem !important;
+    }
+    
+    .service-row p {
+      font-size: 0.8rem !important;
+    }
+    
+    .service-row button {
+      padding: 4px 8px !important;
+      font-size: 0.75rem !important;
+    }
+  }
 
   /* Date & time */
   .time-selection h3 { margin: 0 0 6px; font-size: 14px; color: var(--text-secondary); }

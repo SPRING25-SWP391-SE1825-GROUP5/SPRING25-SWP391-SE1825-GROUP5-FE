@@ -1,5 +1,4 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faBolt, faPhone, faEnvelope } from '@fortawesome/free-solid-svg-icons'
+import { Zap, Phone, Mail } from 'lucide-react'
 import './Footer.scss'
 
 const Footer = () => {
@@ -8,7 +7,7 @@ const Footer = () => {
       <div className="footer-content">
         <div className="footer-logo">
           <div className="logo-icon">
-            <FontAwesomeIcon icon={faBolt} />
+            <Zap size={16} />
           </div>
           <span className="logo-text">EV Service Center</span>
         </div>
@@ -33,11 +32,11 @@ const Footer = () => {
         </div>
         <div className="footer-contact">
           <div className="contact-item">
-            <FontAwesomeIcon icon={faPhone} />
+            <Phone size={14} />
             <span>1900 123 456</span>
           </div>
           <div className="contact-item">
-            <FontAwesomeIcon icon={faEnvelope} />
+            <Mail size={14} />
             <span>support@evservice.com</span>
           </div>
         </div>
