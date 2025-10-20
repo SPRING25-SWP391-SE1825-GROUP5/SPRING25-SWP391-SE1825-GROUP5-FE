@@ -244,8 +244,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     <>
       <header 
         ref={headerRef}
-        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
-        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
+        className={`header-dropdown ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,
@@ -285,13 +284,13 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
                 key={item.id}
                 className={`nav-item ${activeDropdown === item.id ? 'open' : ''}`}
                 onMouseEnter={() => {
-                  // Chỉ bật dropdown theo yêu cầu cho mục Dịch vụ
-                  if (item.id === 'services') {
+                  // Bật dropdown cho tất cả items có dropdown
+                  if (item.dropdown || item.id === 'services') {
                     handleMouseEnter(item.id)
                   }
                 }}
                 onMouseLeave={() => {
-                  if (item.id === 'services') {
+                  if (item.dropdown || item.id === 'services') {
                     handleMouseLeave()
                   }
                 }}
@@ -330,6 +329,31 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
                 )}
 
                 {/* Dropdown */}
+                {item.dropdown && (
+                  <div 
+                    className={`dropdown ${activeDropdown === item.id ? 'active' : ''} ${item.dropdown.type}`}
+                    style={{
+                      width: getDropdownWidth(item.dropdown.width),
+                      ...getDropdownPosition(item.dropdown.align, item.dropdown.width)
+                    }}
+                    role="menu"
+                    aria-labelledby={`nav-${item.id}`}
+                    onMouseEnter={() => {
+                      if (item.dropdown) {
+                        setActiveDropdown(item.id)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (item.dropdown) {
+                        handleMouseLeave()
+                      }
+                    }}
+                  >
+                    {renderDropdownContent(item.dropdown)}
+                  </div>
+                )}
+                
+                {/* Services dropdown (special case with API data) */}
                 {item.id === 'services' && (
                   <div 
                     className={`dropdown ${activeDropdown === item.id ? 'active' : ''} simple`}
@@ -339,6 +363,8 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
                     }}
                     role="menu"
                     aria-labelledby={`nav-${item.id}`}
+                    onMouseEnter={() => setActiveDropdown(item.id)}
+                    onMouseLeave={() => handleMouseLeave()}
                   >
                     <div className="dropdown-simple-content">
                       {serviceItems.map(s => (
