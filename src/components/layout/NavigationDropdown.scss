@@ -5,7 +5,7 @@
 /* Header Container */
 .header-dropdown {
   position: fixed;
-  top: 0;
+  top: 0; /* Vị trí mặc định khi không có banner */
   left: 0;
   right: 0;
   z-index: 10001;
@@ -22,10 +22,18 @@
   isolation: isolate;
 }
 
-/* Main Container */
+.email-verification-banner__container {
+  transition: top var(--transition-duration) ease;
+}
+
+/* Khi có banner email verification, header sẽ được đẩy xuống */
+.header-dropdown.has-email-banner {
+  top: 56px; /* Điều chỉnh để nằm dưới banner */
+}
+
 .header-dropdown__container {
-  max-width: 1920px;
-  height: 64px;
+  max-width: 1200px;
+  padding: 0 20px; /* Mobile-first: compact */
   display: flex;
   align-items: center;
   margin: 0 auto;

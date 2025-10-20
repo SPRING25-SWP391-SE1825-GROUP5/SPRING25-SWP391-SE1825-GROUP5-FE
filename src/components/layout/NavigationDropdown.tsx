@@ -244,7 +244,8 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     <>
       <header 
         ref={headerRef}
-        className={`header-dropdown ${className}`}
+        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
+        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,
