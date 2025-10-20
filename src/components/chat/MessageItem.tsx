@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { format } from 'date-fns'
-import { vi } from 'date-fns/locale'
+// Removed date-fns dependency; use Intl.DateTimeFormat instead
 import { Reply, Smile, MoreVertical } from 'lucide-react'
 import type { ChatMessage } from '@/types/chat'
 import './MessageItem.scss'
@@ -28,7 +27,14 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const [showReactions, setShowReactions] = useState(false)
 
   const formatMessageTime = (timestamp: string) => {
-    return format(new Date(timestamp), 'HH:mm', { locale: vi })
+    try {
+      return new Intl.DateTimeFormat('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(timestamp))
+    } catch {
+      return ''
+    }
   }
 
   const handleMouseEnter = () => {

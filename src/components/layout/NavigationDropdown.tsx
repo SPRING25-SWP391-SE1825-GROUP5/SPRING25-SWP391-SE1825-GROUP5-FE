@@ -268,9 +268,6 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
                     <img src={logo.src} alt={logo.alt} />
                   )}
                 </div>
-                <div className="brand-info">
-                  <p className="brand-tagline">Dịch vụ bảo dưỡng xe điện chuyên nghiệp</p>
-                </div>
               </>
             )}
           </div>

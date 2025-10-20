@@ -222,14 +222,7 @@ const NewAppHeader: React.FC = () => {
   // Right items (icons and buttons)
   const rightItems = (
     <>
-      {/* Download App Section */}
-      <div className="download-app-section">
-        <Download className="download-icon" size={16} />
-        <div className="download-text">
-          <span className="download-label">Tải ứng dụng</span>
-          <span className="download-brand">EV Service</span>
-        </div>
-      </div>
+      {/* Download App Section - removed as requested */}
 
       {/* Notification Dropdown - Only show when logged in */}
       {user && (
@@ -318,6 +311,15 @@ const NewAppHeader: React.FC = () => {
             onMouseLeave={() => setShowUserDropdown(false)}
           >
             <div className="dropdown-simple-content">
+              {/* Show user full name on hover */}
+              {user?.fullName && (
+                <div className="dropdown-item">
+                  <div className="dropdown-link" style={{ cursor: 'default' }}>
+                    <User size={16} />
+                    <span className="dropdown-label">{user.fullName}</span>
+                  </div>
+                </div>
+              )}
               <div className="dropdown-item">
                 <NavLink to="/profile" className="dropdown-link">
                   <User size={16} />
@@ -339,7 +341,7 @@ const NewAppHeader: React.FC = () => {
       ) : (
           <NavLink
             to="/auth/login"
-            className="login-btn hide-mobile"
+            className="login-btn"
           >
             Đăng nhập
           </NavLink>

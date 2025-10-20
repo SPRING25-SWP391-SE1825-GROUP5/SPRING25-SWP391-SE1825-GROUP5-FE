@@ -117,7 +117,7 @@ const StepsIndicator: React.FC<StepsIndicatorProps> = ({ currentStep, onStepClic
         </div>
       ))}
       
-      <style jsx>{`
+      <style>{`
         @keyframes progressLine {
           from { width: 0%; }
           to { width: 100%; }

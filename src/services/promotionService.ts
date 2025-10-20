@@ -1,4 +1,5 @@
 import api from './api'
+import type { Promotion as AdminPromotion, PromotionResponse as AdminPromotionResponse } from '@/types/promotion'
 // Backend response structure
 export interface BackendPromotion {
     promotionId: number
@@ -35,55 +36,67 @@ export interface BackendPromotionResponse {
     }
 }
 
-// Frontend promotion interface
-export interface Promotion {
-    id: string
-    code: string
-    title: string
-    description: string
-    type: 'percentage' | 'fixed' | 'shipping'
-    value: number
-    minOrder?: number
-    maxDiscount?: number
-    validFrom: string
-    validTo: string
-    isActive: boolean
-    usageLimit?: number
-    usedCount: number
-    category?: string[]
-    image?: string
-}
-
-export interface PromotionResponse {
-    success: boolean
-    message: string
-    data: Promotion[]
-    errors?: string[]
-}
+// Use admin types for the UI
+export type Promotion = AdminPromotion
+export type PromotionResponse = AdminPromotionResponse
 
 // Helper function to map backend data to frontend format
-const mapBackendToFrontend = (backendPromotion: BackendPromotion): Promotion => {
+const mapBackendToFrontend = (backendPromotion: BackendPromotion): AdminPromotion => {
     return {
-        id: backendPromotion.promotionId.toString(),
+        promotionId: backendPromotion.promotionId,
         code: backendPromotion.code,
-        title: backendPromotion.description, // Use description as title
         description: backendPromotion.description,
-        type: backendPromotion.discountType === 'PERCENT' ? 'percentage' : 'fixed',
-        value: backendPromotion.discountValue,
-        minOrder: backendPromotion.minOrderAmount,
+        discountValue: backendPromotion.discountValue,
+        discountType: backendPromotion.discountType === 'PERCENT' ? 'PERCENTAGE' : 'FIXED',
+        minOrderAmount: backendPromotion.minOrderAmount,
+        startDate: backendPromotion.startDate,
+        endDate: backendPromotion.endDate,
         maxDiscount: backendPromotion.maxDiscount,
-        validFrom: backendPromotion.startDate,
-        validTo: backendPromotion.endDate,
-        isActive: backendPromotion.isActive,
+        status: (backendPromotion.status as any) || (backendPromotion.isActive ? 'ACTIVE' : (backendPromotion.isExpired ? 'EXPIRED' : 'INACTIVE')),
+        createdAt: backendPromotion.createdAt,
+        updatedAt: backendPromotion.updatedAt,
         usageLimit: backendPromotion.usageLimit,
-        usedCount: backendPromotion.usageCount,
-        category: [], // Backend doesn't provide category
-        image: undefined // Backend doesn't provide image
+        usageCount: backendPromotion.usageCount,
+        isActive: backendPromotion.isActive,
+        isExpired: backendPromotion.isExpired,
+        isUsageLimitReached: backendPromotion.isUsageLimitReached,
+        remainingUsage: backendPromotion.remainingUsage
     }
 }
 
 export const PromotionService = {
-    async getActivePromotions(): Promise<PromotionResponse> {
+    async getPromotions(filters: { pageNumber?: number; pageSize?: number; searchTerm?: string; status?: string; promotionType?: string }): Promise<{ data: AdminPromotion[]; totalCount: number; pageNumber: number; totalPages: number; pageSize: number }> {
+        try {
+            const { data } = await api.get<BackendPromotionResponse>('/promotion', {
+                params: {
+                    pageNumber: filters.pageNumber ?? 1,
+                    pageSize: filters.pageSize ?? 10,
+                    searchTerm: filters.searchTerm ?? '',
+                    status: filters.status,
+                    promotionType: filters.promotionType
+                }
+            })
+
+            const mapped: AdminPromotion[] = (data.data?.promotions || []).map(mapBackendToFrontend)
+            return {
+                data: mapped,
+                totalCount: data.data?.totalCount || mapped.length,
+                pageNumber: data.data?.pageNumber || (filters.pageNumber ?? 1),
+                totalPages: data.data?.totalPages || 1,
+                pageSize: data.data?.pageSize || (filters.pageSize ?? 10)
+            }
+        } catch (error: any) {
+            console.error('Get promotions error:', error)
+            return {
+                data: [],
+                totalCount: 0,
+                pageNumber: filters.pageNumber ?? 1,
+                totalPages: 0,
+                pageSize: filters.pageSize ?? 10
+            }
+        }
+    },
+    async getActivePromotions(): Promise<AdminPromotionResponse> {
         try {
             const { data } = await api.get<BackendPromotionResponse>('/promotion/active')
 
@@ -92,30 +105,35 @@ export const PromotionService = {
                 const mappedPromotions = data.data.promotions.map(mapBackendToFrontend)
 
                 return {
-                    success: true,
-                    message: data.message,
-                    data: mappedPromotions
+                    data: mappedPromotions as AdminPromotion[],
+                    totalCount: mappedPromotions.length,
+                    pageNumber: 1,
+                    pageSize: mappedPromotions.length,
+                    totalPages: 1
                 }
             } else {
                 return {
-                    success: false,
-                    message: data.message || 'Không thể tải danh sách khuyến mãi',
-                    data: []
+                    data: [],
+                    totalCount: 0,
+                    pageNumber: 1,
+                    pageSize: 0,
+                    totalPages: 0
                 }
             }
         } catch (error: any) {
             console.error('Get active promotions error:', error)
 
             return {
-                success: false,
-                message: error?.userMessage || error?.message || 'Không thể tải danh sách khuyến mãi. Vui lòng thử lại.',
                 data: [],
-                errors: error?.response?.data?.errors || [error?.userMessage || error?.message || 'Lỗi tải khuyến mãi']
+                totalCount: 0,
+                pageNumber: 1,
+                pageSize: 0,
+                totalPages: 0
             }
         }
     },
 
-    async getPromotionById(id: string): Promise<PromotionResponse> {
+    async getPromotionById(id: string): Promise<AdminPromotionResponse> {
         try {
             const { data } = await api.get<PromotionResponse>(`/promotion/${id}`)
             return data
@@ -123,12 +141,46 @@ export const PromotionService = {
             console.error('Get promotion by ID error:', error)
 
             return {
-                success: false,
-                message: error?.userMessage || error?.message || 'Không thể tải thông tin khuyến mãi. Vui lòng thử lại.',
                 data: [],
-                errors: error?.response?.data?.errors || [error?.userMessage || error?.message || 'Lỗi tải khuyến mãi']
+                totalCount: 0,
+                pageNumber: 1,
+                pageSize: 0,
+                totalPages: 0
             }
+        }
+    },
+    async createPromotion(payload: any): Promise<any> {
+        try {
+            const { data } = await api.post('/promotion', payload)
+            return data
+        } catch (error) {
+            throw error
+        }
+    },
+    async updatePromotion(id: number, payload: any): Promise<any> {
+        try {
+            const { data } = await api.put(`/promotion/${id}`, payload)
+            return data
+        } catch (error) {
+            throw error
+        }
+    },
+    async activatePromotion(id: number): Promise<any> {
+        try {
+            const { data } = await api.patch(`/promotion/${id}/activate`)
+            return data
+        } catch (error) {
+            throw error
+        }
+    },
+    async deactivatePromotion(id: number): Promise<any> {
+        try {
+            const { data } = await api.patch(`/promotion/${id}/deactivate`)
+            return data
+        } catch (error) {
+            throw error
         }
     }
 }
 
+export default PromotionService

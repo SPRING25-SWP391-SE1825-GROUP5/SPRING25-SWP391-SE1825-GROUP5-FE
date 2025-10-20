@@ -1,11 +1,11 @@
 import api from './api'
 import type {
-  ChatConversation, 
+  ChatConversation,
   ChatMessage,
   ChatUser,
   ChatSearchResult,
   ChatTypingIndicator,
-  ChatCall 
+  ChatCall
 } from '@/types/chat'
 
 export class ChatService {
@@ -119,7 +119,7 @@ export class ChatService {
       const formData = new FormData()
       formData.append('content', content)
       formData.append('type', type)
-      
+
       if (attachments) {
         attachments.forEach((file, index) => {
           formData.append(`attachments[${index}]`, file)
@@ -156,9 +156,13 @@ export class ChatService {
     try {
       const response = await api.get('/chat/staff/available')
       return response.data.data || []
-    } catch (error) {
+    } catch (error: any) {
+      // Return empty list when endpoint not found, avoid breaking UI
+      if (error?.response?.status === 404) {
+        return []
+      }
       console.error('Error fetching available staff:', error)
-      throw error
+      return []
     }
   }
 
@@ -169,7 +173,7 @@ export class ChatService {
       return response.data.data || []
     } catch (error) {
       console.error('Error fetching available users:', error)
-      throw error
+      return []
     }
   }
 

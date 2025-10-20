@@ -18,7 +18,7 @@ const ProtectedContact = lazy(() => import('@/views/ProtectedContact'))
 const Products = lazy(() => import('@/views/Products'))
 const Promotions = lazy(() => import('@/views/Promotions'))
 const Packages = lazy(() => import('@/views/Packages'))
-const Booking = lazy(() => import('@/views/booking/Booking'))
+const ServiceBookingView = lazy(() => import('@/views/ServiceBookingView'))
 const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
 const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
@@ -64,7 +64,7 @@ const router = createBrowserRouter([
       { path: 'promotions', element: suspense(<Promotions />) },
       { path: 'packages', element: suspense(<Packages />) },
       { path: 'contact', element: suspense(<ProtectedContact />) },
-      { path: 'booking', element: suspense(<Booking />) },
+      { path: 'booking', element: suspense(<ServiceBookingView />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
 

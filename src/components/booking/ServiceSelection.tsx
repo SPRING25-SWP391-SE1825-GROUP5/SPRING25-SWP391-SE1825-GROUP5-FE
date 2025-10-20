@@ -223,16 +223,6 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
           onClick={onNext} 
           disabled={selectedServices.length === 0} 
           size="lg"
-          style={{
-            backgroundColor: selectedServices.length === 0 ? '#d1d5db' : '#10b981',
-            color: '#fff',
-            fontWeight: '600',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: selectedServices.length === 0 ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s ease'
-          }}
         >
           Tiếp theo
         </BaseButton>

@@ -88,7 +88,7 @@
   justify-content: center;
   align-items: center;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   /* Menu sẽ được center hoàn hảo giữa logo và icons */
 }
 
@@ -97,7 +97,7 @@
   align-items: center;
   width: 100%;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .nav-list {
@@ -107,7 +107,7 @@
   padding: 0;
   gap: 24px;
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .nav-item {
@@ -165,7 +165,7 @@
   gap: 16px;
   margin-left: auto;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .header-right {
@@ -338,6 +338,34 @@
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
+}
+
+/* Mega dropdown layout & alignment */
+.dropdown-mega-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  column-gap: 28px;
+  row-gap: 12px;
+  padding: 16px 18px;
+}
+
+.dropdown-section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dropdown-section-title {
+  margin: 4px 6px 10px 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dropdown-section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* User Dropdown Specific Positioning */

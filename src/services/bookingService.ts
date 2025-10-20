@@ -1,221 +1,270 @@
 import api from './api'
 
-// Booking Types
-export type Booking = {
-  bookingId: number
-  customerId: number
-  vehicleId: number
-  centerId: number
-  bookingDate: string
-  timeSlotId: number
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
-  totalPrice: number
+// Types
+export interface BookingRequest {
+  customerInfo: {
+    fullName: string
+    phone: string
+    email: string
+  }
+  vehicleInfo: {
+    carModel: string
+    mileage?: string
+    licensePlate: string
+  }
+  serviceInfo: {
+    services: string[]
   notes?: string
-  createdAt: string
-  updatedAt: string
+  }
+  locationTimeInfo: {
+    province: string
+    ward: string
+    serviceType: 'workshop' | 'mobile'
+    date: string
+    time: string
+  }
+  accountInfo?: {
+    username: string
+    password: string
+  }
+  images?: File[]
 }
 
-export type CreateBookingRequest = {
-  vehicleId: number
-  centerId: number
-  bookingDate: string
-  slotId: number  // Changed from timeSlotId to slotId
-  serviceId: number  // Changed from serviceIds to serviceId (single service)
-  customerId: number  // Added required customerId
-  notes?: string
-  specialRequests?: string
-  request: string
+export interface BookingResponse {
+  success: boolean
+  data: {
+    bookingId: string
+    bookingCode: string
+    status: string
+    estimatedCost: number
+    message: string
+  }
+  error?: string
 }
 
-export type BookingListParams = {
-  pageNumber?: number
-  pageSize?: number
-  status?: string
-  customerId?: number
-}
-
-export type BookingListResponse = {
-  bookings: Booking[]
-  pageNumber: number
-  pageSize: number
-  totalPages: number
-  totalCount: number
-  hasPreviousPage: boolean
-  hasNextPage: boolean
-}
-
-// Availability Types
-export type AvailabilityParams = {
-  centerId: number
-  date: string // YYYY-MM-DD format
-  serviceIds?: number[]
-}
-
-export type AvailabilityResponse = {
-  centerId: number
-  centerName: string
-  date: string
-  timeSlots: TimeSlotAvailability[]
-}
-
-export type TimeSlotAvailability = {
+// Types used by booking UI components
+export interface TimeSlotAvailability {
   slotId: number
   slotTime: string
-  slotLabel: string
   isAvailable: boolean
-  availableTechnicians: TechnicianAvailability[]
+  isPast?: boolean
 }
 
-export type TechnicianAvailability = {
-  technicianId: number
-  technicianName: string
-  isAvailable: boolean
-  status: 'AVAILABLE' | 'BUSY' | 'RESERVED'
-  reservedBy?: string
-  reservationExpiry?: string
+export interface TechnicianAvailability {
+  id: number
+  name: string
+  specialization: string
+  available: boolean
 }
 
-export type ReservationRequest = {
-  technicianId: number
-  timeSlotId: number
-  centerId: number
+export interface AvailabilityResponse {
+  timeSlots: TimeSlotAvailability[]
+  technicians: TechnicianAvailability[]
+}
+
+// Optional params/type aliases to satisfy centralized re-exports
+export interface AvailabilityParams {
+  centerId: number | string
   date: string
 }
 
-export type ReservationResponse = {
-  reservationId: string
-  technicianId: number
-  expiryTime: string
-  status: 'Reserved' | 'Expired' | 'Converted'
+export interface ReservationRequest {
+  vehicleId: number | string
+  centerId: number | string
+  bookingDate: string
+  slotId: number | string
+  serviceId: number | string
+  customerId: number | string
+  notes?: string
+  specialRequests?: string
+  request?: string
 }
 
-export type ApiResponse<T> = {
-  success: boolean
-  message: string
-  data: T
+export interface ReservationResponse {
+  bookingId: string
+  status: string
+  message?: string
 }
 
-export const BookingService = {
-  // Get booking availability for a specific center and date
-  async getAvailability(params: AvailabilityParams): Promise<AvailabilityResponse> {
-    const { centerId, date, serviceIds } = params
+export interface CarModel {
+  id: string
+  name: string
+  brand: string
+  year: number
+}
 
-    const queryParams: any = {
-      centerId,
-      date
+export interface Province {
+  id: string
+  name: string
+  code: string
+}
+
+export interface Ward {
+  id: string
+  name: string
+  provinceId: string
+}
+
+export interface Service {
+  id: string
+  name: string
+  description: string
+  price: number
+  category: string
+}
+
+export interface TimeSlot {
+  time: string
+  available: boolean
+}
+
+class BookingServiceClass {
+  // Create a new booking
+  async createBooking(bookingData: BookingRequest): Promise<BookingResponse> {
+    try {
+      const formData = new FormData()
+
+      // Add booking data as JSON
+      const bookingJson = {
+        customerInfo: bookingData.customerInfo,
+        vehicleInfo: bookingData.vehicleInfo,
+        serviceInfo: bookingData.serviceInfo,
+        locationTimeInfo: bookingData.locationTimeInfo,
+        accountInfo: bookingData.accountInfo
+      }
+
+      formData.append('bookingData', JSON.stringify(bookingJson))
+
+      // Add images if any
+      if (bookingData.images && bookingData.images.length > 0) {
+        bookingData.images.forEach((image, index) => {
+          formData.append(`images`, image)
+        })
+      }
+
+      const response = await api.post('/bookings', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
+      return response.data
+    } catch (error: any) {
+      console.error('Error creating booking:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo booking')
     }
+  }
 
-    if (serviceIds && serviceIds.length > 0) {
-      queryParams.serviceIds = serviceIds.join(',')
+  // Get available car models
+  async getCarModels(): Promise<CarModel[]> {
+    try {
+      const response = await api.get('/vehicles/models')
+      return response.data.data || []
+    } catch (error: any) {
+      console.error('Error fetching car models:', error)
+      return []
     }
+  }
 
-    const { data } = await api.get('/booking/availability', { params: queryParams })
-    console.log('getAvailability response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else {
-      throw new Error('Invalid response format from server')
+  // Get provinces
+  async getProvinces(): Promise<Province[]> {
+    try {
+      const response = await api.get('/locations/provinces')
+      return response.data.data || []
+    } catch (error: any) {
+      console.error('Error fetching provinces:', error)
+      return []
     }
-  },
+  }
 
-  // Get all bookings with pagination and filters
-  async getBookings(params: BookingListParams = {}): Promise<BookingListResponse> {
-    const { data } = await api.get('/booking', { params })
-    console.log('getBookings response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else if (data.bookings) {
-      return data
-    } else {
-      throw new Error('Invalid response format from server')
+  // Get wards by province
+  async getWardsByProvince(provinceId: string): Promise<Ward[]> {
+    try {
+      const response = await api.get(`/locations/provinces/${provinceId}/wards`)
+      return response.data.data || []
+    } catch (error: any) {
+      console.error('Error fetching wards:', error)
+      return []
     }
-  },
+  }
+
+  // Get available services
+  async getServices(): Promise<Service[]> {
+    try {
+      const response = await api.get('/services')
+      return response.data.data || []
+    } catch (error: any) {
+      console.error('Error fetching services:', error)
+      return []
+    }
+  }
+
+  // Get available time slots for a specific date and location
+  async getAvailableTimeSlots(date: string, locationId: string): Promise<TimeSlot[]> {
+    try {
+      const response = await api.get('/bookings/time-slots', {
+        params: { date, locationId }
+      })
+      return response.data.data || []
+    } catch (error: any) {
+      console.error('Error fetching time slots:', error)
+      return []
+    }
+  }
+
+  // Check if username is available
+  async checkUsernameAvailability(username: string): Promise<boolean> {
+    try {
+      const response = await api.get('/auth/check-username', {
+        params: { username }
+      })
+      return response.data.available
+    } catch (error: any) {
+      console.error('Error checking username:', error)
+      return false
+    }
+  }
 
   // Get booking by ID
-  async getBookingById(id: number): Promise<Booking> {
-    const { data } = await api.get(`/booking/${id}`)
-    console.log('getBookingById response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else if (data.bookingId) {
-      return data
-    } else {
-      throw new Error('Invalid response format from server')
+  async getBooking(bookingId: string): Promise<BookingResponse> {
+    try {
+      const response = await api.get(`/bookings/${bookingId}`)
+      return response.data
+    } catch (error: any) {
+      console.error('Error fetching booking:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy thông tin booking')
     }
-  },
-
-  // Create new booking
-  async createBooking(booking: CreateBookingRequest): Promise<Booking> {
-    const { data } = await api.post('/booking', booking)
-    console.log('createBooking response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else if (data.bookingId) {
-      return data
-    } else {
-      throw new Error('Invalid response format from server')
-    }
-  },
-
-  // Update booking status
-  async updateBookingStatus(id: number, status: string): Promise<Booking> {
-    const { data } = await api.put(`/booking/${id}/status`, { status })
-    console.log('updateBookingStatus response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else if (data.bookingId) {
-      return data
-    } else {
-      throw new Error('Invalid response format from server')
-    }
-  },
+  }
 
   // Cancel booking
-  async cancelBooking(id: number): Promise<Booking> {
-    const { data } = await api.delete(`/booking/${id}`)
-    console.log('cancelBooking response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else if (data.bookingId) {
-      return data
-    } else {
-      throw new Error('Invalid response format from server')
+  async cancelBooking(bookingId: string, reason?: string): Promise<boolean> {
+    try {
+      const response = await api.put(`/bookings/${bookingId}/cancel`, {
+        reason
+      })
+      return response.data.success
+    } catch (error: any) {
+      console.error('Error canceling booking:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi hủy booking')
     }
-  },
+  }
 
-  // Reserve technician
-  async reserveTechnician(reservation: ReservationRequest): Promise<ReservationResponse> {
-    const { data } = await api.post('/booking/reserve-technician', reservation)
-    console.log('reserveTechnician response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else {
-      throw new Error('Invalid response format from server')
-    }
-  },
-
-  // Release technician reservation
-  async releaseTechnician(reservationId: string): Promise<void> {
-    const { data } = await api.delete(`/booking/reserve-technician/${reservationId}`)
-    console.log('releaseTechnician response:', data)
-  },
-
-  // Check reservation status
-  async checkReservationStatus(reservationId: string): Promise<ReservationResponse> {
-    const { data } = await api.get(`/booking/reserve-technician/${reservationId}`)
-    console.log('checkReservationStatus response:', data)
-
-    if (data.success && data.data) {
-      return data.data
-    } else {
-      throw new Error('Invalid response format from server')
+  // Reschedule booking
+  async rescheduleBooking(bookingId: string, newDate: string, newTime: string): Promise<boolean> {
+    try {
+      const response = await api.put(`/bookings/${bookingId}/reschedule`, {
+        newDate,
+        newTime
+      })
+      return response.data.success
+    } catch (error: any) {
+      console.error('Error rescheduling booking:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi đổi lịch booking')
     }
   }
 }
+
+// Backward-compatible default export and named singleton expected by callers
+export const BookingService = new BookingServiceClass()
+export const bookingService = BookingService
+export default BookingService

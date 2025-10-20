@@ -423,7 +423,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               }}>
                 <User size={14} color="#64748b" />
                 <span style={{ fontSize: '0.9rem', color: '#1e293b' }}>
-                  {selectedTechnician.technicianName}
+                  {selectedTechnician.name}
                 </span>
               </div>
             )}

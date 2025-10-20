@@ -43,11 +43,10 @@ export default function Promotions() {
       try {
         const result = await PromotionService.getActivePromotions()
         
-        if (result.success) {
+        if (result.data && result.data.length > 0) {
           setPromotions(result.data)
         } else {
-          setError(result.message)
-          handleApiError({ message: result.message })
+          setError('Không có khuyến mãi nào')
         }
       } catch (error) {
         const errorMessage = 'Không thể tải danh sách khuyến mãi'
@@ -91,9 +90,9 @@ export default function Promotions() {
   // Filter categories based on actual data
   const filterCategories = [
     { id: 'all', label: 'Tất cả', count: Array.isArray(promotions) ? promotions.length : 0 },
-    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.type === 'percentage').length : 0 },
-    { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.type === 'fixed').length : 0 },
-    { id: 'shipping', label: 'Free ship', count: Array.isArray(promotions) ? promotions.filter(p => p.type === 'shipping').length : 0 },
+    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENTAGE').length : 0 },        
+    { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'FIXED').length : 0 },
+    { id: 'shipping', label: 'Free ship', count: 0 },
     { id: 'saved', label: 'Đã lưu', count: promo?.savedPromotions?.length || 0 }
   ]
 
@@ -103,13 +102,13 @@ export default function Promotions() {
     
     switch (activeFilter) {
       case 'percentage':
-        return promotions.filter(p => p.type === 'percentage')
+        return promotions.filter(p => p.discountType === 'PERCENTAGE')        
       case 'fixed':
-        return promotions.filter(p => p.type === 'fixed')
+        return promotions.filter(p => p.discountType === 'FIXED')
       case 'shipping':
-        return promotions.filter(p => p.type === 'shipping')
+        return promotions.filter(p => p.discountType === 'FIXED') // Fallback since SHIPPING doesn't exist
       case 'saved':
-        return promotions.filter(p => isPromotionSaved(p.id))
+        return promotions.filter(p => isPromotionSaved(String(p.promotionId)))
       default:
         return promotions
     }
@@ -425,7 +424,7 @@ export default function Promotions() {
           {filteredPromotions().map(promotion => {
             const badge = getPromotionBadge(promotion)
             return (
-            <div key={promotion.id} style={{
+            <div key={promotion.promotionId} style={{
               background: '#ffffff',
               border: '1px solid #e2e8f0',
               borderRadius: '16px',
@@ -458,9 +457,9 @@ export default function Promotions() {
                   color: '#10b981',
                   opacity: 0.8
                 }}>
-                  {promotion.type === 'percentage' ? <Percent size={48} /> : 
-                   promotion.type === 'fixed' ? <DollarSign size={48} /> : 
-                   promotion.type === 'shipping' ? <Truck size={48} /> : <Sparkles size={48} />}
+                  {promotion.discountType === 'PERCENTAGE' ? <Percent size={48} /> :
+                   promotion.discountType === 'FIXED' ? <DollarSign size={48} /> :
+                   promotion.discountType === 'SHIPPING' ? <Truck size={48} /> : <Sparkles size={48} />}
                 </div>
                 
                 {/* Promotion Badge */}
@@ -486,7 +485,7 @@ export default function Promotions() {
                 </div>
                 
                 {/* Saved Badge */}
-                {isPromotionSaved(promotion.id) && (
+                {isPromotionSaved(String(promotion.promotionId)) && (
                   <div style={{
                     position: 'absolute',
                     top: '12px',
@@ -523,7 +522,7 @@ export default function Promotions() {
                       margin: '0 0 8px 0',
                       lineHeight: '1.4'
                     }}>
-                      {promotion.title}
+                      {promotion.description}
                     </h3>
                     <div style={{
                       fontSize: '14px',
@@ -541,28 +540,28 @@ export default function Promotions() {
                   </div>
                   
                   <button
-                    onClick={() => isPromotionSaved(promotion.id) 
-                      ? handleUnsavePromotion(promotion.id)
+                    onClick={() => isPromotionSaved(String(promotion.promotionId)) 
+                      ? handleUnsavePromotion(String(promotion.promotionId))
                       : handleSavePromotion(promotion)
                     }
                     style={{
-                      background: isPromotionSaved(promotion.id) 
+                      background: isPromotionSaved(String(promotion.promotionId)) 
                         ? 'linear-gradient(135deg, #10b981, #059669)' 
                         : 'transparent',
-                      border: `2px solid ${isPromotionSaved(promotion.id) ? '#10b981' : '#e2e8f0'}`,
+                      border: `2px solid ${isPromotionSaved(String(promotion.promotionId)) ? '#10b981' : '#e2e8f0'}`,
                       borderRadius: '8px',
                       width: '40px',
                       height: '40px',
                       cursor: 'pointer',
-                      color: isPromotionSaved(promotion.id) ? '#ffffff' : '#10b981',
+                      color: isPromotionSaved(String(promotion.promotionId)) ? '#ffffff' : '#10b981',
                       transition: 'all 0.3s ease',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: isPromotionSaved(promotion.id) ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
+                      boxShadow: isPromotionSaved(String(promotion.promotionId)) ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
                     }}
                   >
-                    {isPromotionSaved(promotion.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+                    {isPromotionSaved(String(promotion.promotionId)) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
                   </button>
                 </div>
 
@@ -597,7 +596,7 @@ export default function Promotions() {
                       color: '#10b981',
                   fontWeight: '600'
                   }}>
-                    {promotion.minOrder ? `Tối thiểu ${formatPrice(promotion.minOrder)}` : 'Không giới hạn'}
+                    {promotion.minOrderAmount ? `Tối thiểu ${formatPrice(promotion.minOrderAmount)}` : 'Không giới hạn'}
                   </span>
                   </div>
                   <div style={{
@@ -615,7 +614,7 @@ export default function Promotions() {
                       fontSize: '12px',
                       fontWeight: '600'
                   }}>
-                    Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usedCount : '∞'} lượt
+                    Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usageCount : '∞'} lượt
                   </span>
                   </div>
                 </div>

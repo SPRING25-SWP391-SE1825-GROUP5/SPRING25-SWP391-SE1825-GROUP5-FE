@@ -41,6 +41,10 @@ import { FeedbackData } from '@/components/feedback'
 
 import './profile.scss'
 
+// FontAwesome icons for maintenance stats and messages
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faHistory, faCheckCircle, faStar, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
+
 interface UserProfile {
   fullName: string
   email: string
@@ -90,7 +94,7 @@ interface FormErrors {
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
-  const [activeTab, setActiveTab] = useState<'favorites' | 'list' | 'continue-watching' | 'notifications' | 'profile' | 'vehicles' | 'service-history' | 'promo-codes' | 'notifications' | 'settings'>('profile')
+  const [activeTab, setActiveTab] = useState<'favorites' | 'list' | 'continue-watching' | 'notifications' | 'profile' | 'vehicles' | 'service-history' | 'promo-codes' | 'settings' | 'maintenance'>('profile')
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [passwordData, setPasswordData] = useState({
@@ -1255,10 +1259,7 @@ export default function Profile() {
 
 
 
-                      </div>
-                      </div>
-            </div>
-            )}
+            
 
             {activeTab === 'maintenance' && (
               <div className="maintenance-history-container">

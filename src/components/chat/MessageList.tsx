@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { format } from 'date-fns'
-import { vi } from 'date-fns/locale'
+// Remove date-fns dependency; use native Intl and date parts
 import type { ChatMessage } from '@/types/chat'
 import MessageItem from './MessageItem'
 import './MessageList.scss'
@@ -37,7 +36,7 @@ const MessageList: React.FC<MessageListProps> = ({
     
     messages.forEach(message => {
       const date = new Date(message.timestamp)
-      const dateKey = format(date, 'yyyy-MM-dd')
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
       
       if (!groups[dateKey]) {
         groups[dateKey] = []
@@ -54,12 +53,13 @@ const MessageList: React.FC<MessageListProps> = ({
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
     
-    if (format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')) {
+    const formatKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    if (formatKey(date) === formatKey(today)) {
       return 'Hôm nay'
-    } else if (format(date, 'yyyy-MM-dd') === format(yesterday, 'yyyy-MM-dd')) {
+    } else if (formatKey(date) === formatKey(yesterday)) {
       return 'Hôm qua'
     } else {
-      return format(date, 'dd/MM/yyyy', { locale: vi })
+      return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
     }
   }
 

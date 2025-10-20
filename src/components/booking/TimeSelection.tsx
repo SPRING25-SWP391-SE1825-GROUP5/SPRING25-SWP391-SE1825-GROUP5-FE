@@ -195,10 +195,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
             }}>
               {Array.isArray(centers) && centers.map((center) => (
                 <div 
-                  key={center.id}
+                  key={center.centerId}
                   style={{
-                    background: selectedCenter?.id === center.id ? '#f0fdf4' : '#fff',
-                    border: `2px solid ${selectedCenter?.id === center.id ? '#10b981' : '#e5e7eb'}`,
+                    background: selectedCenter?.centerId === center.centerId ? '#f0fdf4' : '#fff',
+                    border: `2px solid ${selectedCenter?.centerId === center.centerId ? '#10b981' : '#e5e7eb'}`,
                     borderRadius: '8px',
                     padding: '1rem',
                     cursor: 'pointer',
@@ -212,7 +212,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                     color: '#1e293b', 
                     marginBottom: '0.5rem' 
                   }}>
-                    {center.name}
+                    {center.centerName}
                   </h4>
                   <p style={{ 
                     fontSize: '0.85rem', 

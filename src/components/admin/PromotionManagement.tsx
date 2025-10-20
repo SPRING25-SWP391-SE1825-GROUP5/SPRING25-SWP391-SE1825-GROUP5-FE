@@ -103,9 +103,9 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
       if (formData.discountValue > 100) {
         newErrors.discountValue = 'Giảm giá theo % không được vượt quá 100%'
       }
-      // Với phần trăm, bắt buộc phải có maxDiscount > 0 để giới hạn trần (tương thích BE)
+      // Không còn bắt buộc maxDiscount; chỉ cảnh báo nhẹ nếu thiếu
       if (!formData.maxDiscount || formData.maxDiscount <= 0) {
-        newErrors.maxDiscount = 'Với giảm theo %, cần nhập Giảm tối đa (VNĐ) > 0'
+        // Không chặn submit, chỉ gợi ý trong UI
       }
     }
 
@@ -171,7 +171,28 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
 
   // Handle input changes
   const handleInputChange = (field: keyof CreatePromotionRequest, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    // Clamp percentage between 0 and 100; sanitize numerics
+    setFormData(prev => {
+      const next: any = { ...prev }
+      if (field === 'discountValue') {
+        const numeric = typeof value === 'number' ? value : parseFloat(value)
+        next.discountValue = prev.discountType === 'PERCENTAGE'
+          ? Math.max(0, Math.min(100, isNaN(numeric) ? 0 : numeric))
+          : Math.max(0, isNaN(numeric) ? 0 : numeric)
+      } else if (field === 'discountType') {
+        next.discountType = value
+        // If switching to percentage, clamp current value
+        if (value === 'PERCENTAGE') {
+          next.discountValue = Math.max(0, Math.min(100, Number(prev.discountValue) || 0))
+        }
+      } else if (field === 'minOrderAmount' || field === 'maxDiscount' || field === 'usageLimit') {
+        const numeric = typeof value === 'number' ? value : parseFloat(value)
+        next[field] = Math.max(0, isNaN(numeric) ? 0 : numeric)
+      } else {
+        next[field] = value
+      }
+      return next
+    })
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
@@ -415,7 +436,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                 <input
                   type="number"
                   value={formData.discountValue}
-                  onChange={(e) => handleInputChange('discountValue', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleInputChange('discountValue', e.target.value)}
                   style={{ 
                     width: '100%', 
                     padding: '14px 16px', 
@@ -1190,7 +1211,7 @@ function PromotionTable({
         <tbody>
           {safePromotions.map((promotion, index) => (
             <tr 
-              key={promotion.promotionId}
+              key={`${promotion.promotionId ?? 'row'}-${index}`}
               style={{
                 borderBottom: '1px solid var(--border-primary)',
                 transition: 'all 0.2s ease',
@@ -1548,7 +1569,7 @@ export default function PromotionManagement() {
       const response = await promotionService.getPromotions(filters)
       console.log('✅ API Response:', response)
       
-      const promotionsData = response.data || []
+      const promotionsData = response.data as Promotion[] || []
       const responseTotalCount = response.totalCount || 0
       const responsePageNumber = response.pageNumber || 1
       const responseTotalPages = response.totalPages || 0
@@ -1706,9 +1727,9 @@ export default function PromotionManagement() {
   const handleViewDetails = async (promotion: Promotion) => {
     try {
       console.log('Loading promotion details for ID:', promotion.promotionId)
-      const promotionDetails = await promotionService.getPromotionById(promotion.promotionId)
-      setSelectedPromotion(promotionDetails)
-      console.log('Promotion details loaded:', promotionDetails)
+      const promotionDetailsResp = await promotionService.getPromotionById(String(promotion.promotionId))
+      setSelectedPromotion(promotionDetailsResp.data?.[0] || promotion)
+      console.log('Promotion details loaded:', promotionDetailsResp)
     } catch (error) {
       console.error('Error loading promotion details:', error)
       const errorMessage = error instanceof Error 
