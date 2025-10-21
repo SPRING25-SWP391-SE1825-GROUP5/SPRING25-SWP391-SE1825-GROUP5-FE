@@ -82,20 +82,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       try {
         let slotsData: any[] = []
         
-        // First try new BE endpoint if present
-        try {
-          const centerAvail = await TechnicianService.getCenterTechniciansAvailability(
-            Number(data.centerId), 
-            data.date, 
-            serviceId ? { serviceId: serviceId } : undefined
-          )
-          if (Array.isArray(centerAvail?.technicianSlots)) {
-            slotsData = centerAvail.technicianSlots
-          }
-        } catch (_e) { /* fallback below */ }
-
-        // If no data from first endpoint and technician selected: fetch their timeslots
-        if (slotsData.length === 0 && data.technicianId) {
+        // Nếu đã chọn kỹ thuật viên, chỉ lấy timeslot của kỹ thuật viên đó
+        if (data.technicianId) {
           try {
             const response = await TechnicianService.getTechnicianTimeSlots(Number(data.technicianId), data.date)
             // API mới trả về TechnicianDailyScheduleResponse[], cần extract TimeSlots
@@ -103,32 +91,77 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               // Lấy timeslots từ ngày đầu tiên (vì chỉ query 1 ngày)
               const firstDaySchedule = response.data[0]
               if (firstDaySchedule?.timeSlots) {
-                slotsData = firstDaySchedule.timeSlots.map((slot: any) => ({
-                  slotId: slot.slotId,
-                  slotTime: slot.slotTime,
-                  slotLabel: slot.slotLabel,
-                  isAvailable: slot.isAvailable,
-                  technicianSlotId: slot.technicianSlotId
-                }))
+                slotsData = firstDaySchedule.timeSlots
+                  .filter((slot: any) => slot.isAvailable && !slot.hasBooking) // Chỉ lấy timeslot available
+                  .map((slot: any) => ({
+                    slotId: slot.slotId,
+                    slotTime: slot.slotTime,
+                    slotLabel: slot.slotLabel,
+                    isAvailable: true, // Đã filter ở trên
+                    technicianSlotId: slot.technicianSlotId,
+                    technicianId: Number(data.technicianId)
+                  }))
               }
             } else if (Array.isArray(response)) {
               // Fallback cho format cũ
-              slotsData = response
+              slotsData = response.filter((slot: any) => slot.isAvailable && !slot.hasBooking)
             }
-          } catch (_e) { /* fallback below */ }
+          } catch (_e) { 
+            console.warn('Failed to get technician timeslots:', _e)
+          }
+        }
+
+        // Nếu chưa chọn kỹ thuật viên hoặc không lấy được data, thử public service
+        if (slotsData.length === 0) {
+          try {
+            const { PublicBookingService } = await import('@/services/publicBookingService')
+            const availabilityResponse = await PublicBookingService.getAvailableTimeSlots(Number(data.centerId), data.date)
+            if (availabilityResponse.success && Array.isArray(availabilityResponse.data.timeSlots)) {
+              slotsData = availabilityResponse.data.timeSlots
+                .filter((slot: any) => slot.isAvailable && !slot.isBooked) // Chỉ lấy timeslot available
+                .map((slot: any) => ({
+                  slotId: slot.slotId,
+                  slotTime: slot.slotTime,
+                  slotLabel: slot.slotLabel,
+                  isAvailable: true, // Đã filter ở trên
+                  hasBooking: slot.isBooked,
+                  technicianSlotId: slot.slotId
+                }))
+            }
+          } catch (_e) { 
+            console.warn('Failed to get public availability:', _e)
+          }
+        }
+
+        // If still no data, try authenticated endpoints
+        if (slotsData.length === 0) {
+          try {
+            const centerAvail = await TechnicianService.getCenterTechniciansAvailability(
+              Number(data.centerId), 
+              data.date, 
+              serviceId ? { serviceId: serviceId } : undefined
+            )
+            if (Array.isArray(centerAvail?.technicianSlots)) {
+              slotsData = centerAvail.technicianSlots
+                .filter((slot: any) => slot.isAvailable) // Chỉ lấy timeslot available
+            }
+          } catch (_e) { 
+            console.warn('Failed to get center availability:', _e)
+          }
         }
 
         // Final fallback to schedule mapping
         if (slotsData.length === 0) {
           const resp = await getCenterAvailability(Number(data.centerId), data.date, serviceId)
-          slotsData = resp.technicianSlots || []
+          slotsData = (resp.technicianSlots || [])
+            .filter((slot: any) => slot.isAvailable) // Chỉ lấy timeslot available
         }
 
         // Map và deduplicate slots
         const mappedSlots = slotsData.map((s: any) => ({
           technicianSlotId: s.technicianSlotId || s.id || s.slotId,
           slotTime: s.slotLabel || s.slotTime,
-          isAvailable: s.isAvailable !== false,
+          isAvailable: true, // Đã filter ở trên nên luôn true
           technicianId: s.technicianId || Number(data.technicianId)
         }))
 
@@ -139,6 +172,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
 
         setSlots(uniqueSlots)
       } catch (e) {
+        console.error('Error loading slots:', e)
         setSlots([])
       } finally {
         setLoadingSlots(false)
@@ -301,11 +335,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               <button
                 key={`${s.technicianSlotId}-${s.technicianId || index}`}
                 type="button"
-                className={`time-slot ${data.technicianSlotId === s.technicianSlotId ? 'selected' : ''}`}
+                className={`time-slot ${data.technicianSlotId === s.technicianSlotId ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
                 onClick={() => s.isAvailable && onUpdate({ time: s.slotTime, technicianSlotId: s.technicianSlotId, technicianId: s.technicianId ? String(s.technicianId) : data.technicianId })}
                 disabled={!s.isAvailable}
+                title={!s.isAvailable ? 'Khung giờ này đã được đặt' : ''}
               >
                 {s.slotTime}
+                {!s.isAvailable && <span className="slot-status">Đã đặt</span>}
               </button>
             ))}
           </div>
@@ -315,7 +351,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           <button type="button" onClick={onPrev} className="btn-secondary">
             Quay lại
           </button>
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary text-white">
             Tiếp theo
           </button>
         </div>
