@@ -96,6 +96,7 @@ export type BasicError = {
   success: false
   message: string
   errors?: string[]
+  data?: null
 }
 
 
@@ -127,9 +128,15 @@ export const AuthService = {
     } catch (error: any) {
       console.error('Register error:', error)
 
+      // Extract errors from response
+      const response = error?.response?.data
+      const errors = response?.errors || []
+      const message = response?.message || error?.userMessage || error?.message || 'Đăng ký thất bại. Vui lòng thử lại.'
+
       return {
         success: false,
-        message: error?.userMessage || error?.message || 'Đăng ký thất bại. Vui lòng thử lại.',
+        message,
+        errors,
         data: null
       }
     }
@@ -275,6 +282,42 @@ export const AuthService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     return data
+  },
+
+  async checkEmailExists(email: string) {
+    try {
+      const { data } = await api.post<{ exists: boolean; message?: string }>('/auth/check-email', { email })
+      return {
+        success: true,
+        exists: data.exists,
+        message: data.message
+      }
+    } catch (error: any) {
+      console.error('Check email error:', error)
+      return {
+        success: false,
+        exists: false,
+        message: error?.userMessage || error?.message || 'Không thể kiểm tra email'
+      }
+    }
+  },
+
+  async checkPhoneExists(phoneNumber: string) {
+    try {
+      const { data } = await api.post<{ exists: boolean; message?: string }>('/auth/check-phone', { phoneNumber })
+      return {
+        success: true,
+        exists: data.exists,
+        message: data.message
+      }
+    } catch (error: any) {
+      console.error('Check phone error:', error)
+      return {
+        success: false,
+        exists: false,
+        message: error?.userMessage || error?.message || 'Không thể kiểm tra số điện thoại'
+      }
+    }
   },
 }
 
