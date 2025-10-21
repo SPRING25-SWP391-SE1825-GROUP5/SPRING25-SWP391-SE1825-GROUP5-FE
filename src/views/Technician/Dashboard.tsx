@@ -1,4 +1,7 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAppDispatch } from '@/store/hooks'
+import { logout } from '@/store/authSlice'
 import { 
   Wrench, 
   ClipboardCheck, 
@@ -365,10 +368,17 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
 }
 
 export default function TechnicianDashboard() {
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [selectedWork, setSelectedWork] = useState<any>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/auth/login')
+  }
 
   // Dashboard overview data
   const dashboardData = {
@@ -791,7 +801,7 @@ export default function TechnicianDashboard() {
             </div>
 
             {/* User Profile */}
-            <div className="technician-dashboard__main__header__actions__profile">
+            <div className="technician-dashboard__main__header__actions__profile" onClick={handleLogout} style={{ cursor: 'pointer' }}>
               <div className="technician-dashboard__main__header__actions__profile__avatar">
                 KT
               </div>
@@ -802,6 +812,13 @@ export default function TechnicianDashboard() {
                 <span className="technician-dashboard__main__header__actions__profile__info__role">
                   Technician
                 </span>
+              </div>
+              <div style={{ marginLeft: '8px', color: 'var(--text-tertiary)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16,17 21,12 16,7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
               </div>
             </div>
           </div>

@@ -94,8 +94,8 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({ data, onUpdate, onNex
               console.log(`Model ${index} brand:`, model.brand)
               console.log(`Model ${index} id:`, model.id)
               
-              const displayName = model.name || model.modelName || model.title || `Model ${index + 1}`
-              const brand = model.brand || model.brandName || ''
+              const displayName = model.name || `Model ${index + 1}`
+              const brand = model.brand || ''
               
               return (
                 <option key={model.id || `model-${index}`} value={displayName}>

@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAppDispatch } from '@/store/hooks'
+import { logout } from '@/store/authSlice'
 import { 
   Users, 
   Calendar, 
@@ -21,9 +24,16 @@ import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
 import './staff.scss'
 
 export default function StaffDashboard() {
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/auth/login')
+  }
 
   // Page components
   const renderPageContent = () => {
@@ -114,7 +124,9 @@ export default function StaffDashboard() {
             background: 'var(--primary-50)',
             borderRadius: '8px',
             cursor: 'pointer'
-          }}>
+          }}
+          onClick={handleLogout}
+          >
             <div style={{
               width: '32px',
               height: '32px',

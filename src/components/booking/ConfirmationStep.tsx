@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { ServiceManagementService } from '@/services/ServiceManagementService'
+import { ServiceManagementService } from '@/services/serviceManagementService'
 
 interface ConfirmationBookingData {
   customerInfo: {

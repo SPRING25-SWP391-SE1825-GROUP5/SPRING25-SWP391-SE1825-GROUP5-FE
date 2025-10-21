@@ -61,6 +61,7 @@ export type QRPaymentRequest = {
 export type QRPaymentResponse = {
     qrCode: string
     paymentId: string
+    paymentUrl?: string
     expiresAt: string
 }
 

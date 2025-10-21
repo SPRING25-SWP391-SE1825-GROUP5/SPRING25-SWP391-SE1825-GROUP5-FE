@@ -16,14 +16,15 @@ const PaymentCallback: React.FC = () => {
     const amount = params.amount
     
     if (isSuccess && bookingId) {
-      // Redirect to success page with parameters
-      const successUrl = `/booking-success?bookingId=${bookingId}&status=PAID${amount ? `&amount=${amount}` : ''}`
-      console.log('Redirecting to success page:', successUrl)
+      // Redirect to payment success page with parameters
+      const successUrl = `/payment-success?bookingId=${bookingId}&status=PAID${amount ? `&amount=${amount}` : ''}`
+      console.log('Redirecting to payment success page:', successUrl)
       window.location.href = successUrl
     } else {
-      // Redirect to booking page if failed
-      console.log('Payment failed, redirecting to booking page')
-      window.location.href = '/booking'
+      // Redirect to payment cancel page if failed
+      const cancelUrl = `/payment-cancel?bookingId=${bookingId}${amount ? `&amount=${amount}` : ''}&reason=${params.reason || 'PAYMENT_FAILED'}`
+      console.log('Payment failed, redirecting to payment cancel page:', cancelUrl)
+      window.location.href = cancelUrl
     }
   }, [searchParams])
   
