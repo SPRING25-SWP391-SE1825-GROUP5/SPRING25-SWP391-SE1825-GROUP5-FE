@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Car, Search, User, Package, Eye, Wrench, AlertCircle, CheckCircle, X } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Car, Search, User, Package, Eye, Wrench, AlertCircle, CheckCircle, X, ChevronDown, ChevronUp, Filter, SortAsc, SortDesc, Settings } from 'lucide-react'
 import './VehicleDetails.scss'
 
 interface Vehicle {
@@ -195,6 +195,10 @@ function VehicleDetailModal({ vehicle, onClose }: VehicleDetailModalProps) {
 export default function VehicleDetails() {
   const [search, setSearch] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
+  const [expandedVehicles, setExpandedVehicles] = useState<Set<number>>(new Set())
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'status_critical'>('newest')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const [vehicles] = useState<Vehicle[]>([
     {
@@ -388,144 +392,312 @@ export default function VehicleDetails() {
     }
   }
 
+  // Standardized Status System
+  const getStandardizedStatus = (condition: string) => {
+    switch (condition) {
+      case 'good': return 'excellent'
+      case 'fair': return 'good'
+      case 'poor': return 'warning'
+      case 'needs_replacement': return 'critical'
+      default: return 'unknown'
+    }
+  }
+
+  const getStandardizedStatusText = (condition: string) => {
+    switch (condition) {
+      case 'good': return 'Sẵn sàng'
+      case 'fair': return 'Bảo dưỡng'
+      case 'poor': return 'Cần sửa'
+      case 'needs_replacement': return 'Hỏng nặng'
+      default: return 'Không xác định'
+    }
+  }
+
+  // Accordion Functions - Single expand behavior
+  const toggleVehicleExpansion = (vehicleId: number) => {
+    setExpandedVehicles(prev => {
+      // If clicking on already expanded vehicle, collapse it
+      if (prev.has(vehicleId)) {
+        return new Set()
+      }
+      // Otherwise, expand only this vehicle (close others)
+      return new Set([vehicleId])
+    })
+  }
+
+  const isVehicleExpanded = (vehicleId: number) => {
+    return expandedVehicles.has(vehicleId)
+  }
+
+  // Sorting and Filtering Logic
+  const filteredAndSortedVehicles = useMemo(() => {
+    let filtered = vehicles.filter(vehicle => 
+      vehicle.licensePlate.toLowerCase().includes(search.toLowerCase()) ||
+      vehicle.owner.name.toLowerCase().includes(search.toLowerCase()) ||
+      `${vehicle.info.brand} ${vehicle.info.model}`.toLowerCase().includes(search.toLowerCase())
+    )
+
+    // Sort by selected criteria
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return b.id - a.id // Assuming higher ID = newer
+        case 'oldest':
+          return a.id - b.id
+        case 'status_critical':
+          const aCritical = a.parts.some(part => part.condition === 'needs_replacement' || part.condition === 'poor')
+          const bCritical = b.parts.some(part => part.condition === 'needs_replacement' || part.condition === 'poor')
+          if (aCritical && !bCritical) return -1
+          if (!aCritical && bCritical) return 1
+          return b.id - a.id
+        default:
+          return 0
+      }
+    })
+
+    return filtered
+  }, [vehicles, search, sortBy])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredAndSortedVehicles.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentVehicles = filteredAndSortedVehicles.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
   return (
     <div className="vehicle-details">
-      {/* Header */}
-      <div className="vehicle-details__header">
-        <div className="vehicle-details__header__info">
-          <h1 className="vehicle-details__header__info__title">
-            <Car className="vehicle-details__header__info__title__icon" size={32} />
-            Chi tiết xe khách hàng
-          </h1>
-          <p className="vehicle-details__header__info__description">
-            Xem thông tin chi tiết về xe và linh kiện của khách hàng
-          </p>
+      {/* Content Card */}
+      <div className="vehicle-details__content-card">
+        {/* Page Header with Search */}
+        <div className="vehicle-details__header">
+          <div className="vehicle-details__header__title">
+            <h1 className="vehicle-details__header__title__text">
+              Chi tiết xe khách
+            </h1>
+          </div>
+          
+          <div className="vehicle-details__header__search">
+            <div className="vehicle-details__header__search__input">
+              <Search className="vehicle-details__header__search__input__icon" size={16} />
+              <input
+                className="vehicle-details__header__search__input__field"
+                type="text"
+                placeholder="Tìm theo biển số, tên chủ xe..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            
+            <div className="vehicle-details__header__search__filter">
+              <Filter className="vehicle-details__header__search__filter__icon" size={16} />
+              <select
+                className="vehicle-details__header__search__filter__select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'status_critical')}
+              >
+                <option value="newest">Ngày tạo (Mới nhất)</option>
+                <option value="oldest">Ngày tạo (Cũ nhất)</option>
+                <option value="status_critical">Trạng thái (Khẩn cấp)</option>
+              </select>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Search */}
-      <div className="vehicle-details__search">
-        <Search className="vehicle-details__search__icon" size={16} />
-        <input
-          className="vehicle-details__search__input"
-          type="text"
-          placeholder="Tìm kiếm theo biển số, tên chủ xe, hãng xe..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Vehicles List */}
-      <div className="vehicle-details__list">
-        {filteredVehicles.map((vehicle) => (
-          <div key={vehicle.id} className="vehicle-details__list__item">
-            {/* Vehicle Header */}
-            <div className="vehicle-details__list__item__header">
-              <div className="vehicle-details__list__item__header__left">
-                <h3 className="vehicle-details__list__item__header__left__plate">
-                  {vehicle.licensePlate}
-                </h3>
-                <div className="vehicle-details__list__item__header__left__info">
-                  <span>{vehicle.info.brand} {vehicle.info.model}</span>
-                  <span>({vehicle.info.year})</span>
-                  <span>{vehicle.info.color}</span>
+        {/* Vehicles List */}
+        <div className="vehicle-details__list">
+        {currentVehicles.map((vehicle) => {
+          const isExpanded = isVehicleExpanded(vehicle.id)
+          return (
+          <div key={vehicle.id} className={`vehicle-details__list__item ${isExpanded ? 'vehicle-details__list__item--expanded' : ''}`}>
+            {/* Vehicle Header - Collapsed State */}
+            <div 
+              className="vehicle-details__list__item__header"
+              onClick={() => toggleVehicleExpansion(vehicle.id)}
+            >
+              {/* Single Row Layout - All info in one horizontal line */}
+              <div className="vehicle-details__list__item__header__content">
+                {/* License Plate */}
+                <div className="vehicle-details__list__item__header__content__plate">
+                  <Car className="vehicle-details__list__item__header__content__plate__icon" size={18} />
+                  <span className="vehicle-details__list__item__header__content__plate__text">
+                    {vehicle.licensePlate}
+                  </span>
                 </div>
-              </div>
 
-              <div className="vehicle-details__list__item__header__right">
-                <span 
-                  className="vehicle-details__list__item__header__right__condition"
-                  style={{ 
-                    backgroundColor: getConditionColor(getOverallCondition(vehicle.parts)),
-                    color: 'white'
-                  }}
+                {/* Vehicle Info */}
+                <div className="vehicle-details__list__item__header__content__vehicle">
+                  <span className="vehicle-details__list__item__header__content__vehicle__brand">
+                    {vehicle.info.brand} {vehicle.info.model}
+                  </span>
+                </div>
+
+                {/* Owner Info */}
+                <div className="vehicle-details__list__item__header__content__owner">
+                  <span className="vehicle-details__list__item__header__content__owner__name">
+                    {vehicle.owner.name}
+                  </span>
+                </div>
+
+                {/* Status Badge */}
+                <div 
+                  className={`vehicle-details__list__item__header__content__status vehicle-details__list__item__header__content__status--${getStandardizedStatus(getOverallCondition(vehicle.parts))}`}
                 >
-                  {getConditionIcon(getOverallCondition(vehicle.parts))}
-                  {getConditionText(getOverallCondition(vehicle.parts))}
-                </span>
+                  <div className="vehicle-details__list__item__header__content__status__dot"></div>
+                  <span className="vehicle-details__list__item__header__content__status__text">
+                    {getStandardizedStatusText(getOverallCondition(vehicle.parts))}
+                  </span>
+                </div>
+
+                {/* Toggle Icon */}
+                <div className="vehicle-details__list__item__header__content__toggle">
+                  {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
               </div>
             </div>
 
-            {/* Vehicle Body */}
-            <div className="vehicle-details__list__item__body">
-              <div className="vehicle-details__list__item__body__content">
-                {/* Owner Info */}
-                <div className="vehicle-details__list__item__body__content__owner">
-                  <h4>Thông tin chủ xe:</h4>
-                  <div className="vehicle-details__list__item__body__content__owner__details">
-                    <span>
-                      <User size={14} />
+            {/* Vehicle Body - Expanded Content */}
+            {isExpanded && (
+              <div className="vehicle-details__list__item__body">
+              {/* Khu vực 1: Thông tin Chung - Layout 2 cột */}
+              <div className="vehicle-details__list__item__body__general-info">
+                {/* Cột 1: Thông tin Chủ xe */}
+                <div className="vehicle-details__list__item__body__general-info__owner">
+                  <div className="vehicle-details__list__item__body__general-info__owner__header">
+                    <User className="vehicle-details__list__item__body__general-info__owner__header__icon" size={16} />
+                    <span className="vehicle-details__list__item__body__general-info__owner__header__title">Chủ xe</span>
+                  </div>
+                  <div className="vehicle-details__list__item__body__general-info__owner__details">
+                    <div className="vehicle-details__list__item__body__general-info__owner__details__name">
                       {vehicle.owner.name}
-                    </span>
-                    <span>📞 {vehicle.owner.phone}</span>
+                    </div>
+                    <div className="vehicle-details__list__item__body__general-info__owner__details__phone">
+                      📞 {vehicle.owner.phone}
+                    </div>
                   </div>
                 </div>
 
-                {/* Vehicle Stats */}
-                <div className="vehicle-details__list__item__body__content__stats">
-                  <div className="vehicle-details__list__item__body__content__stats__item">
-                    <span className="vehicle-details__list__item__body__content__stats__item__label">
-                      Số km:
-                    </span>
-                    <span className="vehicle-details__list__item__body__content__stats__item__value">
-                      {vehicle.info.mileage.toLocaleString()} km
-                    </span>
+                {/* Cột 2: Thông số Vận hành */}
+                <div className="vehicle-details__list__item__body__general-info__vehicle-stats">
+                  <div className="vehicle-details__list__item__body__general-info__vehicle-stats__header">
+                    <Settings className="vehicle-details__list__item__body__general-info__vehicle-stats__header__icon" size={16} />
+                    <span className="vehicle-details__list__item__body__general-info__vehicle-stats__header__title">Thông số xe</span>
                   </div>
-                  <div className="vehicle-details__list__item__body__content__stats__item">
-                    <span className="vehicle-details__list__item__body__content__stats__item__label">
-                      Bảo dưỡng cuối:
-                    </span>
-                    <span className="vehicle-details__list__item__body__content__stats__item__value">
-                      {vehicle.lastService}
-                    </span>
-                  </div>
-                  <div className="vehicle-details__list__item__body__content__stats__item">
-                    <span className="vehicle-details__list__item__body__content__stats__item__label">
-                      Bảo dưỡng tiếp theo:
-                    </span>
-                    <span className="vehicle-details__list__item__body__content__stats__item__value">
-                      {vehicle.nextService}
-                    </span>
+                  <div className="vehicle-details__list__item__body__general-info__vehicle-stats__details">
+                    <div className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item">
+                      <span className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item__label">Số km:</span>
+                      <span className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item__value">
+                        {vehicle.info.mileage.toLocaleString()} km
+                      </span>
+                    </div>
+                    <div className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item">
+                      <span className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item__label">Bảo dưỡng cuối:</span>
+                      <span className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item__value">
+                        {vehicle.lastService}
+                      </span>
+                    </div>
+                    <div className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item">
+                      <span className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item__label">Bảo dưỡng tiếp theo:</span>
+                      <span className="vehicle-details__list__item__body__general-info__vehicle-stats__details__item__value">
+                        {vehicle.nextService}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Parts Preview */}
-                <div className="vehicle-details__list__item__body__content__parts">
-                  <h4>Tình trạng linh kiện:</h4>
-                  <div className="vehicle-details__list__item__body__content__parts__list">
-                    {vehicle.parts.slice(0, 3).map((part, index) => (
-                      <span 
-                        key={index}
-                        className="vehicle-details__list__item__body__content__parts__list__item"
-                        style={{ color: getConditionColor(part.condition) }}
-                      >
-                        <Package size={12} />
-                        {part.name}: {getConditionText(part.condition)}
-                      </span>
-                    ))}
-                    {vehicle.parts.length > 3 && (
-                      <span className="vehicle-details__list__item__body__content__parts__list__more">
-                        +{vehicle.parts.length - 3} khác
-                      </span>
-                    )}
-                  </div>
+              {/* Phân cách trực quan */}
+              <div className="vehicle-details__list__item__body__separator"></div>
+
+              {/* Khu vực 2: Tình trạng Linh kiện */}
+              <div className="vehicle-details__list__item__body__parts">
+                <div className="vehicle-details__list__item__body__parts__header">
+                  <Package className="vehicle-details__list__item__body__parts__header__icon" size={16} />
+                  <span className="vehicle-details__list__item__body__parts__header__title">Tình trạng linh kiện</span>
+                </div>
+                
+                <div className="vehicle-details__list__item__body__parts__table">
+                  <table className="vehicle-details__list__item__body__parts__table__content">
+                    <thead className="vehicle-details__list__item__body__parts__table__content__header">
+                      <tr>
+                        <th>TÊN LINH KIỆN</th>
+                        <th>TRẠNG THÁI</th>
+                      </tr>
+                    </thead>
+                    <tbody className="vehicle-details__list__item__body__parts__table__content__body">
+                      {vehicle.parts.map((part, index) => (
+                        <tr key={index} className="vehicle-details__list__item__body__parts__table__content__body__row">
+                          <td className="vehicle-details__list__item__body__parts__table__content__body__row__name">
+                            {part.name}
+                          </td>
+                          <td className="vehicle-details__list__item__body__parts__table__content__body__row__status">
+                            <span className={`vehicle-details__list__item__body__parts__table__content__body__row__status__badge vehicle-details__list__item__body__parts__table__content__body__row__status__badge--${getStandardizedStatus(part.condition)}`}>
+                              {getStandardizedStatusText(part.condition)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
               {/* Action Button */}
               <div className="vehicle-details__list__item__body__actions">
                 <button
-                  className="vehicle-details__list__item__body__actions__button"
-                  onClick={() => setSelectedVehicle(vehicle)}
+                  className="vehicle-details__list__item__body__actions__button vehicle-details__list__item__body__actions__button--collapse"
+                  onClick={() => toggleVehicleExpansion(vehicle.id)}
                 >
-                  <Eye size={16} />
-                  Xem chi tiết
+                  <ChevronUp className="vehicle-details__list__item__body__actions__button__icon" size={16} />
+                  <span className="vehicle-details__list__item__body__actions__button__text">
+                    Thu gọn
+                  </span>
                 </button>
               </div>
             </div>
+            )}
           </div>
-        ))}
+          )
+        })}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="vehicle-details__pagination">
+          <button
+            className="vehicle-details__pagination__button vehicle-details__pagination__button--prev"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            Lùi
+          </button>
+          
+          <div className="vehicle-details__pagination__pages">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                className={`vehicle-details__pagination__pages__button ${
+                  page === currentPage ? 'vehicle-details__pagination__pages__button--active' : ''
+                }`}
+                onClick={() => handlePageChange(page)}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            className="vehicle-details__pagination__button vehicle-details__pagination__button--next"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Tiếp
+          </button>
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredVehicles.length === 0 && (
@@ -544,6 +716,7 @@ export default function VehicleDetails() {
           </p>
         </div>
       )}
+      </div>
 
       {/* Vehicle Detail Modal */}
       {selectedVehicle && (
