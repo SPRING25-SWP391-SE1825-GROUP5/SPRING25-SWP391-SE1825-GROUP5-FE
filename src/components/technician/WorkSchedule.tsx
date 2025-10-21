@@ -1,20 +1,24 @@
 import { useState } from 'react'
-import { Calendar, Clock, User, Car, FileText } from 'lucide-react'
+import WorkScheduleHeader from './WorkScheduleHeader'
+import WorkScheduleCalendar from './WorkScheduleCalendar'
+import WorkScheduleFilters from './WorkScheduleFilters'
 import './WorkSchedule.scss'
+
+interface Appointment {
+  id: number
+  time: string
+  customer: string
+  service: string
+  vehicle: string
+  status: 'confirmed' | 'pending' | 'cancelled'
+  priority: 'high' | 'medium' | 'low'
+}
 
 interface ScheduleData {
   id: number
   date: string
   timeSlot: string
-  appointments: Array<{
-    id: number
-    time: string
-    customer: string
-    service: string
-    vehicle: string
-    status: string
-    priority: string
-  }>
+  appointments: Appointment[]
   workload: 'light' | 'moderate' | 'heavy'
 }
 
@@ -24,7 +28,18 @@ interface WorkScheduleProps {
 }
 
 export default function WorkSchedule({ onNavigateToLeaveRequest, onNavigateToVehicleDetails }: WorkScheduleProps) {
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
+  // Removed viewMode - only using month view
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({
+    status: [] as string[],
+    priority: [] as string[],
+    dateRange: {
+      start: '',
+      end: ''
+    }
+  })
 
   const scheduleData: ScheduleData[] = [
     {
@@ -107,205 +122,78 @@ export default function WorkSchedule({ onNavigateToLeaveRequest, onNavigateToVeh
     }
   ]
 
-  const getWorkloadColor = (workload: string) => {
-    switch (workload) {
-      case 'light': return '#10b981'
-      case 'moderate': return '#f59e0b'
-      case 'heavy': return '#ef4444'
-      default: return '#6b7280'
+  // Filter and search logic
+  const filteredScheduleData = scheduleData.filter(schedule => {
+    // Search filter
+    if (searchTerm) {
+      const hasMatchingAppointment = schedule.appointments.some(apt => 
+        apt.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.vehicle.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      if (!hasMatchingAppointment) return false
     }
-  }
 
-  const getWorkloadText = (workload: string) => {
-    switch (workload) {
-      case 'light': return 'Nhẹ'
-      case 'moderate': return 'Vừa'
-      case 'heavy': return 'Nặng'
-      default: return workload
+    // Status filter
+    if (filters.status.length > 0) {
+      const hasMatchingStatus = schedule.appointments.some(apt => 
+        filters.status.includes(apt.status)
+      )
+      if (!hasMatchingStatus) return false
     }
-  }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return '#10b981'
-      case 'pending': return '#f59e0b'
-      case 'cancelled': return '#ef4444'
-      default: return '#6b7280'
+    // Priority filter
+    if (filters.priority.length > 0) {
+      const hasMatchingPriority = schedule.appointments.some(apt => 
+        filters.priority.includes(apt.priority)
+      )
+      if (!hasMatchingPriority) return false
     }
-  }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'Đã xác nhận'
-      case 'pending': return 'Chờ xác nhận'
-      case 'cancelled': return 'Đã hủy'
-      default: return status
+    // Date range filter
+    if (filters.dateRange.start && filters.dateRange.end) {
+      const scheduleDate = new Date(schedule.date)
+      const startDate = new Date(filters.dateRange.start)
+      const endDate = new Date(filters.dateRange.end)
+      
+      if (scheduleDate < startDate || scheduleDate > endDate) {
+        return false
+      }
     }
-  }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return '#ef4444'
-      case 'medium': return '#f59e0b'
-      case 'low': return '#10b981'
-      default: return '#6b7280'
-    }
-  }
+    return true
+  })
 
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'Cao'
-      case 'medium': return 'Trung bình'
-      case 'low': return 'Thấp'
-      default: return priority
-    }
+  const handleAppointmentClick = (appointment: Appointment) => {
+    console.log('Appointment clicked:', appointment)
+    // Handle appointment click - could open modal, navigate, etc.
   }
 
   return (
     <div className="work-schedule">
-      {/* Header */}
-      <div className="work-schedule__header">
-        <div className="work-schedule__header__info">
-          <h1 className="work-schedule__header__info__title">
-            <Calendar className="work-schedule__header__info__title__icon" size={32} />
-            Lịch làm việc
-          </h1>
-          <p className="work-schedule__header__info__description">
-            Xem lịch trình công việc và cuộc hẹn của bạn
-          </p>
-        </div>
+      <WorkScheduleHeader
+        onNavigateToLeaveRequest={onNavigateToLeaveRequest}
+        showFilters={showFilters}
+        onToggleFilters={() => setShowFilters(!showFilters)}
+      />
 
-        <div className="work-schedule__header__actions">
-          <div className="work-schedule__header__actions__toggle">
-            <button
-              className={`work-schedule__header__actions__toggle__btn ${viewMode === 'week' ? 'active' : ''}`}
-              onClick={() => setViewMode('week')}
-            >
-              Tuần
-            </button>
-            <button
-              className={`work-schedule__header__actions__toggle__btn ${viewMode === 'month' ? 'active' : ''}`}
-              onClick={() => setViewMode('month')}
-            >
-              Tháng
-            </button>
-          </div>
+      <WorkScheduleCalendar
+        viewMode="month"
+        currentDate={currentDate}
+        onDateChange={setCurrentDate}
+        appointments={filteredScheduleData.flatMap(schedule => schedule.appointments)}
+        onAppointmentClick={handleAppointmentClick}
+        onNavigateToVehicleDetails={onNavigateToVehicleDetails}
+      />
 
-          <button
-            className="work-schedule__header__actions__button"
-            onClick={onNavigateToLeaveRequest}
-          >
-            <FileText size={16} />
-            Yêu cầu nghỉ phép
-          </button>
-        </div>
-      </div>
-
-      {/* Schedule List */}
-      <div className="work-schedule__list">
-        {scheduleData.map((schedule) => (
-          <div key={schedule.id} className="work-schedule__list__item">
-            {/* Date Header */}
-            <div className="work-schedule__list__item__header">
-              <div className="work-schedule__list__item__header__date">
-                <div className="work-schedule__list__item__header__date__day">
-                  {new Date(schedule.date).toLocaleDateString('vi-VN', { weekday: 'long' })}
-                </div>
-                <div className="work-schedule__list__item__header__date__number">
-                  {new Date(schedule.date).getDate()}
-                </div>
-                <div className="work-schedule__list__item__header__date__month">
-                  Tháng {new Date(schedule.date).getMonth() + 1}
-                </div>
-              </div>
-
-              <div className="work-schedule__list__item__header__info">
-                <div className="work-schedule__list__item__header__info__time">
-                  <Clock size={16} />
-                  {schedule.timeSlot}
-                </div>
-                <div 
-                  className="work-schedule__list__item__header__info__workload"
-                  style={{ color: getWorkloadColor(schedule.workload) }}
-                >
-                  Khối lượng: {getWorkloadText(schedule.workload)}
-                </div>
-                <div className="work-schedule__list__item__header__info__count">
-                  {schedule.appointments.length} cuộc hẹn
-                </div>
-              </div>
-            </div>
-
-            {/* Appointments */}
-            <div className="work-schedule__list__item__appointments">
-              {schedule.appointments.map((appointment) => (
-                <div key={appointment.id} className="work-schedule__list__item__appointments__item">
-                  <div className="work-schedule__list__item__appointments__item__time">
-                    {appointment.time}
-                  </div>
-                  
-                  <div className="work-schedule__list__item__appointments__item__content">
-                    <div className="work-schedule__list__item__appointments__item__content__header">
-                      <h4 className="work-schedule__list__item__appointments__item__content__header__service">
-                        {appointment.service}
-                      </h4>
-                      <div className="work-schedule__list__item__appointments__item__content__header__badges">
-                        <span 
-                          className="work-schedule__list__item__appointments__item__content__header__badges__priority"
-                          style={{ backgroundColor: getPriorityColor(appointment.priority), color: 'white' }}
-                        >
-                          {getPriorityText(appointment.priority)}
-                        </span>
-                        <span 
-                          className="work-schedule__list__item__appointments__item__content__header__badges__status"
-                          style={{ backgroundColor: getStatusColor(appointment.status), color: 'white' }}
-                        >
-                          {getStatusText(appointment.status)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="work-schedule__list__item__appointments__item__content__details">
-                      <div className="work-schedule__list__item__appointments__item__content__details__customer">
-                        <User size={14} />
-                        {appointment.customer}
-                      </div>
-                      <div className="work-schedule__list__item__appointments__item__content__details__vehicle">
-                        <Car size={14} />
-                        {appointment.vehicle}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="work-schedule__list__item__appointments__item__actions">
-                    <button
-                      className="work-schedule__list__item__appointments__item__actions__button"
-                      onClick={onNavigateToVehicleDetails}
-                    >
-                      Chi tiết xe
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {scheduleData.length === 0 && (
-        <div className="work-schedule__empty">
-          <div className="work-schedule__empty__icon">
-            <Calendar size={64} />
-          </div>
-          <h3 className="work-schedule__empty__title">
-            Không có lịch làm việc
-          </h3>
-          <p className="work-schedule__empty__description">
-            Chưa có cuộc hẹn nào được lên lịch cho thời gian này
-          </p>
-        </div>
-      )}
+      <WorkScheduleFilters
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
     </div>
   )
 }
