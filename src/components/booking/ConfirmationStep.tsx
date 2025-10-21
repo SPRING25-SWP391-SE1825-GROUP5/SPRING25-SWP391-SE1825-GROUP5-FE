@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { ServiceManagementService } from '@/services/ServiceManagementService'
 
 interface ConfirmationBookingData {
   customerInfo: {
@@ -10,6 +11,9 @@ interface ConfirmationBookingData {
     carModel: string
     mileage: string
     licensePlate: string
+    year?: string
+    color?: string
+    brand?: string
   }
   serviceInfo: {
     services: string[]
@@ -37,16 +41,32 @@ interface ConfirmationStepProps {
   onPrev: () => void
 }
 
-// Demo service pricing data - sẽ lấy từ API sau
-const servicePricing = {
-  'battery-check': { name: 'Kiểm tra pin', price: 150000 },
-  'motor-check': { name: 'Kiểm tra động cơ', price: 200000 },
-  'brake-check': { name: 'Kiểm tra phanh', price: 180000 },
-  'tire-check': { name: 'Kiểm tra lốp', price: 120000 },
-  'charging-check': { name: 'Kiểm tra hệ thống sạc', price: 160000 }
+interface ServiceInfo {
+  id: number
+  name: string
+  price: number
 }
 
 const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev }) => {
+  const [services, setServices] = useState<ServiceInfo[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true)
+        const response = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+        setServices(response.services || [])
+      } catch (error) {
+        console.error('Error fetching services:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchServices()
+  }, [])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit()
@@ -54,7 +74,8 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
 
   // Calculate total price
   const totalPrice = data.serviceInfo.services.reduce((sum, serviceId) => {
-    const service = servicePricing[serviceId as keyof typeof servicePricing]
+    const service = services.find(s => s.id === Number(serviceId))
+    console.log('Service ID:', serviceId, 'Found service:', service)
     return sum + (service?.price || 0)
   }, 0)
 
@@ -100,13 +121,31 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           <div className="info-card">
             <h3>Thông tin xe</h3>
             <div className="info-row">
-              <span className="label">Dòng xe:</span>
-              <span className="value">{data.vehicleInfo.carModel}</span>
-            </div>
-            <div className="info-row">
               <span className="label">Biển số:</span>
               <span className="value">{data.vehicleInfo.licensePlate}</span>
             </div>
+            <div className="info-row">
+              <span className="label">Dòng xe:</span>
+              <span className="value">{data.vehicleInfo.carModel}</span>
+            </div>
+            {data.vehicleInfo.brand && (
+              <div className="info-row">
+                <span className="label">Hãng xe:</span>
+                <span className="value">{data.vehicleInfo.brand}</span>
+              </div>
+            )}
+            {data.vehicleInfo.year && (
+              <div className="info-row">
+                <span className="label">Năm sản xuất:</span>
+                <span className="value">{data.vehicleInfo.year}</span>
+              </div>
+            )}
+            {data.vehicleInfo.color && (
+              <div className="info-row">
+                <span className="label">Màu sắc:</span>
+                <span className="value">{data.vehicleInfo.color}</span>
+              </div>
+            )}
             {data.vehicleInfo.mileage && (
               <div className="info-row">
                 <span className="label">Số km:</span>
@@ -125,15 +164,22 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
                 <span>Tên dịch vụ</span>
                 <span>Giá</span>
               </div>
-              {data.serviceInfo.services.map(serviceId => {
-                const service = servicePricing[serviceId as keyof typeof servicePricing]
-                return (
-                  <div key={serviceId} className="service-row">
-                    <span className="service-name">{service?.name || serviceId}</span>
-                    <span className="service-price">{formatPrice(service?.price || 0)}</span>
-                  </div>
-                )
-              })}
+              {loading ? (
+                <div className="service-row">
+                  <span className="service-name">Đang tải...</span>
+                  <span className="service-price">—</span>
+                </div>
+              ) : (
+                data.serviceInfo.services.map(serviceId => {
+                  const service = services.find(s => s.id === Number(serviceId))
+                  return (
+                    <div key={serviceId} className="service-row">
+                      <span className="service-name">{service?.name || `Dịch vụ ${serviceId}`}</span>
+                      <span className="service-price">{formatPrice(service?.price || 0)}</span>
+                    </div>
+                  )
+                })
+              )}
               <div className="service-total">
                 <span className="total-label">Tổng cộng:</span>
                 <span className="total-price">{formatPrice(totalPrice)}</span>

@@ -3,11 +3,15 @@ import { ServiceManagementService, type Service as BackendService } from '@/serv
 import { CustomerService } from '@/services/customerService'
 import { VehicleService, type Vehicle } from '@/services/vehicleService'
 import CreateVehicleModal from './CreateVehicleModal'
+import api from '@/services/api'
 
 interface VehicleInfo {
   carModel: string
   mileage: string
   licensePlate: string
+  year?: string
+  color?: string
+  brand?: string
 }
 
 interface ServiceInfo {
@@ -24,6 +28,12 @@ interface CombinedServiceVehicleStepProps {
   onPrev: () => void
 }
 
+interface VehicleModel {
+  id: number
+  name: string
+  brand: string
+}
+
 const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   vehicleData,
   serviceData,
@@ -36,6 +46,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [servicesLoading, setServicesLoading] = useState(false)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [vehiclesLoading, setVehiclesLoading] = useState(false)
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
   const [openCreate, setOpenCreate] = useState(false)
 
   // Load active services
@@ -52,6 +64,45 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       }
     }
     loadServices()
+  }, [])
+
+  // Load vehicle models
+  useEffect(() => {
+    const loadVehicleModels = async () => {
+      setModelsLoading(true)
+      try {
+        console.log('Fetching vehicle models from /VehicleModel/active...')
+        const response = await api.get('/VehicleModel/active')
+        console.log('Vehicle models response:', response.data)
+        console.log('Response type:', typeof response.data)
+        console.log('Is array:', Array.isArray(response.data))
+        console.log('First item:', response.data?.[0])
+        
+        // Check if data is nested
+        let models = response.data
+        if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+          // Try common nested structures
+          models = response.data.data || response.data.models || response.data.items || response.data
+          console.log('Extracted models from nested structure:', models)
+        }
+        
+        console.log('Final models array:', models)
+        console.log('Models length:', models?.length)
+        setVehicleModels(models || [])
+      } catch (error: any) {
+        console.error('Error fetching vehicle models:', error)
+        console.error('Error details:', {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          data: error?.response?.data,
+          message: error?.message
+        })
+        setVehicleModels([])
+      } finally {
+        setModelsLoading(false)
+      }
+    }
+    loadVehicleModels()
   }, [])
 
   // Load current customer's vehicles
@@ -156,12 +207,26 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               value={vehicleData.carModel}
               onChange={(e) => onUpdateVehicle({ carModel: e.target.value })}
               required
+              disabled={modelsLoading}
             >
-              <option value="">Chọn dòng xe</option>
-              <option value="autoev-s1">AutoEV S1</option>
-              <option value="autoev-s2">AutoEV S2</option>
-              <option value="autoev-x">AutoEV X</option>
-              <option value="other">Khác</option>
+              <option value="">
+                {modelsLoading ? 'Đang tải...' : 'Chọn dòng xe'}
+              </option>
+              {vehicleModels.map((model, index) => {
+                console.log(`Model ${index}:`, model)
+                console.log(`Model ${index} name:`, model.name)
+                console.log(`Model ${index} brand:`, model.brand)
+                console.log(`Model ${index} id:`, model.id)
+                
+                const displayName = model.name || model.modelName || model.title || `Model ${index + 1}`
+                const brand = model.brand || model.brandName || ''
+                
+                return (
+                  <option key={model.id || `model-${index}`} value={displayName}>
+                    {displayName}{brand ? ` (${brand})` : ''}
+                  </option>
+                )
+              })}
             </select>
           </div>
           <div className="form-group">

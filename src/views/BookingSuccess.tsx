@@ -6,8 +6,9 @@ const BookingSuccess: React.FC = () => {
   const [searchParams] = useSearchParams()
   const [countdown, setCountdown] = useState(5)
   
-  const bookingId = searchParams.get('bookingId')
+  const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
   const amount = searchParams.get('amount')
+  const status = searchParams.get('status')
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -40,9 +41,14 @@ const BookingSuccess: React.FC = () => {
         </div>
         
         {/* Success Message */}
-        <h1 className="success-title">Thanh toán thành công!</h1>
+        <h1 className="success-title">
+          {status === 'PAID' ? 'Thanh toán thành công!' : 'Đặt lịch thành công!'}
+        </h1>
         <p className="success-subtitle">
-          Đặt lịch của bạn đã được xác nhận. Chúng tôi sẽ liên hệ với bạn sớm nhất.
+          {status === 'PAID' 
+            ? 'Thanh toán đã được xử lý thành công. Đặt lịch của bạn đã được xác nhận.'
+            : 'Đặt lịch của bạn đã được xác nhận. Chúng tôi sẽ liên hệ với bạn sớm nhất.'
+          }
         </p>
         
         {/* Booking Details */}

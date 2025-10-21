@@ -73,6 +73,14 @@
         }
       }
 
+      select {
+        option {
+          color: var(--text-primary);
+          background: var(--bg-card);
+          padding: .5rem;
+        }
+      }
+
       textarea {
         resize: vertical;
       }

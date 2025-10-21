@@ -23,6 +23,9 @@ interface VehicleInfo {
   carModel: string
   mileage: string
   licensePlate: string
+  year?: string
+  color?: string
+  brand?: string
 }
 
 interface ServiceInfo {
@@ -276,13 +279,19 @@ const ServiceBookingForm: React.FC = () => {
       // Choose serviceId or packageCode
       let serviceId: number | undefined = undefined
       if (bookingData.serviceInfo.services.length > 0) {
-        // If UI stored service ids as strings, pick first and map via service list
-        console.log('Getting active services...')
-        const svcList = await ServiceManagementService.getActiveServices({ pageSize: 100 })
-        console.log('Services response:', svcList)
-        const first = svcList.services[0]
-        serviceId = first?.id
-        console.log('Selected service ID:', serviceId)
+        // Get the selected service ID from bookingData.serviceInfo.services
+        const selectedServiceIdStr = bookingData.serviceInfo.services[0]
+        console.log('Selected service ID string:', selectedServiceIdStr)
+        
+        // Convert string to number
+        const selectedServiceIdNum = Number(selectedServiceIdStr)
+        if (!isNaN(selectedServiceIdNum) && selectedServiceIdNum > 0) {
+          serviceId = selectedServiceIdNum
+          console.log('Using selected service ID:', serviceId)
+        } else {
+          console.error('Invalid service ID:', selectedServiceIdStr)
+          throw new Error('Dịch vụ không hợp lệ')
+        }
       }
 
       // Hold slot before creating booking
@@ -315,10 +324,27 @@ const ServiceBookingForm: React.FC = () => {
        const resp = await createBooking(bookingPayload)
        console.log('Booking created successfully:', resp)
 
-       // Extract bookingId from response - CreateBookingResponse has bookingId directly
+       // Extract bookingId from response - check different possible structures
        let bookingId: number | null = null
-       if (resp?.bookingId) {
-         bookingId = Number(resp.bookingId)
+       
+       // Log full response to debug
+       console.log('Full booking response:', JSON.stringify(resp, null, 2))
+       
+       // Try different possible response structures
+       if (resp && typeof resp === 'object') {
+         // Direct properties
+         if ('bookingId' in resp && resp.bookingId) {
+           bookingId = Number(resp.bookingId)
+         } else if ('id' in resp && resp.id) {
+           bookingId = Number(resp.id)
+         } else if ('data' in resp && resp.data && typeof resp.data === 'object') {
+           // Nested data object
+           if ('bookingId' in resp.data && resp.data.bookingId) {
+             bookingId = Number(resp.data.bookingId)
+           } else if ('id' in resp.data && resp.data.id) {
+             bookingId = Number(resp.data.id)
+           }
+         }
        }
        
        console.log('Extracted booking ID:', bookingId)
@@ -335,13 +361,14 @@ const ServiceBookingForm: React.FC = () => {
          console.log('Payment link response:', link)
          if (link?.checkoutUrl) {
            // Use success URL from API response or fallback to default
-           const successUrl = link.successUrl || `${window.location.origin}/booking-success?bookingId=${bookingId}&amount=${resp.pricing.totalAmount}`
-           const cancelUrl = link.cancelUrl || `${window.location.origin}/booking`
+           const successUrl = (link as any).successUrl || `${window.location.origin}/payment-callback`
+           const cancelUrl = (link as any).cancelUrl || `${window.location.origin}/booking`
            
            const paymentUrl = new URL(link.checkoutUrl)
            paymentUrl.searchParams.set('returnUrl', successUrl)
            paymentUrl.searchParams.set('cancelUrl', cancelUrl)
            
+           console.log('Redirecting to payment:', paymentUrl.toString())
            window.location.href = paymentUrl.toString()
            return
          }
