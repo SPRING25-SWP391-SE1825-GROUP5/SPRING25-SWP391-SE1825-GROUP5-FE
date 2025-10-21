@@ -23,7 +23,7 @@ export const showErrorToast = (error: ApiError | string) => {
 
     toast.error(message, {
         duration: 5000,
-        position: 'top-right',
+        position: 'bottom-right',
         style: {
             background: '#fee2e2',
             color: '#dc2626',
@@ -42,7 +42,7 @@ export const showErrorToast = (error: ApiError | string) => {
 export const showSuccessToast = (message: string) => {
     toast.success(message, {
         duration: 3000,
-        position: 'top-right',
+        position: 'bottom-right',
         style: {
             background: '#dcfce7',
             color: '#16a34a',
@@ -61,7 +61,7 @@ export const showSuccessToast = (message: string) => {
 export const showWarningToast = (message: string) => {
     toast(message, {
         duration: 4000,
-        position: 'top-right',
+        position: 'bottom-right',
         icon: '⚠️',
         style: {
             background: '#fef3c7',

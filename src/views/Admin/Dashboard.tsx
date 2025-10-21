@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import api from '../../services/api'
+import toast from 'react-hot-toast'
 import {
   Users,
   Package,
@@ -3303,6 +3304,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     dispatch(logout())
+    toast.success('Đăng xuất thành công!')
     navigate('/auth/login')
   }
 
