@@ -1,0 +1,101 @@
+/* Leaflet CSS - Import this in your main CSS file or component */
+
+/* Fix for Leaflet marker icons */
+.leaflet-default-icon-path {
+  background-image: url('leaflet/dist/images/marker-icon.png');
+}
+
+.leaflet-default-shadow-path {
+  background-image: url('leaflet/dist/images/marker-shadow.png');
+}
+
+/* Custom marker styles */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Popup styles */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.leaflet-popup-tip {
+  background: white;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Control styles */
+.leaflet-control-zoom a {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  font-weight: bold;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-control-zoom a:hover {
+  background: #f9fafb;
+  border-color: #10b981;
+  color: #10b981;
+}
+
+/* Attribution */
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Loading spinner */
+.leaflet-map-loading {
+  position: relative;
+}
+
+.leaflet-map-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #10b981;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 1000;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .leaflet-popup-content {
+    font-size: 14px;
+  }
+  
+  .leaflet-control-zoom {
+    margin: 10px;
+  }
+  
+  .leaflet-control-zoom a {
+    width: 30px;
+    height: 30px;
+    line-height: 28px;
+    font-size: 16px;
+  }
+}

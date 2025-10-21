@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAppDispatch } from '@/store/hooks'
+import { logout } from '@/store/authSlice'
 import api from '../../services/api'
 import {
   Users,
@@ -3285,6 +3287,8 @@ function BookingManagementContent() {
 
 
 export default function AdminDashboard() {
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -3296,6 +3300,11 @@ export default function AdminDashboard() {
     if (r.includes('manager')) return false
     return r.includes('admin')
   })()
+
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/auth/login')
+  }
 
   // Page components
   const renderPageContent = () => {
@@ -4031,7 +4040,9 @@ export default function AdminDashboard() {
             background: 'var(--primary-50)',
             borderRadius: '8px',
             cursor: 'pointer'
-          }}>
+          }}
+          onClick={handleLogout}
+          >
             <div style={{
               width: '32px',
               height: '32px',

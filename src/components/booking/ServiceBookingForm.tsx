@@ -214,6 +214,21 @@ const ServiceBookingForm: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
+      // Calculate total price for payment
+      const totalPrice = bookingData.serviceInfo.services.reduce(async (sum, serviceId) => {
+        try {
+          const services = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+          const service = services.services?.find(s => s.id === Number(serviceId))
+          return (await sum) + (service?.price || 0)
+        } catch (error) {
+          console.error('Error fetching service price:', error)
+          return await sum
+        }
+      }, Promise.resolve(0))
+      
+      const finalTotalPrice = await totalPrice
+      console.log('Total price calculated:', finalTotalPrice)
+
       // Resolve current user -> customerId
       console.log('Getting current customer...')
       const me = await CustomerService.getCurrentCustomer()
@@ -351,41 +366,48 @@ const ServiceBookingForm: React.FC = () => {
        
        if (!bookingId || isNaN(bookingId)) {
          console.error('Invalid booking ID:', bookingId, 'from response:', resp)
-         alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+         // Redirect to booking success page even without valid booking ID
+         const fallbackUrl = `/booking-success?bookingId=unknown&amount=${finalTotalPrice}`
+         window.location.href = fallbackUrl
          return
        }
 
-       // Payment link
+       // Payment link - redirect to QR payment page
        try {
          const link = await createBookingPaymentLink(bookingId)
          console.log('Payment link response:', link)
          if (link?.checkoutUrl) {
-           // Use success URL from API response or fallback to default
-           const successUrl = (link as any).successUrl || `${window.location.origin}/payment-callback`
-           const cancelUrl = (link as any).cancelUrl || `${window.location.origin}/booking`
-           
-           const paymentUrl = new URL(link.checkoutUrl)
-           paymentUrl.searchParams.set('returnUrl', successUrl)
-           paymentUrl.searchParams.set('cancelUrl', cancelUrl)
-           
-           console.log('Redirecting to payment:', paymentUrl.toString())
-           window.location.href = paymentUrl.toString()
+           // Redirect to QR payment page to show QR code
+           const qrUrl = `/payment-qr?bookingId=${bookingId}&paymentUrl=${encodeURIComponent(link.checkoutUrl)}&amount=${finalTotalPrice}`
+           console.log('Redirecting to QR payment page:', qrUrl)
+           window.location.href = qrUrl
+           return
+         } else {
+           console.warn('No checkoutUrl in payment response:', link)
+           // For debugging, redirect to debug page
+           const debugUrl = `/qr-debug?bookingId=${bookingId}&paymentUrl=${encodeURIComponent(JSON.stringify(link))}&amount=${finalTotalPrice}`
+           console.log('Redirecting to debug page:', debugUrl)
+           window.location.href = debugUrl
            return
          }
        } catch (paymentError) {
          console.error('Payment link error:', paymentError)
        }
 
-       alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+       // Fallback: redirect to booking success page (no payment required)
+       console.log('No payment URL available, redirecting to booking success')
+       const fallbackUrl = `/booking-success?bookingId=${bookingId}&amount=${finalTotalPrice}`
+       window.location.href = fallbackUrl
     } catch (error: any) {
       console.error('Error submitting booking:', error)
       console.error('Error response:', error.response?.data)
       console.error('Error status:', error.response?.status)
       console.error('Error message:', error.message)
       
-      // Show user-friendly error message
+      // Show user-friendly error message - redirect to payment cancel page
       const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đặt lịch'
-      alert(errorMessage)
+      const cancelUrl = `/payment-cancel?reason=BOOKING_FAILED&error=${encodeURIComponent(errorMessage)}`
+      window.location.href = cancelUrl
     }
   }
 

@@ -8,6 +8,7 @@ import { validateLoginFormV2 } from "@/utils/validation";
 import { LOADING_MESSAGES } from "@/config/ui";
 import { handleApiError, showSuccessToast } from "@/utils/errorHandler";
 import toast from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
@@ -17,6 +18,7 @@ export default function LoginPage() {
 
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -489,36 +491,65 @@ export default function LoginPage() {
             }}>
               Mật khẩu
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => handlePasswordChange(e.target.value)}
-              placeholder=" "
-              required
-              style={{
-                width: '100%',
-                padding: '16px 20px',
-                border: `1.5px solid ${fieldErrors.password ? '#f87171' : '#e2e8f0'}`,
-                borderRadius: '12px',
-                background: 'white',
-                color: '#2d3748',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                boxSizing: 'border-box',
-                outline: 'none',
-                height: '56px'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#10b981'
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = fieldErrors.password ? '#f87171' : '#e2e8f0'
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => handlePasswordChange(e.target.value)}
+                placeholder=" "
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px 50px 16px 20px',
+                  border: `1.5px solid ${fieldErrors.password ? '#f87171' : '#e2e8f0'}`,
+                  borderRadius: '12px',
+                  background: 'white',
+                  color: '#2d3748',
+                  fontSize: '16px',
+                  transition: 'all 0.3s ease',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  height: '56px'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#10b981'
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = fieldErrors.password ? '#f87171' : '#e2e8f0'
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#6b7280',
+                  transition: 'color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#10b981'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#6b7280'
+                }}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
             <Link 
               to="/auth/forgot-password" 
               style={{

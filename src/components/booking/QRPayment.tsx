@@ -45,8 +45,11 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         console.log('QR payment created:', qrPaymentResponse)
         setPaymentData(qrPaymentResponse)
         
+        // Use paymentUrl from PayOS if available, otherwise use qrCode
+        const qrData = qrPaymentResponse.paymentUrl || qrPaymentResponse.qrCode
+        
         // Generate QR code from the response
-        const dataUrl = await QRCode.toDataURL(qrPaymentResponse.qrCode, {
+        const dataUrl = await QRCode.toDataURL(qrData, {
           width: 300,
           margin: 2,
           color: {
@@ -59,7 +62,7 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         
         // Also draw on canvas
         if (canvasRef.current) {
-          await QRCode.toCanvas(canvasRef.current, qrPaymentResponse.qrCode, {
+          await QRCode.toCanvas(canvasRef.current, qrData, {
             width: 300,
             margin: 2,
             color: {
@@ -114,9 +117,13 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         setPaymentStatus(statusResponse.status)
         
         if (statusResponse.status === 'COMPLETED') {
-          onPaymentSuccess()
+          // Redirect to payment success page instead of calling onPaymentSuccess
+          const successUrl = `/payment-success?bookingId=${reservation.id}&status=PAID&amount=${reservation.totalAmount}`
+          window.location.href = successUrl
         } else if (statusResponse.status === 'FAILED' || statusResponse.status === 'CANCELLED') {
-          setError(statusResponse.failureReason || 'Thanh toán thất bại')
+          // Redirect to payment cancel page instead of showing error
+          const cancelUrl = `/payment-cancel?bookingId=${reservation.id}&amount=${reservation.totalAmount}&reason=${statusResponse.failureReason || 'PAYMENT_FAILED'}`
+          window.location.href = cancelUrl
         }
       } catch (error) {
         console.error('Error checking payment status:', error)
@@ -254,14 +261,20 @@ const QRPayment: React.FC<QRPaymentProps> = ({
 
         <div className="qr-payment-actions">
           <button 
-            onClick={onPaymentCancel}
+            onClick={() => {
+              const cancelUrl = `/payment-cancel?bookingId=${reservation.id}&amount=${reservation.totalAmount}&reason=USER_CANCELLED`
+              window.location.href = cancelUrl
+            }}
             className="cancel-btn"
           >
             Hủy thanh toán
           </button>
           {paymentStatus === 'COMPLETED' && (
             <button 
-              onClick={onPaymentSuccess}
+              onClick={() => {
+                const successUrl = `/payment-success?bookingId=${reservation.id}&status=PAID&amount=${reservation.totalAmount}`
+                window.location.href = successUrl
+              }}
               className="success-btn"
             >
               Hoàn thành

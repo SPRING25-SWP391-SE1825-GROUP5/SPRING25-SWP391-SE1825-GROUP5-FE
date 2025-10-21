@@ -21,6 +21,24 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState<string>('')
 
+  // Danh sách màu sắc phổ biến cho xe
+  const colorOptions = [
+    { value: '', label: 'Chọn màu' },
+    { value: 'Đen', label: 'Đen' },
+    { value: 'Trắng', label: 'Trắng' },
+    { value: 'Bạc', label: 'Bạc' },
+    { value: 'Xám', label: 'Xám' },
+    { value: 'Đỏ', label: 'Đỏ' },
+    { value: 'Xanh dương', label: 'Xanh dương' },
+    { value: 'Xanh lá', label: 'Xanh lá' },
+    { value: 'Vàng', label: 'Vàng' },
+    { value: 'Cam', label: 'Cam' },
+    { value: 'Nâu', label: 'Nâu' },
+    { value: 'Tím', label: 'Tím' },
+    { value: 'Hồng', label: 'Hồng' },
+    { value: 'Khác', label: 'Khác' }
+  ]
+
   useEffect(() => {
     if (!open) return
     const load = async () => {
@@ -140,7 +158,16 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
           </label>
           <label>
             Màu *
-            <input value={form.color} onChange={(e) => setField('color', e.target.value)} />
+            <select 
+              value={form.color} 
+              onChange={(e) => setField('color', e.target.value)}
+            >
+              {colorOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             {errors.color && <span className="error">{errors.color}</span>}
           </label>
           <label>
@@ -163,7 +190,9 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         .modal { background: #fff; border-radius: 12px; padding: 20px; width: 520px; max-width: calc(100% - 24px); box-shadow: 0 10px 30px rgba(0,0,0,.15); border: 1px solid #e5e7eb; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
         label { display: flex; flex-direction: column; gap: 6px; font-size: .9rem; color: #374151; }
-        input { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; }
+        input, select { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+        select { background-color: #fff; cursor: pointer; }
+        select:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1); }
         .error { color: #ef4444; font-size: .75rem; }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
         .actions { display: flex; justify-content: flex-end; gap: 8px; }

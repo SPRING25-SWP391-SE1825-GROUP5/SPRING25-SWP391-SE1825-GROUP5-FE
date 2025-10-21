@@ -189,7 +189,11 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 const vid = Number(e.target.value)
                 const v = vehicles.find(x => x.vehicleId === vid)
                 if (v) {
-                  onUpdateVehicle({ licensePlate: v.licensePlate, carModel: v.vin })
+                  onUpdateVehicle({ 
+                    licensePlate: v.licensePlate, 
+                    carModel: v.vin,
+                    mileage: v.currentMileage?.toString() || ''
+                  })
                 }
               }}
             >
@@ -218,8 +222,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 console.log(`Model ${index} brand:`, model.brand)
                 console.log(`Model ${index} id:`, model.id)
                 
-                const displayName = model.name || model.modelName || model.title || `Model ${index + 1}`
-                const brand = model.brand || model.brandName || ''
+                const displayName = model.name || `Model ${index + 1}`
+                const brand = model.brand || ''
                 
                 return (
                   <option key={model.id || `model-${index}`} value={displayName}>
@@ -253,7 +257,16 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           onClose={() => setOpenCreate(false)}
           onCreated={(veh) => {
             setVehicles((list) => [veh, ...list])
-            onUpdateVehicle({ licensePlate: veh.licensePlate, carModel: veh.vin })
+            // Auto-fill vehicle information from the created vehicle
+            // Note: Vehicle interface has: licensePlate, vin, color, currentMileage
+            // VehicleInfo interface expects: carModel, mileage, licensePlate, year?, color?, brand?
+            onUpdateVehicle({ 
+              licensePlate: veh.licensePlate, 
+              carModel: veh.vin, // Map VIN to carModel field
+              mileage: veh.currentMileage?.toString() || '',
+              color: veh.color || ''
+              // year and brand are not available in Vehicle interface
+            })
             setOpenCreate(false)
           }}
         />
@@ -271,7 +284,15 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       <style>{`
         .csv-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1.25rem 0; }
         .csv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        .card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+        .card { 
+          background: var(--bg-card); 
+          border: 1px solid var(--border-primary); 
+          border-radius: 12px; 
+          padding: 1.25rem; 
+          box-shadow: 0 2px 8px rgba(0,0,0,.04);
+          box-sizing: border-box;
+          overflow: hidden;
+        }
         .csv-section-title { margin: 0 0 .75rem 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
         .service-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin-bottom: 1rem; }
         .service-item { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
@@ -281,7 +302,16 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .service-item input:checked + span { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
         .service-item input:focus-visible + span { outline: 2px solid var(--progress-current); outline-offset: 2px; }
         .form-group { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; }
-        .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; background: #fff; border: 1px solid var(--border-primary); color: var(--text-primary); border-radius: 8px; padding: .6rem .75rem; }
+        .form-group input[type="text"], .form-group select, .form-group textarea { 
+          width: 100%; 
+          box-sizing: border-box;
+          background: #fff; 
+          border: 1px solid var(--border-primary); 
+          color: var(--text-primary); 
+          border-radius: 8px; 
+          padding: .6rem .75rem; 
+          max-width: 100%;
+        }
         .form-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: .5rem; }
         @media (max-width: 768px) { .csv-grid { grid-template-columns: 1fr; } .form-actions { justify-content: stretch; } }
       `}</style>
