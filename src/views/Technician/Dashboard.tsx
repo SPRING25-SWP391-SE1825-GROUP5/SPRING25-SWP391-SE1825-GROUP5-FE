@@ -12,7 +12,6 @@ import {
   AlertCircle,
   User,
   Bell,
-  Search,
   Menu,
   Settings,
   BarChart3,
@@ -786,16 +785,6 @@ export default function TechnicianDashboard() {
           </h2>
 
           <div className="technician-dashboard__main__header__actions">
-            {/* Search */}
-            <div className="technician-dashboard__main__header__actions__search">
-              <Search size={16} className="technician-dashboard__main__header__actions__search__icon" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm..."
-                className="technician-dashboard__main__header__actions__search__input"
-              />
-            </div>
-
             {/* Notifications */}
             <div className="technician-dashboard__main__header__actions__notification">
               <Bell size={18} style={{ color: 'var(--text-secondary)' }} />
