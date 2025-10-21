@@ -361,16 +361,50 @@ export const validateAddress255 = (address?: string): FieldValidation => {
 }
 
 // Duplicate validation functions
-export const validateEmailNotExists = (email: string): FieldValidation => {
-  // This would typically make an API call to check if email exists
-  // For now, return valid - actual check happens on server
-  return { isValid: true }
+export const validateEmailNotExists = async (email: string, checkEmailExists: (email: string) => Promise<any>): Promise<FieldValidation> => {
+  if (!email || !email.trim()) {
+    return { isValid: true } // Let required validation handle empty values
+  }
+
+  // First check format
+  const formatValidation = validateGmail(email)
+  if (!formatValidation.isValid) {
+    return formatValidation
+  }
+
+  try {
+    const result = await checkEmailExists(email)
+    if (result.success && result.exists) {
+      return { isValid: false, error: 'Email này đã được sử dụng' }
+    }
+    return { isValid: true }
+  } catch (error) {
+    console.error('Email validation error:', error)
+    return { isValid: true } // Don't block on API errors
+  }
 }
 
-export const validatePhoneNotExists = (phone: string): FieldValidation => {
-  // This would typically make an API call to check if phone exists
-  // For now, return valid - actual check happens on server
-  return { isValid: true }
+export const validatePhoneNotExists = async (phone: string, checkPhoneExists: (phone: string) => Promise<any>): Promise<FieldValidation> => {
+  if (!phone || !phone.trim()) {
+    return { isValid: true } // Let required validation handle empty values
+  }
+
+  // First check format
+  const formatValidation = validateVNPhone10(phone)
+  if (!formatValidation.isValid) {
+    return formatValidation
+  }
+
+  try {
+    const result = await checkPhoneExists(phone)
+    if (result.success && result.exists) {
+      return { isValid: false, error: 'Số điện thoại này đã được sử dụng' }
+    }
+    return { isValid: true }
+  } catch (error) {
+    console.error('Phone validation error:', error)
+    return { isValid: true } // Don't block on API errors
+  }
 }
 
 // Server error mapping utility
@@ -398,11 +432,12 @@ export const mapServerErrorsToFields = (serverErrors: any): Record<string, strin
   if (Array.isArray(serverErrors)) {
     // Handle array format: ["Email already exists", "Phone already exists"]
     serverErrors.forEach((error: string) => {
-      if (error.toLowerCase().includes('email')) {
+      const lowerError = error.toLowerCase()
+      if (lowerError.includes('email') || lowerError.includes('mail')) {
         fieldErrors.email = 'Email này đã được sử dụng'
-      } else if (error.toLowerCase().includes('phone')) {
+      } else if (lowerError.includes('phone') || lowerError.includes('số điện thoại') || lowerError.includes('phone number')) {
         fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
-      } else if (error.toLowerCase().includes('password')) {
+      } else if (lowerError.includes('password')) {
         fieldErrors.password = 'Mật khẩu không hợp lệ'
       }
     })
@@ -411,15 +446,19 @@ export const mapServerErrorsToFields = (serverErrors: any): Record<string, strin
     Object.keys(serverErrors).forEach(key => {
       const errorMessage = serverErrors[key]
       if (errorMessage) {
+        const lowerKey = key.toLowerCase()
+        const lowerMessage = errorMessage.toLowerCase()
+        
         // Check for duplicate errors
-        if (errorMessage.toLowerCase().includes('already exists') || 
-            errorMessage.toLowerCase().includes('already registered') ||
-            errorMessage.toLowerCase().includes('đã tồn tại') ||
-            errorMessage.toLowerCase().includes('đã được sử dụng')) {
+        if (lowerMessage.includes('already exists') || 
+            lowerMessage.includes('already registered') ||
+            lowerMessage.includes('đã tồn tại') ||
+            lowerMessage.includes('đã được sử dụng') ||
+            lowerMessage.includes('already in use')) {
           
-          if (key.toLowerCase().includes('email')) {
+          if (lowerKey.includes('email') || lowerKey.includes('mail')) {
             fieldErrors.email = 'Email này đã được sử dụng'
-          } else if (key.toLowerCase().includes('phone')) {
+          } else if (lowerKey.includes('phone') || lowerKey.includes('phoneNumber') || lowerKey.includes('phone_number')) {
             fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
           } else {
             fieldErrors[key] = errorMappings[key] || errorMessage
@@ -432,9 +471,10 @@ export const mapServerErrorsToFields = (serverErrors: any): Record<string, strin
     })
   } else if (typeof serverErrors === 'string') {
     // Handle string format: "Email already exists"
-    if (serverErrors.toLowerCase().includes('email')) {
+    const lowerError = serverErrors.toLowerCase()
+    if (lowerError.includes('email') || lowerError.includes('mail')) {
       fieldErrors.email = 'Email này đã được sử dụng'
-    } else if (serverErrors.toLowerCase().includes('phone')) {
+    } else if (lowerError.includes('phone') || lowerError.includes('số điện thoại') || lowerError.includes('phone number')) {
       fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
     }
   }
@@ -474,5 +514,38 @@ export const validateRegisterFormStrict = (data: {
   const genderV = validateGender(data.gender); if (!genderV.isValid) errors.gender = genderV.error!
   const addrV = validateAddress255(data.address); if (!addrV.isValid) errors.address = addrV.error!
   const avatarUrlV = validateAddress255(data.avatarUrl); if (!avatarUrlV.isValid) errors.avatarUrl = avatarUrlV.error!
+  return { isValid: Object.keys(errors).length === 0, errors }
+}
+
+// Async version with duplicate validation
+export const validateRegisterFormStrictAsync = async (data: {
+  fullName: string
+  email: string
+  password: string
+  confirmPassword: string
+  phoneNumber: string
+  dateOfBirth: string
+  gender: 'MALE' | 'FEMALE'
+  address?: string
+  avatarUrl?: string
+}, checkEmailExists: (email: string) => Promise<any>, checkPhoneExists: (phone: string) => Promise<any>): Promise<ValidationResult> => {
+  const errors: Record<string, string> = {}
+  
+  // Basic validations
+  const nameV = validateFullName(data.fullName); if (!nameV.isValid) errors.fullName = nameV.error!
+  const passV = validatePassword(data.password); if (!passV.isValid) errors.password = passV.error!
+  const cpassV = validateConfirmPassword(data.password, data.confirmPassword); if (!cpassV.isValid) errors.confirmPassword = cpassV.error!
+  const dobV = validateDOB16(data.dateOfBirth); if (!dobV.isValid) errors.dateOfBirth = dobV.error!
+  const genderV = validateGender(data.gender); if (!genderV.isValid) errors.gender = genderV.error!
+  const addrV = validateAddress255(data.address); if (!addrV.isValid) errors.address = addrV.error!
+  const avatarUrlV = validateAddress255(data.avatarUrl); if (!avatarUrlV.isValid) errors.avatarUrl = avatarUrlV.error!
+  
+  // Async duplicate validations
+  const emailV = await validateEmailNotExists(data.email, checkEmailExists)
+  if (!emailV.isValid) errors.email = emailV.error!
+  
+  const phoneV = await validatePhoneNotExists(data.phoneNumber, checkPhoneExists)
+  if (!phoneV.isValid) errors.phoneNumber = phoneV.error!
+  
   return { isValid: Object.keys(errors).length === 0, errors }
 }
