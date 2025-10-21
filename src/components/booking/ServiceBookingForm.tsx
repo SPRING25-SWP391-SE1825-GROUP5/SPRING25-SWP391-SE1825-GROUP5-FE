@@ -3,11 +3,14 @@ import { useAppSelector } from '@/store/hooks'
 import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
-import VehicleInfoStep from './VehicleInfoStep'
-import ServiceSelectionStep from './ServiceSelectionStep'
+import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
 import LocationTimeStep from './LocationTimeStep'
 import AccountStep from './AccountStep'
 import ConfirmationStep from './ConfirmationStep'
+import { VehicleService } from '@/services/vehicleService'
+import { CustomerService } from '@/services/customerService'
+import { ServiceManagementService } from '@/services/serviceManagementService'
+import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
 
 // Types
 interface CustomerInfo {
@@ -20,6 +23,9 @@ interface VehicleInfo {
   carModel: string
   mileage: string
   licensePlate: string
+  year?: string
+  color?: string
+  brand?: string
 }
 
 interface ServiceInfo {
@@ -28,11 +34,12 @@ interface ServiceInfo {
 }
 
 interface LocationTimeInfo {
-  province: string
-  ward: string
-  serviceType: 'workshop' | 'mobile'
+  centerId: string
+  technicianId: string
+  address?: string
   date: string
   time: string
+  technicianSlotId?: number
 }
 
 interface AccountInfo {
@@ -54,6 +61,7 @@ const ServiceBookingForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
+  const [currentServiceId, setCurrentServiceId] = useState<number | undefined>(undefined)
   const auth = useAppSelector((s) => s.auth)
   
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -72,9 +80,9 @@ const ServiceBookingForm: React.FC = () => {
       notes: ''
     },
     locationTimeInfo: {
-      province: '',
-      ward: '',
-      serviceType: 'workshop',
+      centerId: '',
+      technicianId: '',
+      address: '',
       date: '',
       time: ''
     },
@@ -106,36 +114,58 @@ const ServiceBookingForm: React.FC = () => {
     }
   }, [auth?.token, auth?.user])
 
+  // Update serviceId when serviceInfo changes
+  useEffect(() => {
+    const updateServiceId = async () => {
+      if (bookingData.serviceInfo.services.length > 0) {
+        try {
+          const svcList = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+          const firstServiceId = svcList.services[0]?.id
+          setCurrentServiceId(firstServiceId)
+        } catch (error) {
+          console.error('Error fetching services:', error)
+          setCurrentServiceId(undefined)
+        }
+      } else {
+        setCurrentServiceId(undefined)
+      }
+    }
+
+    updateServiceId()
+  }, [bookingData.serviceInfo.services])
+
   // Kiểm tra xem bước hiện tại đã hoàn thành chưa
   const isStepCompleted = (step: number): boolean => {
     if (isGuest) {
-      // Khách vãng lai: 6 bước
+      // Khách vãng lai: 4 bước (Dịch vụ & Xe -> Địa điểm -> Tài khoản -> Xác nhận)
       switch (step) {
         case 1:
-          return !!(bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
+          return (
+            bookingData.serviceInfo.services.length > 0 &&
+            !!bookingData.vehicleInfo.carModel &&
+            !!bookingData.vehicleInfo.licensePlate
+          )
         case 2:
-          return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
+          return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 3:
-          return bookingData.serviceInfo.services.length > 0
+          return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword && bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
         case 4:
-          return !!(bookingData.locationTimeInfo.province && bookingData.locationTimeInfo.ward && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
-        case 5:
-          return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword)
-        case 6:
-          return true // Bước xác nhận luôn có thể hoàn thành
+          return true
         default:
           return false
       }
     } else {
-      // Đã đăng nhập: 4 bước
+      // Đã đăng nhập: 3 bước (Dịch vụ & Xe -> Địa điểm -> Xác nhận)
       switch (step) {
         case 1:
-          return bookingData.serviceInfo.services.length > 0
+          return (
+            bookingData.serviceInfo.services.length > 0 &&
+            !!bookingData.vehicleInfo.carModel &&
+            !!bookingData.vehicleInfo.licensePlate
+          )
         case 2:
-          return !!(bookingData.vehicleInfo.carModel && bookingData.vehicleInfo.licensePlate)
+          return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 3:
-          return !!(bookingData.locationTimeInfo.province && bookingData.locationTimeInfo.ward && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
-        case 4:
           return true // Bước xác nhận luôn có thể hoàn thành
         default:
           return false
@@ -146,7 +176,7 @@ const ServiceBookingForm: React.FC = () => {
   // Cập nhật completed steps khi data thay đổi
   useEffect(() => {
     const newCompletedSteps: number[] = []
-    const maxSteps = isGuest ? 6 : 4
+    const maxSteps = isGuest ? 4 : 3
     for (let i = 1; i <= maxSteps; i++) {
       if (isStepCompleted(i)) {
         newCompletedSteps.push(i)
@@ -156,7 +186,7 @@ const ServiceBookingForm: React.FC = () => {
   }, [bookingData, isGuest])
 
   const handleNext = () => {
-    const maxSteps = isGuest ? 6 : 4
+    const maxSteps = isGuest ? 4 : 3
     if (currentStep < maxSteps) {
       setCurrentStep(currentStep + 1)
     }
@@ -184,61 +214,208 @@ const ServiceBookingForm: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      // TODO: Gọi API để tạo booking
-      console.log('Submitting booking data:', bookingData)
+      // Resolve current user -> customerId
+      console.log('Getting current customer...')
+      const me = await CustomerService.getCurrentCustomer()
+      console.log('Current customer response:', me)
+      const customerId: number | null = me?.data?.customerId || null
+      console.log('Customer ID:', customerId)
+      if (!customerId) throw new Error('Không xác định được khách hàng')
+
+      // Resolve vehicle: nếu đã có xe theo biển số -> dùng luôn, ngược lại tạo mới
+      const license = bookingData.vehicleInfo.licensePlate.trim()
+      if (!license) throw new Error('Thiếu biển số xe')
+      console.log('License plate:', license)
+
+      // Thử lấy danh sách xe của khách và tìm theo biển số
+      let vehicleId: number | null = null
+      try {
+        console.log('Getting customer vehicles...')
+        const list = await VehicleService.getCustomerVehicles(customerId)
+        console.log('Customer vehicles response:', list)
+        const found = list?.data?.vehicles?.find?.((v: any) => (v.licensePlate || '').toLowerCase() === license.toLowerCase())
+        if (found?.vehicleId) {
+          vehicleId = Number(found.vehicleId)
+          console.log('Found existing vehicle ID:', vehicleId)
+        }
+      } catch (error) {
+        console.error('Error getting customer vehicles:', error)
+      }
+
+      // Nếu chưa có, thử API search theo VIN/biển số
+      if (!vehicleId) {
+        try {
+          console.log('Searching vehicle by license...')
+          const sr = await VehicleService.searchVehicle(license)
+          console.log('Vehicle search response:', sr)
+          if (sr?.data?.vehicleId) {
+            vehicleId = Number(sr.data.vehicleId)
+            console.log('Found vehicle by search ID:', vehicleId)
+          }
+        } catch (error) {
+          console.error('Error searching vehicle:', error)
+        }
+      }
+
+      // Nếu vẫn chưa có, tạo xe mới
+      if (!vehicleId) {
+        console.log('Creating new vehicle...')
+        const createVeh = await VehicleService.createVehicle({
+          customerId,
+          vin: bookingData.vehicleInfo.carModel || 'UNKNOWN',
+          licensePlate: license,
+          color: 'Unknown',
+          currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
+          lastServiceDate: undefined,
+          purchaseDate: undefined
+        })
+        console.log('Create vehicle response:', createVeh)
+        vehicleId = Number(createVeh?.data?.vehicleId)
+        console.log('Created vehicle ID:', vehicleId)
+      }
+
+      if (!vehicleId) throw new Error('Không thể xác định VehicleID')
+
+      // Choose serviceId or packageCode
+      let serviceId: number | undefined = undefined
+      if (bookingData.serviceInfo.services.length > 0) {
+        // Get the selected service ID from bookingData.serviceInfo.services
+        const selectedServiceIdStr = bookingData.serviceInfo.services[0]
+        console.log('Selected service ID string:', selectedServiceIdStr)
+        
+        // Convert string to number
+        const selectedServiceIdNum = Number(selectedServiceIdStr)
+        if (!isNaN(selectedServiceIdNum) && selectedServiceIdNum > 0) {
+          serviceId = selectedServiceIdNum
+          console.log('Using selected service ID:', serviceId)
+        } else {
+          console.error('Invalid service ID:', selectedServiceIdStr)
+          throw new Error('Dịch vụ không hợp lệ')
+        }
+      }
+
+      // Hold slot before creating booking
+      if (!bookingData.locationTimeInfo.technicianSlotId || !bookingData.locationTimeInfo.centerId) {
+        throw new Error('Thiếu slot hoặc trung tâm')
+      }
       
-      // Hiển thị thông báo thành công
-      alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
-      
-      // Reset form hoặc redirect
-      // window.location.href = '/booking-success'
-    } catch (error) {
+      console.log('Location time info:', bookingData.locationTimeInfo)
+      console.log('Holding slot...')
+      const hold = await holdSlot({
+        centerId: Number(bookingData.locationTimeInfo.centerId),
+        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
+        technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
+        date: bookingData.locationTimeInfo.date
+      })
+      console.log('Hold response:', hold)
+
+      // Create booking
+      const bookingPayload = {
+        customerId,
+        vehicleId: Number(vehicleId),
+        centerId: Number(bookingData.locationTimeInfo.centerId),
+        bookingDate: bookingData.locationTimeInfo.date,
+        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
+        technicianId: Number(bookingData.locationTimeInfo.technicianId),
+        specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
+        serviceId: serviceId || undefined
+      }
+       console.log('Creating booking with data:', bookingPayload)
+       const resp = await createBooking(bookingPayload)
+       console.log('Booking created successfully:', resp)
+
+       // Extract bookingId from response - check different possible structures
+       let bookingId: number | null = null
+       
+       // Log full response to debug
+       console.log('Full booking response:', JSON.stringify(resp, null, 2))
+       
+       // Try different possible response structures
+       if (resp && typeof resp === 'object') {
+         // Direct properties
+         if ('bookingId' in resp && resp.bookingId) {
+           bookingId = Number(resp.bookingId)
+         } else if ('id' in resp && resp.id) {
+           bookingId = Number(resp.id)
+         } else if ('data' in resp && resp.data && typeof resp.data === 'object') {
+           // Nested data object
+           if ('bookingId' in resp.data && resp.data.bookingId) {
+             bookingId = Number(resp.data.bookingId)
+           } else if ('id' in resp.data && resp.data.id) {
+             bookingId = Number(resp.data.id)
+           }
+         }
+       }
+       
+       console.log('Extracted booking ID:', bookingId)
+       
+       if (!bookingId || isNaN(bookingId)) {
+         console.error('Invalid booking ID:', bookingId, 'from response:', resp)
+         alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+         return
+       }
+
+       // Payment link
+       try {
+         const link = await createBookingPaymentLink(bookingId)
+         console.log('Payment link response:', link)
+         if (link?.checkoutUrl) {
+           // Use success URL from API response or fallback to default
+           const successUrl = (link as any).successUrl || `${window.location.origin}/payment-callback`
+           const cancelUrl = (link as any).cancelUrl || `${window.location.origin}/booking`
+           
+           const paymentUrl = new URL(link.checkoutUrl)
+           paymentUrl.searchParams.set('returnUrl', successUrl)
+           paymentUrl.searchParams.set('cancelUrl', cancelUrl)
+           
+           console.log('Redirecting to payment:', paymentUrl.toString())
+           window.location.href = paymentUrl.toString()
+           return
+         }
+       } catch (paymentError) {
+         console.error('Payment link error:', paymentError)
+       }
+
+       alert('Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.')
+    } catch (error: any) {
       console.error('Error submitting booking:', error)
-      alert('Có lỗi xảy ra. Vui lòng thử lại.')
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
+      console.error('Error message:', error.message)
+      
+      // Show user-friendly error message
+      const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đặt lịch'
+      alert(errorMessage)
     }
   }
 
   const renderCurrentStep = () => {
     // Logic điều hướng thông minh dựa trên trạng thái đăng nhập
     if (isGuest) {
-      // Khách vãng lai: 6 bước đầy đủ
+      // Khách vãng lai: 4 bước
       switch (currentStep) {
         case 1:
           return (
-            <CustomerInfoStep
-              data={bookingData.customerInfo}
-              onUpdate={(data) => updateBookingData('customerInfo', data)}
+            <CombinedServiceVehicleStep
+              vehicleData={bookingData.vehicleInfo}
+              serviceData={bookingData.serviceInfo}
+              onUpdateVehicle={(data) => updateBookingData('vehicleInfo', data)}
+              onUpdateService={(data) => updateBookingData('serviceInfo', data)}
               onNext={handleNext}
+              onPrev={handlePrev}
             />
           )
         case 2:
-          return (
-            <VehicleInfoStep
-              data={bookingData.vehicleInfo}
-              onUpdate={(data) => updateBookingData('vehicleInfo', data)}
-              onNext={handleNext}
-              onPrev={handlePrev}
-            />
-          )
-        case 3:
-          return (
-            <ServiceSelectionStep
-              data={bookingData.serviceInfo}
-              onUpdate={(data) => updateBookingData('serviceInfo', data)}
-              onNext={handleNext}
-              onPrev={handlePrev}
-            />
-          )
-        case 4:
           return (
             <LocationTimeStep
               data={bookingData.locationTimeInfo}
               onUpdate={(data) => updateBookingData('locationTimeInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
+              serviceId={currentServiceId}
             />
           )
-        case 5:
+        case 3:
           return (
             <AccountStep
               data={bookingData.accountInfo || { username: '', password: '', confirmPassword: '' }}
@@ -247,7 +424,7 @@ const ServiceBookingForm: React.FC = () => {
               onPrev={handlePrev}
             />
           )
-        case 6:
+        case 4:
           return (
             <ConfirmationStep
               data={bookingData}
@@ -260,36 +437,30 @@ const ServiceBookingForm: React.FC = () => {
           return null
       }
     } else {
-      // Đã đăng nhập: 4 bước (bỏ qua bước 1 và 5)
+      // Đã đăng nhập: 3 bước
       switch (currentStep) {
         case 1:
           return (
-            <ServiceSelectionStep
-              data={bookingData.serviceInfo}
-              onUpdate={(data) => updateBookingData('serviceInfo', data)}
+            <CombinedServiceVehicleStep
+              vehicleData={bookingData.vehicleInfo}
+              serviceData={bookingData.serviceInfo}
+              onUpdateVehicle={(data) => updateBookingData('vehicleInfo', data)}
+              onUpdateService={(data) => updateBookingData('serviceInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
             />
           )
         case 2:
           return (
-            <VehicleInfoStep
-              data={bookingData.vehicleInfo}
-              onUpdate={(data) => updateBookingData('vehicleInfo', data)}
-              onNext={handleNext}
-              onPrev={handlePrev}
-            />
-          )
-        case 3:
-          return (
             <LocationTimeStep
               data={bookingData.locationTimeInfo}
               onUpdate={(data) => updateBookingData('locationTimeInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
+              serviceId={currentServiceId}
             />
           )
-        case 4:
+        case 3:
           return (
             <ConfirmationStep
               data={bookingData}
@@ -309,7 +480,7 @@ const ServiceBookingForm: React.FC = () => {
       {/* Header */}
       <div className="booking-header">
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
-        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ bảo dưỡng xe điện</p>
+        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ xe điện</p>
       </div>
 
       {/* Steps Progress Indicator */}
@@ -331,7 +502,7 @@ const ServiceBookingForm: React.FC = () => {
           max-width: 1200px;
           margin: 0 auto;
           padding: 2rem;
-          background: #ffffff;
+          background: var(--bg-card);
           min-height: 100vh;
         }
 
@@ -343,23 +514,23 @@ const ServiceBookingForm: React.FC = () => {
         .booking-title {
           font-size: 2rem;
           font-weight: 700;
-          color: #1e293b;
+          color: var(--text-primary);
           margin-bottom: 0.5rem;
           letter-spacing: -0.025em;
         }
 
         .booking-subtitle {
           font-size: 1rem;
-          color: #64748b;
+          color: var(--text-secondary);
           margin: 0;
         }
 
         .booking-content {
-          background: #ffffff;
+          background: var(--bg-card);
           border-radius: 16px;
           padding: 2rem;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          border: 1px solid #e5e7eb;
+          border: 1px solid var(--border-primary);
         }
 
         @media (max-width: 768px) {
