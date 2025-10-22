@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
+import toast from 'react-hot-toast'
 import { 
   Users, 
   Calendar, 
@@ -32,6 +33,7 @@ export default function StaffDashboard() {
 
   const handleLogout = () => {
     dispatch(logout())
+    toast.success('Đăng xuất thành công!')
     navigate('/auth/login')
   }
 

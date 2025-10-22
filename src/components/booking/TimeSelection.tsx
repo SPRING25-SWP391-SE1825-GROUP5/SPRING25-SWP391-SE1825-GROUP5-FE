@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Calendar, Clock, MapPin, User } from 'lucide-react'
 import { Center } from '@/services/centerService'
 import { AvailabilityResponse, TimeSlotAvailability, TechnicianAvailability } from '@/services/bookingService'
+import api from '@/services/api'
 
 interface TimeSelectionProps {
   centers: Center[]
@@ -123,18 +124,91 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
       const loadAvailability = async () => {
         setAvailabilityLoading(true)
         try {
-          // Mock API call - replace with actual API
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          // Import PublicBookingService for unauthenticated access
+          const { PublicBookingService } = await import('@/services/publicBookingService')
+          
+          // Get availability data from public API
+          const availabilityResponse = await PublicBookingService.getAvailableTimeSlots(selectedCenter.centerId, selectedDate)
+          
+          // Convert to TimeSlotAvailability format - chỉ hiển thị timeslot available
+          const timeSlots = availabilityResponse.data.timeSlots
+            .filter(slot => slot.isAvailable && !slot.isBooked) // Chỉ lấy timeslot available
+            .map(slot => ({
+              slotId: slot.slotId,
+              slotTime: slot.slotLabel,
+              isAvailable: true, // Đã filter ở trên nên luôn true
+              isPast: false // Will be calculated below
+            }))
+          
+          // Mark past slots as unavailable
+          const today = new Date()
+          const isToday = selectedDate === today.toISOString().split('T')[0]
+          const currentHour = today.getHours()
+          const currentMinute = today.getMinutes()
+          
+          const processedTimeSlots = timeSlots.map(slot => {
+            if (isToday) {
+              const [startTime] = slot.slotTime.split(' - ')
+              const [hour, minute] = startTime.split(':').map(Number)
+              const slotTime = hour * 60 + minute
+              const currentTime = currentHour * 60 + currentMinute
+              const isPast = slotTime <= currentTime
+              
+              return {
+                ...slot,
+                isAvailable: !isPast, // Chỉ available nếu không phải quá khứ
+                isPast
+              }
+            }
+            return slot
+          })
+          
+          // Get technicians for the center
+          const { TechnicianService } = await import('@/services/technicianService')
+          const techniciansResponse = await TechnicianService.list({ centerId: selectedCenter.centerId, pageSize: 100 })
+          const technicians = (techniciansResponse.technicians || []).map(tech => ({
+            id: tech.technicianId,
+            name: tech.userFullName,
+            specialization: tech.specialization || 'Kỹ thuật viên',
+            available: true
+          }))
+          
           setAvailability({
-            timeSlots: generateTimeSlots(selectedDate),
-            technicians: [
-              { id: 1, name: 'Nguyễn Văn A', specialization: 'Động cơ điện', available: true },
-              { id: 2, name: 'Trần Thị B', specialization: 'Pin và sạc', available: true },
-              { id: 3, name: 'Lê Văn C', specialization: 'Hệ thống điện', available: false },
-            ]
+            timeSlots: processedTimeSlots,
+            technicians
           })
         } catch (error) {
           console.error('Error loading availability:', error)
+          // Fallback: Get basic time slots from TimeSlot API and mark all as available
+          try {
+            const { data: timeSlotsResponse } = await api.get('/TimeSlot')
+            const timeSlots = (timeSlotsResponse.data || []).map((slot: any, index: number) => ({
+              slotId: slot.slotId,
+              slotTime: slot.slotLabel,
+              isAvailable: true, // Mark as available since we can't check booking status without auth
+              isPast: false
+            }))
+            
+            setAvailability({
+              timeSlots,
+              technicians: [
+                { id: 1, name: 'Nguyễn Văn A', specialization: 'Động cơ điện', available: true },
+                { id: 2, name: 'Trần Thị B', specialization: 'Pin và sạc', available: true },
+                { id: 3, name: 'Lê Văn C', specialization: 'Hệ thống điện', available: false },
+              ]
+            })
+          } catch (fallbackError) {
+            console.error('Fallback API also failed:', fallbackError)
+            // Final fallback to mock data
+            setAvailability({
+              timeSlots: generateTimeSlots(selectedDate),
+              technicians: [
+                { id: 1, name: 'Nguyễn Văn A', specialization: 'Động cơ điện', available: true },
+                { id: 2, name: 'Trần Thị B', specialization: 'Pin và sạc', available: true },
+                { id: 3, name: 'Lê Văn C', specialization: 'Hệ thống điện', available: false },
+              ]
+            })
+          }
         } finally {
           setAvailabilityLoading(false)
         }
@@ -333,7 +407,9 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                         cursor: slot.isAvailable ? 'pointer' : 'not-allowed',
                         fontWeight: '500',
                         fontSize: '0.9rem',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        opacity: slot.isAvailable ? 1 : 0.6,
+                        position: 'relative'
                       }}
                     >
                       <div style={{ fontWeight: '600' }}>

@@ -209,7 +209,7 @@ export const ServiceManagementService = {
       categoryId: params.categoryId
     }
 
-    const { data } = await api.get('/service/active', { params: backendParams })
+    const { data } = await api.get('/Service/active', { params: backendParams })
     const envelope = data as BackendListEnvelope<BackendServiceListData> | BackendServiceListData
     const payload: BackendServiceListData = (envelope as any)?.data
       ? (envelope as BackendListEnvelope<BackendServiceListData>).data
@@ -369,9 +369,9 @@ export const ServiceManagementService = {
       const { data } = await api.get('/ServicePackages', { params: backendParams })
       console.log('ServicePackages API response:', data)
 
-  
+
       let packages: ServicePackage[] = []
-      
+
       if (data && Array.isArray(data)) {
         packages = data
       } else if (data?.data && Array.isArray(data.data)) {
@@ -411,7 +411,7 @@ export const ServiceManagementService = {
           return data
         }
       }
-      
+
       throw new Error('Invalid response format from server')
     } catch (error: any) {
       console.error('Error fetching service package by ID:', error)
@@ -433,7 +433,7 @@ export const ServiceManagementService = {
           return data
         }
       }
-      
+
       throw new Error('Invalid response format from server')
     } catch (error: any) {
       console.error('Error fetching service package by code:', error)
@@ -444,7 +444,7 @@ export const ServiceManagementService = {
   async createServicePackage(packageData: CreateServicePackageRequest): Promise<ServicePackage> {
     try {
       console.log('Creating service package with data:', packageData)
-      
+
       // Validate required fields
       if (!packageData.packageName?.trim()) {
         throw new Error('Tên gói dịch vụ là bắt buộc')
@@ -471,7 +471,7 @@ export const ServiceManagementService = {
           return data
         }
       }
-      
+
       throw new Error('Invalid response format from server')
     } catch (error: any) {
       console.error('Error creating service package:', error)
@@ -482,7 +482,7 @@ export const ServiceManagementService = {
   async updateServicePackage(id: number, packageData: UpdateServicePackageRequest): Promise<ServicePackage> {
     try {
       console.log('Updating service package:', { id, packageData })
-      
+
       // Validate ID
       if (!id || id <= 0) {
         throw new Error('ID gói dịch vụ không hợp lệ')
@@ -519,7 +519,7 @@ export const ServiceManagementService = {
           return data
         }
       }
-      
+
       throw new Error('Invalid response format from server')
     } catch (error: any) {
       console.error('Error updating service package:', error)
@@ -530,7 +530,7 @@ export const ServiceManagementService = {
   async deleteServicePackage(id: number): Promise<void> {
     try {
       console.log('Deleting service package with ID:', id)
-      
+
       // Validate ID
       if (!id || id <= 0) {
         throw new Error('ID gói dịch vụ không hợp lệ')
@@ -557,8 +557,8 @@ export const ServiceManagementService = {
   async checkPackageCodeExists(code: string, excludeId?: number): Promise<boolean> {
     try {
       console.log('Checking if package code exists:', { code, excludeId })
-      const { data } = await api.get(`/ServicePackages/check-code`, { 
-        params: { code, excludeId } 
+      const { data } = await api.get(`/ServicePackages/check-code`, {
+        params: { code, excludeId }
       })
       return data?.exists || false
     } catch (error: any) {
@@ -571,18 +571,18 @@ export const ServiceManagementService = {
   async togglePackageStatus(id: number): Promise<ServicePackage> {
     try {
       console.log('Toggling package status:', id)
-      
+
       // First, get the current package to know its current status
       const currentPackage = await this.getServicePackageById(id)
       const newStatus = !currentPackage.isActive
-      
+
       console.log('Current status:', currentPackage.isActive, 'New status:', newStatus)
-      
+
       // Update the package with the new status
       const updatedPackage = await this.updateServicePackage(id, {
         isActive: newStatus
       })
-      
+
       console.log('Package status toggled successfully:', updatedPackage)
       return updatedPackage
     } catch (error: any) {

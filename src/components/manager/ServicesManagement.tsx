@@ -297,109 +297,217 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)' }}>
+      {/* Header Section */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <h2 style={{ 
+          fontSize: '24px', 
+          fontWeight: '600', 
+          color: 'var(--text-primary)',
+          margin: 0
+        }}>
           Quản lý Dịch vụ
         </h2>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button 
-            onClick={fetchServices}
-            style={{
-              padding: '10px 20px',
-              border: '1px solid var(--border-primary)',
-              background: 'transparent',
-              color: 'var(--text-primary)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            <Search size={16} />
-            Làm mới
+        
+        {canCreate && (
+          <button onClick={openCreateService} style={{
+            padding: '12px 24px',
+            background: 'var(--primary-500)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0, 64, 48, 0.2)',
+            transition: 'all 0.2s ease'
+          }}>
+            <Plus size={16} />
+            Thêm dịch vụ
           </button>
-          
-          <input
-            placeholder="Tìm kiếm dịch vụ..."
-            value={serviceSearch}
-            onChange={(e) => { setServicePage(1); setServiceSearch(e.target.value) }}
-            style={{
-              padding: '10px 12px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontSize: '14px',
-              width: '200px'
-            }}
-          />
+        )}
+      </div>
 
-          <select
-            value={serviceCategory}
-            onChange={(e) => { setServicePage(1); setServiceCategory(e.target.value) }}
-            style={{
-              padding: '10px 12px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontSize: '14px',
-              minWidth: '150px'
-            }}
-          >
-            <option value="">Tất cả danh mục</option>
-            {serviceCategories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-            <input 
-              type="checkbox" 
-              checked={serviceOnlyActive} 
-              onChange={(e) => { setServicePage(1); setServiceOnlyActive(e.target.checked) }} 
+      {/* Filter Section */}
+      <div style={{
+        background: 'var(--bg-card)',
+        padding: '24px',
+        borderRadius: '12px',
+        border: '1px solid var(--border-primary)',
+        marginBottom: '24px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+        gap: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '16px',
+          alignItems: 'end'
+        }}>
+          {/* Search Input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <label style={{ 
+              fontSize: '14px', 
+              fontWeight: '500', 
+              color: 'var(--text-primary)' 
+            }}>
+              Tìm kiếm
+            </label>
+            <input
+              placeholder="Tìm kiếm dịch vụ..."
+              value={serviceSearch}
+              onChange={(e) => { setServicePage(1); setServiceSearch(e.target.value) }}
+              style={{
+                padding: '12px 16px',
+                border: '2px solid var(--border-primary)',
+                borderRadius: '8px',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                width: '100%',
+                transition: 'border-color 0.2s ease'
+              }}
             />
-            Chỉ hiện hoạt động
-          </label>
+          </div>
 
-          <select
-            value={servicePageSize}
-            onChange={(e) => { setServicePage(1); setServicePageSize(Number(e.target.value)) }}
-            style={{
-              padding: '10px 12px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontSize: '14px'
-            }}
-          >
-            <option value={10}>10 mỗi trang</option>
-            <option value={20}>20 mỗi trang</option>
-            <option value={50}>50 mỗi trang</option>
-          </select>
+          {/* Category Filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ 
+              fontSize: '14px', 
+              fontWeight: '500', 
+              color: 'var(--text-primary)' 
+            }}>
+              Danh mục
+            </label>
+            <select
+              value={serviceCategory}
+              onChange={(e) => { setServicePage(1); setServiceCategory(e.target.value) }}
+              style={{
+                padding: '12px 16px',
+                border: '2px solid var(--border-primary)',
+                borderRadius: '8px',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                width: '100%',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s ease'
+              }}
+            >
+              <option value="">Tất cả danh mục</option>
+              {serviceCategories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
 
-          {canCreate && (
-            <button onClick={openCreateService} style={{
-              padding: '10px 20px',
-              background: 'var(--primary-500)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
+          {/* Page Size */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ 
+              fontSize: '14px', 
+              fontWeight: '500', 
+              color: 'var(--text-primary)' 
+            }}>
+              Hiển thị
+            </label>
+            <select
+              value={servicePageSize}
+              onChange={(e) => { setServicePage(1); setServicePageSize(Number(e.target.value)) }}
+              style={{
+                padding: '12px 16px',
+                border: '2px solid var(--border-primary)',
+                borderRadius: '8px',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                width: '100%',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s ease'
+              }}
+            >
+              <option value={10}>10 mỗi trang</option>
+              <option value={20}>20 mỗi trang</option>
+              <option value={50}>50 mỗi trang</option>
+            </select>
+          </div>
+
+          {/* Active Only Checkbox */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '8px',
+            justifyContent: 'flex-end'
+          }}>
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px', 
+              color: 'var(--text-primary)', 
               fontSize: '14px',
               fontWeight: '500',
               cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              padding: '12px 16px',
+              background: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '2px solid var(--border-primary)',
+              transition: 'all 0.2s ease'
             }}>
-              <Plus size={16} />
-              Thêm dịch vụ
+              <input 
+                type="checkbox" 
+                checked={serviceOnlyActive} 
+                onChange={(e) => { setServicePage(1); setServiceOnlyActive(e.target.checked) }}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer'
+                }}
+              />
+              Chỉ hiện hoạt động
+            </label>
+          </div>
+
+          {/* Refresh Button */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '8px',
+            justifyContent: 'flex-end'
+          }}>
+            <button 
+              onClick={fetchServices}
+              style={{
+                padding: '12px 20px',
+                border: '2px solid var(--border-primary)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease',
+                width: '100%'
+              }}
+            >
+              <Search size={16} />
+              Làm mới
             </button>
-          )}
+          </div>
         </div>
       </div>
       

@@ -33,7 +33,7 @@ interface CombinedServiceVehicleStepProps {
 
 interface VehicleModel {
   id: number
-  name: string
+  modelName: string
   brand: string
 }
 
@@ -277,6 +277,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               </option>
               {vehicleModels.map((model, index) => {
                 const displayName = model.name || `Model ${index + 1}`
+
                 const brand = model.brand || ''
                 return (
                   <option key={model.id || `model-${index}`} value={displayName}>
