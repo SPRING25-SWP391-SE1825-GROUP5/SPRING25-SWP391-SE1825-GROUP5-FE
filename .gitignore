@@ -107,7 +107,7 @@ playwright/.cache/
 screenshots/
 
 # Cursor IDE files
-.cursor/
+*.cursor/
 .cursorignore
 .cursorrules
 
@@ -117,6 +117,8 @@ screenshots/
 *.swp
 *.swo
 *~
+tests/
+scripts/ 
 
 # Temporary and cache files
 .cache/
