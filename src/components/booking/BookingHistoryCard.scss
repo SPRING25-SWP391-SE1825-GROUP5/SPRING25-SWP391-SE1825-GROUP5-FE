@@ -1,0 +1,330 @@
+.booking-history-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .booking-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+
+    .booking-info {
+      flex: 1;
+
+      .booking-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0 0 4px 0;
+      }
+
+      .booking-code {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0;
+      }
+    }
+
+    .booking-status {
+      .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+
+        &.status-pending {
+          background-color: #fef3c7;
+          color: #d97706;
+        }
+
+        &.status-confirmed {
+          background-color: #dbeafe;
+          color: #2563eb;
+        }
+
+        &.status-in-progress {
+          background-color: #e0e7ff;
+          color: #7c3aed;
+        }
+
+        &.status-completed {
+          background-color: #d1fae5;
+          color: #059669;
+        }
+
+        &.status-paid {
+          background-color: #dcfce7;
+          color: #16a34a;
+        }
+
+        &.status-cancelled {
+          background-color: #fee2e2;
+          color: #dc2626;
+        }
+
+        &.status-default {
+          background-color: #f3f4f6;
+          color: #6b7280;
+        }
+      }
+    }
+  }
+
+  .booking-basic-info {
+    margin-bottom: 16px;
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .info-icon {
+        width: 16px;
+        height: 16px;
+        color: #6b7280;
+        margin-right: 8px;
+        flex-shrink: 0;
+      }
+
+      .info-label {
+        font-size: 14px;
+        color: #6b7280;
+        margin-right: 8px;
+        min-width: 100px;
+      }
+
+      .info-value {
+        font-size: 14px;
+        color: #1f2937;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .booking-vehicle-info {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: #f9fafb;
+    border-radius: 8px;
+
+    .vehicle-info {
+      display: flex;
+      align-items: center;
+
+      .vehicle-label {
+        font-size: 14px;
+        color: #6b7280;
+        margin-right: 8px;
+        min-width: 80px;
+      }
+
+      .vehicle-value {
+        font-size: 14px;
+        color: #1f2937;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .booking-cost-info {
+    margin-bottom: 16px;
+
+    .cost-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background-color: #f0f9ff;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+
+      .cost-label {
+        font-size: 14px;
+        color: #6b7280;
+        font-weight: 500;
+      }
+
+      .cost-value {
+        font-size: 16px;
+        color: #1f2937;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .booking-details {
+    margin-bottom: 16px;
+
+    .expand-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 0;
+      background: none;
+      border: none;
+      color: #3b82f6;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: #2563eb;
+      }
+
+      .expand-icon {
+        transition: transform 0.2s ease;
+
+        &.expanded {
+          transform: rotate(180deg);
+        }
+      }
+    }
+
+    .booking-details-content {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+
+      .detail-section {
+        margin-bottom: 16px;
+
+        .detail-section-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+          margin: 0 0 8px 0;
+        }
+
+        .detail-section-content {
+          font-size: 14px;
+          color: #6b7280;
+          line-height: 1.5;
+          margin: 0;
+        }
+
+        .feedback-display {
+          .feedback-rating {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+
+            .star-icon {
+              width: 16px;
+              height: 16px;
+              color: #d1d5db;
+              margin-right: 2px;
+
+              &.filled {
+                color: #fbbf24;
+              }
+            }
+          }
+
+          .feedback-comment {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+            margin: 0;
+            font-style: italic;
+          }
+        }
+      }
+    }
+  }
+
+  .booking-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+
+    .feedback-button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .edit-feedback-button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cancelled-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #dc2626;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .booking-history-card {
+    padding: 16px;
+
+    .booking-card-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+
+      .booking-status {
+        align-self: flex-start;
+      }
+    }
+
+    .booking-basic-info {
+      .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+
+        .info-label {
+          min-width: auto;
+        }
+      }
+    }
+
+    .booking-vehicle-info {
+      .vehicle-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+
+        .vehicle-label {
+          min-width: auto;
+        }
+      }
+    }
+
+    .booking-actions {
+      flex-direction: column;
+      align-items: stretch;
+
+      .feedback-button,
+      .edit-feedback-button {
+        justify-content: center;
+      }
+    }
+  }
+}
+

@@ -32,6 +32,8 @@ import { FeedbackCard } from '@/components/feedback'
 import { mockFeedbackService } from '@/data/mockFeedbackData'
 import { BookingData } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
+import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
+import { feedbackService } from '@/services/feedbackService'
 
 import './profile.scss'
 
@@ -166,7 +168,9 @@ export default function Profile() {
   }, [activeTab, auth.user?.id])
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered, activeTab:', activeTab, 'auth.user?.id:', auth.user?.id)
     if (activeTab === 'service-history') {
+      console.log('📡 Loading booking history from useEffect')
       loadBookingHistory()
     }
   }, [activeTab, auth.user?.id, bookingHistoryPage])
@@ -204,7 +208,65 @@ export default function Profile() {
     })
   }
 
-  // Handle feedback submission
+  // Handle feedback submission for booking history
+  const handleBookingFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      // Tìm booking để lấy technicianId
+      const booking = bookingHistory.find(b => b.bookingId === bookingId)
+      if (!booking || !booking.technicianId) {
+        throw new Error('Không tìm thấy thông tin kỹ thuật viên')
+      }
+
+      await feedbackService.submitFeedback(bookingId.toString(), booking.technicianId, feedback)
+      // Reload booking history to show updated feedback
+      await loadBookingHistory()
+      setSuccessMessage('Đánh giá đã được gửi thành công!')
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setUploadError('Không thể gửi đánh giá: ' + err.message)
+      console.error('Error submitting booking feedback:', err)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    }
+  }
+
+  // Handle feedback update for booking history
+  const handleBookingEditFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      // Tìm booking để lấy feedbackId
+      const booking = bookingHistory.find(b => b.bookingId === bookingId)
+      if (!booking || !booking.feedbackId) {
+        throw new Error('Không tìm thấy thông tin đánh giá')
+      }
+
+      await feedbackService.updateFeedback(booking.feedbackId, feedback)
+      // Reload booking history to show updated feedback
+      await loadBookingHistory()
+      setSuccessMessage('Đánh giá đã được cập nhật thành công!')
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setUploadError('Không thể cập nhật đánh giá: ' + err.message)
+      console.error('Error updating booking feedback:', err)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    }
+  }
+
+  // Handle feedback submission (legacy for maintenance tab)
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
       await mockFeedbackService.submitFeedback(bookingId, feedback)
@@ -216,7 +278,7 @@ export default function Profile() {
     }
   }
 
-  // Handle feedback update
+  // Handle feedback update (legacy for maintenance tab)
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
       await mockFeedbackService.updateFeedback(bookingId, feedback)
@@ -958,17 +1020,6 @@ export default function Profile() {
                 </div>
                 <span className="nav-label">Phương tiện</span>
               </button>
-
-              <button
-                className="nav-item"
-                onClick={() => setActiveTab('service-history')}
-              >
-                <div className="nav-icon">
-                  <ClockIcon className="w-5 h-5" />
-                </div>
-                <span className="nav-label">Lịch sử dịch vụ</span>
-              </button>
-
               <button
                 className="nav-item"
                 onClick={() => setActiveTab('promo-codes')}
@@ -978,17 +1029,6 @@ export default function Profile() {
                 </div>
                 <span className="nav-label">Mã khuyến mãi</span>
               </button>
-
-              <button
-                className="nav-item"
-                onClick={() => setActiveTab('notifications')}
-              >
-                <div className="nav-icon">
-                  <BellIcon className="w-5 h-5" />
-                </div>
-                <span className="nav-label">Thông báo</span>
-              </button>
-
               <button
                 className="nav-item"
                 onClick={() => setActiveTab('settings')}
@@ -1000,18 +1040,20 @@ export default function Profile() {
               </button>
               
               <button
-                className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+                className={`nav-item ${activeTab === 'service-history' ? 'active' : ''}`}
                 onClick={() => {
-                  setActiveTab('maintenance')
-                  if (bookings.length === 0) {
-                    loadMaintenanceData()
+                  console.log('🚀 Clicking Lịch sử đặt lịch tab')
+                  setActiveTab('service-history')
+                  if (bookingHistory.length === 0) {
+                    console.log('📡 Loading booking history...')
+                    loadBookingHistory()
                   }
                 }}
               >
                 <div className="nav-icon">
                   <FontAwesomeIcon icon={faHistory} />
                 </div>
-                <span className="nav-label">Lịch sử bảo dưỡng</span>
+                <span className="nav-label">Lịch sử đặt lịch</span>
               </button>
             </nav>
 
@@ -1468,59 +1510,12 @@ export default function Profile() {
                     ) : (
                       <div className="booking-history-list">
                         {bookingHistory.map((booking: any) => (
-                          <div key={booking.bookingId} className="booking-history-item">
-                            <div className="booking-header">
-                              <div className="booking-info">
-                                <h4 className="booking-title">{booking.serviceName}</h4>
-                                <p className="booking-code">Mã đặt lịch: {booking.bookingCode}</p>
-                              </div>
-                              <div className="booking-status">
-                                <span className={`status-badge status-${booking.status.toLowerCase()}`}>
-                                  {booking.status}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="booking-details">
-                              <div className="detail-row">
-                                <span className="detail-label">Phương tiện:</span>
-                                <span className="detail-value">
-                                  {booking.vehicleInfo.licensePlate} - {booking.vehicleInfo.carModel}
-                                </span>
-                              </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Ngày đặt lịch:</span>
-                                <span className="detail-value">
-                                  {new Date(booking.bookingDate).toLocaleDateString('vi-VN')}
-                                </span>
-                              </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Trung tâm:</span>
-                                <span className="detail-value">{booking.centerName}</span>
-                              </div>
-                              {booking.technicianName && (
-                                <div className="detail-row">
-                                  <span className="detail-label">Kỹ thuật viên:</span>
-                                  <span className="detail-value">{booking.technicianName}</span>
-                                </div>
-                              )}
-                              <div className="detail-row">
-                                <span className="detail-label">Chi phí:</span>
-                                <span className="detail-value cost">
-                                  {booking.actualCost ? 
-                                    `${booking.actualCost.toLocaleString('vi-VN')} VNĐ` : 
-                                    `Ước tính: ${booking.estimatedCost.toLocaleString('vi-VN')} VNĐ`
-                                  }
-                                </span>
-                              </div>
-                              {booking.notes && (
-                                <div className="detail-row">
-                                  <span className="detail-label">Ghi chú:</span>
-                                  <span className="detail-value">{booking.notes}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          <BookingHistoryCard
+                            key={booking.bookingId}
+                            booking={booking}
+                            onFeedback={handleBookingFeedback}
+                            onEditFeedback={handleBookingEditFeedback}
+                          />
                         ))}
                         
                         {bookingHistoryTotalPages > 1 && (
@@ -1688,7 +1683,7 @@ export default function Profile() {
                   <div className="card-header">
                     <h3 className="card-title">
                       <FontAwesomeIcon icon={faHistory} />
-                      Lịch sử bảo dưỡng
+                      Lịch sử đặt lịch
                     </h3>
                     <p className="card-subtitle">Xem lịch sử dịch vụ và đánh giá trải nghiệm của bạn</p>
                   </div>
