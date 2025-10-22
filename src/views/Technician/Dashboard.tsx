@@ -17,14 +17,11 @@ import {
   BarChart3,
   Calendar,
   FileText,
-  Car,
-  MessageSquare
+  Car
 } from 'lucide-react'
 import {
   WorkQueue,
-  CustomerRequestsContent,
   WorkSchedule,
-  LeaveRequest,
   VehicleDetails
 } from '@/components/technician'
 import {
@@ -446,25 +443,11 @@ export default function TechnicianDashboard() {
       color: 'var(--success-500)'
     },
     {
-      title: 'Yêu cầu nghỉ phép',
-      description: 'Tạo đơn xin nghỉ phép',
-      icon: FileText,
-      page: 'leave-request',
-      color: '#ef4444'
-    },
-    {
       title: 'Chi tiết xe khách',
       description: 'Xem thông tin xe và phụ tùng',
       icon: Car,
       page: 'vehicle-details',
       color: '#06b6d4'
-    },
-    {
-      title: 'Yêu cầu khách hàng',
-      description: 'Đánh giá thông tin xe từ khách hàng',
-      icon: MessageSquare,
-      page: 'customer-requests',
-      color: '#8b5cf6'
     },
     {
       title: 'Danh sách kiểm tra',
@@ -488,12 +471,8 @@ export default function TechnicianDashboard() {
           onNavigateToLeaveRequest={() => setActivePage('leave-request')}
           onNavigateToVehicleDetails={() => setActivePage('vehicle-details')}
         />
-      case 'leave-request':
-        return <LeaveRequest />
       case 'vehicle-details':
         return <VehicleDetails />
-      case 'customer-requests':
-        return <CustomerRequestsContent />
       case 'checklists':
         return (
           <div>
@@ -675,9 +654,7 @@ export default function TechnicianDashboard() {
       case 'dashboard': return 'Dashboard'
       case 'work-queue': return 'Hàng đợi công việc'
       case 'work-schedule': return 'Lịch làm việc'
-      case 'leave-request': return 'Yêu cầu nghỉ phép'
       case 'vehicle-details': return 'Chi tiết xe khách'
-      case 'customer-requests': return 'Yêu cầu khách hàng'
       case 'checklists': return 'Danh sách kiểm tra'
       case 'parts-request': return 'Yêu cầu phụ tùng'
       case 'settings': return 'Cài đặt'
@@ -740,9 +717,7 @@ export default function TechnicianDashboard() {
               {[
                 { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
               { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
-              { icon: FileText, label: 'Yêu cầu nghỉ phép', page: 'leave-request' },
               { icon: Car, label: 'Chi tiết xe khách', page: 'vehicle-details' },
-              { icon: MessageSquare, label: 'Yêu cầu khách hàng', page: 'customer-requests' },
                 { icon: ClipboardCheck, label: 'Danh sách kiểm tra', page: 'checklists' },
                 { icon: Package, label: 'Yêu cầu phụ tùng', page: 'parts-request' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings' }
