@@ -917,7 +917,7 @@ export default function Profile() {
                   {isUploadingAvatar ? (
                     <div className="loading-spinner-small"></div>
                   ) : (
-                    <PencilIcon className="w-4 h-4" />
+                  <PencilIcon className="w-4 h-4" />
                   )}
                 </button>
                 <input
@@ -947,7 +947,7 @@ export default function Profile() {
                   <UserIcon className="w-5 h-5" />
                 </div>
                 <span className="nav-label">Thông tin cá nhân</span>
-              </button>
+                  </button>
 
               <button
                 className="nav-item"
@@ -1024,7 +1024,7 @@ export default function Profile() {
                 </div>
                 <span className="logout-label">Đăng xuất</span>
               </button>
-            </div>
+          </div>
           </div>
 
           {/* Main Content Area */}
@@ -1105,7 +1105,7 @@ export default function Profile() {
                           required
                           error={formErrors.phoneNumber}
                         />
-                      </div>
+                          </div>
                       <div className="form-group">
                         <label className="form-label required">Ngày sinh</label>
                         <BaseInput
@@ -1116,8 +1116,8 @@ export default function Profile() {
                           required
                           error={formErrors.dateOfBirth}
                         />
+                          </div>
                       </div>
-                    </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1160,7 +1160,7 @@ export default function Profile() {
             {activeTab === 'vehicles' && (
               <div className="vehicles-management-container">
                 <BaseCard className="vehicles-main-card">
-                  <div className="card-header">
+                <div className="card-header">
                     <div className="header-content">
                       <h3 className="card-title">
                         <TruckIcon className="w-6 h-6" />
@@ -1169,24 +1169,24 @@ export default function Profile() {
                       <p className="card-subtitle">Quản lý thông tin phương tiện của bạn</p>
                     </div>
                     <div className="card-actions">
-                      <BaseButton
-                        variant="primary"
+                  <BaseButton
+                    variant="primary"
                         onClick={() => setShowVehicleForm(true)}
                         className="add-vehicle-btn"
-                      >
+                  >
                         <PlusIcon className="w-5 h-5" />
                         Thêm phương tiện
-                      </BaseButton>
-                    </div>
+                  </BaseButton>
+                </div>
                   </div>
 
-            <div className="card-body">
-              {isLoadingVehicles ? (
+                  <div className="card-body">
+                  {isLoadingVehicles ? (
                 <div className="vehicles-loading-state">
                   <div className="loading-spinner-large"></div>
-                  <p>Đang tải danh sách phương tiện...</p>
-                </div>
-              ) : vehicles.length === 0 ? (
+                        <p>Đang tải danh sách phương tiện...</p>
+                    </div>
+                  ) : vehicles.length === 0 ? (
                       <div className="vehicles-empty-state">
                         <div className="empty-illustration">
                           <TruckIcon className="w-16 h-16" />
@@ -1194,24 +1194,24 @@ export default function Profile() {
                         </div>
                         <h3>Chưa có phương tiện nào</h3>
                         <p>Hãy thêm phương tiện đầu tiên để bắt đầu quản lý xe của bạn</p>
-                        <BaseButton
+                      <BaseButton
                           variant="primary"
                           onClick={() => setShowVehicleForm(true)}
                           className="empty-state-cta"
-                        >
+                      >
                           <PlusIcon className="w-5 h-5" />
                           Thêm phương tiện đầu tiên
-                        </BaseButton>
-                      </div>
-                    ) : (
+                      </BaseButton>
+                    </div>
+                  ) : (
                       <div className="vehicles-grid">
-                        {vehicles.map((vehicle) => (
+                      {vehicles.map((vehicle) => (
                           <div key={vehicle.vehicleId} className="vehicle-card-modern">
                             <div className="vehicle-card-header">
                               <div className="vehicle-license">
                                 <h4>{vehicle.licensePlate}</h4>
                                 <span className="vehicle-status">Hoạt động</span>
-                              </div>
+                            </div>
                               <div className="vehicle-color-indicator" style={{ backgroundColor: vehicle.color }}>
                                 <div className="color-ring"></div>
                               </div>
@@ -1253,7 +1253,7 @@ export default function Profile() {
                                       className="metric-fill" 
                                       style={{ width: `${Math.min((vehicle.currentMileage / 100000) * 100, 100)}%` }}
                                     ></div>
-                                  </div>
+                            </div>
                                 </div>
                               </div>
                             </div>
@@ -1267,7 +1267,7 @@ export default function Profile() {
                               >
                                 <PencilSquareIcon className="w-4 h-4" />
                                 Sửa
-                              </BaseButton>
+                            </BaseButton>
                          <BaseButton 
                            variant="outline" 
                            size="sm" 
@@ -1275,16 +1275,16 @@ export default function Profile() {
                            loading={isDeletingVehicle === vehicle.vehicleId}
                            className="delete-btn"
                          >
-                           <TrashIcon className="w-4 h-4" />
+                                <TrashIcon className="w-4 h-4" />
                            {isDeletingVehicle === vehicle.vehicleId ? 'Đang xóa...' : 'Xóa'}
-                         </BaseButton>
-                            </div>
+                              </BaseButton>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </BaseCard>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </BaseCard>
               </div>
             )}
 
@@ -1310,7 +1310,7 @@ export default function Profile() {
               >
                 <div className="vehicle-form-modal">
                   <BaseCard className="vehicle-form-modal-card">
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">
                       {editingVehicle ? 'Sửa phương tiện' : 'Thêm phương tiện'}
                     </h3>
@@ -1353,7 +1353,7 @@ export default function Profile() {
                       <div className="success-message">
                         <CheckCircleIcon className="w-5 h-5" />
                         <span>{successMessage}</span>
-                      </div>
+                    </div>
                     )}
                     
                     {vehicleFormErrors.general && (
@@ -1367,7 +1367,7 @@ export default function Profile() {
                         borderRadius: '6px'
                       }}>
                         {vehicleFormErrors.general}
-                      </div>
+                    </div>
                     )}
                     
                     <div className="form-row">
@@ -1380,7 +1380,7 @@ export default function Profile() {
                           placeholder="Nhập VIN của xe"
                           error={vehicleFormErrors.vin}
                         />
-                      </div>
+                </div>
                       <div className="form-group">
                         <label className="form-label required">Biển số xe</label>
                         <BaseInput
@@ -1390,8 +1390,8 @@ export default function Profile() {
                           placeholder="Nhập biển số xe"
                           error={vehicleFormErrors.licensePlate}
                         />
-                      </div>
                     </div>
+                  </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1403,7 +1403,7 @@ export default function Profile() {
                           placeholder="Nhập màu sắc xe"
                           error={vehicleFormErrors.color}
                         />
-                      </div>
+                    </div>
                       <div className="form-group">
                         <label className="form-label required">Số km hiện tại</label>
                         <BaseInput
@@ -1413,8 +1413,8 @@ export default function Profile() {
                           placeholder="Nhập số km hiện tại"
                           error={vehicleFormErrors.currentMileage}
                         />
-                      </div>
                     </div>
+                  </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1425,7 +1425,7 @@ export default function Profile() {
                           onChange={(value) => handleVehicleInputChange('lastServiceDate', value)}
                           error={vehicleFormErrors.lastServiceDate}
                         />
-                      </div>
+                    </div>
                       <div className="form-group">
                         <label className="form-label">Ngày mua xe</label>
                         <BaseInput
@@ -1434,10 +1434,10 @@ export default function Profile() {
                           onChange={(value) => handleVehicleInputChange('purchaseDate', value)}
                           error={vehicleFormErrors.purchaseDate}
                         />
-                      </div>
                     </div>
                   </div>
-                </BaseCard>
+                </div>
+              </BaseCard>
                 </div>
               </div>
             )}
@@ -1446,9 +1446,9 @@ export default function Profile() {
             {activeTab === 'service-history' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">Lịch sử dịch vụ</h3>
-                  </div>
+                </div>
                   <div className="card-body">
                     {isLoadingBookingHistory ? (
                       <div className="loading-state">
@@ -1546,65 +1546,65 @@ export default function Profile() {
                         )}
                       </div>
                     )}
-                  </div>
-                </BaseCard>
-              </div>
+                    </div>
+              </BaseCard>
+                    </div>
             )}
 
             {activeTab === 'promo-codes' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">Mã khuyến mãi</h3>
-                  </div>
+                    </div>
                   <div className="card-body">
                     <p>Danh sách mã khuyến mãi sẽ được hiển thị ở đây.</p>
-                  </div>
-                </BaseCard>
+                </div>
+              </BaseCard>
               </div>
             )}
 
             {activeTab === 'notifications' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
-                    <h3 className="card-title">Thông báo</h3>
-                  </div>
+                <div className="card-header">
+                  <h3 className="card-title">Thông báo</h3>
+                </div>
                   <div className="card-body">
                     <p>Danh sách thông báo sẽ được hiển thị ở đây.</p>
-                  </div>
-                </BaseCard>
-              </div>
+                </div>
+              </BaseCard>
+                </div>
             )}
 
             {activeTab === 'settings' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">Đổi mật khẩu</h3>
-                  </div>
+                </div>
                   <div className="card-body">
                     <div className="profile-form">
                       {successMessage && (
                         <div className="success-message">
                           <CheckCircleIcon className="w-5 h-5" />
                           <span>{successMessage}</span>
-                        </div>
+                    </div>
                       )}
                       
                       <div className="form-row">
-                        <div className="form-group">
+                  <div className="form-group">
                           <label className="form-label required">Mật khẩu hiện tại</label>
-                          <div className="password-input-wrapper">
-                            <BaseInput
+                    <div className="password-input-wrapper">
+                      <BaseInput
                               type={showPasswords.currentPassword ? "text" : "password"}
-                              value={passwordData.currentPassword}
+                        value={passwordData.currentPassword}
                               onChange={(value) => setPasswordData(prev => ({ ...prev, currentPassword: value }))}
-                              placeholder="Nhập mật khẩu hiện tại"
+                        placeholder="Nhập mật khẩu hiện tại"
                               error={passwordErrors.currentPassword}
-                            />
-                            <button
-                              type="button"
+                      />
+                      <button
+                        type="button"
                               className="password-toggle-btn"
                               onClick={() => togglePasswordVisibility('currentPassword')}
                             >
@@ -1613,24 +1613,24 @@ export default function Profile() {
                               ) : (
                                 <EyeIcon className="w-4 h-4" />
                               )}
-                            </button>
+                      </button>
                           </div>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
 
                       <div className="form-row">
-                        <div className="form-group">
+                  <div className="form-group">
                           <label className="form-label required">Mật khẩu mới</label>
-                          <div className="password-input-wrapper">
-                            <BaseInput
+                    <div className="password-input-wrapper">
+                      <BaseInput
                               type={showPasswords.newPassword ? "text" : "password"}
-                              value={passwordData.newPassword}
+                        value={passwordData.newPassword}
                               onChange={(value) => setPasswordData(prev => ({ ...prev, newPassword: value }))}
                               placeholder="Nhập mật khẩu mới"
                               error={passwordErrors.newPassword}
-                            />
-                            <button
-                              type="button"
+                      />
+                      <button
+                        type="button"
                               className="password-toggle-btn"
                               onClick={() => togglePasswordVisibility('newPassword')}
                             >
@@ -1639,21 +1639,21 @@ export default function Profile() {
                               ) : (
                                 <EyeIcon className="w-4 h-4" />
                               )}
-                            </button>
-                          </div>
+                      </button>
+                    </div>
                         </div>
-                        <div className="form-group">
+                  <div className="form-group">
                           <label className="form-label required">Xác nhận mật khẩu mới</label>
-                          <div className="password-input-wrapper">
-                            <BaseInput
+                    <div className="password-input-wrapper">
+                      <BaseInput
                               type={showPasswords.confirmPassword ? "text" : "password"}
-                              value={passwordData.confirmPassword}
+                        value={passwordData.confirmPassword}
                               onChange={(value) => setPasswordData(prev => ({ ...prev, confirmPassword: value }))}
                               placeholder="Nhập lại mật khẩu mới"
                               error={passwordErrors.confirmPassword}
-                            />
-                            <button
-                              type="button"
+                      />
+                      <button
+                        type="button"
                               className="password-toggle-btn"
                               onClick={() => togglePasswordVisibility('confirmPassword')}
                             >
@@ -1662,25 +1662,25 @@ export default function Profile() {
                               ) : (
                                 <EyeIcon className="w-4 h-4" />
                               )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                </button>
+              </div>
+                    </div>
+                  </div>
 
                       <div className="form-actions">
-                        <BaseButton
-                          variant="primary"
-                          onClick={handleChangePassword}
+                <BaseButton
+                  variant="primary"
+                  onClick={handleChangePassword}
                           loading={isChangingPassword}
                         >
                           {isChangingPassword ? 'Đang xử lý...' : 'Đổi mật khẩu'}
-                        </BaseButton>
-                      </div>
-                    </div>
+                </BaseButton>
+              </div>
+            </div>
                   </div>
                 </BaseCard>
-              </div>
-            )}
+          </div>
+        )}
 
             {activeTab === 'maintenance' && (
               <div className="maintenance-history-container">
