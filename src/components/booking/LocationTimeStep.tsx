@@ -82,8 +82,24 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       try {
         let slotsData: any[] = []
         
-        // Nếu đã chọn kỹ thuật viên, chỉ lấy timeslot của kỹ thuật viên đó
-        if (data.technicianId) {
+        // First try new BE endpoint if present
+        try {
+          const centerAvail = await TechnicianService.getCenterTechniciansAvailability(
+            Number(data.centerId), 
+            data.date, 
+            serviceId ? { serviceId: serviceId } : undefined
+          )
+          console.log('Center availability response:', centerAvail)
+          if (Array.isArray(centerAvail?.technicianSlots)) {
+            slotsData = centerAvail.technicianSlots
+            console.log('Using center availability slots:', slotsData)
+          }
+        } catch (e) { 
+          console.log('Center availability failed:', e)
+        }
+
+        // If no data from first endpoint and technician selected: fetch their timeslots
+        if (slotsData.length === 0 && data.technicianId) {
           try {
             const response = await TechnicianService.getTechnicianTimeSlots(Number(data.technicianId), data.date)
             // API mới trả về TechnicianDailyScheduleResponse[], cần extract TimeSlots
@@ -152,18 +168,31 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
 
         // Final fallback to schedule mapping
         if (slotsData.length === 0) {
+          console.log('Using fallback getCenterAvailability API')
           const resp = await getCenterAvailability(Number(data.centerId), data.date, serviceId)
-          slotsData = (resp.technicianSlots || [])
-            .filter((slot: any) => slot.isAvailable) // Chỉ lấy timeslot available
+          console.log('Fallback API response:', resp)
+          slotsData = resp.technicianSlots || []
+          console.log('Fallback slots data:', slotsData)
         }
 
         // Map và deduplicate slots
-        const mappedSlots = slotsData.map((s: any) => ({
-          technicianSlotId: s.technicianSlotId || s.id || s.slotId,
-          slotTime: s.slotLabel || s.slotTime,
-          isAvailable: true, // Đã filter ở trên nên luôn true
-          technicianId: s.technicianId || Number(data.technicianId)
-        }))
+        const mappedSlots = slotsData.map((s: any) => {
+          const technicianSlotId = s.technicianSlotId || s.id
+          console.log('Mapping slot:', {
+            original: s,
+            technicianSlotId,
+            slotId: s.slotId,
+            date: data.date
+          })
+          
+          return {
+            technicianSlotId, // Không fallback sang s.slotId
+            slotTime: s.slotLabel || s.slotTime,
+            isAvailable: s.isAvailable !== false,
+            technicianId: s.technicianId || Number(data.technicianId)
+          }
+        })
+
 
         // Remove duplicates based on technicianSlotId
         const uniqueSlots = mappedSlots.filter((slot, index, self) => 

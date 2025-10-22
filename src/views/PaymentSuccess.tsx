@@ -7,7 +7,6 @@ const PaymentSuccess: React.FC = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
-  const [countdown, setCountdown] = useState(10)
   
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
   const amount = searchParams.get('amount')
@@ -21,18 +20,8 @@ const PaymentSuccess: React.FC = () => {
       generateQRCode(qrCodeData)
     }
     
-    // Auto redirect countdown
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          navigate('/')
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    
-    return () => clearInterval(timer)
+    // Removed auto redirect countdown; stay until user navigates
+    return () => {}
   }, [qrCodeData, navigate])
 
   const generateQRCode = async (data: string) => {
@@ -218,9 +207,8 @@ const PaymentSuccess: React.FC = () => {
           </ul>
         </div>
         
-        {/* Auto Redirect */}
+        {/* Manual navigation */}
         <div className="redirect-info">
-          <p>Tự động chuyển về trang chủ sau <strong>{countdown}</strong> giây</p>
           <div className="action-buttons">
             <button 
               className="btn-secondary"

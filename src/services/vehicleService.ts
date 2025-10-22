@@ -191,5 +191,29 @@ export const VehicleService = {
   async getCustomerVehicles(customerId: number): Promise<VehicleListResponse> {
     const { data } = await api.get<VehicleListResponse>(`/Customer/${customerId}/vehicles`)
     return data
+  },
+
+  /**
+   * Get vehicle by ID for current customer
+   * 
+   * @param vehicleId - Vehicle ID
+   * @returns Promise with vehicle data for current customer
+   * @throws {Error} When request fails
+   */
+  async getCustomerVehicle(vehicleId: number): Promise<VehicleResponse> {
+    const { data } = await api.get<VehicleResponse>(`/Vehicle/${vehicleId}/customer`)
+    return data
+  },
+
+  /**
+   * Delete vehicle by ID
+   * 
+   * @param vehicleId - Vehicle ID
+   * @returns Promise with deletion result
+   * @throws {Error} When deletion fails
+   */
+  async deleteVehicle(vehicleId: number): Promise<{ success: boolean; message: string }> {
+    const { data } = await api.delete(`/Vehicle/${vehicleId}`)
+    return data
   }
 }

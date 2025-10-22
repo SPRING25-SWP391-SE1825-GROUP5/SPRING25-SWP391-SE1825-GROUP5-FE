@@ -262,6 +262,29 @@ class BookingServiceClass {
       throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi đổi lịch booking')
     }
   }
+
+  // Get booking history for customer
+  async getBookingHistory(customerId: number, page: number = 1, limit: number = 10): Promise<any> {
+    try {
+      console.log('🌐 BookingService.getBookingHistory called:', { customerId, page, limit })
+      const url = `/api/Booking/Customer/${customerId}/booking-history`
+      console.log('📡 API URL:', url)
+      
+      const response = await api.get(url, {
+        params: { 
+          page, 
+          pageSize: limit,
+          sortBy: 'bookingDate',
+          sortOrder: 'desc'
+        }
+      })
+      console.log('✅ BookingService API response:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Error fetching booking history:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy lịch sử booking')
+    }
+  }
 }
 
 // Backward-compatible default export and named singleton expected by callers

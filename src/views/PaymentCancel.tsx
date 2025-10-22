@@ -5,7 +5,7 @@ import { XCircle, AlertTriangle, RefreshCw, Home, CreditCard } from 'lucide-reac
 const PaymentCancel: React.FC = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [countdown, setCountdown] = useState(8)
+  // Removed auto-redirect countdown
   
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
   const reason = searchParams.get('reason') || searchParams.get('cancelReason')
@@ -13,18 +13,8 @@ const PaymentCancel: React.FC = () => {
   const error = searchParams.get('error')
   
   useEffect(() => {
-    // Auto redirect countdown
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          navigate('/booking')
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    
-    return () => clearInterval(timer)
+    // No automatic redirects; user controls navigation
+    return () => {}
   }, [navigate])
 
   const formatPrice = (price: string | null) => {
@@ -173,10 +163,7 @@ const PaymentCancel: React.FC = () => {
           </button>
         </div>
         
-        {/* Auto Redirect */}
-        <div className="redirect-info">
-          <p>Tự động chuyển về trang đặt lịch sau <strong>{countdown}</strong> giây</p>
-        </div>
+        {/* Manual navigation only; removed auto-redirect message */}
       </div>
       
       <style>{`
