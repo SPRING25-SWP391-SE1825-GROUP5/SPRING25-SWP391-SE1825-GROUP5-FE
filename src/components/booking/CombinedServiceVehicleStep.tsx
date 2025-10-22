@@ -34,7 +34,8 @@ interface CombinedServiceVehicleStepProps {
 interface VehicleModel {
   id: number
   modelName: string
-  brand: string
+  brand?: string
+
 }
 
 const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
@@ -102,7 +103,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         // Normalize fields from various BE shapes
         const normalized: VehicleModel[] = list.map((m: any, idx: number) => ({
           id: m.id ?? m.modelId ?? idx,
-          name: m.name ?? m.modelName ?? m.vehicleModelName ?? `Model ${idx + 1}`,
+          modelName: m.modelName ?? m.name ?? m.vehicleModelName ?? `Model ${idx + 1}`,
           brand: m.brand ?? m.brandName ?? m.manufacturer ?? m.make ?? ''
         }))
         setVehicleModels(normalized)
@@ -276,8 +277,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 {modelsLoading ? 'Đang tải...' : 'Chọn dòng xe'}
               </option>
               {vehicleModels.map((model, index) => {
-                const displayName = model.name || `Model ${index + 1}`
-
+                const displayName = model.modelName || `Model ${index + 1}`
                 const brand = model.brand || ''
                 return (
                   <option key={model.id || `model-${index}`} value={displayName}>
