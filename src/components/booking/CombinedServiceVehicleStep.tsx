@@ -35,6 +35,7 @@ interface VehicleModel {
   id: number
   modelName: string
   brand?: string
+
 }
 
 const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({

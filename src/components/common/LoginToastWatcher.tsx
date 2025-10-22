@@ -18,7 +18,7 @@ export default function LoginToastWatcher() {
       sessionStorage.setItem('loginToasted', '1')
       toast.success(`Chào mừng ${user.fullName}! Đăng nhập thành công.`, {
         duration: 3000,
-        position: 'top-right',
+        position: 'bottom-right',
       })
     }
   }, [token, user, loading, error])

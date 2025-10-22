@@ -11,8 +11,11 @@ import { useAppDispatch } from '@/store/hooks'
 import { syncFromLocalStorage } from '@/store/authSlice'
 import {
   validateRegisterFormStrict,
+  validateRegisterFormStrictAsync,
   validatePassword,
   mapServerErrorsToFields,
+  validateEmailNotExists,
+  validatePhoneNotExists,
 } from '@/utils/validation'
 
 export default function Register() {
@@ -40,6 +43,68 @@ export default function Register() {
   const [showPasswordPopup, setShowPasswordPopup] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [validatingEmail, setValidatingEmail] = useState(false)
+  const [validatingPhone, setValidatingPhone] = useState(false)
+
+  // Debounce utility function
+  function debounce<T extends (...args: any[]) => any>(func: T, delay: number): T {
+    let timeoutId: NodeJS.Timeout
+    return ((...args: any[]) => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => func(...args), delay)
+    }) as T
+  }
+
+  // Debounced validation for email and phone
+  const debouncedEmailValidation = useCallback(
+    debounce(async (emailValue: string) => {
+      if (!emailValue.trim()) return
+      
+      setValidatingEmail(true)
+      try {
+        const result = await validateEmailNotExists(emailValue, AuthService.checkEmailExists)
+        if (!result.isValid) {
+          setErrors(prev => ({ ...prev, email: result.error! }))
+        } else {
+          setErrors(prev => {
+            const newErrors = { ...prev }
+            delete newErrors.email
+            return newErrors
+          })
+        }
+      } catch (error) {
+        console.error('Email validation error:', error)
+      } finally {
+        setValidatingEmail(false)
+      }
+    }, 500),
+    []
+  )
+
+  const debouncedPhoneValidation = useCallback(
+    debounce(async (phoneValue: string) => {
+      if (!phoneValue.trim()) return
+      
+      setValidatingPhone(true)
+      try {
+        const result = await validatePhoneNotExists(phoneValue, AuthService.checkPhoneExists)
+        if (!result.isValid) {
+          setErrors(prev => ({ ...prev, phoneNumber: result.error! }))
+        } else {
+          setErrors(prev => {
+            const newErrors = { ...prev }
+            delete newErrors.phoneNumber
+            return newErrors
+          })
+        }
+      } catch (error) {
+        console.error('Phone validation error:', error)
+      } finally {
+        setValidatingPhone(false)
+      }
+    }, 500),
+    []
+  )
 
   // Real-time validation functions
   const validateField = (fieldName: string, value: string) => {
@@ -145,7 +210,9 @@ export default function Register() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    const v = validateRegisterFormStrict({
+    
+    // First do basic validation
+    const basicValidation = validateRegisterFormStrict({
       fullName,
       email,
       password,
@@ -156,57 +223,93 @@ export default function Register() {
       address,
       avatarUrl: ''
     })
-    if (!v.isValid) {
-      setErrors(v.errors)
+    
+    if (!basicValidation.isValid) {
+      setErrors(basicValidation.errors)
       return
     }
 
     setSubmitting(true)
-    try {
-      await AuthService.register({
-        fullName,
-        email,
-        password,
-        confirmPassword,
-        phoneNumber,
-        dateOfBirth,
-        gender: gender as 'MALE' | 'FEMALE',
-        address,
-        avatarUrl: ''
-      })
-      toast.success('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
-      navigate(redirect, { replace: true })
-    } catch (err: any) {
-      console.log('Registration error:', err)
-      console.log('Error response:', err?.response?.data)
-      
-      const response = err?.response?.data
-      const msg = response?.message || err?.message || 'Đăng ký thất bại'
-      
-      let hasFieldErrors = false
-      
-      // Handle specific field errors from server
-      if (response?.errors) {
-        console.log('Server errors:', response.errors)
-        const fieldErrors = mapServerErrorsToFields(response.errors)
-        console.log('Mapped field errors:', fieldErrors)
-        
-        // Set field-specific errors
-        if (Object.keys(fieldErrors).length > 0) {
-          setErrors(prev => ({ ...prev, ...fieldErrors }))
-          console.log('Set field errors:', fieldErrors)
-          hasFieldErrors = true
-        }
-      }
-      
-      // Always show error message (either field-specific or general)
-      if (!hasFieldErrors) {
-        console.log('Showing general error:', msg)
-        toast.error(msg)
-      }
-    } finally {
-      setSubmitting(false)
-    }
+    
+     try {
+       // Then do async validation with duplicate check
+       const asyncValidation = await validateRegisterFormStrictAsync({
+         fullName,
+         email,
+         password,
+         confirmPassword,
+         phoneNumber,
+         dateOfBirth,
+         gender: gender as 'MALE' | 'FEMALE',
+         address,
+         avatarUrl: ''
+       }, AuthService.checkEmailExists, AuthService.checkPhoneExists)
+       
+       if (!asyncValidation.isValid) {
+         setErrors(asyncValidation.errors)
+         setSubmitting(false)
+         return
+       }
+
+       // All validations passed, proceed with registration
+       const result = await AuthService.register({
+         fullName,
+         email,
+         password,
+         confirmPassword,
+         phoneNumber,
+         dateOfBirth,
+         gender: gender as 'MALE' | 'FEMALE',
+         address,
+         avatarUrl: ''
+       })
+       
+       // Check if registration was successful
+       if (result.success) {
+         toast.success('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
+         navigate(redirect, { replace: true })
+       } else {
+         // Handle registration failure
+         console.log('Registration failed:', result)
+         console.log('Result type:', typeof result)
+         console.log('Result keys:', Object.keys(result))
+         
+         // Check if there are specific field errors
+         const errorResult = result as any
+         let hasFieldErrors = false
+         
+         if (errorResult.errors && Array.isArray(errorResult.errors)) {
+           console.log('Server errors:', errorResult.errors)
+           const fieldErrors = mapServerErrorsToFields(errorResult.errors)
+           console.log('Mapped field errors:', fieldErrors)
+           
+           // Set field-specific errors
+           if (Object.keys(fieldErrors).length > 0) {
+             setErrors(prev => ({ ...prev, ...fieldErrors }))
+             console.log('Set field errors:', fieldErrors)
+             hasFieldErrors = true
+             
+             // Debug: Check if phoneNumber error was set
+             if (fieldErrors.phoneNumber) {
+               console.log('Phone number error set:', fieldErrors.phoneNumber)
+             }
+           }
+         }
+         
+         // Only show general error message if no field-specific errors
+         if (!hasFieldErrors) {
+           console.log('Showing general error:', errorResult.message)
+           toast.error(errorResult.message || 'Đăng ký thất bại')
+         } else {
+           console.log('Field errors set, not showing general toast')
+         }
+       }
+     } catch (err: any) {
+       console.log('Unexpected error during registration:', err)
+       toast.error('Có lỗi xảy ra. Vui lòng thử lại.')
+     } finally {
+       setSubmitting(false)
+     }
   }
 
   return (
@@ -262,42 +365,64 @@ export default function Register() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="email" className="form-group__label">Email <span className="required-asterisk">*</span></label>
-                  <input
-                    type="email"
-                    id="email"
-                    className="form-group__input"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                      if (e.target.value.trim()) {
-                        validateField('email', e.target.value)
-                      }
-                    }}
-                    onBlur={(e) => validateField('email', e.target.value)}
-                    placeholder=" "
-                    required
-                  />
+                  <label htmlFor="email" className="form-group__label">
+                    Email <span className="required-asterisk">*</span>
+                    {validatingEmail && <span className="validation-loading">Đang kiểm tra...</span>}
+                  </label>
+                  <div className="input-wrapper">
+                    <input
+                      type="email"
+                      id="email"
+                      className={`form-group__input ${validatingEmail ? 'validating' : ''} ${errors.email ? 'error' : ''}`}
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value)
+                        if (e.target.value.trim()) {
+                          validateField('email', e.target.value)
+                          debouncedEmailValidation(e.target.value)
+                        }
+                      }}
+                      onBlur={(e) => validateField('email', e.target.value)}
+                      placeholder=" "
+                      required
+                    />
+                    {validatingEmail && (
+                      <div className="validation-spinner">
+                        <div className="spinner"></div>
+                      </div>
+                    )}
+                  </div>
                   {errors.email && <p className="register__error">{errors.email}</p>}
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="phoneNumber" className="form-group__label">Số điện thoại <span className="required-asterisk">*</span></label>
-                  <input
-                    type="tel"
-                    id="phoneNumber"
-                    className="form-group__input"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      setPhoneNumber(e.target.value)
-                      if (e.target.value.trim()) {
-                        validateField('phoneNumber', e.target.value)
-                      }
-                    }}
-                    onBlur={(e) => validateField('phoneNumber', e.target.value)}
-                    placeholder=" "
-                    required
-                  />
+                  <label htmlFor="phoneNumber" className="form-group__label">
+                    Số điện thoại <span className="required-asterisk">*</span>
+                    {validatingPhone && <span className="validation-loading">Đang kiểm tra...</span>}
+                  </label>
+                  <div className="input-wrapper">
+                    <input
+                      type="tel"
+                      id="phoneNumber"
+                      className={`form-group__input ${validatingPhone ? 'validating' : ''} ${errors.phoneNumber ? 'error' : ''}`}
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        setPhoneNumber(e.target.value)
+                        if (e.target.value.trim()) {
+                          validateField('phoneNumber', e.target.value)
+                          debouncedPhoneValidation(e.target.value)
+                        }
+                      }}
+                      onBlur={(e) => validateField('phoneNumber', e.target.value)}
+                      placeholder=" "
+                      required
+                    />
+                    {validatingPhone && (
+                      <div className="validation-spinner">
+                        <div className="spinner"></div>
+                      </div>
+                    )}
+                  </div>
                   {errors.phoneNumber && <p className="register__error">{errors.phoneNumber}</p>}
                 </div>
 
