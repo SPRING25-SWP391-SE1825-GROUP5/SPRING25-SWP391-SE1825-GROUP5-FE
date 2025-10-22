@@ -69,3 +69,60 @@ tmp/
 # Project specific files
 api-worker-windows.exe
 .vscode
+
+# Screenshots and test artifacts
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Playwright test results
+test-results/
+playwright-report/
+playwright/.cache/
+
+# MCP v0 Prompts and AI-generated content
+prompts/
+*.md.backup
+
+# Test folders and configuration files
+tests/
+test/
+__tests__/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+
+# Playwright configuration and artifacts
+playwright.config.js
+playwright.config.ts
+playwright-report/
+test-results/
+playwright/.cache/
+screenshots/
+
+# Cursor IDE files
+*.cursor/
+.cursorignore
+.cursorrules
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+tests/
+scripts/ 
+
+# Temporary and cache files
+.cache/
+.temp/
+.tmp/
+*.tmp
+*.temp

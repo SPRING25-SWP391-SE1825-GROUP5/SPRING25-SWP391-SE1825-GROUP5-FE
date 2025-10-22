@@ -15,65 +15,47 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
   isGuest
 }) => {
   const steps = isGuest ? [
-    // Khách vãng lai: 6 bước
+    // Khách vãng lai: 4 bước (gộp Dịch vụ & Xe)
     { 
       number: 1, 
-      label: 'Thông tin khách hàng', 
-      icon: User,
-      description: 'Họ tên, SĐT, Email'
+      label: 'Dịch vụ & Xe', 
+      icon: Wrench,
+      description: 'Chọn dịch vụ và thông tin xe'
     },
     { 
       number: 2, 
-      label: 'Thông tin xe', 
-      icon: Car,
-      description: 'Mẫu xe, Biển số, Km'
-    },
-    { 
-      number: 3, 
-      label: 'Dịch vụ', 
-      icon: Wrench,
-      description: 'Chọn dịch vụ cần thiết'
-    },
-    { 
-      number: 4, 
       label: 'Địa điểm & Thời gian', 
       icon: MapPin,
       description: 'Nơi và thời gian thực hiện'
     },
     { 
-      number: 5, 
-      label: 'Đăng ký tài khoản', 
+      number: 3, 
+      label: 'Thông tin liên hệ', 
       icon: UserPlus,
-      description: 'Tạo tài khoản mới'
+      description: 'Họ tên, SĐT, Email, Mật khẩu'
     },
     { 
-      number: 6, 
+      number: 4, 
       label: 'Xác nhận cuối cùng', 
       icon: CheckCircle,
       description: 'Hoàn tất đặt lịch'
     }
   ] : [
-    // Đã đăng nhập: 4 bước
+    // Đã đăng nhập: 3 bước (gộp Dịch vụ & Xe)
     { 
       number: 1, 
-      label: 'Dịch vụ', 
+      label: 'Dịch vụ & Xe', 
       icon: Wrench,
-      description: 'Chọn dịch vụ cần thiết'
+      description: 'Chọn dịch vụ và thông tin xe'
     },
     { 
       number: 2, 
-      label: 'Thông tin xe', 
-      icon: Car,
-      description: 'Mẫu xe, Biển số, Km'
-    },
-    { 
-      number: 3, 
       label: 'Địa điểm & Thời gian', 
       icon: MapPin,
       description: 'Nơi và thời gian thực hiện'
     },
     { 
-      number: 4, 
+      number: 3, 
       label: 'Xác nhận cuối cùng', 
       icon: CheckCircle,
       description: 'Hoàn tất đặt lịch'
@@ -98,31 +80,31 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
     switch (status) {
       case 'completed':
         return {
-          circle: '#10b981', // Green
-          text: '#10b981',
-          background: '#f0fdf4',
-          border: '#10b981'
+          circle: 'var(--progress-completed)',
+          text: 'var(--progress-completed)',
+          background: 'var(--primary-50)',
+          border: 'var(--progress-completed)'
         }
       case 'current':
         return {
-          circle: '#3b82f6', // Blue
-          text: '#3b82f6',
-          background: '#eff6ff',
-          border: '#3b82f6'
+          circle: 'var(--progress-current)',
+          text: 'var(--progress-current)',
+          background: 'var(--primary-50)',
+          border: 'var(--progress-current)'
         }
       case 'pending':
         return {
-          circle: '#9ca3af', // Gray
-          text: '#6b7280',
+          circle: 'var(--progress-pending)',
+          text: 'var(--text-secondary)',
           background: '#f9fafb',
-          border: '#e5e7eb'
+          border: 'var(--border-primary)'
         }
       default:
         return {
-          circle: '#9ca3af',
-          text: '#6b7280',
+          circle: 'var(--progress-pending)',
+          text: 'var(--text-secondary)',
           background: '#f9fafb',
-          border: '#e5e7eb'
+          border: 'var(--border-primary)'
         }
     }
   }
@@ -197,7 +179,7 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
                   <div 
                     className="connector-line"
                     style={{
-                      backgroundColor: completedSteps.includes(step.number) ? '#10b981' : '#e5e7eb'
+                      backgroundColor: completedSteps.includes(step.number) ? 'var(--progress-completed)' : 'var(--progress-connector)'
                     }}
                   />
                 </div>
@@ -210,7 +192,7 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
       {/* CSS Styles */}
       <style>{`
         .steps-progress-indicator {
-          margin: 2rem 0 3rem 0;
+          margin: 1.5rem 0 2rem 0;
           padding: 0 1rem;
         }
 
@@ -233,8 +215,8 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
         }
 
         .step-circle {
-          width: 48px;
-          height: 48px;
+          width: 56px;
+          height: 56px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -244,7 +226,7 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           position: relative;
           z-index: 3;
           background: #ffffff;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .step-circle.completed {
@@ -260,9 +242,9 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
         }
 
         .step-content {
-          margin-top: 12px;
+          margin-top: 10px;
           text-align: center;
-          max-width: 120px;
+          max-width: 140px;
         }
 
         .step-label {
@@ -333,8 +315,8 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           }
 
           .step-circle {
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             margin-right: 16px;
             flex-shrink: 0;
           }

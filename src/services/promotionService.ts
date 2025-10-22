@@ -167,7 +167,7 @@ export const PromotionService = {
     },
     async activatePromotion(id: number): Promise<any> {
         try {
-            const { data } = await api.patch(`/promotion/${id}/activate`)
+            const { data } = await api.put(`/promotion/${id}/activate`)
             return data
         } catch (error) {
             throw error
@@ -175,7 +175,7 @@ export const PromotionService = {
     },
     async deactivatePromotion(id: number): Promise<any> {
         try {
-            const { data } = await api.patch(`/promotion/${id}/deactivate`)
+            const { data } = await api.put(`/promotion/${id}/deactivate`)
             return data
         } catch (error) {
             throw error

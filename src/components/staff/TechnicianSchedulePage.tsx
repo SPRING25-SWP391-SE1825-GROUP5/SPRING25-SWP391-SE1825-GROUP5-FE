@@ -46,6 +46,11 @@ export default function TechnicianSchedulePage() {
   const [centerSchedule, setCenterSchedule] = useState<any[]>([])
   const [viewLoading, setViewLoading] = useState<boolean>(false)
 
+  // Toggle for local debugging; keep false for production
+  const DEBUG = false
+  // Simple toggle between create/read views
+  const [viewTab, setViewTab] = useState<'create' | 'read'>('create')
+
   const canSubmit = useMemo(() => {
     if (loading) return false
     if (!form.technicianId) return false
@@ -124,64 +129,75 @@ export default function TechnicianSchedulePage() {
         }
       }
 
-      // Lấy danh sách slot hoạt động để tạo full-day
-      let activeSlots = slots
-      if (!activeSlots || activeSlots.length === 0) {
-        try {
-          activeSlots = await TimeSlotService.list(true)
-          setSlots(activeSlots || [])
-        } catch {
-          activeSlots = []
-        }
-      }
-
-      const slotIds: number[] = Array.isArray(activeSlots)
-        ? activeSlots.map((s: any) => Number(s.slotId)).filter((n) => Number.isFinite(n))
-        : []
-
-      if (slotIds.length === 0) {
-        throw new Error('Không có danh sách khung giờ khả dụng để tạo lịch.')
-      }
-
       const techId = Number(form.technicianId)
       if (!Number.isFinite(techId) || techId <= 0) {
         throw new Error('Kỹ thuật viên không hợp lệ.')
       }
 
-      // Xây dựng khoảng thời gian theo chế độ
-      const range = form.mode === 'ngay'
-        ? { start: new Date(form.workDate).toISOString(), end: new Date(form.workDate).toISOString() }
-        : { start: new Date(form.startDate).toISOString(), end: new Date(form.endDate).toISOString() }
-
-      // Gọi song song tạo lịch cho tất cả slot trong khoảng thời gian
-      const tasks = slotIds.map((slotId) => {
+      if (form.mode === 'tuan') {
+        // Sử dụng API mới cho tạo lịch full tuần
         const payload = {
-          technicianId: techId,
-          slotId,
-          startDate: range.start,
-          endDate: range.end,
+          startDate: new Date(form.startDate).toISOString(),
+          endDate: new Date(form.endDate).toISOString(),
           isAvailable: true,
           notes: form.notes || null,
         }
+        
         // debug payload in dev
-        if (import.meta.env.DEV) console.debug('CreateWeekly payload', payload)
-        return TechnicianTimeSlotService.createWeekly(payload as any)
-      })
+        if (import.meta.env.DEV) console.debug('CreateFullWeekAllSlots payload', payload)
+        
+        const result = await TechnicianTimeSlotService.createFullWeekAllSlots(techId, payload as any)
+        setSuccessMsg('Tạo lịch tuần thành công cho tất cả khung giờ')
+      } else {
+        // Chế độ ngày: sử dụng logic cũ với tất cả slots
+        let activeSlots = slots
+        if (!activeSlots || activeSlots.length === 0) {
+          try {
+            activeSlots = await TimeSlotService.list(true)
+            setSlots(activeSlots || [])
+          } catch {
+            activeSlots = []
+          }
+        }
 
-      const results = await Promise.allSettled(tasks)
-      const failures = results.filter((r) => r.status === 'rejected')
-      const successes = results.length - failures.length
-      if (failures.length === results.length) {
-        // Nếu tất cả thất bại, ném lỗi tổng quát để hiển thị
-        throw new Error('Không thể tạo lịch cho bất kỳ khung giờ nào. Vui lòng kiểm tra lại kỹ thuật viên/khung ngày hoặc quyền truy cập.')
+        const slotIds: number[] = Array.isArray(activeSlots)
+          ? activeSlots.map((s: any) => Number(s.slotId)).filter((n) => Number.isFinite(n))
+          : []
+
+        if (slotIds.length === 0) {
+          throw new Error('Không có danh sách khung giờ khả dụng để tạo lịch.')
+        }
+
+        // Xây dựng khoảng thời gian cho ngày
+        const range = { start: new Date(form.workDate).toISOString(), end: new Date(form.workDate).toISOString() }
+
+        // Gọi song song tạo lịch cho tất cả slot trong ngày
+        const tasks = slotIds.map((slotId) => {
+          const payload = {
+            technicianId: techId,
+            slotId,
+            startDate: range.start,
+            endDate: range.end,
+            isAvailable: true,
+            notes: form.notes || null,
+          }
+          return TechnicianTimeSlotService.createWeekly(payload as any)
+        })
+
+        const results = await Promise.allSettled(tasks)
+        const failures = results.filter((r) => r.status === 'rejected')
+        const successes = results.length - failures.length
+        if (failures.length === results.length) {
+          throw new Error('Không thể tạo lịch cho bất kỳ khung giờ nào. Vui lòng kiểm tra lại kỹ thuật viên/khung ngày hoặc quyền truy cập.')
+        }
+        
+        const firstFailureMsg = (() => {
+          const f = failures[0] as PromiseRejectedResult | undefined
+          const m = (f as any)?.reason?.response?.data?.message || (f as any)?.reason?.message
+          return m ? `; ${String(m)}` : ''
+        })()
+        setSuccessMsg(`Tạo lịch thành công ${successes}/${results.length} khung giờ${firstFailureMsg}`)
       }
-      // Có ít nhất một yêu cầu thành công
-      const firstFailureMsg = (() => {
-        const f = failures[0] as PromiseRejectedResult | undefined
-        const m = (f as any)?.reason?.response?.data?.message || (f as any)?.reason?.message
-        return m ? `; ${String(m)}` : ''
-      })()
-      setSuccessMsg(`Tạo lịch thành công ${successes}/${results.length} khung giờ${firstFailureMsg}`)
       await loadSchedule()
     } catch (err: any) {
       const status = err?.response?.status
@@ -297,25 +313,86 @@ export default function TechnicianSchedulePage() {
   }
 
   const loadTechnicianViewSchedule = async () => {
-    if (!form.technicianId) return
+    if (DEBUG) console.log('🔍 loadTechnicianViewSchedule called:', {
+      technicianId: form.technicianId,
+      viewRange,
+      viewDate,
+      viewStart,
+      viewEnd
+    })
+    
+    if (!form.technicianId) {
+      if (DEBUG) console.log('❌ No technician selected')
+      return
+    }
+    
     const sd = viewRange === 'day' ? (viewDate || viewStart) : viewStart
     const ed = viewRange === 'day' ? (viewDate || viewEnd || viewDate) : viewEnd
-    if (!sd || !ed) return
+    
+    if (DEBUG) console.log('📅 Date range:', { sd, ed })
+    
+    if (!sd || !ed) {
+      console.log('❌ Missing date range')
+      return
+    }
+    
     try {
       setViewLoading(true)
+      if (DEBUG) console.log('🚀 Calling API with:', {
+        technicianId: Number(form.technicianId),
+        startDate: sd,
+        endDate: ed
+      })
+      
       const data = await TechnicianTimeSlotService.getScheduleByTechnician(
         Number(form.technicianId),
         sd,
         ed
       )
+      
+      if (DEBUG) console.log('📡 API Response:', data)
+      
       const raw = Array.isArray((data as any)?.data)
         ? (data as any).data
         : Array.isArray(data)
           ? (data as any)
           : []
+      
+      if (DEBUG) console.log('🔄 Processed raw data:', raw)
+      
       const items = (raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots)) ? flattenDaily(raw) : raw
-      setSchedule(items)
-    } catch {
+      
+      if (DEBUG) console.log('✅ Final items:', items)
+
+      // Với chế độ nhiều ngày, không chỉ kiểm tra phần tử đầu tiên
+      const hasAnySlots = Array.isArray(raw)
+        ? raw.some((d: any) => {
+            const ts = d?.timeSlots || d?.TimeSlots
+            return Array.isArray(ts) && ts.length > 0
+          })
+        : false
+
+      if (!hasAnySlots) {
+        // Không có slot nào trong toàn bộ dải ngày → hiển thị thẻ hướng dẫn
+        if (raw.length > 0 && raw[0]?.technicianId) {
+          if (DEBUG) console.log('⚠️ Không có timeSlots trong dải ngày đã chọn')
+          const technicianInfo = {
+            technicianId: raw[0].technicianId,
+            technicianName: raw[0].technicianName,
+            workDate: raw[0].workDate,
+            dayOfWeek: raw[0].dayOfWeek,
+            hasSchedule: false
+          }
+          setSchedule([technicianInfo])
+        } else {
+          setSchedule([])
+        }
+      } else {
+        // Có ít nhất một ngày có slot → dùng danh sách items đã flatten
+        setSchedule(items)
+      }
+    } catch (error) {
+      if (DEBUG) console.error('❌ API Error:', error)
       setSchedule([])
     } finally {
       setViewLoading(false)
@@ -490,6 +567,30 @@ export default function TechnicianSchedulePage() {
         marginBottom: '24px',
         overflow: 'hidden'
       }}>
+        {/* Toggle buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button type="button" onClick={() => setViewTab('create')} style={{
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: viewTab === 'create' ? '2px solid var(--primary-500)' : '1px solid var(--border-primary)',
+            background: viewTab === 'create' ? 'var(--primary-50)' : 'transparent',
+            color: 'var(--text-primary)',
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}>Tạo lịch</button>
+          <button type="button" onClick={() => setViewTab('read')} style={{
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: viewTab === 'read' ? '2px solid var(--primary-500)' : '1px solid var(--border-primary)',
+            background: viewTab === 'read' ? 'var(--primary-50)' : 'transparent',
+            color: 'var(--text-primary)',
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}>Xem lịch</button>
+        </div>
+
+        {/* Create View */}
+        <div id="createView" style={{ display: viewTab === 'create' ? 'block' : 'none' }}>
         <form onSubmit={handleSubmit} style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
@@ -569,11 +670,14 @@ export default function TechnicianSchedulePage() {
           </div>
         </form>
         <div style={{ gridColumn: '1 / -1', color: 'var(--text-tertiary)', fontSize: '14px', marginTop: '5px' }}>
-          {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ 30 phút từ 08:00 đến 17:00 cho mỗi ngày trong 7 ngày.'}
+          {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ cho 7 ngày liên tiếp sử dụng API tối ưu.'}
+        </div>
         </div>
       </div>
 
-      <div style={{
+      {/* Read View */}
+      <div id="readView" style={{
+        display: viewTab === 'read' ? 'block' : 'none',
         background: 'var(--bg-card)',
         border: '1px solid var(--border-primary)',
         borderRadius: '16px',
@@ -647,6 +751,23 @@ export default function TechnicianSchedulePage() {
           </div>
         </div>
 
+        {/* Debug info (hidden by default) */}
+        {DEBUG && (
+          <div style={{ marginBottom: '16px', padding: '12px', background: '#f0f0f0', borderRadius: '8px', fontSize: '12px' }}>
+            <strong>Debug Info:</strong><br/>
+            View Mode: {viewMode}<br/>
+            Schedule Length: {schedule.length}<br/>
+            Center Schedule Length: {centerSchedule.length}<br/>
+            View Range: {viewRange}<br/>
+            View Date: {viewDate}<br/>
+            View Start: {viewStart}<br/>
+            View End: {viewEnd}<br/>
+            Technician ID: {form.technicianId}<br/>
+            Loading: {viewLoading ? 'Yes' : 'No'}<br/>
+            <strong>Schedule Data:</strong> {JSON.stringify(schedule, null, 2)}
+          </div>
+        )}
+
         {viewMode === 'center' ? (
           centerSchedule.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px' }}>Chưa có dữ liệu.</p>
@@ -679,7 +800,46 @@ export default function TechnicianSchedulePage() {
             </div>
           )
         ) : schedule.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px' }}>Chưa có dữ liệu.</p>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+            <p style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>📅 Chưa có lịch làm việc</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+              Technician này chưa có lịch làm việc cho ngày được chọn.<br/>
+              Hãy tạo lịch mới ở form phía trên.
+            </p>
+          </div>
+        ) : schedule.length === 1 && schedule[0]?.hasSchedule === false ? (
+          // Hiển thị thông tin technician khi chưa có lịch
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+            <div style={{ 
+              background: 'var(--bg-secondary)', 
+              borderRadius: '12px', 
+              padding: '24px', 
+              border: '1px solid var(--border-primary)',
+              maxWidth: '400px',
+              margin: '0 auto'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#000000' }}>
+                👨‍🔧 {schedule[0].technicianName}
+              </h3>
+              <p style={{ margin: '8px 0', fontSize: '14px', color: '#000000' }}>
+                <strong>Ngày:</strong> {new Date(schedule[0].workDate).toLocaleDateString('vi-VN')} ({schedule[0].dayOfWeek})
+              </p>
+              <p style={{ margin: '8px 0', fontSize: '14px', color: '#000000' }}>
+                <strong>Trạng thái:</strong> Chưa có lịch làm việc
+              </p>
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '12px', 
+                background: 'var(--warning-50)', 
+                borderRadius: '8px',
+                border: '1px solid var(--warning-200)'
+              }}>
+                <p style={{ margin: '0', fontSize: '13px', color: 'var(--warning-800)' }}>
+                  💡 Để tạo lịch cho technician này, hãy sử dụng form "Tạo lịch mới" phía trên.
+                </p>
+              </div>
+            </div>
+          </div>
         ) : viewRange === 'day' && (viewDate || viewStart) ? (
           // Lịch ngày: 1 cột ngày, hàng là slot
           (() => {
@@ -707,22 +867,25 @@ export default function TechnicianSchedulePage() {
                     {uniqueSlots.map((slot) => {
                       const key = `${dayKey}#${slot.id}`
                       const it = idx.get(key)
-                      const available = Boolean(it?.isAvailable)
+                      const booked = Boolean(it?.hasBooking)
+                      const available = !booked && Boolean(it?.isAvailable)
                       const note = it?.notes || ''
                       return (
                         <tr key={slot.id} style={{ borderTop: '1px solid var(--border-primary)' }}>
                           <td style={{ padding: '12px 16px', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--bg-card)' }}>{slot.label}</td>
                           <td style={{ padding: '8px 10px' }}>
-                            <div style={{
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              border: `1px solid ${available ? 'var(--success-200)' : 'var(--error-200)'}`,
-                              background: available ? 'var(--success-50)' : 'var(--error-50)',
-                              color: available ? 'var(--success-800)' : 'var(--error-800)',
-                              fontSize: '12px',
-                              minWidth: '160px'
-                            }} title={note}>
-                              {available ? 'Có thể nhận' : 'Khóa'}{note ? ` - ${note}` : ''}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '12px' }} title={note}>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: booked ? '#FF0000' : (available ? '#009900' : 'var(--border-primary)'),
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {booked ? 'Đã được đặt' : (available ? 'Khả dụng' : 'Không khả dụng')}
+                              </span>
                             </div>
                           </td>
                         </tr>
@@ -748,13 +911,26 @@ export default function TechnicianSchedulePage() {
 
               const idx = makeScheduleIndex(schedule)
 
+              // Lọc chỉ giữ các ngày có ít nhất một timeslot trong dữ liệu schedule
+              const visibleDays = days.filter((d) =>
+                schedule.some((it: any) => toLocalDateOnly(it.workDate) === d)
+              )
+
+              if (visibleDays.length === 0) {
+                return (
+                  <div style={{ padding: '16px', color: 'var(--text-secondary)' }}>
+                    Chưa có lịch làm việc nào trong tuần đã chọn.
+                  </div>
+                )
+              }
+
               return (
                 <div style={{ overflow: 'auto', border: '1px solid var(--border-primary)', borderRadius: '12px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--bg-secondary)' }}>
                         <th style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>Khung giờ</th>
-                        {days.map((d) => (
+                        {visibleDays.map((d) => (
                           <th key={d} style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'left' }}>{new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}</th>
                         ))}
                       </tr>
@@ -763,23 +939,26 @@ export default function TechnicianSchedulePage() {
                       {uniqueSlots.map((slot) => (
                         <tr key={slot.id} style={{ borderTop: '1px solid var(--border-primary)' }}>
                           <td style={{ padding: '12px 16px', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--bg-card)' }}>{slot.label}</td>
-                          {days.map((d) => {
+                          {visibleDays.map((d) => {
                             const key = `${d}#${slot.id}`
                             const it = idx.get(key)
-                            const available = Boolean(it?.isAvailable)
+                            const booked = Boolean(it?.hasBooking)
+                            const available = !booked && Boolean(it?.isAvailable)
                             const note = it?.notes || ''
                             return (
                               <td key={key} title={note} style={{ padding: '8px 10px' }}>
-                                <div style={{
-                                  padding: '8px 10px',
-                                  borderRadius: '8px',
-                                  border: `1px solid ${available ? 'var(--success-200)' : 'var(--error-200)'}`,
-                                  background: available ? 'var(--success-50)' : 'var(--error-50)',
-                                  color: available ? 'var(--success-800)' : 'var(--error-800)',
-                                  fontSize: '12px',
-                                  minWidth: '110px'
-                                }}>
-                                  {available ? 'Có thể nhận' : 'Khóa'}{note ? ` - ${note}` : ''}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '12px' }}>
+                                  <span style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '12px',
+                                    backgroundColor: booked ? '#FF0000' : (available ? '#009900' : 'var(--border-primary)'),
+                                    color: '#ffffff',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {booked ? 'Đã được đặt' : (available ? 'Khả dụng' : 'Không khả dụng')}
+                                  </span>
                                 </div>
                               </td>
                             )

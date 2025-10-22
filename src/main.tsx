@@ -22,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
       {/* @ts-ignore */}
       <LoginToastWatcher />
       <Toaster
-        position="top-right"
+        position="bottom-right"
         reverseOrder={false}
         containerStyle={{ zIndex: 2147483647, pointerEvents: 'none' }}
         toastOptions={{

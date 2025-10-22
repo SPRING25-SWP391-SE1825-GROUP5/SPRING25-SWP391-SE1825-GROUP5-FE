@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { CheckCircle, CreditCard, Clock, Download, AlertCircle } from 'lucide-react'
 import { PaymentService, QRPaymentRequest } from '@/services/paymentService'
@@ -14,6 +15,7 @@ const QRPayment: React.FC<QRPaymentProps> = ({
   onPaymentSuccess, 
   onPaymentCancel 
 }) => {
+  const navigate = useNavigate()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(true)
@@ -45,8 +47,15 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         console.log('QR payment created:', qrPaymentResponse)
         setPaymentData(qrPaymentResponse)
         
-        // Generate QR code from the response
-        const dataUrl = await QRCode.toDataURL(qrPaymentResponse.qrCode, {
+        // Use checkoutUrl from PayOS (this is the correct URL for QR code)
+        const qrData = qrPaymentResponse.paymentUrl || qrPaymentResponse.qrCode
+        
+        if (!qrData) {
+          throw new Error('Không có URL thanh toán từ PayOS')
+        }
+        
+        // Generate QR code from the PayOS checkout URL
+        const dataUrl = await QRCode.toDataURL(qrData, {
           width: 300,
           margin: 2,
           color: {
@@ -59,7 +68,7 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         
         // Also draw on canvas
         if (canvasRef.current) {
-          await QRCode.toCanvas(canvasRef.current, qrPaymentResponse.qrCode, {
+          await QRCode.toCanvas(canvasRef.current, qrData, {
             width: 300,
             margin: 2,
             color: {
@@ -73,27 +82,8 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         console.error('Error generating QR code:', error)
         setError(error.message || 'Có lỗi xảy ra khi tạo mã QR thanh toán')
         
-        // Fallback: generate QR code with basic payment info
-        const fallbackData = {
-          reservationId: reservation.id,
-          amount: reservation.totalAmount,
-          currency: 'VND',
-          description: `Thanh toán đặt lịch bảo dưỡng xe điện - ${reservation.vehicle?.licensePlate || 'N/A'}`,
-          merchant: 'EV Service Center',
-          timestamp: new Date().toISOString()
-        }
-        
-        const fallbackDataUrl = await QRCode.toDataURL(JSON.stringify(fallbackData), {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#10b981',
-            light: '#ffffff'
-          }
-        })
-        
-        setQrCodeDataUrl(fallbackDataUrl)
-        
+        // Don't use fallback - show error instead
+        setIsGenerating(false)
       } finally {
         setIsGenerating(false)
       }
@@ -114,9 +104,13 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         setPaymentStatus(statusResponse.status)
         
         if (statusResponse.status === 'COMPLETED') {
-          onPaymentSuccess()
+          // Redirect to payment success page instead of calling onPaymentSuccess
+          const successUrl = `/payment-success?bookingId=${reservation.id}&status=PAID&amount=${reservation.totalAmount}`
+          navigate(successUrl)
         } else if (statusResponse.status === 'FAILED' || statusResponse.status === 'CANCELLED') {
-          setError(statusResponse.failureReason || 'Thanh toán thất bại')
+          // Redirect to payment cancel page instead of showing error
+          const cancelUrl = `/payment-cancel?bookingId=${reservation.id}&amount=${reservation.totalAmount}&reason=${statusResponse.failureReason || 'PAYMENT_FAILED'}`
+          navigate(cancelUrl)
         }
       } catch (error) {
         console.error('Error checking payment status:', error)
@@ -217,6 +211,7 @@ const QRPayment: React.FC<QRPaymentProps> = ({
                   <p>1. Mở ứng dụng ngân hàng trên điện thoại</p>
                   <p>2. Quét mã QR bên trên</p>
                   <p>3. Xác nhận thanh toán</p>
+                  <p>4. Hoặc nhấn "Mở liên kết thanh toán" để thanh toán trên trình duyệt</p>
                 </div>
                 
                 <button 
@@ -254,14 +249,20 @@ const QRPayment: React.FC<QRPaymentProps> = ({
 
         <div className="qr-payment-actions">
           <button 
-            onClick={onPaymentCancel}
+            onClick={() => {
+              const cancelUrl = `/payment-cancel?bookingId=${reservation.id}&amount=${reservation.totalAmount}&reason=USER_CANCELLED`
+              navigate(cancelUrl)
+            }}
             className="cancel-btn"
           >
             Hủy thanh toán
           </button>
           {paymentStatus === 'COMPLETED' && (
             <button 
-              onClick={onPaymentSuccess}
+              onClick={() => {
+                const successUrl = `/payment-success?bookingId=${reservation.id}&status=PAID&amount=${reservation.totalAmount}`
+                navigate(successUrl)
+              }}
               className="success-btn"
             >
               Hoàn thành

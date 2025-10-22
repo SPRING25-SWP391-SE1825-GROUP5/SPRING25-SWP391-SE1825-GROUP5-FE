@@ -17,8 +17,11 @@ const Services = lazy(() => import('@/views/Services'))
 const ProtectedContact = lazy(() => import('@/views/ProtectedContact'))
 const Products = lazy(() => import('@/views/Products'))
 const Promotions = lazy(() => import('@/views/Promotions'))
-const Packages = lazy(() => import('@/views/Packages'))
 const ServiceBookingView = lazy(() => import('@/views/ServiceBookingView'))
+const BookingSuccess = lazy(() => import('@/views/BookingSuccess'))
+const PaymentSuccess = lazy(() => import('@/views/PaymentSuccess'))
+const PaymentCancel = lazy(() => import('@/views/PaymentCancel'))
+const PaymentCallback = lazy(() => import('@/views/PaymentCallback'))
 const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
 const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
@@ -42,6 +45,7 @@ const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
 const ChatDemo = lazy(() => import('@/views/ChatDemo'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
+const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
@@ -62,11 +66,15 @@ const router = createBrowserRouter([
       { path: 'services', element: suspense(<Services />) },
       { path: 'products', element: suspense(<Products />) },
       { path: 'promotions', element: suspense(<Promotions />) },
-      { path: 'packages', element: suspense(<Packages />) },
       { path: 'contact', element: suspense(<ProtectedContact />) },
       { path: 'booking', element: suspense(<ServiceBookingView />) },
+      { path: 'booking-success', element: suspense(<BookingSuccess />) },
+      { path: 'payment-success', element: suspense(<PaymentSuccess />) },
+      { path: 'payment-cancel', element: suspense(<PaymentCancel />) },
+      { path: 'payment-callback', element: suspense(<PaymentCallback />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
+      { path: 'map-demo', element: suspense(<MapDemo />) },
 
       { path: 'dashboard', element: <RequireAuth>{suspense(<Dashboard />)}</RequireAuth> },
       { path: 'profile', element: suspense(<Profile />) },
