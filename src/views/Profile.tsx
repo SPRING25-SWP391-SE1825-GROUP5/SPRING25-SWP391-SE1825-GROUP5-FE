@@ -301,8 +301,8 @@ export default function Profile() {
 
     setIsLoadingBookingHistory(true)
     try {
-      // Sử dụng customerId thay vì userId
-      const customerId = auth.user.customerId || auth.user.id
+      // Sử dụng userId làm customerId (vì trong hệ thống này userId = customerId)
+      const customerId = auth.user.id
       console.log('🚀 Loading booking history for customerId:', customerId)
       
       const response = await BookingService.getBookingHistory(customerId, bookingHistoryPage, 10)
