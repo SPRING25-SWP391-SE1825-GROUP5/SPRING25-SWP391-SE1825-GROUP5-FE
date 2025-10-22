@@ -178,28 +178,6 @@
         align-items: center;
         gap: 16px;
 
-        &__search {
-          position: relative;
-
-          &__icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-tertiary);
-          }
-
-          &__input {
-            width: 240px;
-            padding: 8px 12px 8px 36px;
-            border: 1px solid var(--border-primary);
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-            background: var(--bg-input);
-            color: var(--text-primary);
-          }
-        }
 
         &__notification {
           position: relative;
