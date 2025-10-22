@@ -153,11 +153,15 @@ export type CreateBookingRequest = {
 }
 
 export type CreateBookingResponse = {
-    bookingId: number
-    pricing: {
-        originalServicePrice: number
-        discount: number
-        totalAmount: number
+    success: boolean
+    message: string
+    data: {
+        bookingId: number
+        pricing: {
+            originalServicePrice: number
+            discount: number
+            totalAmount: number
+        }
     }
 }
 

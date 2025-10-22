@@ -69,3 +69,20 @@ tmp/
 # Project specific files
 api-worker-windows.exe
 .vscode
+
+# Screenshots and test artifacts
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Playwright test results
+test-results/
+playwright-report/
+playwright/.cache/
+
+# MCP v0 Prompts and AI-generated content
+prompts/
+*.md.backup
