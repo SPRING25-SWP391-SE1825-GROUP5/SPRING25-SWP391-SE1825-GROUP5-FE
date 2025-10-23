@@ -42,6 +42,25 @@ export type TechnicianScheduleItem = {
     notes?: string | null
 }
 
+// API Response Types
+export interface TechnicianTimeSlotResponse {
+    success: boolean
+    message: string
+    data: TechnicianTimeSlotData[]
+}
+
+export interface TechnicianTimeSlotData {
+    technicianSlotId: number
+    technicianId: number
+    technicianName: string
+    slotId: number
+    slotTime: string
+    workDate: string
+    isAvailable: boolean
+    notes: string | null
+    createdAt: string
+}
+
 export const TechnicianTimeSlotService = {
     async create(payload: CreateTechnicianTimeSlotRequest) {
         const { data } = await api.post('/TechnicianTimeSlot', payload)
@@ -92,6 +111,50 @@ export const TechnicianTimeSlotService = {
         const { data } = await api.get(`/TechnicianTimeSlot/center/${centerId}/schedule`, { params: { startDate, endDate } })
         return data
     },
+
+    // Get technician schedule by technician and center
+    async getTechnicianScheduleByCenter(technicianId: number, centerId: number): Promise<TechnicianTimeSlotResponse> {
+        try {
+            console.log('🌐 Making API request:', {
+                url: `/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`,
+                baseURL: api.defaults.baseURL,
+                fullURL: `${api.defaults.baseURL}/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`,
+                headers: api.defaults.headers
+            })
+            const { data } = await api.get<TechnicianTimeSlotResponse>(`/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`)
+            console.log('📡 API Response received:', {
+                status: 200, // Assuming success for logging
+                data: data,
+                headers: {} // Not directly available from Axios response.data
+            })
+            return data
+        } catch (error: any) {
+            console.error('❌ API Error details:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                config: {
+                    url: error.config?.url,
+                    baseURL: error.config?.baseURL,
+                    method: error.config?.method,
+                    headers: error.config?.headers
+                }
+            })
+            throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy lịch làm việc của technician')
+        }
+    },
+
+    // Get technician details by ID to get centerId
+    async getTechnicianById(id: number): Promise<{ success: boolean; data: { id: number; centerId: number; name: string; [key: string]: any } }> {
+        try {
+            console.log('🌐 Getting technician details for ID:', id)
+            const { data } = await api.get(`/Technician/${id}`)
+            console.log('👤 Technician details response:', data)
+            return data
+        } catch (error: any) {
+            console.error('❌ Error fetching technician by ID:', error)
+            throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy thông tin technician')
+        }
+    },
 }
-
-

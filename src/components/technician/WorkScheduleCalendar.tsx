@@ -1,26 +1,19 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
+import { useAppSelector } from '@/store/hooks'
+import { TechnicianTimeSlotService, type TechnicianTimeSlotData } from '@/services/technicianTimeSlotService'
+import { format } from 'date-fns'
+import { type TimeSlot } from '@/types/technician'
 import './WorkScheduleCalendar.scss'
 import DayDetailModal from './DayDetailModal'
 import DayCell from './DayCell'
-
-interface Appointment {
-  id: number
-  time: string
-  customer: string
-  service: string
-  vehicle: string
-  status: 'confirmed' | 'pending' | 'cancelled'
-  priority: 'high' | 'medium' | 'low'
-  serviceType?: 'repair' | 'maintenance' | 'inspection' | 'replacement' | 'other'
-}
 
 interface WorkScheduleCalendarProps {
   viewMode: 'month'
   currentDate: Date
   onDateChange: (date: Date) => void
-  appointments: Appointment[]
-  onAppointmentClick: (appointment: Appointment) => void
+  appointments: TimeSlot[]
+  onAppointmentClick: (appointment: TimeSlot) => void
   onNavigateToVehicleDetails: () => void
 }
 
@@ -34,19 +27,109 @@ export default function WorkScheduleCalendar({
 }: WorkScheduleCalendarProps) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showDayDetail, setShowDayDetail] = useState(false)
+  const [workDays, setWorkDays] = useState<Set<string>>(new Set())
+  const [timeSlots, setTimeSlots] = useState<TechnicianTimeSlotData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Get appointments for a specific day
-  const getAppointmentsForDay = (date: Date): Appointment[] => {
-    const dateString = date.toISOString().split('T')[0]
-    // Mock logic - in real implementation, this would filter appointments by date
-    // For now, return some appointments for demonstration
-    return appointments.filter((_, index) => index < 3) // Show first 3 appointments as demo
+  // Get user data from Redux
+  const user = useAppSelector((state) => state.auth.user)
+  const [technicianId, setTechnicianId] = useState<number | null>(null)
+  const [centerId, setCenterId] = useState<number | null>(null)
+
+  // Load work schedule from API
+  const loadWorkSchedule = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // Step 1: Get technician details first to get the correct centerId
+      const tempTechnicianId = 4 // Default technician ID for testing
+      
+      console.log('🔍 Getting technician details for ID:', tempTechnicianId)
+      
+      const technicianResponse = await TechnicianTimeSlotService.getTechnicianById(tempTechnicianId)
+      
+      console.log('👤 Technician details response:', technicianResponse)
+
+      if (technicianResponse.success && technicianResponse.data) {
+        const technicianData = technicianResponse.data
+        const actualTechnicianId = technicianData.technicianId || tempTechnicianId
+        const actualCenterId = technicianData.centerId
+        
+        console.log('📋 Using technician and center IDs from technician API:', { 
+          technicianId: actualTechnicianId,
+          centerId: actualCenterId,
+          technicianName: technicianData.userFullName
+        })
+        
+        // Update state with actual IDs from technician API
+        setTechnicianId(actualTechnicianId)
+        setCenterId(actualCenterId)
+        
+        // Step 3: Get work schedule using the correct technicianId and centerId
+        console.log('🔍 Getting work schedule with correct IDs:', { 
+          technicianId: actualTechnicianId,
+          centerId: actualCenterId
+        })
+        
+        const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(actualTechnicianId, actualCenterId)
+        
+        console.log('📡 Work schedule response:', scheduleResponse)
+
+        if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
+          // Process work dates and create a Set of unique work days
+          const workDaysSet = new Set<string>()
+          
+          scheduleResponse.data.forEach((slot: TechnicianTimeSlotData) => {
+            // Normalize workDate to get only the date part (YYYY-MM-DD)
+            const workDate = new Date(slot.workDate)
+            const normalizedDate = format(workDate, 'yyyy-MM-dd')
+            workDaysSet.add(normalizedDate)
+          })
+
+          console.log('✅ Work days loaded:', Array.from(workDaysSet))
+          setWorkDays(workDaysSet)
+          setTimeSlots(scheduleResponse.data)
+        } else {
+          console.log('⚠️ No work schedule data found for this technician and center')
+          setError('Không tìm thấy lịch làm việc cho technician này')
+          setWorkDays(new Set())
+        }
+      } else {
+        console.log('⚠️ No technician data found')
+        setError('Không tìm thấy thông tin technician')
+        setWorkDays(new Set())
+      }
+    } catch (error: any) {
+      console.error('❌ Error loading work schedule:', error)
+      setError(error.message || 'Không thể tải lịch làm việc')
+      setWorkDays(new Set())
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Load work schedule when component mounts or when month changes
+  useEffect(() => {
+    loadWorkSchedule()
+  }, [loadWorkSchedule, currentDate.getMonth(), currentDate.getFullYear()])
+
+  // Check if a day has work schedule
+  const hasWork = (date: Date): boolean => {
+    const dateString = format(date, 'yyyy-MM-dd')
+    return workDays.has(dateString)
   }
 
-  // Check if a day has appointments
-  const hasAppointments = (date: Date): boolean => {
-    return getAppointmentsForDay(date).length > 0
+  // Get time slots for a specific day
+  const getTimeSlotsForDay = (date: Date): TimeSlot[] => {
+    const dateString = format(date, 'yyyy-MM-dd')
+    return timeSlots.filter(slot => {
+      const slotDate = format(new Date(slot.workDate), 'yyyy-MM-dd')
+      return slotDate === dateString
+    })
   }
+
 
   // Handle day click
   const handleDayClick = (date: Date) => {
@@ -118,15 +201,18 @@ export default function WorkScheduleCalendar({
             <button
               className="work-schedule-calendar__header__navigation__button"
               onClick={goToPreviousMonth}
+              disabled={loading}
             >
               <ChevronLeft size={20} />
             </button>
             <h2 className="work-schedule-calendar__header__navigation__title">
               {getMonthYearString()}
+              {loading && <span className="text-sm text-gray-500 ml-2">(Đang tải...)</span>}
             </h2>
             <button
               className="work-schedule-calendar__header__navigation__button"
               onClick={goToNextMonth}
+              disabled={loading}
             >
               <ChevronRight size={20} />
             </button>
@@ -134,10 +220,25 @@ export default function WorkScheduleCalendar({
           <button
             className="work-schedule-calendar__header__today"
             onClick={goToToday}
+            disabled={loading}
           >
             Hôm nay
           </button>
         </div>
+
+
+         {/* Error Message */}
+         {error && (
+           <div className="work-schedule-calendar__error">
+             <p className="text-red-600 text-sm">⚠️ {error}</p>
+             <button 
+               onClick={loadWorkSchedule}
+               className="text-blue-600 text-sm underline ml-2"
+             >
+               Thử lại
+             </button>
+           </div>
+         )}
 
         <div className="work-schedule-calendar__content">
           <div className="work-schedule-calendar__month">
@@ -152,32 +253,32 @@ export default function WorkScheduleCalendar({
               {calendarDays.map((day, index) => {
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth()
                 const isToday = day.toDateString() === today.toDateString()
-                const dayEvents = getAppointmentsForDay(day)
+                       const hasWorkSchedule = hasWork(day)
 
-                return (
-                  <DayCell
-                    key={index}
-                    day={day}
-                    isCurrentMonth={isCurrentMonth}
-                    isToday={isToday}
-                    events={dayEvents}
-                    onDayClick={handleDayClick}
-                  />
-                )
+                       return (
+                         <DayCell
+                           key={index}
+                           day={day}
+                           isCurrentMonth={isCurrentMonth}
+                           isToday={isToday}
+                           events={[]}
+                           hasWork={hasWorkSchedule}
+                           onDayClick={handleDayClick}
+                         />
+                       )
               })}
             </div>
           </div>
         </div>
       </div>
 
-      <DayDetailModal
-        isOpen={showDayDetail}
-        onClose={handleCloseDayDetail}
-        selectedDate={selectedDay}
-        appointments={selectedDay ? getAppointmentsForDay(new Date(selectedDay)) : []}
-        onAppointmentClick={onAppointmentClick}
-        onNavigateToVehicleDetails={onNavigateToVehicleDetails}
-      />
+             <DayDetailModal
+               isOpen={showDayDetail}
+               onClose={handleCloseDayDetail}
+               selectedDate={selectedDay}
+               timeSlots={selectedDay ? getTimeSlotsForDay(new Date(selectedDay)) : []}
+               onNavigateToVehicleDetails={onNavigateToVehicleDetails}
+             />
     </>
   )
 }

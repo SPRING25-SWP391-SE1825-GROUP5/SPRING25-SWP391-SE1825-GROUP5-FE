@@ -1,24 +1,13 @@
 import React from 'react'
-import { X, Clock, User, Car, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
+import { X, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { type TimeSlot } from '@/types/technician'
 import './DayDetailModal.scss'
-
-interface Appointment {
-  id: number
-  time: string
-  customer: string
-  service: string
-  vehicle: string
-  status: 'confirmed' | 'pending' | 'cancelled'
-  priority: 'high' | 'medium' | 'low'
-  serviceType?: 'repair' | 'maintenance' | 'inspection' | 'replacement' | 'other'
-}
 
 interface DayDetailModalProps {
   isOpen: boolean
   onClose: () => void
   selectedDate: string | null
-  appointments: Appointment[]
-  onAppointmentClick: (appointment: Appointment) => void
+  timeSlots: TimeSlot[]
   onNavigateToVehicleDetails: () => void
 }
 
@@ -26,56 +15,21 @@ export default function DayDetailModal({
   isOpen,
   onClose,
   selectedDate,
-  appointments,
-  onAppointmentClick,
+  timeSlots,
   onNavigateToVehicleDetails
 }: DayDetailModalProps) {
   if (!isOpen || !selectedDate) return null
 
-  // Determine service type based on service name
-  const getServiceType = (service: string): string => {
-    const serviceLower = service.toLowerCase()
-    if (serviceLower.includes('sửa chữa') || serviceLower.includes('sửa')) return 'repair'
-    if (serviceLower.includes('bảo dưỡng') || serviceLower.includes('maintenance')) return 'maintenance'
-    if (serviceLower.includes('kiểm tra') || serviceLower.includes('inspection')) return 'inspection'
-    if (serviceLower.includes('thay thế') || serviceLower.includes('replacement')) return 'replacement'
-    return 'other'
+  const getStatusText = (isAvailable: boolean) => {
+    return isAvailable ? 'Khả dụng' : 'Đã được đặt'
   }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'Đã xác nhận'
-      case 'pending': return 'Chờ xác nhận'
-      case 'cancelled': return 'Đã hủy'
-      default: return status
-    }
+  const getStatusIcon = (isAvailable: boolean) => {
+    return isAvailable ? CheckCircle : XCircle
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'confirmed': return CheckCircle
-      case 'pending': return Clock
-      case 'cancelled': return XCircle
-      default: return Clock
-    }
-  }
-
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'Cao'
-      case 'medium': return 'Trung bình'
-      case 'low': return 'Thấp'
-      default: return priority
-    }
-  }
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high': return AlertCircle
-      case 'medium': return Clock
-      case 'low': return CheckCircle
-      default: return Clock
-    }
+  const getStatusClass = (isAvailable: boolean) => {
+    return isAvailable ? 'available' : 'booked'
   }
 
   const formatDate = (dateString: string) => {
@@ -96,10 +50,10 @@ export default function DayDetailModal({
         <div className="day-detail-modal__content__header">
           <div className="day-detail-modal__content__header__info">
             <h2 className="day-detail-modal__content__header__info__title">
-              Lịch hẹn ngày {formatDate(selectedDate)}
+              Lịch làm việc ngày {formatDate(selectedDate)}
             </h2>
             <p className="day-detail-modal__content__header__info__count">
-              {appointments.length} cuộc hẹn
+              {timeSlots.length} khung giờ
             </p>
           </div>
           <button
@@ -111,74 +65,51 @@ export default function DayDetailModal({
         </div>
 
         <div className="day-detail-modal__content__body">
-          {appointments.length === 0 ? (
+          {timeSlots.length === 0 ? (
             <div className="day-detail-modal__content__body__empty">
               <div className="day-detail-modal__content__body__empty__icon">
                 <Clock size={48} />
               </div>
               <h3 className="day-detail-modal__content__body__empty__title">
-                Không có lịch hẹn
+                Không có lịch làm việc
               </h3>
               <p className="day-detail-modal__content__body__empty__description">
-                Ngày này không có cuộc hẹn nào được lên lịch
+                Ngày này không có khung giờ làm việc nào
               </p>
             </div>
           ) : (
-            <div className="day-detail-modal__content__body__appointments">
-              {appointments.map((appointment) => {
-                const serviceType = appointment.serviceType || getServiceType(appointment.service)
-                const StatusIcon = getStatusIcon(appointment.status)
-                const PriorityIcon = getPriorityIcon(appointment.priority)
+            <div className="day-detail-modal__content__body__timeslots">
+              {timeSlots.map((timeSlot) => {
+                const StatusIcon = getStatusIcon(timeSlot.isAvailable)
+                const statusClass = getStatusClass(timeSlot.isAvailable)
 
                 return (
                   <div
-                    key={appointment.id}
-                    className={`day-detail-modal__content__body__appointments__item day-detail-modal__content__body__appointments__item--${serviceType}`}
-                    onClick={() => onAppointmentClick(appointment)}
+                    key={timeSlot.technicianSlotId}
+                    className={`day-detail-modal__content__body__timeslots__item day-detail-modal__content__body__timeslots__item--${statusClass}`}
                   >
-                    <div className="day-detail-modal__content__body__appointments__item__time">
+                    <div className="day-detail-modal__content__body__timeslots__item__time">
                       <Clock size={16} />
-                      {appointment.time}
+                      {timeSlot.slotTime}
                     </div>
                     
-                    <div className="day-detail-modal__content__body__appointments__item__content">
-                      <h4 className="day-detail-modal__content__body__appointments__item__content__service">
-                        {appointment.service}
+                    <div className="day-detail-modal__content__body__timeslots__item__content">
+                      <h4 className="day-detail-modal__content__body__timeslots__item__content__title">
+                        Khung giờ {timeSlot.slotTime}
                       </h4>
                       
-                      <div className="day-detail-modal__content__body__appointments__item__content__details">
-                        <div className="day-detail-modal__content__body__appointments__item__content__details__customer">
-                          <User size={14} />
-                          {appointment.customer}
-                        </div>
-                        <div className="day-detail-modal__content__body__appointments__item__content__details__vehicle">
-                          <Car size={14} />
-                          {appointment.vehicle}
-                        </div>
-                      </div>
+                      {timeSlot.notes && (
+                        <p className="day-detail-modal__content__body__timeslots__item__content__notes">
+                          {timeSlot.notes}
+                        </p>
+                      )}
 
-                      <div className="day-detail-modal__content__body__appointments__item__content__badges">
-                        <span className="day-detail-modal__content__body__appointments__item__content__badges__priority">
-                          <PriorityIcon size={12} />
-                          {getPriorityText(appointment.priority)}
-                        </span>
-                        <span className="day-detail-modal__content__body__appointments__item__content__badges__status">
-                          <StatusIcon size={12} />
-                          {getStatusText(appointment.status)}
+                      <div className="day-detail-modal__content__body__timeslots__item__content__status">
+                        <StatusIcon size={16} />
+                        <span className={`day-detail-modal__content__body__timeslots__item__content__status__text day-detail-modal__content__body__timeslots__item__content__status__text--${statusClass}`}>
+                          {getStatusText(timeSlot.isAvailable)}
                         </span>
                       </div>
-                    </div>
-
-                    <div className="day-detail-modal__content__body__appointments__item__actions">
-                      <button
-                        className="day-detail-modal__content__body__appointments__item__actions__button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onNavigateToVehicleDetails()
-                        }}
-                      >
-                        Chi tiết xe
-                      </button>
                     </div>
                   </div>
                 )

@@ -468,7 +468,6 @@ export default function TechnicianDashboard() {
         }} />
       case 'work-schedule':
         return <WorkSchedule 
-          onNavigateToLeaveRequest={() => setActivePage('leave-request')}
           onNavigateToVehicleDetails={() => setActivePage('vehicle-details')}
         />
       case 'vehicle-details':
