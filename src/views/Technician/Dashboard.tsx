@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import toast from 'react-hot-toast'
 import { 
@@ -367,6 +367,7 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
 export default function TechnicianDashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
+  const user = useAppSelector((state) => state.auth.user)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [selectedWork, setSelectedWork] = useState<any>(null)

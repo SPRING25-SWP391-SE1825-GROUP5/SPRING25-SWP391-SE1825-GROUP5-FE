@@ -1,247 +1,607 @@
-// Work Schedule Calendar Component Styles - Redesigned
 .work-schedule-calendar {
-  background: var(--bg-card);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-primary);
-  overflow: hidden;
+  background: #FFFFFF; /* Pure white background */
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* Premium card shadow */
+  padding: 1.5rem;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.05); /* Subtle border for definition */
 
-  &__header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border-primary);
-    background: linear-gradient(135deg, var(--primary-50), var(--primary-100));
+  &__loading {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
 
-    &__navigation {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-
-      &__button {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        color: var(--text-primary);
-
-        &:hover {
-          background: var(--primary-500);
-          color: white;
-          border-color: var(--primary-500);
-        }
-      }
-
-      &__title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+    &__spinner {
+      width: 2rem;
+      height: 2rem;
+      border: 2px solid var(--border-primary);
+      border-top: 2px solid var(--primary-500);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
     }
 
-    &__today {
+    span {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+  }
+
+  &__error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+
+    &__icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    h3 {
+      color: var(--error-500);
+      margin: 0 0 0.5rem 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin: 0 0 1.5rem 0;
+      font-size: 0.875rem;
+    }
+
+    &__retry {
       background: var(--primary-500);
-      color: white;
+      color: var(--text-inverse);
       border: none;
-      border-radius: 6px;
-      padding: 8px 16px;
-      font-size: 14px;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
 
       &:hover {
         background: var(--primary-600);
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        transform: translateY(0);
       }
     }
   }
 
-  &__content {
-    padding: 24px;
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
   }
 
-  // Week View Styles
-  &__week {
-    &__header {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 1px;
-      background: var(--border-primary);
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 16px;
+  &__title-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-      &__day {
-        background: var(--bg-secondary);
-        padding: 16px 12px;
-        text-align: center;
-        font-weight: 600;
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+
+    &-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      strong {
         color: var(--text-primary);
+        font-weight: 500;
+      }
+    }
+  }
 
-        &__name {
-          font-size: 12px;
-          color: var(--text-tertiary);
-          margin-bottom: 4px;
-        }
+  &__navigation {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
 
-        &__number {
-          font-size: 16px;
-        }
+  &__nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--primary-50);
+      border-color: var(--primary-300);
+      color: var(--primary-600);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &__month {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    min-width: 200px;
+    text-align: center;
+  }
+
+  &__grid {
+    background: transparent; // Transparent background
+    border-radius: var(--radius-md);
+    overflow: visible; // Allow cards to show shadows
+    border: none; // Remove all borders
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; // Gap between rows
+  }
+
+  &__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--primary-500); // System green color (#004030)
+    border-radius: 8px; // Rounded corners
+    border: none; // Remove borders
+    gap: 0.5rem; // Gap between weekday items
+    padding: 0.5rem; // Add padding
+  }
+
+  &__weekday {
+    padding: 0.75rem;
+    text-align: center;
+    font-weight: 700; // Bold font weight
+    color: #FFFFFF; // White text
+    font-size: 0.875rem;
+    border: none; // Remove all borders
+    border-radius: 4px; // Slight rounding
+  }
+
+  &__days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem; // Gap between day cells
+  }
+
+  &__day {
+    position: relative;
+    min-height: 3rem;
+    padding: 0.75rem;
+    border: 1px solid #9CA3AF; // Darker border for better contrast
+    border-radius: 8px; // Rounded corners for card effect
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #FFFFFF; // White background for current month
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); // Subtle shadow for card effect
+
+    &:hover {
+      background: var(--primary-50); // Green-50 hover effect
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); // Enhanced shadow on hover
+      transform: translateY(-1px); // Slight lift effect
+    }
+
+    &--other-month {
+      color: #6B7280 !important; // Muted gray text
+      background: #9CA3AF !important; // Dark gray background (bg-gray-400)
+      box-shadow: none !important; // No shadow for outside month
+      border-color: #6B7280 !important; // Muted border for outside month
+      pointer-events: none !important; // Disable all interaction
+      cursor: not-allowed !important; // Show not-allowed cursor
+      opacity: 0.6 !important; // Reduce opacity to show it's disabled
+      
+      // Disable hover effects
+      &:hover {
+        background: #9CA3AF !important; // Keep dark gray on hover
+        box-shadow: none !important; // No shadow on hover
+        transform: none !important; // No transform on hover
       }
     }
 
-    &__body {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 1px;
-      background: var(--border-primary);
-      border-radius: 8px;
-      overflow: hidden;
-      min-height: 400px;
+    &--today {
+      background: transparent; // Transparent background
+      color: #1F2937; // Dark text for day number
+      font-weight: 500; // Normal font weight for day number
+      
+      .work-schedule-calendar__day-number {
+        background-color: #2563EB; // Blue background for today
+        color: #FFFFFF; // White text
+        border-radius: 50%; // Circular shape
+        font-weight: 700; // Bold font weight
+        width: 2rem; // Fixed width
+        height: 2rem; // Fixed height
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto; // Center the circle
+      }
+    }
 
-      &__day {
-        background: var(--bg-card);
-        padding: 12px;
-        min-height: 120px;
-        position: relative;
+    &--has-schedule {
+      background: #FFFFFF; // White background
+      color: #1F2937; // Dark text
+      font-weight: 500;
+      border-color: #9CA3AF; // Darker border for better contrast
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); // Subtle shadow
 
-        &--today {
-          background: var(--primary-50);
-          border: 2px solid var(--primary-300);
-        }
+      &:hover {
+        background: var(--primary-50); // Green-50 hover
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); // Enhanced shadow on hover
+        transform: translateY(-1px); // Slight lift effect
+      }
+    }
 
-        &__appointments {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-
-          &__item {
-            background: var(--primary-500);
-            color: white;
-            padding: 6px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border-left: 3px solid var(--primary-600);
-
-            &:hover {
-              background: var(--primary-600);
-              transform: translateY(-1px);
-              box-shadow: var(--shadow-sm);
-            }
-
-            &__time {
-              font-weight: 600;
-              margin-bottom: 2px;
-            }
-
-            &__service {
-              font-size: 11px;
-              opacity: 0.9;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-
-            &__customer {
-              font-size: 10px;
-              opacity: 0.8;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-          }
+    &--selected {
+      background: #FFFFFF; // White background for card
+      color: #1F2937; // Dark text for day number
+      font-weight: 500; // Normal font weight
+      border-color: #9CA3AF; // Darker border for better contrast
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); // Enhanced shadow for selected
+      
+      .work-schedule-calendar__day-number {
+        background-color: var(--primary-500); // Green background for selected day number
+        color: #FFFFFF; // White text
+        border-radius: 50%; // Circular shape
+        font-weight: 700; // Bold font weight
+        width: 2rem; // Fixed width
+        height: 2rem; // Fixed height
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto; // Center the circle
+      }
+      
+      // Override today styles when selected
+      &.work-schedule-calendar__day--today {
+        .work-schedule-calendar__day-number {
+          background-color: var(--primary-500) !important; // Green circle instead of blue
+          color: #FFFFFF !important; // White text
         }
       }
     }
   }
 
-  // Month View Styles - Clean Design
-  &__month {
-    &__header {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px; // Match the gap with body cells
-      background: #f3f4f6; // gray-100 - same as body background
-      border-radius: 8px;
-      padding: 4px; // Match the padding with body
-      margin-bottom: 16px;
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); // Subtle inset shadow for depth
+  &__day-number {
+    font-size: 0.875rem;
+    line-height: 1;
+  }
 
-      &__day {
-        background: var(--primary-500); // Green background like "Hôm nay" button
-        padding: 16px 12px;
-        text-align: center;
-        font-weight: 600;
-        color: white; // White text for better contrast
-        font-size: 14px;
-        border-radius: 8px; // Rounded corners to match day cells
-        transition: all 0.2s ease;
+  &__day-indicator {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+  }
 
-        &:hover {
-          background: var(--primary-600); // Slightly darker on hover
-        }
-      }
+  &__day-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: var(--primary-500); // System green color
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--bg-card);
+  }
+
+  &__legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-primary);
+    flex-wrap: wrap;
+  }
+
+  &__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
+
+  &__legend-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+
+    &--has-schedule {
+      background: var(--primary-500); // System green color
     }
 
-    &__body {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px; // Small gap between cells instead of borders
-      background: #f3f4f6; // gray-100 - background color shows through gaps
-      border-radius: 8px;
-      padding: 4px; // Padding to show background color around edges
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); // Subtle inset shadow for depth
+    &--today {
+      background: #2563EB; // Blue color for today
+      border-radius: 50%; // Circular shape
+    }
+  }
+
+  // Modal styles
+  &__modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+
+  &__modal {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  &__modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--primary-50);
+  }
+
+  &__modal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  &__modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--error-50);
+      color: var(--error-600);
+    }
+  }
+
+  &__modal-content {
+    padding: 1.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  &__modal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+  }
+
+  &__modal-info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  &__modal-schedule {
+    margin-bottom: 1.5rem;
+
+    h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 1rem 0;
+    }
+  }
+
+  &__time-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__time-slot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+    transition: all 0.2s ease;
+
+    &--booked {
+      background: var(--warning-50);
+      border-color: var(--warning-200);
+    }
+
+    &:hover {
+      background: var(--primary-50);
+    }
+  }
+
+  &__time-slot__time {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  &__time-slot__status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--success-100);
+    color: var(--success-700);
+    font-weight: 500;
+  }
+
+  &__time-slot__notes {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+    font-style: italic;
+  }
+
+  &__modal-stats {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    flex-wrap: wrap;
+  }
+
+  &__stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 80px;
+  }
+
+  &__stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  &__stat-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-600);
+  }
+
+  &__loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    border-radius: var(--radius-lg);
+  }
+
+  &__spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--border-primary);
+    border-top: 2px solid var(--primary-500);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  // Responsive
+  @media (max-width: 768px) {
+    padding: 1rem;
+
+    &__header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+    }
+
+    &__navigation {
+      justify-content: center;
+    }
+
+    &__day {
+      min-height: 2.5rem;
+      padding: 0.25rem;
+    }
+
+    &__day-number {
+      font-size: 0.75rem;
+    }
+
+    &__modal {
+      margin: 0.5rem;
+      max-height: 90vh;
+    }
+
+    &__modal-content {
+      padding: 1rem;
+    }
+
+    &__modal-stats {
+      flex-direction: column;
+      gap: 0.75rem;
     }
   }
 }
 
-// Pulse animation is defined in DayCell.scss
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-// Responsive Design
-@media (max-width: 768px) {
-  .work-schedule-calendar {
-    &__header {
-      flex-direction: column;
-      gap: 12px;
-      align-items: stretch;
-
-      &__navigation {
-        justify-content: space-between;
-      }
-    }
-
-    &__content {
-      padding: 16px;
-    }
-
-    &__month {
-      &__header {
-        gap: 3px; // Smaller gap on mobile
-        padding: 3px; // Smaller padding on mobile
-
-        &__day {
-          padding: 12px 8px; // Smaller padding on mobile
-          font-size: 12px; // Smaller font on mobile
-          border-radius: 6px; // Smaller radius on mobile
-        }
-      }
-
-      &__body {
-        gap: 3px; // Smaller gap on mobile
-        padding: 3px; // Smaller padding on mobile
-      }
-    }
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

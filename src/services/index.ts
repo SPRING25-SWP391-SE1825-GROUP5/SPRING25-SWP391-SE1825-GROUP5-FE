@@ -108,6 +108,15 @@ export type {
   ChatNotification
 } from '@/types/chat'
 
+// Technician Time Slot Services
+export { technicianTimeSlotService } from './technicianTimeSlotService'
+export type {
+  TechnicianSlot,
+  TimeSlot,
+  TechnicianSchedule,
+  ScheduleResponse
+} from './technicianTimeSlotService'
+
 // TODO: Add other services as they are created
 // export { ProductService } from './productService'
 // export { OrderService } from './orderService'

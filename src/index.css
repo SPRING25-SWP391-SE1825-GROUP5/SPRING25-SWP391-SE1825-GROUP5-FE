@@ -26,6 +26,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #F3F4F6; /* Light gray background for card effect */
 }
 
 h1 {
