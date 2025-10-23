@@ -512,7 +512,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
          })
          // Redirect to booking success page even without valid booking ID
          const fallbackUrl = `/booking-success?bookingId=unknown&amount=${finalTotalPrice}`
-         navigate(fallbackUrl)
+         window.location.href = fallbackUrl
          return
        }
 

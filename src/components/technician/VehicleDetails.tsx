@@ -1,5 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Car, Search, User, Package, Eye, Wrench, AlertCircle, CheckCircle, X, ChevronDown, ChevronUp, Filter, SortAsc, SortDesc, Settings } from 'lucide-react'
+import { VehicleService } from '@/services/vehicleService'
+import { TechnicianService } from '@/services/technicianService'
+import { useAppSelector } from '@/store/hooks'
+import toast from 'react-hot-toast'
 import './VehicleDetails.scss'
 
 interface Vehicle {
@@ -200,152 +204,115 @@ export default function VehicleDetails() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const [vehicles] = useState<Vehicle[]>([
-    {
-      id: 1,
-      licensePlate: '30A-12345',
-      owner: {
-        name: 'Nguyễn Văn An',
-        phone: '0901234567',
-        email: 'nguyenvana@email.com'
-      },
-      info: {
-        brand: 'VinFast',
-        model: 'VF e34',
-        year: 2023,
-        color: 'Đỏ',
-        mileage: 15000
-      },
-      parts: [
-        {
-          name: 'Pin chính',
-          condition: 'good',
-          lastChecked: '2024-01-15',
-          notes: 'Hoạt động bình thường'
-        },
-        {
-          name: 'Động cơ điện',
-          condition: 'fair',
-          lastChecked: '2024-01-15',
-          notes: 'Có tiếng kêu nhỏ, cần theo dõi'
-        },
-        {
-          name: 'Phanh trước',
-          condition: 'poor',
-          lastChecked: '2024-01-10',
-          notes: 'Má phanh mòn, cần thay sớm'
+  // State for vehicles from API
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Get user and technician info
+  const user = useAppSelector((state) => state.auth.user)
+  const [technicianId, setTechnicianId] = useState<number | null>(null)
+
+  // Resolve technicianId
+  useEffect(() => {
+    const resolveTechnicianId = async () => {
+      try {
+        const cached = localStorage.getItem('technicianId')
+        if (cached) {
+          const parsed = Number(cached)
+          if (Number.isFinite(parsed) && parsed > 0) {
+            setTechnicianId(parsed)
+            return
+          }
         }
-      ],
-      serviceHistory: [
-        {
-          date: '2024-01-15',
-          service: 'Bảo dưỡng định kỳ',
-          technician: 'Trần Văn B',
-          cost: 500000,
-          notes: 'Kiểm tra tổng quát, thay dầu nhờn'
-        },
-        {
-          date: '2023-12-10',
-          service: 'Thay pin phụ',
-          technician: 'Lê Văn C',
-          cost: 2000000,
-          notes: 'Pin phụ bị hỏng, đã thay mới'
+
+        const userId = user?.id
+        if (userId && Number.isFinite(Number(userId))) {
+          const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
+          if (result?.technicianId) {
+            setTechnicianId(result.technicianId)
+            localStorage.setItem('technicianId', String(result.technicianId))
+          }
         }
-      ],
-      lastService: '2024-01-15',
-      nextService: '2024-04-15'
-    },
-    {
-      id: 2,
-      licensePlate: '29B-67890',
-      owner: {
-        name: 'Trần Thị Bình',
-        phone: '0902345678',
-        email: 'tranthib@email.com'
-      },
-      info: {
-        brand: 'Pega',
-        model: 'Newtech',
-        year: 2022,
-        color: 'Xanh',
-        mileage: 8500
-      },
-      parts: [
-        {
-          name: 'Pin chính',
-          condition: 'good',
-          lastChecked: '2024-01-12'
-        },
-        {
-          name: 'Hệ thống sạc',
-          condition: 'good',
-          lastChecked: '2024-01-12'
-        },
-        {
-          name: 'Đèn LED',
-          condition: 'needs_replacement',
-          lastChecked: '2024-01-12',
-          notes: 'Đèn pha bên trái không sáng'
-        }
-      ],
-      serviceHistory: [
-        {
-          date: '2024-01-12',
-          service: 'Kiểm tra định kỳ',
-          technician: 'Phạm Văn D',
-          cost: 200000,
-          notes: 'Kiểm tra tổng quát, phát hiện đèn hỏng'
-        }
-      ],
-      lastService: '2024-01-12',
-      nextService: '2024-03-12'
-    },
-    {
-      id: 3,
-      licensePlate: '51C-11111',
-      owner: {
-        name: 'Lê Hoài Cường',
-        phone: '0903456789',
-        email: 'lehoaicuong@email.com'
-      },
-      info: {
-        brand: 'Yadea',
-        model: 'Xmen Neo',
-        year: 2023,
-        color: 'Đen',
-        mileage: 12000
-      },
-      parts: [
-        {
-          name: 'Pin Lithium',
-          condition: 'fair',
-          lastChecked: '2024-01-18',
-          notes: 'Dung lượng giảm 15%'
-        },
-        {
-          name: 'Bộ điều khiển',
-          condition: 'good',
-          lastChecked: '2024-01-18'
-        },
-        {
-          name: 'Lốp xe',
-          condition: 'good',
-          lastChecked: '2024-01-18'
-        }
-      ],
-      serviceHistory: [
-        {
-          date: '2024-01-18',
-          service: 'Kiểm tra pin và hệ thống điện',
-          technician: 'Nguyễn Văn E',
-          cost: 300000,
-          notes: 'Pin còn tốt nhưng cần theo dõi'
-        }
-      ],
-      lastService: '2024-01-18',
-      nextService: '2024-04-18'
+      } catch (e) {
+        console.error('Could not resolve technicianId', e)
+      }
     }
-  ])
+
+    resolveTechnicianId()
+  }, [user])
+
+  // Fetch vehicles from work queue
+  useEffect(() => {
+    const fetchVehiclesFromWorkQueue = async () => {
+      if (!technicianId) return
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Get bookings for today
+        const today = new Date().toISOString().split('T')[0]
+        const bookingsResponse = await TechnicianService.getTechnicianBookings(technicianId, today)
+        
+        // Extract unique customer IDs from bookings
+        const bookings = bookingsResponse?.data?.bookings || bookingsResponse?.data || []
+        const customerIds = [...new Set(bookings.map((b: any) => b.customerId).filter(Boolean))]
+        
+        if (customerIds.length === 0) {
+          setVehicles([])
+          setLoading(false)
+          return
+        }
+
+        // Fetch vehicles for each customer
+        const allVehiclePromises = customerIds.map(async (customerId: number) => {
+          try {
+            const response = await VehicleService.getVehicles({ customerId })
+            return response.data?.vehicles || []
+          } catch (err) {
+            console.error(`Error fetching vehicles for customer ${customerId}:`, err)
+            return []
+          }
+        })
+
+        const vehicleArrays = await Promise.all(allVehiclePromises)
+        const allVehicles = vehicleArrays.flat()
+
+        // Transform API data to Vehicle format
+        const transformedVehicles: Vehicle[] = allVehicles.map((v: any) => ({
+          id: v.vehicleId,
+          licensePlate: v.licensePlate || 'N/A',
+          owner: {
+            name: v.customerName || 'N/A',
+            phone: v.customerPhone || 'N/A',
+            email: ''
+          },
+          info: {
+            brand: 'VinFast', // Default brand
+            model: 'VF e34', // Default model
+            year: 2023, // Default year
+            color: v.color || 'N/A',
+            mileage: v.currentMileage || 0
+          },
+          parts: [],
+          serviceHistory: [],
+          lastService: v.lastServiceDate || 'Chưa có',
+          nextService: v.nextServiceDue || 'Chưa có'
+        }))
+
+        setVehicles(transformedVehicles)
+      } catch (err: any) {
+        console.error('Error fetching vehicles:', err)
+        setError(err.message || 'Không thể tải danh sách xe')
+        toast.error('Không thể tải danh sách xe')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchVehiclesFromWorkQueue()
+  }, [technicianId])
 
   const filteredVehicles = vehicles.filter(vehicle =>
     vehicle.licensePlate.toLowerCase().includes(search.toLowerCase()) ||
