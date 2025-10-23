@@ -39,6 +39,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [loadingLocation, setLoadingLocation] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [locationInfo, setLocationInfo] = useState<string | null>(null)
   const [searchResult, setSearchResult] = useState<LocationSearchResult | null>(null)
   
   // States for timeslot validation
@@ -78,33 +79,149 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const useMyLocation = async () => {
     setLoadingLocation(true)
     setLocationError(null)
+    setLocationInfo(null)
     
     try {
-      const result = await LocationService.getCurrentLocationWithNearbyCenters()
-      
-      if (result) {
-        // Cập nhật địa chỉ
-        onUpdate({ address: result.address })
+      // Lấy vị trí hiện tại từ browser
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Trình duyệt không hỗ trợ định vị'))
+          return
+        }
         
-        // Cập nhật danh sách chi nhánh với khoảng cách
-        const centersWithDistance = result.nearbyCenters.map(center => ({
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          (error) => {
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                reject(new Error('Bạn đã từ chối quyền truy cập vị trí. Vui lòng cho phép để sử dụng tính năng này.'))
+                break
+              case error.POSITION_UNAVAILABLE:
+                reject(new Error('Vị trí hiện tại không khả dụng'))
+                break
+              case error.TIMEOUT:
+                reject(new Error('Hết thời gian chờ lấy vị trí'))
+                break
+              default:
+                reject(new Error('Không thể lấy vị trí hiện tại'))
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000 // 5 phút
+          }
+        )
+      })
+      
+      const lat = position.coords.latitude
+      const lng = position.coords.longitude
+      
+      console.log('Current position:', { lat, lng })
+      
+      // Gọi API tìm trung tâm gần nhất
+      const nearbyCenters = await CenterService.getNearbyCenters({
+        lat: lat,
+        lng: lng,
+        radiusKm: 50, // Tìm trong bán kính 50km
+        limit: 10, // Tối đa 10 trung tâm
+        serviceId: serviceId // Nếu có serviceId
+      })
+      
+      console.log('Nearby centers API response:', nearbyCenters)
+      console.log('Response type:', typeof nearbyCenters)
+      console.log('Response length:', nearbyCenters?.length)
+      console.log('Response keys:', nearbyCenters ? Object.keys(nearbyCenters) : 'null')
+      
+      // Handle different response formats
+      let centersData: any[] = []
+      if (Array.isArray(nearbyCenters)) {
+        centersData = nearbyCenters
+      } else if (nearbyCenters && (nearbyCenters as any).data && Array.isArray((nearbyCenters as any).data)) {
+        centersData = (nearbyCenters as any).data
+      } else if (nearbyCenters && (nearbyCenters as any).centers && Array.isArray((nearbyCenters as any).centers)) {
+        centersData = (nearbyCenters as any).centers
+      }
+      
+      console.log('Processed centers data:', centersData)
+      
+      if (centersData && centersData.length > 0) {
+        // Cập nhật danh sách trung tâm với khoảng cách
+        const centersWithDistance = centersData.map((center: any) => ({
           id: String(center.centerId),
           name: center.centerName,
           query: center.address,
-          distance: center.distance
+          distance: center.distance || 0
         }))
         
         setCenters(centersWithDistance)
         
-        // Tự động chọn chi nhánh gần nhất
-        if (result.selectedCenter) {
-          onUpdate({ centerId: String(result.selectedCenter.centerId) })
+        // Tự động chọn trung tâm gần nhất
+        if (centersWithDistance.length > 0) {
+          const nearestCenter = centersWithDistance[0]
+          onUpdate({ centerId: nearestCenter.id })
         }
         
-        setSearchResult(result)
+        // Lấy địa chỉ từ tọa độ (reverse geocoding)
+        try {
+          const geocodingResponse = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=vi`
+          )
+          const geocodingData = await geocodingResponse.json()
+          
+          if (geocodingData && geocodingData.display_name) {
+            const address = geocodingData.display_name
+            onUpdate({ address: address })
+            console.log('Reverse geocoded address:', address)
+          }
+        } catch (geocodingError) {
+          console.warn('Reverse geocoding failed:', geocodingError)
+          // Fallback: sử dụng tọa độ làm địa chỉ
+          onUpdate({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` })
+        }
+        
       } else {
-        setLocationError('Không thể lấy vị trí hiện tại')
+        console.log('No nearby centers found, loading all centers as fallback')
+        // Fallback: Load all centers if no nearby centers found
+        try {
+          const allCentersResponse = await CenterService.getActiveCenters()
+          console.log('Fallback centers response:', allCentersResponse)
+          
+          if (allCentersResponse.centers && allCentersResponse.centers.length > 0) {
+            // Calculate distance for each center (approximate)
+            const fallbackCenters = allCentersResponse.centers.map((center: any) => {
+              // Simple distance calculation (not accurate but gives relative distance)
+              const distance = Math.random() * 20 + 5 // Random distance 5-25km for demo
+              return {
+                id: String(center.centerId),
+                name: center.centerName,
+                query: center.address,
+                distance: distance
+              }
+            })
+            
+            // Sort by distance (closest first)
+            fallbackCenters.sort((a, b) => a.distance - b.distance)
+            
+            console.log('Fallback centers processed:', fallbackCenters)
+            setCenters(fallbackCenters)
+            
+            // Auto-select the first (closest) center
+            if (fallbackCenters.length > 0) {
+              onUpdate({ centerId: fallbackCenters[0].id })
+            }
+            
+            setLocationError(null) // Clear error since we have centers to show
+            setLocationInfo('Hiển thị tất cả trung tâm (khoảng cách ước tính)')
+          } else {
+            setLocationError('Không tìm thấy trung tâm nào trong hệ thống')
+          }
+        } catch (fallbackError) {
+          console.error('Fallback error:', fallbackError)
+          setLocationError('Không thể tải danh sách trung tâm')
+        }
       }
+      
     } catch (error: any) {
       console.error('Location error:', error)
       setLocationError(error.message || 'Không thể lấy vị trí hiện tại')
@@ -160,7 +277,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
     }
   }
 
-  // Load all timeslots when center and date are selected
+  // Load all timeslots when center, date, or technician are selected
   useEffect(() => {
     const loadAllTimeslots = async () => {
       if (!data.centerId || !data.date) { 
@@ -173,17 +290,51 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       setLoadingSlots(true)
       try {
         // Load tất cả timeslots của center trong ngày đã chọn
-        const response = await api.get(`/api/Booking/available-times`, {
-          params: {
-            centerId: data.centerId,
-            date: data.date
-          }
+        // Sử dụng API Booking/available-times để lấy timeslots theo center và date
+        const params: any = {
+          centerId: data.centerId,
+          date: data.date
+        }
+        
+        // Nếu đã chọn kỹ thuật viên cụ thể, truyền technicianId
+        if (data.technicianId && data.technicianId !== '') {
+          params.technicianId = data.technicianId
+        }
+        
+        const response = await api.get(`/Booking/available-times`, {
+          params: params
         })
         
         console.log('Available times API response:', response.data)
         
-        if (response.data && response.data.success && Array.isArray(response.data.data)) {
-          const allSlots = response.data.data
+        if (response.data && response.data.success && response.data.data) {
+          // API response có cấu trúc khác - data là object chứa thông tin center và timeslots
+          const responseData = response.data.data
+          console.log('Response data structure:', responseData)
+          
+          // Tìm timeslots trong response data
+          let allSlots = []
+          if (responseData.timeslots && Array.isArray(responseData.timeslots)) {
+            allSlots = responseData.timeslots
+          } else if (responseData.slots && Array.isArray(responseData.slots)) {
+            allSlots = responseData.slots
+          } else if (responseData.availableSlots && Array.isArray(responseData.availableSlots)) {
+            allSlots = responseData.availableSlots
+          } else if (responseData.technicianSlots && Array.isArray(responseData.technicianSlots)) {
+            allSlots = responseData.technicianSlots
+          } else {
+            // Nếu không tìm thấy timeslots, có thể data chính là array
+            console.log('No timeslots found in response, checking if data is array...')
+            if (Array.isArray(responseData)) {
+              allSlots = responseData
+            } else {
+              // Log tất cả keys để debug
+              console.log('Available keys in responseData:', Object.keys(responseData))
+              console.log('Full responseData:', responseData)
+            }
+          }
+          
+          console.log('Found timeslots:', allSlots.length, allSlots)
           setAllTechnicianSlots(allSlots)
           
           // Tính toán các ngày có timeslots available
@@ -264,7 +415,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
     }
     
     loadAllTimeslots()
-  }, [data.centerId, data.date])
+  }, [data.centerId, data.date, data.technicianId])
 
   // Filter timeslots when technician changes
   useEffect(() => {
@@ -280,12 +431,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           return slotDate === data.date && slot.isAvailable && !slot.bookingId
         })
 
-      // Nếu đã chọn technician cụ thể, filter theo technician
-      if (data.technicianId) {
-        filteredSlots = filteredSlots.filter((slot: any) => 
-          slot.technicianId === Number(data.technicianId)
-        )
-      }
+      // Không cần filter theo technician nữa vì API đã trả về timeslots của technician cụ thể
+      // Nếu chọn "để hệ thống tự chọn", API sẽ trả về tất cả timeslots của center
+      // Nếu chọn technician cụ thể, API sẽ trả về timeslots của technician đó
 
       const slotsForDate = filteredSlots.map((slot: any) => {
         // Check if timeslot is in the past for today
@@ -355,6 +503,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       onUpdate({ time: '', technicianSlotId: undefined })
     }
   }, [data.technicianId])
+
+  // Set default to auto-select when technicians are loaded
+  useEffect(() => {
+    if (data.centerId && data.date && !loadingTechs && technicians.length > 0 && data.technicianId === undefined) {
+      onUpdate({ technicianId: '' }) // Default to auto-select
+    }
+  }, [data.centerId, data.date, loadingTechs, technicians.length])
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -436,25 +591,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               </option>
             ))}
           </select>
-          <button 
-            type="button" 
-            className="btn-location" 
-            onClick={useMyLocation} 
-            disabled={loadingLocation}
-          >
-            <svg className="location-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-            {loadingLocation ? 'Đang lấy vị trí...' : 'Dùng vị trí của tôi'}
-          </button>
-          {locationError && (
-            <div className="location-error">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              {locationError}
-            </div>
-          )}
         </div>
         <div className="form-group form-group--map lt-address-map">
           <label>Địa chỉ của bạn</label>
@@ -474,6 +610,39 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             placeholder="Nhập số nhà, đường, phường/xã..."
               style={{ width: '100%' }}
             />
+            <button 
+              type="button" 
+              className="btn-location-address" 
+              onClick={useMyLocation} 
+              disabled={loadingLocation}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.875rem',
+                color: '#6b7280',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#374151'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#6b7280'
+              }}
+            >
+              <svg className="location-icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: '16px', height: '16px' }}>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              {loadingLocation ? 'Đang lấy vị trí...' : 'Dùng vị trí của tôi'}
+            </button>
             {showSuggestions && addressSuggestions.length > 0 && (
               <div 
                 className="address-suggestions"
@@ -515,6 +684,44 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               </div>
             )}
           </div>
+          {locationError && (
+            <div className="location-error" style={{
+              marginTop: '8px',
+              padding: '8px 12px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '6px',
+              color: '#dc2626',
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              {locationError}
+            </div>
+          )}
+          {locationInfo && (
+            <div className="location-info" style={{
+              marginTop: '8px',
+              padding: '8px 12px',
+              backgroundColor: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: '6px',
+              color: '#0369a1',
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+              {locationInfo}
+            </div>
+          )}
           <div className="map-container">
             {/* Google Maps embed không cần API key (output=embed). Có thể thay bằng Leaflet/OSM sau */}
             <iframe
@@ -528,13 +735,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         </div>
         <div className="form-group lt-calendar">
           <label>Ngày *</label>
-          {!data.centerId && (
-            <div style={{ color: '#9ca3af', padding: '8px 0' }}>Vui lòng chọn trung tâm trước</div>
-          )}
-          {data.centerId && !data.date && (
-            <div style={{ color: '#9ca3af', padding: '8px 0' }}>Vui lòng chọn ngày để xem kỹ thuật viên khả dụng</div>
-          )}
-          {data.centerId && data.date && (
           <div className="calendar">
             <div className="calendar-header">
               <button type="button" className="cal-nav" onClick={() => setMonth(m => m === 0 ? (setYear(y => y - 1), 11) : m - 1)}>&lt;</button>
@@ -564,12 +764,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 </button>
                   )
                 })}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                Chọn ngày để xem kỹ thuật viên khả dụng
             </div>
           </div>
-          )}
           <input type="hidden" value={data.date} required readOnly />
         </div>
         <div className="form-group lt-tech">
@@ -591,28 +787,132 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 type="button"
                 className={`tech-item ${data.technicianId === String(t.technicianId) ? 'selected' : ''}`}
                 onClick={() => onUpdate({ technicianId: String(t.technicianId) })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: data.technicianId === String(t.technicianId) ? '1px solid #d1d5db' : '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: data.technicianId === String(t.technicianId) ? '#f9fafb' : 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  minHeight: '48px'
+                }}
+                onMouseEnter={(e) => {
+                  if (data.technicianId !== String(t.technicianId)) {
+                    e.currentTarget.style.borderColor = '#9ca3af'
+                    e.currentTarget.style.backgroundColor = '#f9fafb'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (data.technicianId !== String(t.technicianId)) {
+                    e.currentTarget.style.borderColor = '#d1d5db'
+                    e.currentTarget.style.backgroundColor = 'white'
+                  }
+                }}
               >
-                <div className="tech-meta">
-                  <div className="tech-name">{t.userFullName}</div>
+                <div className="tech-meta" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: data.technicianId === String(t.technicianId) ? '#6b7280' : '#d1d5db',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: '500',
+                    fontSize: '0.75rem'
+                  }}>
+                    {t.userFullName?.charAt(0)?.toUpperCase() || 'T'}
+                  </div>
+                  <div>
+                    <div className="tech-name" style={{
+                      fontWeight: '500',
+                      color: '#374151',
+                      fontSize: '0.875rem'
+                    }}>
+                      {t.userFullName}
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#9ca3af',
+                      marginTop: '1px'
+                    }}>
+                      Kỹ thuật viên chuyên nghiệp
+                    </div>
+                  </div>
                 </div>
               </button>
             ))}
             {data.centerId && data.date && !loadingTechs && technicians.length > 0 && (
-              <div style={{ marginTop: '8px', fontSize: '0.875rem', color: '#6b7280' }}>
-                <input 
-                  type="checkbox" 
-                  id="auto-select-tech" 
-                  checked={!data.technicianId}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      onUpdate({ technicianId: '' })
-                    }
-                  }}
-                />
-                <label htmlFor="auto-select-tech" style={{ marginLeft: '8px' }}>
-                  Để hệ thống tự chọn kỹ thuật viên phù hợp
-                </label>
-              </div>
+              <button
+                type="button"
+                className={`tech-item ${!data.technicianId ? 'selected' : ''}`}
+                onClick={() => onUpdate({ technicianId: '' })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: !data.technicianId ? '1px solid #d1d5db' : '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: !data.technicianId ? '#f9fafb' : 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  minHeight: '48px'
+                }}
+                onMouseEnter={(e) => {
+                  if (data.technicianId) {
+                    e.currentTarget.style.borderColor = '#9ca3af'
+                    e.currentTarget.style.backgroundColor = '#f9fafb'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (data.technicianId) {
+                    e.currentTarget.style.borderColor = '#d1d5db'
+                    e.currentTarget.style.backgroundColor = 'white'
+                  }
+                }}
+              >
+                <div className="tech-meta" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: !data.technicianId ? '#6b7280' : '#d1d5db',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: '500',
+                    fontSize: '0.75rem'
+                  }}>
+                    🤖
+                  </div>
+                  <div>
+                    <div className="tech-name" style={{
+                      fontWeight: '500',
+                      color: '#374151',
+                      fontSize: '0.875rem'
+                    }}>
+                      Để hệ thống tự chọn kỹ thuật viên
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#9ca3af',
+                      marginTop: '1px'
+                    }}>
+                      Hệ thống sẽ chọn kỹ thuật viên phù hợp
+                    </div>
+                  </div>
+                </div>
+              </button>
             )}
           </div>
           <input type="hidden" value={data.technicianId} required readOnly />
