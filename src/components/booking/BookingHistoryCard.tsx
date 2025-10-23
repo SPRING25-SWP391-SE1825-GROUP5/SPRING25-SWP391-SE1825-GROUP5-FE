@@ -222,21 +222,27 @@ export default function BookingHistoryCard({
             )}
 
             {/* Debug Feedback Data */}
-            {console.log('🔍 Booking feedback debug:', {
-              bookingId: booking.bookingId,
-              hasFeedback: booking.hasFeedback,
-              feedback: booking.feedback,
-              status: booking.status
-            })}
+            {(() => {
+              console.log('🔍 Booking feedback debug:', {
+                bookingId: booking.bookingId,
+                hasFeedback: booking.hasFeedback,
+                feedback: booking.feedback,
+                status: booking.status
+              })
+              return null
+            })()}
 
             {/* Debug Feedback Info */}
-            {console.log('🔍 BookingHistoryCard - Feedback debug:', {
-              bookingId: booking.bookingId,
-              status: booking.status,
-              hasFeedback: booking.hasFeedback,
-              feedback: booking.feedback,
-              feedbackExists: !!booking.feedback
-            })}
+            {(() => {
+              console.log('🔍 BookingHistoryCard - Feedback debug:', {
+                bookingId: booking.bookingId,
+                status: booking.status,
+                hasFeedback: booking.hasFeedback,
+                feedback: booking.feedback,
+                feedbackExists: !!booking.feedback
+              })
+              return null
+            })()}
 
             {/* Feedback Section */}
             {((booking.hasFeedback && booking.feedback) || (booking.feedback && booking.feedback.technicianRating > 0)) && (

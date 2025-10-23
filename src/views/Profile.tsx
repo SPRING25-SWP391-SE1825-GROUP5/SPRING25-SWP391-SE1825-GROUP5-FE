@@ -393,7 +393,7 @@ export default function Profile() {
                 ...booking,
                 feedback: feedback,
                 hasFeedback: !!feedback,
-                feedbackId: feedback?.feedbackId || null
+                feedbackId: (feedback as any)?.feedbackId || null
               }
             } catch (error) {
               console.log('⚠️ No feedback found for booking:', booking.bookingId, error)
