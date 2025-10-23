@@ -98,6 +98,9 @@ export type CreateBookingRequest = {
     specialRequests?: string
     serviceId?: number
     packageCode?: string
+    // Thêm currentMileage và licensePlate
+    currentMileage?: number
+    licensePlate?: string
 }
 
 export type CreateBookingResponse = {

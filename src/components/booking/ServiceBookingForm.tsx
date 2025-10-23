@@ -360,7 +360,10 @@ const ServiceBookingForm: React.FC = () => {
         technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
         technicianId: Number(bookingData.locationTimeInfo.technicianId),
         specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
-        serviceId: serviceId || undefined
+        serviceId: serviceId || undefined,
+        // Thêm currentMileage và licensePlate
+        currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
+        licensePlate: bookingData.vehicleInfo.licensePlate
       }
        console.log('Creating booking with data:', bookingPayload)
        const resp = await createBooking(bookingPayload)

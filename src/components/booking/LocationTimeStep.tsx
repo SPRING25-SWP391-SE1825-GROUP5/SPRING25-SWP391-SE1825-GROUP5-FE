@@ -28,7 +28,16 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const [year, setYear] = useState<number>(today.getFullYear())
   
   const [centers, setCenters] = useState<Array<{ id: string; name: string; lat?: number; lng?: number; query: string; distance?: number }>>([])
-  const [slots, setSlots] = useState<Array<{ technicianSlotId: number; slotTime: string; isAvailable: boolean; technicianId?: number }>>([])
+  const [slots, setSlots] = useState<Array<{ 
+    slotId: number; 
+    slotTime: string; 
+    slotLabel: string;
+    isAvailable: boolean; 
+    isRealtimeAvailable: boolean;
+    technicianId?: number;
+    technicianName?: string;
+    status: string;
+  }>>([])
   const [loadingCenters, setLoadingCenters] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([])
@@ -299,38 +308,74 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         // Nếu đã chọn kỹ thuật viên cụ thể, truyền technicianId
         if (data.technicianId && data.technicianId !== '') {
           params.technicianId = data.technicianId
+          console.log('Truyền technicianId vào API:', data.technicianId)
+        } else {
+          console.log('Không có technicianId, API sẽ trả về tất cả timeslots của center')
         }
         
-        const response = await api.get(`/Booking/available-times`, {
-          params: params
-        })
+        let response
         
-        console.log('Available times API response:', response.data)
+        // Nếu đã chọn kỹ thuật viên cụ thể, sử dụng API TechnicianTimeSlot
+        if (data.technicianId && data.technicianId !== '') {
+          console.log('Sử dụng API TechnicianTimeSlot cho technician:', data.technicianId)
+          response = await api.get(`/TechnicianTimeSlot/technician/${data.technicianId}/center/${data.centerId}`)
+        } else {
+          console.log('Sử dụng API Booking available-times (tất cả technicians)')
+          response = await api.get(`/Booking/available-times`, {
+            params: params
+          })
+        }
         
-        if (response.data && response.data.success && response.data.data) {
-          // API response có cấu trúc khác - data là object chứa thông tin center và timeslots
-          const responseData = response.data.data
-          console.log('Response data structure:', responseData)
+        console.log('API response:', response.data)
+        
+        if (response.data && response.data.success) {
+          let responseData
+          
+          // Xử lý response từ API TechnicianTimeSlot (cấu trúc khác)
+          if (data.technicianId && data.technicianId !== '') {
+            // API TechnicianTimeSlot trả về trực tiếp array of TechnicianTimeSlot
+            responseData = {
+              centerId: data.centerId,
+              date: data.date,
+              technicianId: parseInt(data.technicianId),
+              technicianName: technicians.find(t => t.technicianId === parseInt(data.technicianId))?.userFullName || 'N/A',
+              availableTimeSlots: response.data.data || [],
+              availableServices: [] // Sẽ lấy từ API khác nếu cần
+            }
+            console.log('TechnicianTimeSlot response processed:', responseData)
+          } else {
+            // API Booking available-times
+            responseData = response.data.data
+            console.log('Booking available-times response:', responseData)
+          }
           
           // Tìm timeslots trong response data
           let allSlots = []
-          if (responseData.timeslots && Array.isArray(responseData.timeslots)) {
-            allSlots = responseData.timeslots
-          } else if (responseData.slots && Array.isArray(responseData.slots)) {
-            allSlots = responseData.slots
-          } else if (responseData.availableSlots && Array.isArray(responseData.availableSlots)) {
-            allSlots = responseData.availableSlots
-          } else if (responseData.technicianSlots && Array.isArray(responseData.technicianSlots)) {
-            allSlots = responseData.technicianSlots
+          
+          if (data.technicianId && data.technicianId !== '') {
+            // API TechnicianTimeSlot trả về array trực tiếp
+            allSlots = responseData.availableTimeSlots || []
+            console.log('TechnicianTimeSlot slots found:', allSlots.length)
           } else {
-            // Nếu không tìm thấy timeslots, có thể data chính là array
-            console.log('No timeslots found in response, checking if data is array...')
-            if (Array.isArray(responseData)) {
-              allSlots = responseData
+            // API Booking available-times
+            if (responseData.timeslots && Array.isArray(responseData.timeslots)) {
+              allSlots = responseData.timeslots
+            } else if (responseData.slots && Array.isArray(responseData.slots)) {
+              allSlots = responseData.slots
+            } else if (responseData.availableTimeSlots && Array.isArray(responseData.availableTimeSlots)) {
+              allSlots = responseData.availableTimeSlots
+            } else if (responseData.availableSlots && Array.isArray(responseData.availableSlots)) {
+              allSlots = responseData.availableSlots
+            } else if (responseData.technicianSlots && Array.isArray(responseData.technicianSlots)) {
+              allSlots = responseData.technicianSlots
             } else {
-              // Log tất cả keys để debug
-              console.log('Available keys in responseData:', Object.keys(responseData))
-              console.log('Full responseData:', responseData)
+              console.log('No timeslots found in response, checking if data is array...')
+              if (Array.isArray(responseData)) {
+                allSlots = responseData
+              } else {
+                console.log('Available keys in responseData:', Object.keys(responseData))
+                console.log('Full responseData:', responseData)
+              }
             }
           }
           
@@ -342,10 +387,24 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           allSlots.forEach((slot: any) => {
             if (slot.isAvailable && !slot.bookingId) {
               let slotDate: string
-              if (typeof slot.workDate === 'string') {
-                slotDate = slot.workDate.split('T')[0]
+              const fallbackDate = (responseData.date || data.date || '').toString()
+              if (slot.workDate) {
+                if (typeof slot.workDate === 'string') {
+                  slotDate = slot.workDate.split('T')[0]
+                } else {
+                  try {
+                    const date = new Date(slot.workDate)
+                    if (isNaN(date.getTime())) {
+                      slotDate = fallbackDate
+                    } else {
+                      slotDate = date.toISOString().split('T')[0]
+                    }
+                  } catch {
+                    slotDate = fallbackDate
+                  }
+                }
               } else {
-                slotDate = new Date(slot.workDate).toISOString().split('T')[0]
+                slotDate = fallbackDate
               }
               dates.add(slotDate)
             }
@@ -358,10 +417,24 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           const slotsForDate = allSlots
             .filter((slot: any) => {
               let slotDate: string
-              if (typeof slot.workDate === 'string') {
-                slotDate = slot.workDate.split('T')[0]
+              const fallbackDate = (responseData.date || data.date || '').toString()
+              if (slot.workDate) {
+                if (typeof slot.workDate === 'string') {
+                  slotDate = slot.workDate.split('T')[0]
+                } else {
+                  try {
+                    const date = new Date(slot.workDate)
+                    if (isNaN(date.getTime())) {
+                      slotDate = fallbackDate
+                    } else {
+                      slotDate = date.toISOString().split('T')[0]
+                    }
+                  } catch {
+                    slotDate = fallbackDate
+                  }
+                }
               } else {
-                slotDate = new Date(slot.workDate).toISOString().split('T')[0]
+                slotDate = fallbackDate
               }
               return slotDate === data.date && slot.isAvailable && !slot.bookingId
             })
@@ -385,15 +458,34 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 }
               }
         
-        return {
-                technicianSlotId: slot.technicianSlotId,
-                slotId: slot.slotId,
-                slotTime: slot.slotTime,
-                slotLabel: slot.slotLabel,
-                isAvailable: !isPastSlot, // Disable if past slot
-                technicianId: slot.technicianId,
-                workDate: slot.workDate
-              }
+        // Xử lý khác nhau cho TechnicianTimeSlot vs Booking available-times
+        if (data.technicianId && data.technicianId !== '') {
+          // TechnicianTimeSlot API - slot có cấu trúc khác
+          return {
+            slotId: slot.slotId,
+            slotTime: slot.slotTime,
+            slotLabel: slot.slotLabel,
+            isAvailable: slot.isAvailable && !isPastSlot,
+            isRealtimeAvailable: slot.isRealtimeAvailable || false,
+            technicianId: slot.technicianId,
+            technicianName: slot.technicianName,
+            status: slot.status || 'AVAILABLE',
+            workDate: slot.workDate || (responseData.date || data.date)
+          }
+        } else {
+          // Booking available-times API
+          return {
+            slotId: slot.slotId,
+            slotTime: slot.slotTime,
+            slotLabel: slot.slotLabel,
+            isAvailable: !isPastSlot, // Disable if past slot
+            isRealtimeAvailable: slot.isRealtimeAvailable || false,
+            technicianId: slot.technicianId,
+            technicianName: slot.technicianName,
+            status: slot.status || 'AVAILABLE',
+            workDate: slot.workDate || (responseData.date || data.date)
+          }
+        }
             })
           
           console.log('Timeslots for selected date:', data.date, slotsForDate)
@@ -426,7 +518,16 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           if (typeof slot.workDate === 'string') {
             slotDate = slot.workDate.split('T')[0]
           } else {
-            slotDate = new Date(slot.workDate).toISOString().split('T')[0]
+            try {
+              const date = new Date(slot.workDate)
+              if (isNaN(date.getTime())) {
+                slotDate = data.date || ''
+              } else {
+                slotDate = date.toISOString().split('T')[0]
+              }
+            } catch {
+              slotDate = data.date || ''
+            }
           }
           return slotDate === data.date && slot.isAvailable && !slot.bookingId
         })
@@ -456,12 +557,14 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         }
         
         return {
-          technicianSlotId: slot.technicianSlotId,
           slotId: slot.slotId,
           slotTime: slot.slotTime,
           slotLabel: slot.slotLabel,
           isAvailable: !isPastSlot, // Disable if past slot
+          isRealtimeAvailable: slot.isRealtimeAvailable || false,
           technicianId: slot.technicianId,
+          technicianName: slot.technicianName,
+          status: slot.status || 'AVAILABLE',
           workDate: slot.workDate
         }
       })
@@ -918,44 +1021,133 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           <input type="hidden" value={data.technicianId} required readOnly />
         </div>
         <div className="form-group lt-times">
-          <label>Khung giờ *</label>
-          <div className="time-slots">
+          <label style={{
+            display: 'block',
+            fontWeight: 'var(--font-weight-semibold)',
+            fontSize: 'var(--font-size-sm)',
+            marginBottom: 'var(--spacing-sm)',
+            color: 'var(--text-primary)'
+          }}>Khung giờ *</label>
+          <div className="time-slots" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: 'var(--spacing-sm)',
+            marginTop: 'var(--spacing-sm)'
+          }}>
             {!data.centerId && (
-              <div style={{ color: '#9ca3af', padding: '8px 0' }}>Vui lòng chọn trung tâm trước</div>
+              <div style={{ 
+                color: 'var(--text-tertiary)', 
+                padding: 'var(--spacing-md)', 
+                textAlign: 'center',
+                fontSize: 'var(--font-size-sm)',
+                gridColumn: '1 / -1'
+              }}>Vui lòng chọn trung tâm trước</div>
             )}
             {data.centerId && !data.date && (
-              <div style={{ color: '#9ca3af', padding: '8px 0' }}>Vui lòng chọn ngày trước</div>
+              <div style={{ 
+                color: 'var(--text-tertiary)', 
+                padding: 'var(--spacing-md)', 
+                textAlign: 'center',
+                fontSize: 'var(--font-size-sm)',
+                gridColumn: '1 / -1'
+              }}>Vui lòng chọn ngày trước</div>
             )}
             {data.centerId && data.date && loadingSlots && (
-              <div>Đang tải khung giờ...</div>
+              <div style={{
+                color: 'var(--text-secondary)',
+                padding: 'var(--spacing-md)',
+                textAlign: 'center',
+                fontSize: 'var(--font-size-sm)',
+                gridColumn: '1 / -1'
+              }}>Đang tải khung giờ...</div>
             )}
             {data.centerId && data.date && !loadingSlots && slots.length === 0 && (
-              <div style={{ color: '#ef4444', padding: '8px 0' }}>
+              <div style={{ 
+                color: 'var(--error-500)', 
+                padding: 'var(--spacing-md)', 
+                textAlign: 'center',
+                fontSize: 'var(--font-size-sm)',
+                gridColumn: '1 / -1'
+              }}>
                 Không có khung giờ khả dụng trong ngày đã chọn
               </div>
             )}
-            {data.centerId && data.date && !loadingSlots && slots.map((s, index) => (
-              <button
-                key={`${s.technicianSlotId}-${s.technicianId || index}`}
-                type="button"
-                className={`time-slot ${data.technicianSlotId === s.technicianSlotId ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
-                onClick={() => s.isAvailable && onUpdate({ 
-                  time: s.slotTime, 
-                  technicianSlotId: s.technicianSlotId, 
-                  technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
-                })}
-                disabled={!s.isAvailable}
-                title={!s.isAvailable ? 'Khung giờ này đã qua hoặc không khả dụng' : ''}
-              >
-                {s.slotTime}
-                {s.technicianId && (
-                  <span className="slot-technician" style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                    {technicians.find(t => t.technicianId === s.technicianId)?.userFullName || `KTV ${s.technicianId}`}
-                  </span>
-                )}
-                {!s.isAvailable && <span className="slot-status">Đã đặt</span>}
-              </button>
-            ))}
+            {data.centerId && data.date && !loadingSlots && slots.map((s, index) => {
+              // Sử dụng slotTime để so sánh vì BE không trả về technicianSlotId
+              const isSelected = data.time === s.slotTime
+              return (
+                <button
+                  key={`${s.slotId || index}-${s.technicianId || 'auto'}-${index}`}
+                  type="button"
+                  className={`time-slot ${isSelected ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (s.isAvailable) {
+                      console.log('Selecting timeslot:', s)
+                      console.log('Current data.time:', data.time)
+                      console.log('Slot time:', s.slotTime)
+                      console.log('SlotId from slot:', s.slotId)
+                      console.log('TechnicianId from slot:', s.technicianId)
+                      
+                      // BE không trả về technicianSlotId, sử dụng slotId làm identifier
+                      onUpdate({ 
+                        time: s.slotTime, 
+                        technicianSlotId: s.slotId, // Sử dụng slotId thay vì technicianSlotId
+                        technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
+                      })
+                    }
+                  }}
+                  disabled={!s.isAvailable}
+                  title={!s.isAvailable ? 'Khung giờ này đã qua hoặc không khả dụng' : (isSelected ? 'Đã chọn khung giờ này' : 'Chọn khung giờ này')}
+                  style={{
+                    padding: 'var(--spacing-md)',
+                    border: isSelected ? `2px solid var(--primary-500)` : `1px solid var(--border-secondary)`,
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isSelected ? 'var(--primary-50)' : (s.isAvailable ? 'var(--bg-card)' : 'var(--bg-secondary)'),
+                    color: isSelected ? 'var(--primary-700)' : (s.isAvailable ? 'var(--text-primary)' : 'var(--text-tertiary)'),
+                    cursor: s.isAvailable ? 'pointer' : 'not-allowed',
+                    fontWeight: isSelected ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontFamily: 'var(--font-family-primary)',
+                    transition: 'var(--transition-fast)',
+                    textAlign: 'center',
+                    position: 'relative',
+                    boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
+                    outline: 'none',
+                    minHeight: '48px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (s.isAvailable && !isSelected) {
+                      e.currentTarget.style.borderColor = 'var(--primary-400)'
+                      e.currentTarget.style.backgroundColor = 'var(--hover-bg)'
+                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (s.isAvailable && !isSelected) {
+                      e.currentTarget.style.borderColor = 'var(--border-secondary)'
+                      e.currentTarget.style.backgroundColor = 'var(--bg-card)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }
+                  }}
+                >
+                  {s.slotTime}
+                  {isSelected && (
+                    <span style={{
+                      position: 'absolute',
+                      top: 'var(--spacing-xs)',
+                      right: 'var(--spacing-sm)',
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--primary-600)',
+                      fontWeight: 'var(--font-weight-bold)'
+                    }}>✓</span>
+                  )}
+                  {!s.isAvailable && <span className="slot-status">Đã đặt</span>}
+                </button>
+              )
+            })}
           </div>
           <input type="hidden" value={data.time} required readOnly />
         </div>

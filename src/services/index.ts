@@ -85,10 +85,10 @@ export type {
 } from './customerService'
 
 // Payment Services
-export { PaymentService } from './paymentService'
+export { PaymentService, PaymentMethod, PaymentStatus } from './paymentService'
 export type {
-  PaymentMethod,
-  PaymentStatus,
+  PaymentMethod as PaymentMethodType,
+  PaymentStatus as PaymentStatusType,
   PaymentRequest,
   PaymentResponse,
   PaymentStatusResponse,

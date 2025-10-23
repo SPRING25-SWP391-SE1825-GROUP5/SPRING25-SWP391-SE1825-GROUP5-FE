@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircle, Download, QrCode, Clock, MapPin, Phone, Mail, Calendar } from 'lucide-react'
 import QRCode from 'qrcode'
+import { checkPaymentStatus } from '@/services/paymentService'
 
 const PaymentSuccess: React.FC = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
+  const [paymentStatus, setPaymentStatus] = useState<string>('')
+  const [isVerifying, setIsVerifying] = useState(false)
   
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
   const amount = searchParams.get('amount')
@@ -20,9 +23,43 @@ const PaymentSuccess: React.FC = () => {
       generateQRCode(qrCodeData)
     }
     
+    // Verify payment status if we have orderCode but status is not PAID
+    if (bookingId && status !== 'PAID') {
+      verifyPaymentStatus()
+    } else {
+      setPaymentStatus(status || 'PAID')
+    }
+    
     // Removed auto redirect countdown; stay until user navigates
     return () => {}
-  }, [qrCodeData, navigate])
+  }, [qrCodeData, navigate, bookingId, status])
+
+  const verifyPaymentStatus = async () => {
+    if (!bookingId) return
+    
+    setIsVerifying(true)
+    try {
+      const result = await checkPaymentStatus(bookingId)
+      console.log('Payment verification result:', result)
+      
+      if (result.success) {
+        setPaymentStatus(result.data.status)
+        
+        // Nếu thanh toán thành công, cập nhật URL
+        if (result.data.status === 'PAID') {
+          const newUrl = `/payment-success?bookingId=${bookingId}&status=PAID&amount=${result.data.amount}`
+          window.history.replaceState({}, '', newUrl)
+        }
+      } else {
+        setPaymentStatus('FAILED')
+      }
+    } catch (error) {
+      console.error('Error verifying payment status:', error)
+      setPaymentStatus('UNKNOWN')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   const generateQRCode = async (data: string) => {
     try {
@@ -67,12 +104,14 @@ const PaymentSuccess: React.FC = () => {
         
         {/* Success Message */}
         <h1 className="success-title">
-          {status === 'PAID' ? 'Thanh toán thành công!' : 'Đặt lịch thành công!'}
+          {paymentStatus === 'PAID' ? 'Thanh toán thành công!' : 'Đặt lịch thành công!'}
         </h1>
         <p className="success-subtitle">
-          {status === 'PAID' 
+          {paymentStatus === 'PAID' 
             ? 'Thanh toán đã được xử lý thành công. Đặt lịch của bạn đã được xác nhận.'
-            : 'Đặt lịch của bạn đã được xác nhận. Vui lòng thanh toán để hoàn tất.'
+            : isVerifying 
+              ? 'Đang xác minh trạng thái thanh toán...'
+              : 'Đặt lịch của bạn đã được xác nhận. Vui lòng thanh toán để hoàn tất.'
           }
         </p>
         
@@ -161,8 +200,17 @@ const PaymentSuccess: React.FC = () => {
               <Clock className="detail-icon" />
               <div className="detail-content">
                 <span className="detail-label">Trạng thái</span>
-                <span className={`detail-value status ${status === 'PAID' ? 'paid' : 'pending'}`}>
-                  {status === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                <span className={`detail-value status ${paymentStatus === 'PAID' ? 'paid' : 'pending'}`}>
+                  {isVerifying 
+                    ? 'Đang xác minh...' 
+                    : paymentStatus === 'PAID' 
+                      ? 'Đã thanh toán' 
+                      : paymentStatus === 'PENDING'
+                        ? 'Chờ thanh toán'
+                        : paymentStatus === 'FAILED'
+                          ? 'Thanh toán thất bại'
+                          : 'Chờ thanh toán'
+                  }
                 </span>
               </div>
             </div>
@@ -189,12 +237,18 @@ const PaymentSuccess: React.FC = () => {
         <div className="next-steps">
           <h3>Bước tiếp theo</h3>
           <ul>
-            {status === 'PAID' ? (
+            {paymentStatus === 'PAID' ? (
               <>
                 <li>Kiểm tra email để xem thông tin chi tiết đặt lịch</li>
                 <li>Nhân viên sẽ gọi điện xác nhận trong vòng 30 phút</li>
                 <li>Đến đúng giờ hẹn tại trung tâm đã chọn</li>
                 <li>Mang theo giấy tờ xe và CMND/CCCD</li>
+              </>
+            ) : isVerifying ? (
+              <>
+                <li>Đang xác minh trạng thái thanh toán...</li>
+                <li>Vui lòng đợi trong giây lát</li>
+                <li>Nếu thanh toán thành công, bạn sẽ nhận được email xác nhận</li>
               </>
             ) : (
               <>
