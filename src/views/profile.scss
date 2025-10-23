@@ -4,6 +4,7 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #FFF9E5 0%, #f8f9fa 100%);
   padding: 2rem 0;
+  font-family: var(--font-family-primary);
 }
 
 .container {
@@ -42,10 +43,11 @@
 
 .sidebar-title {
   color: #FFF9E5;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   margin: 0;
   text-align: center;
+  font-family: var(--font-family-primary);
 }
 
 /* User Profile Section */
@@ -143,9 +145,10 @@
 }
 
 .user-name {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
   margin: 0;
+  font-family: var(--font-family-primary);
 }
 
 /* Sidebar Navigation */
@@ -167,10 +170,11 @@
   color: rgba(255, 249, 229, 0.8);
   cursor: pointer;
   transition: all 0.3s ease;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   text-align: left;
   width: 100%;
+  font-family: var(--font-family-primary);
 }
 
 .nav-item:hover {
