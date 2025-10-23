@@ -39,6 +39,26 @@ class FeedbackService {
     }
   }
 
+  // Submit feedback for a booking using new API structure
+  async submitBookingFeedback(bookingId: string, feedbackData: {
+    customerId: number
+    rating: number
+    comment: string
+    isAnonymous: boolean
+    technicianId: number
+    partId?: number
+  }): Promise<FeedbackResponse> {
+    try {
+      console.log('🌐 Submitting booking feedback:', { bookingId, feedbackData })
+      const response = await api.post(`/Feedback/bookings/${bookingId}`, feedbackData)
+      console.log('✅ Feedback submitted successfully:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Error submitting booking feedback:', error)
+      throw new Error(error.response?.data?.message || 'Không thể gửi đánh giá')
+    }
+  }
+
   // Submit feedback for parts
   async submitPartsFeedback(bookingId: string, partId: number, feedback: FeedbackData): Promise<FeedbackResponse> {
     try {
