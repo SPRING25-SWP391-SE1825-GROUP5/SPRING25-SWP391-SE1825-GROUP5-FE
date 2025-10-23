@@ -223,6 +223,27 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           </button>
         </div>
       </form>
+      <style>{`
+        .confirmation-step h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1rem 0; }
+        .confirmation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .info-card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+        .info-card h3 { margin: 0 0 .75rem 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .info-row { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; border-bottom: 1px dashed var(--border-primary); }
+        .info-row:last-child { border-bottom: none; }
+        .label { width: 120px; color: var(--text-secondary); font-weight: 600; }
+        .value { color: var(--text-primary); }
+        .service-table { display: flex; flex-direction: column; gap: .35rem; }
+        .service-header, .service-row, .service-total { display: grid; grid-template-columns: 1fr auto; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--border-primary); }
+        .service-header { font-weight: 700; color: var(--text-primary); }
+        .service-row { color: var(--text-primary); }
+        .service-total { font-weight: 700; }
+        .notes-section { margin-top: .75rem; }
+        .notes-section .label { width: auto; }
+        .notes-text { margin: .25rem 0 0 0; color: var(--text-primary); }
+        .form-actions { display: flex; justify-content: flex-start; margin-top: 1rem; }
+        .btn-primary { background: var(--progress-current); color: #fff; border: 1px solid var(--progress-current); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
+        @media (max-width: 1024px) { .confirmation-grid { grid-template-columns: 1fr; } }
+      `}</style>
     </div>
   )
 }

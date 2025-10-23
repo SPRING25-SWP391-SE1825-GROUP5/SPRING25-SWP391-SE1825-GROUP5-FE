@@ -356,6 +356,120 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           </button>
         </div>
       </form>
+      <style>{`
+        .location-time-step { 
+          background: var(--bg-card); 
+          border: 1px solid var(--border-primary); 
+          border-radius: 12px; 
+          padding: 1.25rem; 
+          box-shadow: 0 2px 8px rgba(0,0,0,.04);
+        }
+        .location-time-step h2 { 
+          font-size: 1.5rem; 
+          font-weight: 700; 
+          color: var(--text-primary); 
+          margin: 0 0 1rem 0; 
+        }
+        /* 2-cột: trái là form, phải là map (sticky) */
+        .lt-grid { 
+          display: grid; 
+          grid-template-columns: 1fr 520px; 
+          gap: 1.25rem; 
+          align-items: start;
+        }
+        .form-group { 
+          display: flex; 
+          flex-direction: column; 
+          gap: .5rem; 
+        }
+        .form-group label { 
+          color: var(--text-primary); 
+          font-weight: 600; 
+          font-size: .95rem; 
+        }
+        .form-group input[type="text"],
+        .form-group select { 
+          width: 100%; 
+          box-sizing: border-box; 
+          background: #fff; 
+          border: 1px solid var(--border-primary); 
+          color: var(--text-primary); 
+          border-radius: 8px; 
+          padding: .6rem .75rem; 
+        }
+        /* Đưa map sang cột phải, sticky như ảnh mẫu */
+        .lt-address-map { display: contents; }
+        .lt-address-map label { grid-column: 1; }
+        .lt-address-map input { grid-column: 1; }
+        .map-container { 
+          grid-column: 2; 
+          grid-row: 1 / span 10; 
+          border: 1px solid var(--border-primary); 
+          border-radius: 8px; 
+          overflow: hidden; 
+          background: #fff; 
+          height: 360px; 
+          position: sticky; 
+          top: 96px; 
+        }
+        .map-container iframe { 
+          border: 0; 
+          width: 100%; 
+          height: 100%; 
+        }
+        .btn-secondary.small { padding: .5rem .75rem; align-self: flex-start; }
+        .tech-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .5rem; }
+        .tech-item { 
+          display: flex; 
+          align-items: center; 
+          gap: .5rem; 
+          padding: .6rem .75rem; 
+          background: #fff; 
+          border: 1px solid var(--border-primary); 
+          border-radius: 8px; 
+          cursor: pointer; 
+          transition: box-shadow .15s ease, border-color .15s ease; 
+        }
+        .tech-item:hover { box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+        .tech-item.selected { 
+          border-color: var(--progress-current); 
+          background: var(--primary-50); 
+        }
+        .tech-name { font-weight: 600; color: var(--text-primary); }
+        .calendar { border: 1px solid var(--border-primary); border-radius: 8px; overflow: hidden; background: #fff; }
+        .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: .5rem .75rem; border-bottom: 1px solid var(--border-primary); }
+        .cal-title { font-weight: 600; color: var(--text-primary); }
+        .cal-nav { background: #fff; border: 1px solid var(--border-primary); border-radius: 6px; padding: .25rem .5rem; cursor: pointer; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        .cal-weekday { padding: .5rem 0; text-align: center; font-weight: 600; color: var(--text-secondary); background: var(--primary-50); }
+        .cal-cell { padding: .6rem 0; text-align: center; border: 1px solid var(--border-primary); background: #fff; cursor: pointer; }
+        .cal-cell.empty { background: #f9fafb; cursor: default; }
+        .cal-cell.disabled { color: #9ca3af; background: #f3f4f6; cursor: not-allowed; }
+        .cal-cell.selected { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
+        .time-slots { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .5rem; }
+        .time-slot { padding: .6rem .75rem; background: #fff; border: 1px solid var(--border-primary); border-radius: 8px; cursor: pointer; }
+        .time-slot.selected { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
+        .time-slot.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+        /* Thanh hành động ở cuối, căn phải giống ảnh */
+        .form-actions { 
+          display: flex; 
+          justify-content: flex-end; 
+          gap: .75rem; 
+          margin-top: 1rem; 
+          padding-top: 1rem; 
+          border-top: 1px solid var(--border-primary);
+        }
+        .btn-primary { background: var(--progress-current); color: #fff; border: 1px solid var(--progress-current); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
+        .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
+        @media (max-width: 1180px) { .lt-grid { grid-template-columns: 1fr 440px; } .map-container { height: 320px; } }
+        @media (max-width: 1024px) { 
+          .lt-grid { grid-template-columns: 1fr; }
+          .lt-address-map { display: block; }
+          .map-container { position: static; height: 260px; grid-column: auto; grid-row: auto; margin-top: .5rem; }
+          .tech-list { grid-template-columns: 1fr; }
+          .time-slots { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   )
 }

@@ -12,7 +12,8 @@ import {
   LogOut,
   Settings,
   BarChart3,
-  Package
+  Package,
+  PlusCircle
 } from 'lucide-react'
 import CustomersPage from '@/components/staff/CustomersPage'
 import InventoryPage from '@/components/staff/InventoryPage'
@@ -21,6 +22,7 @@ import ServiceOrdersPage from '@/components/staff/ServiceOrdersPage'
 import SettingsPage from '@/components/staff/SettingsPage'
 import DashboardContent from '@/components/staff/DashboardContent'
 import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
+import StaffBookingForm from '@/components/staff/StaffBookingForm'
 import './staff.scss'
 
 export default function StaffDashboard() {
@@ -50,6 +52,8 @@ export default function StaffDashboard() {
         return <SettingsPage />
       case 'technician-schedule':
         return <TechnicianSchedulePage />
+      case 'create-booking':
+        return <StaffBookingForm />
       default:
         return <DashboardContent />
     }
@@ -273,6 +277,7 @@ export default function StaffDashboard() {
                 { icon: Users, label: 'Khách hàng', page: 'customers' },
                 { icon: Calendar, label: 'Lịch hẹn', page: 'appointments' },
                 { icon: ClipboardList, label: 'Đơn hàng dịch vụ', page: 'service-orders' },
+                { icon: PlusCircle, label: 'Tạo Booking', page: 'create-booking' },
                 { icon: Package, label: 'Quản lý kho', page: 'inventory' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings' }
               ].map((item, index) => (
