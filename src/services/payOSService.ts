@@ -26,7 +26,7 @@ export class PayOSService {
         success: true,
         data: {
           checkoutUrl: response.data.checkoutUrl,
-          orderCode: response.data.orderCode || 0,
+          orderCode: response.data.orderCode || bookingId, // Use bookingId as orderCode
           amount: response.data.amount || 0,
           description: response.data.description || '',
           status: 'PENDING'

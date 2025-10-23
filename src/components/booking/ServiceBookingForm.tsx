@@ -58,6 +58,10 @@ interface BookingData {
   locationTimeInfo: LocationTimeInfo
   accountInfo?: AccountInfo
   images: File[]
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
 }
 
 const ServiceBookingForm: React.FC = () => {
@@ -68,8 +72,6 @@ const ServiceBookingForm: React.FC = () => {
   const [currentServiceId, setCurrentServiceId] = useState<number | undefined>(undefined)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
-  const [showQRCode, setShowQRCode] = useState(false)
   const auth = useAppSelector((s) => s.auth)
   
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -99,7 +101,11 @@ const ServiceBookingForm: React.FC = () => {
       password: '',
       confirmPassword: ''
     },
-    images: []
+    images: [],
+    promotionInfo: {
+      promotionCode: undefined,
+      discountAmount: 0
+    }
   })
 
   // Đồng bộ trạng thái đăng nhập và tự điền thông tin khách hàng
@@ -158,7 +164,7 @@ const ServiceBookingForm: React.FC = () => {
         case 3:
           return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword && bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
         case 4:
-          return true
+          return false // Bước xác nhận chỉ hoàn thành khi đã submit thành công
         default:
           return false
       }
@@ -174,7 +180,7 @@ const ServiceBookingForm: React.FC = () => {
         case 2:
           return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 3:
-          return true // Bước xác nhận luôn có thể hoàn thành
+          return false // Bước xác nhận chỉ hoàn thành khi đã submit thành công
         default:
           return false
       }
@@ -332,7 +338,7 @@ const ServiceBookingForm: React.FC = () => {
         const hold = await holdSlot({
           centerId: Number(bookingData.locationTimeInfo.centerId),
           technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-          technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
+          technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : 0,
           date: bookingData.locationTimeInfo.date
         })
         console.log('Hold response:', hold)
@@ -358,7 +364,7 @@ const ServiceBookingForm: React.FC = () => {
         centerId: Number(bookingData.locationTimeInfo.centerId),
         bookingDate: bookingData.locationTimeInfo.date,
         technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-        technicianId: Number(bookingData.locationTimeInfo.technicianId),
+        technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : undefined,
         specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
         serviceId: serviceId || undefined,
         // Thêm currentMileage và licensePlate
@@ -414,14 +420,20 @@ const ServiceBookingForm: React.FC = () => {
         bookingId: bookingId
       }))
 
-      // Tạo PayOS payment link (giống code mẫu)
+      // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
       console.log('Creating PayOS payment link for booking ID:', bookingId)
       const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId))
       
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
-        setPaymentUrl(paymentResponse.data.checkoutUrl)
-        setShowQRCode(true)
         console.log('PayOS payment link created successfully:', paymentResponse.data.checkoutUrl)
+        
+        // Redirect trực tiếp đến PayOS checkout - đơn giản như ban đầu
+        console.log('Redirecting to PayOS checkout...')
+        window.location.href = paymentResponse.data.checkoutUrl
+        
+        // Đánh dấu bước cuối cùng là completed khi booking được tạo thành công
+        const finalStep = isGuest ? 4 : 3
+        setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
       } else {
         console.error('Failed to create PayOS payment link:', paymentResponse.message)
         setSubmitError('Không thể tạo link thanh toán: ' + (paymentResponse.message || 'Lỗi không xác định'))
@@ -484,8 +496,6 @@ const ServiceBookingForm: React.FC = () => {
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
-              paymentUrl={paymentUrl || undefined}
-              showQRCode={showQRCode}
             />
           )
         default:
@@ -523,8 +533,6 @@ const ServiceBookingForm: React.FC = () => {
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
-              paymentUrl={paymentUrl || undefined}
-              showQRCode={showQRCode}
             />
           )
         default:

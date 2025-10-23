@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { handlePaymentCallback } from '@/services/paymentService'
 
 const PaymentCallback: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -10,54 +9,48 @@ const PaymentCallback: React.FC = () => {
   useEffect(() => {
     const processPaymentCallback = async () => {
       try {
-        // Get all URL parameters
+        // Get all URL parameters from PayOS callback
         const params = Object.fromEntries(searchParams.entries())
         console.log('Payment callback params:', params)
         
         setProcessingMessage('Đang kiểm tra trạng thái thanh toán...')
         
-        // Sử dụng API để kiểm tra trạng thái thanh toán
-        const result = await handlePaymentCallback(params)
-        console.log('Payment status check result:', result)
-        
-        // Fallback: Nếu API không hoạt động, dựa vào URL params
-        const isSuccessFromUrl = params.status === 'PAID' || params.success === 'true'
+        // Extract orderCode from PayOS callback
         const orderCode = params.orderCode || params.bookingId
-        const amount = params.amount
+        const amount = params.amount || 0
+        const status = params.status || 'UNKNOWN'
         
-        if ((result.success && result.status === 'PAID') || isSuccessFromUrl) {
-          // Thanh toán thành công
-          const successUrl = `/payment-success?bookingId=${result.orderCode || orderCode}&status=PAID&amount=${result.amount || amount}${result.bookingId ? `&bookingId=${result.bookingId}` : ''}`
+        if (!orderCode) {
+          throw new Error('Missing orderCode in payment callback')
+        }
+        
+        console.log('Processing payment callback for orderCode:', orderCode, 'status:', status)
+        
+        // Simple logic: if PayOS redirects here, check the status parameter
+        if (status === 'PAID' || params.success === 'true') {
+          // Payment successful - redirect to success page
+          const successUrl = `/payment-success?bookingId=${orderCode}&status=PAID&amount=${amount}`
           console.log('Payment successful, redirecting to:', successUrl)
           window.location.href = successUrl
         } else {
-          // Thanh toán thất bại hoặc chưa hoàn tất
-          const cancelUrl = `/payment-cancel?bookingId=${result.orderCode || orderCode}&amount=${result.amount || amount}&reason=${result.message || 'PAYMENT_FAILED'}`
-          console.log('Payment failed, redirecting to:', cancelUrl)
+          // Payment failed or cancelled - redirect to cancel page
+          const cancelUrl = `/payment-cancel?bookingId=${orderCode}&amount=${amount}&reason=${status}`
+          console.log('Payment failed/cancelled, redirecting to:', cancelUrl)
           window.location.href = cancelUrl
         }
       } catch (error) {
         console.error('Error processing payment callback:', error)
         setProcessingMessage('Có lỗi xảy ra khi xử lý thanh toán')
         
-        // Fallback: redirect sau 3 giây dựa vào URL params
+        // Fallback: redirect to success page after 3 seconds
         setTimeout(() => {
           const params = Object.fromEntries(searchParams.entries())
           const orderCode = params.orderCode || params.bookingId
-          const amount = params.amount
-          const isSuccessFromUrl = params.status === 'PAID' || params.success === 'true'
+          const amount = params.amount || 0
           
-          if (isSuccessFromUrl) {
-            // Nếu URL có status=PAID, redirect đến success
-            const successUrl = `/payment-success?bookingId=${orderCode}&status=PAID&amount=${amount}`
-            console.log('Fallback: redirecting to success page:', successUrl)
-            window.location.href = successUrl
-          } else {
-            // Ngược lại, redirect đến cancel
-            const cancelUrl = `/payment-cancel?bookingId=${orderCode}&amount=${amount}&reason=PROCESSING_ERROR`
-            console.log('Fallback: redirecting to cancel page:', cancelUrl)
-            window.location.href = cancelUrl
-          }
+          const successUrl = `/payment-success?bookingId=${orderCode}&status=PAID&amount=${amount}`
+          console.log('Fallback: redirecting to success page:', successUrl)
+          window.location.href = successUrl
         }, 3000)
       }
     }

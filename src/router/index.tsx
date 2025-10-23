@@ -72,6 +72,8 @@ const router = createBrowserRouter([
       { path: 'payment-success', element: suspense(<PaymentSuccess />) },
       { path: 'payment-cancel', element: suspense(<PaymentCancel />) },
       { path: 'payment-callback', element: suspense(<PaymentCallback />) },
+      { path: 'payment/result', element: suspense(<PaymentCallback />) },
+      { path: 'payment/cancel', element: suspense(<PaymentCancel />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
       { path: 'map-demo', element: suspense(<MapDemo />) },

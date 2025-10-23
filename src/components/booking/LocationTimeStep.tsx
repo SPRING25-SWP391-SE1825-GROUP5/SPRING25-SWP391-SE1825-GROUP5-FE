@@ -37,6 +37,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
     technicianId?: number;
     technicianName?: string;
     status: string;
+    technicianSlotId?: number;
   }>>([])
   const [loadingCenters, setLoadingCenters] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -470,7 +471,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             technicianId: slot.technicianId,
             technicianName: slot.technicianName,
             status: slot.status || 'AVAILABLE',
-            workDate: slot.workDate || (responseData.date || data.date)
+            workDate: slot.workDate || (responseData.date || data.date),
+            technicianSlotId: slot.technicianSlotId || slot.slotId // Ensure technicianSlotId is available
           }
         } else {
           // Booking available-times API
@@ -483,7 +485,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             technicianId: slot.technicianId,
             technicianName: slot.technicianName,
             status: slot.status || 'AVAILABLE',
-            workDate: slot.workDate || (responseData.date || data.date)
+            workDate: slot.workDate || (responseData.date || data.date),
+            technicianSlotId: slot.technicianSlotId || slot.slotId // Ensure technicianSlotId is available
           }
         }
             })
@@ -565,7 +568,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           technicianId: slot.technicianId,
           technicianName: slot.technicianName,
           status: slot.status || 'AVAILABLE',
-          workDate: slot.workDate
+          workDate: slot.workDate,
+          technicianSlotId: slot.technicianSlotId || slot.slotId // Ensure technicianSlotId is available
         }
       })
       
@@ -1086,12 +1090,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                       console.log('Current data.time:', data.time)
                       console.log('Slot time:', s.slotTime)
                       console.log('SlotId from slot:', s.slotId)
+                      console.log('TechnicianSlotId from slot:', s.technicianSlotId)
                       console.log('TechnicianId from slot:', s.technicianId)
                       
-                      // BE không trả về technicianSlotId, sử dụng slotId làm identifier
+                      // Use the correct TechnicianSlotId from the API response
                       onUpdate({ 
                         time: s.slotTime, 
-                        technicianSlotId: s.slotId, // Sử dụng slotId thay vì technicianSlotId
+                        technicianSlotId: s.technicianSlotId, // Use the actual technicianSlotId from the slot
                         technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
                       })
                     }

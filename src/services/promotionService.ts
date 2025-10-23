@@ -6,7 +6,7 @@ export interface BackendPromotion {
     code: string
     description: string
     discountValue: number
-    discountType: 'FIXED' | 'PERCENT'
+    discountType: 'FIXED' | 'PERCENT'  // Database format
     minOrderAmount: number
     startDate: string
     endDate: string
