@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { TechnicianTimeSlotService } from '@/services/technicianTimeSlotService'
 import { TechnicianService, TimeSlotService } from '@/services/technicianService'
 import { CenterService } from '@/services/centerService'
+import { StaffService } from '@/services/staffService'
 
 type FormState = {
   mode: 'ngay' | 'tuan'
@@ -36,6 +37,7 @@ export default function TechnicianSchedulePage() {
   const [technicians, setTechnicians] = useState<any[]>([])
   const [slots, setSlots] = useState<any[]>([])
   const [centers, setCenters] = useState<any[]>([])
+  const [currentStaffCenterId, setCurrentStaffCenterId] = useState<number | null>(null)
 
   // Viewing options (efficient querying)
   const [viewMode, setViewMode] = useState<'technician' | 'center'>('technician')
@@ -428,11 +430,49 @@ export default function TechnicianSchedulePage() {
     // load dropdowns
     ;(async () => {
       try {
-        // Tải kỹ thuật viên và slot (always allowed for Staff)
+        // Lấy thông tin staff hiện tại để lấy centerId
+        let centerId: number | undefined = undefined
+        try {
+          console.log('🔍 Đang gọi API getCurrentStaff...')
+          const currentStaff = await StaffService.getCurrentStaff()
+          console.log('📡 Response từ getCurrentStaff:', currentStaff)
+          
+          if (currentStaff?.data?.centerId) {
+            centerId = currentStaff.data.centerId
+            setCurrentStaffCenterId(centerId)
+            console.log('✅ Đã lấy được centerId:', centerId)
+          } else {
+            console.warn('⚠️ Không có centerId trong response:', currentStaff)
+            
+            // Fallback: Thử lấy từ localStorage hoặc hardcode để test
+            const fallbackCenterId = localStorage.getItem('currentStaffCenterId')
+            if (fallbackCenterId) {
+              centerId = parseInt(fallbackCenterId)
+              setCurrentStaffCenterId(centerId)
+              console.log('🔄 Sử dụng centerId từ localStorage:', centerId)
+            } else {
+              console.warn('⚠️ Không có centerId fallback, sẽ load tất cả kỹ thuật viên')
+            }
+          }
+        } catch (error) {
+          console.error('❌ Lỗi khi lấy thông tin staff hiện tại:', error)
+          
+          // Fallback: Thử lấy từ localStorage
+          const fallbackCenterId = localStorage.getItem('currentStaffCenterId')
+          if (fallbackCenterId) {
+            centerId = parseInt(fallbackCenterId)
+            setCurrentStaffCenterId(centerId)
+            console.log('🔄 Sử dụng centerId từ localStorage (fallback):', centerId)
+          }
+        }
+
+        // Tải kỹ thuật viên và slot (filter theo centerId của staff hiện tại)
+        console.log('🔍 Đang gọi TechnicianService.list với centerId:', centerId)
         const [techs, ts] = await Promise.all([
-          TechnicianService.list({ pageNumber: 1, pageSize: 100 }),
+          TechnicianService.list({ pageNumber: 1, pageSize: 100, centerId }),
           TimeSlotService.list(true),
         ])
+        console.log('📡 Response từ TechnicianService.list:', techs)
         setTechnicians(techs.technicians || [])
         setSlots(ts || [])
       } catch {
@@ -613,11 +653,20 @@ export default function TechnicianSchedulePage() {
               width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
             }}>
               <option value="">-- Chọn kỹ thuật viên --</option>
-              {technicians.map((t: any) => (
-                <option key={t.technicianId} value={t.technicianId}>{t.userFullName || `KTV #${t.technicianId}`}</option>
-              ))}
+              {technicians.length === 0 ? (
+                <option value="" disabled>Không có kỹ thuật viên nào trong chi nhánh</option>
+              ) : (
+                technicians.map((t: any) => (
+                  <option key={t.technicianId} value={t.technicianId}>{t.userFullName || `KTV #${t.technicianId}`}</option>
+                ))
+              )}
             </select>
             {errors.technicianId && <div style={{ color: 'var(--error-600)', fontSize: '12px', marginTop: '6px' }}>{errors.technicianId}</div>}
+            {technicians.length === 0 && currentStaffCenterId && (
+              <div style={{ color: 'var(--warning-600)', fontSize: '12px', marginTop: '6px' }}>
+                ⚠️ Không có kỹ thuật viên nào trong chi nhánh của bạn. Chỉ hiển thị kỹ thuật viên thuộc cùng chi nhánh.
+              </div>
+            )}
           </div>
 
           {/* Khung giờ bị ẩn cho chế độ full-time theo ngày/tuần */}
@@ -713,9 +762,13 @@ export default function TechnicianSchedulePage() {
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
                 <select value={form.technicianId} onChange={(e) => setField('technicianId', e.target.value)} style={{ minWidth: '260px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }}>
                   <option value="">-- Chọn kỹ thuật viên --</option>
-                  {technicians.map((t: any) => (
-                    <option key={t.technicianId} value={t.technicianId}>{t.userFullName || `KTV #${t.technicianId}`}</option>
-                  ))}
+                  {technicians.length === 0 ? (
+                    <option value="" disabled>Không có kỹ thuật viên nào trong chi nhánh</option>
+                  ) : (
+                    technicians.map((t: any) => (
+                      <option key={t.technicianId} value={t.technicianId}>{t.userFullName || `KTV #${t.technicianId}`}</option>
+                    ))
+                  )}
                 </select>
               </div>
             )}

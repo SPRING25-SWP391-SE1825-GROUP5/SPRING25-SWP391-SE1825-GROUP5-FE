@@ -28,10 +28,10 @@ export interface FeedbackStats {
 }
 
 class FeedbackService {
-  // Submit feedback for a booking
-  async submitFeedback(bookingId: string, feedback: FeedbackData): Promise<FeedbackResponse> {
+  // Submit feedback for a booking (technician)
+  async submitFeedback(bookingId: string, technicianId: number, feedback: FeedbackData): Promise<FeedbackResponse> {
     try {
-      const response = await api.post(`/feedback/${bookingId}`, feedback)
+      const response = await api.post(`/api/Feedback/bookings/${bookingId}/technicians/${technicianId}`, feedback)
       return response.data
     } catch (error: any) {
       console.error('Error submitting feedback:', error)
@@ -39,10 +39,21 @@ class FeedbackService {
     }
   }
 
-  // Update existing feedback
-  async updateFeedback(bookingId: string, feedback: FeedbackData): Promise<FeedbackResponse> {
+  // Submit feedback for parts
+  async submitPartsFeedback(bookingId: string, partId: number, feedback: FeedbackData): Promise<FeedbackResponse> {
     try {
-      const response = await api.put(`/feedback/${bookingId}`, feedback)
+      const response = await api.post(`/api/Feedback/bookings/${bookingId}/parts/${partId}`, feedback)
+      return response.data
+    } catch (error: any) {
+      console.error('Error submitting parts feedback:', error)
+      throw new Error(error.response?.data?.message || 'Không thể gửi đánh giá phụ tùng')
+    }
+  }
+
+  // Update existing feedback
+  async updateFeedback(feedbackId: number, feedback: FeedbackData): Promise<FeedbackResponse> {
+    try {
+      const response = await api.put(`/api/Feedback/${feedbackId}`, feedback)
       return response.data
     } catch (error: any) {
       console.error('Error updating feedback:', error)
@@ -53,7 +64,7 @@ class FeedbackService {
   // Get feedback for a specific booking
   async getFeedback(bookingId: string): Promise<FeedbackData | null> {
     try {
-      const response = await api.get(`/feedback/${bookingId}`)
+      const response = await api.get(`/api/Feedback/bookings/${bookingId}`)
       return response.data.data
     } catch (error: any) {
       if (error.response?.status === 404) {

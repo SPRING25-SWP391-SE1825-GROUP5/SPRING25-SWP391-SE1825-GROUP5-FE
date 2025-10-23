@@ -39,7 +39,7 @@ export const StaffService = {
       return data
     } catch (error: any) {
       console.error('Error creating staff from user:', error)
-      
+
       if (error.response?.status === 409) {
         throw new Error('Người dùng đã có hồ sơ nhân viên đang hoạt động')
       } else if (error.response?.status === 400) {
@@ -49,7 +49,7 @@ export const StaffService = {
       } else if (error.response?.status === 403) {
         throw new Error('Không có quyền truy cập')
       }
-      
+
       throw new Error(error.message || 'Không thể tạo nhân viên từ người dùng')
     }
   },
@@ -70,7 +70,7 @@ export const StaffService = {
       return data
     } catch (error: any) {
       console.error('Error creating technician from user:', error)
-      
+
       if (error.response?.status === 409) {
         throw new Error('Người dùng đã có hồ sơ kỹ thuật viên đang hoạt động')
       } else if (error.response?.status === 400) {
@@ -80,7 +80,7 @@ export const StaffService = {
       } else if (error.response?.status === 403) {
         throw new Error('Không có quyền truy cập')
       }
-      
+
       throw new Error(error.message || 'Không thể tạo kỹ thuật viên từ người dùng')
     }
   },
@@ -88,6 +88,11 @@ export const StaffService = {
 
   async updateTechnician(technicianId: number, technicianData: UpdateTechnicianRequest): Promise<TechnicianResponse> {
     const { data } = await api.put<TechnicianResponse>(`/StaffManagement/technician/${technicianId}`, technicianData)
+    return data
+  },
+
+  async getCurrentStaff(): Promise<StaffResponse> {
+    const { data } = await api.get<StaffResponse>('/StaffManagement/staff/current')
     return data
   },
 
@@ -100,20 +105,20 @@ export const StaffService = {
     inactiveTechnicians: number
   }> {
     try {
-      const staffResponse = await this.getStaffList({ 
-        centerId, 
-        pageSize: 1000 
+      const staffResponse = await this.getStaffList({
+        centerId,
+        pageSize: 1000
       })
       const staff = staffResponse.data.staff
-      
-      const technicianResponse = centerId 
-        ? await this.getTechnicianList({ 
-            centerId, 
-            pageSize: 1000 
-          })
+
+      const technicianResponse = centerId
+        ? await this.getTechnicianList({
+          centerId,
+          pageSize: 1000
+        })
         : { data: { technicians: [] } }
       const technicians = technicianResponse.data.technicians || []
-      
+
       return {
         totalStaff: staff.length,
         activeStaff: staff.filter(s => s.isActive).length,

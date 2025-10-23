@@ -32,6 +32,8 @@ import { FeedbackCard } from '@/components/feedback'
 import { mockFeedbackService } from '@/data/mockFeedbackData'
 import { BookingData } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
+import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
+import { feedbackService } from '@/services/feedbackService'
 
 import './profile.scss'
 
@@ -166,7 +168,9 @@ export default function Profile() {
   }, [activeTab, auth.user?.id])
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered, activeTab:', activeTab, 'auth.user?.id:', auth.user?.id)
     if (activeTab === 'service-history') {
+      console.log('📡 Loading booking history from useEffect')
       loadBookingHistory()
     }
   }, [activeTab, auth.user?.id, bookingHistoryPage])
@@ -204,7 +208,65 @@ export default function Profile() {
     })
   }
 
-  // Handle feedback submission
+  // Handle feedback submission for booking history
+  const handleBookingFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      // Tìm booking để lấy technicianId
+      const booking = bookingHistory.find(b => b.bookingId === bookingId)
+      if (!booking || !booking.technicianId) {
+        throw new Error('Không tìm thấy thông tin kỹ thuật viên')
+      }
+
+      await feedbackService.submitFeedback(bookingId.toString(), booking.technicianId, feedback)
+      // Reload booking history to show updated feedback
+      await loadBookingHistory()
+      setSuccessMessage('Đánh giá đã được gửi thành công!')
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setUploadError('Không thể gửi đánh giá: ' + err.message)
+      console.error('Error submitting booking feedback:', err)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    }
+  }
+
+  // Handle feedback update for booking history
+  const handleBookingEditFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      // Tìm booking để lấy feedbackId
+      const booking = bookingHistory.find(b => b.bookingId === bookingId)
+      if (!booking || !booking.feedbackId) {
+        throw new Error('Không tìm thấy thông tin đánh giá')
+      }
+
+      await feedbackService.updateFeedback(booking.feedbackId, feedback)
+      // Reload booking history to show updated feedback
+      await loadBookingHistory()
+      setSuccessMessage('Đánh giá đã được cập nhật thành công!')
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setUploadError('Không thể cập nhật đánh giá: ' + err.message)
+      console.error('Error updating booking feedback:', err)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    }
+  }
+
+  // Handle feedback submission (legacy for maintenance tab)
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
       await mockFeedbackService.submitFeedback(bookingId, feedback)
@@ -216,7 +278,7 @@ export default function Profile() {
     }
   }
 
-  // Handle feedback update
+  // Handle feedback update (legacy for maintenance tab)
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
       await mockFeedbackService.updateFeedback(bookingId, feedback)
@@ -917,7 +979,7 @@ export default function Profile() {
                   {isUploadingAvatar ? (
                     <div className="loading-spinner-small"></div>
                   ) : (
-                    <PencilIcon className="w-4 h-4" />
+                  <PencilIcon className="w-4 h-4" />
                   )}
                 </button>
                 <input
@@ -947,7 +1009,7 @@ export default function Profile() {
                   <UserIcon className="w-5 h-5" />
                 </div>
                 <span className="nav-label">Thông tin cá nhân</span>
-              </button>
+                  </button>
 
               <button
                 className="nav-item"
@@ -958,17 +1020,6 @@ export default function Profile() {
                 </div>
                 <span className="nav-label">Phương tiện</span>
               </button>
-
-              <button
-                className="nav-item"
-                onClick={() => setActiveTab('service-history')}
-              >
-                <div className="nav-icon">
-                  <ClockIcon className="w-5 h-5" />
-                </div>
-                <span className="nav-label">Lịch sử dịch vụ</span>
-              </button>
-
               <button
                 className="nav-item"
                 onClick={() => setActiveTab('promo-codes')}
@@ -978,17 +1029,6 @@ export default function Profile() {
                 </div>
                 <span className="nav-label">Mã khuyến mãi</span>
               </button>
-
-              <button
-                className="nav-item"
-                onClick={() => setActiveTab('notifications')}
-              >
-                <div className="nav-icon">
-                  <BellIcon className="w-5 h-5" />
-                </div>
-                <span className="nav-label">Thông báo</span>
-              </button>
-
               <button
                 className="nav-item"
                 onClick={() => setActiveTab('settings')}
@@ -1000,18 +1040,20 @@ export default function Profile() {
               </button>
               
               <button
-                className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+                className={`nav-item ${activeTab === 'service-history' ? 'active' : ''}`}
                 onClick={() => {
-                  setActiveTab('maintenance')
-                  if (bookings.length === 0) {
-                    loadMaintenanceData()
+                  console.log('🚀 Clicking Lịch sử đặt lịch tab')
+                  setActiveTab('service-history')
+                  if (bookingHistory.length === 0) {
+                    console.log('📡 Loading booking history...')
+                    loadBookingHistory()
                   }
                 }}
               >
                 <div className="nav-icon">
                   <FontAwesomeIcon icon={faHistory} />
                 </div>
-                <span className="nav-label">Lịch sử bảo dưỡng</span>
+                <span className="nav-label">Lịch sử đặt lịch</span>
               </button>
             </nav>
 
@@ -1024,7 +1066,7 @@ export default function Profile() {
                 </div>
                 <span className="logout-label">Đăng xuất</span>
               </button>
-            </div>
+          </div>
           </div>
 
           {/* Main Content Area */}
@@ -1105,7 +1147,7 @@ export default function Profile() {
                           required
                           error={formErrors.phoneNumber}
                         />
-                      </div>
+                          </div>
                       <div className="form-group">
                         <label className="form-label required">Ngày sinh</label>
                         <BaseInput
@@ -1116,8 +1158,8 @@ export default function Profile() {
                           required
                           error={formErrors.dateOfBirth}
                         />
+                          </div>
                       </div>
-                    </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1160,7 +1202,7 @@ export default function Profile() {
             {activeTab === 'vehicles' && (
               <div className="vehicles-management-container">
                 <BaseCard className="vehicles-main-card">
-                  <div className="card-header">
+                <div className="card-header">
                     <div className="header-content">
                       <h3 className="card-title">
                         <TruckIcon className="w-6 h-6" />
@@ -1169,24 +1211,24 @@ export default function Profile() {
                       <p className="card-subtitle">Quản lý thông tin phương tiện của bạn</p>
                     </div>
                     <div className="card-actions">
-                      <BaseButton
-                        variant="primary"
+                  <BaseButton
+                    variant="primary"
                         onClick={() => setShowVehicleForm(true)}
                         className="add-vehicle-btn"
-                      >
+                  >
                         <PlusIcon className="w-5 h-5" />
                         Thêm phương tiện
-                      </BaseButton>
-                    </div>
+                  </BaseButton>
+                </div>
                   </div>
 
-            <div className="card-body">
-              {isLoadingVehicles ? (
+                  <div className="card-body">
+                  {isLoadingVehicles ? (
                 <div className="vehicles-loading-state">
                   <div className="loading-spinner-large"></div>
-                  <p>Đang tải danh sách phương tiện...</p>
-                </div>
-              ) : vehicles.length === 0 ? (
+                        <p>Đang tải danh sách phương tiện...</p>
+                    </div>
+                  ) : vehicles.length === 0 ? (
                       <div className="vehicles-empty-state">
                         <div className="empty-illustration">
                           <TruckIcon className="w-16 h-16" />
@@ -1194,24 +1236,24 @@ export default function Profile() {
                         </div>
                         <h3>Chưa có phương tiện nào</h3>
                         <p>Hãy thêm phương tiện đầu tiên để bắt đầu quản lý xe của bạn</p>
-                        <BaseButton
+                      <BaseButton
                           variant="primary"
                           onClick={() => setShowVehicleForm(true)}
                           className="empty-state-cta"
-                        >
+                      >
                           <PlusIcon className="w-5 h-5" />
                           Thêm phương tiện đầu tiên
-                        </BaseButton>
-                      </div>
-                    ) : (
+                      </BaseButton>
+                    </div>
+                  ) : (
                       <div className="vehicles-grid">
-                        {vehicles.map((vehicle) => (
+                      {vehicles.map((vehicle) => (
                           <div key={vehicle.vehicleId} className="vehicle-card-modern">
                             <div className="vehicle-card-header">
                               <div className="vehicle-license">
                                 <h4>{vehicle.licensePlate}</h4>
                                 <span className="vehicle-status">Hoạt động</span>
-                              </div>
+                            </div>
                               <div className="vehicle-color-indicator" style={{ backgroundColor: vehicle.color }}>
                                 <div className="color-ring"></div>
                               </div>
@@ -1253,7 +1295,7 @@ export default function Profile() {
                                       className="metric-fill" 
                                       style={{ width: `${Math.min((vehicle.currentMileage / 100000) * 100, 100)}%` }}
                                     ></div>
-                                  </div>
+                            </div>
                                 </div>
                               </div>
                             </div>
@@ -1267,7 +1309,7 @@ export default function Profile() {
                               >
                                 <PencilSquareIcon className="w-4 h-4" />
                                 Sửa
-                              </BaseButton>
+                            </BaseButton>
                          <BaseButton 
                            variant="outline" 
                            size="sm" 
@@ -1275,16 +1317,16 @@ export default function Profile() {
                            loading={isDeletingVehicle === vehicle.vehicleId}
                            className="delete-btn"
                          >
-                           <TrashIcon className="w-4 h-4" />
+                                <TrashIcon className="w-4 h-4" />
                            {isDeletingVehicle === vehicle.vehicleId ? 'Đang xóa...' : 'Xóa'}
-                         </BaseButton>
-                            </div>
+                              </BaseButton>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </BaseCard>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </BaseCard>
               </div>
             )}
 
@@ -1310,7 +1352,7 @@ export default function Profile() {
               >
                 <div className="vehicle-form-modal">
                   <BaseCard className="vehicle-form-modal-card">
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">
                       {editingVehicle ? 'Sửa phương tiện' : 'Thêm phương tiện'}
                     </h3>
@@ -1353,7 +1395,7 @@ export default function Profile() {
                       <div className="success-message">
                         <CheckCircleIcon className="w-5 h-5" />
                         <span>{successMessage}</span>
-                      </div>
+                    </div>
                     )}
                     
                     {vehicleFormErrors.general && (
@@ -1367,7 +1409,7 @@ export default function Profile() {
                         borderRadius: '6px'
                       }}>
                         {vehicleFormErrors.general}
-                      </div>
+                    </div>
                     )}
                     
                     <div className="form-row">
@@ -1380,7 +1422,7 @@ export default function Profile() {
                           placeholder="Nhập VIN của xe"
                           error={vehicleFormErrors.vin}
                         />
-                      </div>
+                </div>
                       <div className="form-group">
                         <label className="form-label required">Biển số xe</label>
                         <BaseInput
@@ -1390,8 +1432,8 @@ export default function Profile() {
                           placeholder="Nhập biển số xe"
                           error={vehicleFormErrors.licensePlate}
                         />
-                      </div>
                     </div>
+                  </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1403,7 +1445,7 @@ export default function Profile() {
                           placeholder="Nhập màu sắc xe"
                           error={vehicleFormErrors.color}
                         />
-                      </div>
+                    </div>
                       <div className="form-group">
                         <label className="form-label required">Số km hiện tại</label>
                         <BaseInput
@@ -1413,8 +1455,8 @@ export default function Profile() {
                           placeholder="Nhập số km hiện tại"
                           error={vehicleFormErrors.currentMileage}
                         />
-                      </div>
                     </div>
+                  </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1425,7 +1467,7 @@ export default function Profile() {
                           onChange={(value) => handleVehicleInputChange('lastServiceDate', value)}
                           error={vehicleFormErrors.lastServiceDate}
                         />
-                      </div>
+                    </div>
                       <div className="form-group">
                         <label className="form-label">Ngày mua xe</label>
                         <BaseInput
@@ -1434,10 +1476,10 @@ export default function Profile() {
                           onChange={(value) => handleVehicleInputChange('purchaseDate', value)}
                           error={vehicleFormErrors.purchaseDate}
                         />
-                      </div>
                     </div>
                   </div>
-                </BaseCard>
+                </div>
+              </BaseCard>
                 </div>
               </div>
             )}
@@ -1446,9 +1488,9 @@ export default function Profile() {
             {activeTab === 'service-history' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">Lịch sử dịch vụ</h3>
-                  </div>
+                </div>
                   <div className="card-body">
                     {isLoadingBookingHistory ? (
                       <div className="loading-state">
@@ -1468,59 +1510,12 @@ export default function Profile() {
                     ) : (
                       <div className="booking-history-list">
                         {bookingHistory.map((booking: any) => (
-                          <div key={booking.bookingId} className="booking-history-item">
-                            <div className="booking-header">
-                              <div className="booking-info">
-                                <h4 className="booking-title">{booking.serviceName}</h4>
-                                <p className="booking-code">Mã đặt lịch: {booking.bookingCode}</p>
-                              </div>
-                              <div className="booking-status">
-                                <span className={`status-badge status-${booking.status.toLowerCase()}`}>
-                                  {booking.status}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="booking-details">
-                              <div className="detail-row">
-                                <span className="detail-label">Phương tiện:</span>
-                                <span className="detail-value">
-                                  {booking.vehicleInfo.licensePlate} - {booking.vehicleInfo.carModel}
-                                </span>
-                              </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Ngày đặt lịch:</span>
-                                <span className="detail-value">
-                                  {new Date(booking.bookingDate).toLocaleDateString('vi-VN')}
-                                </span>
-                              </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Trung tâm:</span>
-                                <span className="detail-value">{booking.centerName}</span>
-                              </div>
-                              {booking.technicianName && (
-                                <div className="detail-row">
-                                  <span className="detail-label">Kỹ thuật viên:</span>
-                                  <span className="detail-value">{booking.technicianName}</span>
-                                </div>
-                              )}
-                              <div className="detail-row">
-                                <span className="detail-label">Chi phí:</span>
-                                <span className="detail-value cost">
-                                  {booking.actualCost ? 
-                                    `${booking.actualCost.toLocaleString('vi-VN')} VNĐ` : 
-                                    `Ước tính: ${booking.estimatedCost.toLocaleString('vi-VN')} VNĐ`
-                                  }
-                                </span>
-                              </div>
-                              {booking.notes && (
-                                <div className="detail-row">
-                                  <span className="detail-label">Ghi chú:</span>
-                                  <span className="detail-value">{booking.notes}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          <BookingHistoryCard
+                            key={booking.bookingId}
+                            booking={booking}
+                            onFeedback={handleBookingFeedback}
+                            onEditFeedback={handleBookingEditFeedback}
+                          />
                         ))}
                         
                         {bookingHistoryTotalPages > 1 && (
@@ -1546,65 +1541,65 @@ export default function Profile() {
                         )}
                       </div>
                     )}
-                  </div>
-                </BaseCard>
-              </div>
+                    </div>
+              </BaseCard>
+                    </div>
             )}
 
             {activeTab === 'promo-codes' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">Mã khuyến mãi</h3>
-                  </div>
+                    </div>
                   <div className="card-body">
                     <p>Danh sách mã khuyến mãi sẽ được hiển thị ở đây.</p>
-                  </div>
-                </BaseCard>
+                </div>
+              </BaseCard>
               </div>
             )}
 
             {activeTab === 'notifications' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
-                    <h3 className="card-title">Thông báo</h3>
-                  </div>
+                <div className="card-header">
+                  <h3 className="card-title">Thông báo</h3>
+                </div>
                   <div className="card-body">
                     <p>Danh sách thông báo sẽ được hiển thị ở đây.</p>
-                  </div>
-                </BaseCard>
-              </div>
+                </div>
+              </BaseCard>
+                </div>
             )}
 
             {activeTab === 'settings' && (
               <div className="tab-content">
                 <BaseCard>
-                  <div className="card-header">
+                <div className="card-header">
                     <h3 className="card-title">Đổi mật khẩu</h3>
-                  </div>
+                </div>
                   <div className="card-body">
                     <div className="profile-form">
                       {successMessage && (
                         <div className="success-message">
                           <CheckCircleIcon className="w-5 h-5" />
                           <span>{successMessage}</span>
-                        </div>
+                    </div>
                       )}
                       
                       <div className="form-row">
-                        <div className="form-group">
+                  <div className="form-group">
                           <label className="form-label required">Mật khẩu hiện tại</label>
-                          <div className="password-input-wrapper">
-                            <BaseInput
+                    <div className="password-input-wrapper">
+                      <BaseInput
                               type={showPasswords.currentPassword ? "text" : "password"}
-                              value={passwordData.currentPassword}
+                        value={passwordData.currentPassword}
                               onChange={(value) => setPasswordData(prev => ({ ...prev, currentPassword: value }))}
-                              placeholder="Nhập mật khẩu hiện tại"
+                        placeholder="Nhập mật khẩu hiện tại"
                               error={passwordErrors.currentPassword}
-                            />
-                            <button
-                              type="button"
+                      />
+                      <button
+                        type="button"
                               className="password-toggle-btn"
                               onClick={() => togglePasswordVisibility('currentPassword')}
                             >
@@ -1613,24 +1608,24 @@ export default function Profile() {
                               ) : (
                                 <EyeIcon className="w-4 h-4" />
                               )}
-                            </button>
+                      </button>
                           </div>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
 
                       <div className="form-row">
-                        <div className="form-group">
+                  <div className="form-group">
                           <label className="form-label required">Mật khẩu mới</label>
-                          <div className="password-input-wrapper">
-                            <BaseInput
+                    <div className="password-input-wrapper">
+                      <BaseInput
                               type={showPasswords.newPassword ? "text" : "password"}
-                              value={passwordData.newPassword}
+                        value={passwordData.newPassword}
                               onChange={(value) => setPasswordData(prev => ({ ...prev, newPassword: value }))}
                               placeholder="Nhập mật khẩu mới"
                               error={passwordErrors.newPassword}
-                            />
-                            <button
-                              type="button"
+                      />
+                      <button
+                        type="button"
                               className="password-toggle-btn"
                               onClick={() => togglePasswordVisibility('newPassword')}
                             >
@@ -1639,21 +1634,21 @@ export default function Profile() {
                               ) : (
                                 <EyeIcon className="w-4 h-4" />
                               )}
-                            </button>
-                          </div>
+                      </button>
+                    </div>
                         </div>
-                        <div className="form-group">
+                  <div className="form-group">
                           <label className="form-label required">Xác nhận mật khẩu mới</label>
-                          <div className="password-input-wrapper">
-                            <BaseInput
+                    <div className="password-input-wrapper">
+                      <BaseInput
                               type={showPasswords.confirmPassword ? "text" : "password"}
-                              value={passwordData.confirmPassword}
+                        value={passwordData.confirmPassword}
                               onChange={(value) => setPasswordData(prev => ({ ...prev, confirmPassword: value }))}
                               placeholder="Nhập lại mật khẩu mới"
                               error={passwordErrors.confirmPassword}
-                            />
-                            <button
-                              type="button"
+                      />
+                      <button
+                        type="button"
                               className="password-toggle-btn"
                               onClick={() => togglePasswordVisibility('confirmPassword')}
                             >
@@ -1662,25 +1657,25 @@ export default function Profile() {
                               ) : (
                                 <EyeIcon className="w-4 h-4" />
                               )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                </button>
+              </div>
+                    </div>
+                  </div>
 
                       <div className="form-actions">
-                        <BaseButton
-                          variant="primary"
-                          onClick={handleChangePassword}
+                <BaseButton
+                  variant="primary"
+                  onClick={handleChangePassword}
                           loading={isChangingPassword}
                         >
                           {isChangingPassword ? 'Đang xử lý...' : 'Đổi mật khẩu'}
-                        </BaseButton>
-                      </div>
-                    </div>
+                </BaseButton>
+              </div>
+            </div>
                   </div>
                 </BaseCard>
-              </div>
-            )}
+          </div>
+        )}
 
             {activeTab === 'maintenance' && (
               <div className="maintenance-history-container">
@@ -1688,7 +1683,7 @@ export default function Profile() {
                   <div className="card-header">
                     <h3 className="card-title">
                       <FontAwesomeIcon icon={faHistory} />
-                      Lịch sử bảo dưỡng
+                      Lịch sử đặt lịch
                     </h3>
                     <p className="card-subtitle">Xem lịch sử dịch vụ và đánh giá trải nghiệm của bạn</p>
                   </div>
