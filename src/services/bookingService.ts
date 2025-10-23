@@ -267,7 +267,7 @@ class BookingServiceClass {
   async getBookingHistory(customerId: number, page: number = 1, limit: number = 10): Promise<any> {
     try {
       console.log('🌐 BookingService.getBookingHistory called:', { customerId, page, limit })
-      const url = `/api/Booking/Customer/${customerId}/booking-history`
+      const url = `/Booking/Customer/${customerId}/booking-history`
       console.log('📡 API URL:', url)
       
       const response = await api.get(url, {
@@ -283,6 +283,22 @@ class BookingServiceClass {
     } catch (error: any) {
       console.error('❌ Error fetching booking history:', error)
       throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy lịch sử booking')
+    }
+  }
+
+  // Update booking status
+  async updateBookingStatus(bookingId: number, status: string): Promise<any> {
+    try {
+      console.log('🌐 BookingService.updateBookingStatus called:', { bookingId, status })
+      const url = `/Booking/${bookingId}/status`
+      console.log('📡 API URL:', url)
+      
+      const response = await api.put(url, { status })
+      console.log('✅ BookingService update status response:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Error updating booking status:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái booking')
     }
   }
 }

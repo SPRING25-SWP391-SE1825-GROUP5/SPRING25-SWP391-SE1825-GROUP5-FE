@@ -370,9 +370,9 @@ export default function Profile() {
       const response = await BookingService.getBookingHistory(customerId, bookingHistoryPage, 10)
       console.log('✅ Booking history response:', response)
       
-      if (response.bookings) {
-        setBookingHistory(response.bookings)
-        setBookingHistoryTotalPages(response.pagination.totalPages)
+      if (response.data && response.data.bookings) {
+        setBookingHistory(response.data.bookings)
+        setBookingHistoryTotalPages(response.data.pagination.totalPages)
       } else {
         setBookingHistory([])
       }

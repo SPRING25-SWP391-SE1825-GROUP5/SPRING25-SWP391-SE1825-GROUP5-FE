@@ -17,6 +17,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { TechnicianService } from '@/services/technicianService'
+import { BookingService } from '@/services/bookingService'
 import { useAppSelector } from '@/store/hooks'
 import toast from 'react-hot-toast'
 import './WorkQueue.scss'
@@ -31,7 +32,7 @@ interface WorkOrder {
   licensePlate: string
   bikeBrand?: string
   bikeModel?: string
-  status: 'waiting' | 'processing' | 'completed' | 'pending' | 'in_progress' | 'done'
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled'
   priority: 'high' | 'medium' | 'low'
   estimatedTime: string
   description: string
@@ -68,6 +69,7 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set())
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -186,7 +188,7 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
           licensePlate: booking.licensePlate || booking.vehiclePlate || '',
           bikeBrand: booking.vehicleBrand || booking.brand,
           bikeModel: booking.vehicleModel || booking.model,
-          status: mapBookingStatus(booking.status) as 'waiting' | 'processing' | 'completed' | 'pending' | 'in_progress' | 'done',
+          status: mapBookingStatus(booking.status) as 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled',
           priority: mapPriority(booking.priority) as 'low' | 'medium' | 'high',
           estimatedTime: booking.estimatedTime || booking.duration || '1 giờ',
           description: booking.description || booking.notes || 'Không có mô tả',
@@ -229,7 +231,7 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
           licensePlate: '30A-12345',
           bikeBrand: 'VinFast',
           bikeModel: 'VF e34',
-          status: 'waiting',
+          status: 'pending',
           priority: 'high',
           estimatedTime: '2 giờ',
           description: 'Động cơ kêu lạ, cần kiểm tra và thay thế linh kiện',
@@ -248,15 +250,16 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   // Helper functions để map data
   const mapBookingStatus = (status: string) => {
     const statusMap: { [key: string]: string } = {
-      'pending': 'waiting',
-      'confirmed': 'waiting', 
-      'in_progress': 'processing',
-      'processing': 'processing',
+      'pending': 'pending',
+      'confirmed': 'confirmed', 
+      'in_progress': 'in_progress',
+      'processing': 'in_progress',
       'completed': 'completed',
       'done': 'completed',
-      'cancelled': 'waiting'
+      'paid': 'paid',
+      'cancelled': 'cancelled'
     }
-    return statusMap[status?.toLowerCase()] || 'waiting'
+    return statusMap[status?.toLowerCase()] || 'pending'
   }
 
   const mapPriority = (priority: string) => {
@@ -308,9 +311,12 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'waiting': return 'Chờ tiếp nhận'
-      case 'processing': return 'Đang xử lý'
+      case 'pending': return 'Chờ xác nhận'
+      case 'confirmed': return 'Đã xác nhận'
+      case 'in_progress': return 'Đang làm việc'
       case 'completed': return 'Hoàn thành'
+      case 'paid': return 'Đã thanh toán'
+      case 'cancelled': return 'Đã hủy'
       default: return status
     }
   }
@@ -344,15 +350,21 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
 
   const stats = [
     {
-      label: 'Chờ tiếp nhận',
-      value: workQueue.filter(w => w.status === 'waiting').length,
+      label: 'Chờ xác nhận',
+      value: workQueue.filter(w => w.status === 'pending').length,
       color: '#f59e0b',
       icon: Clock
     },
     {
-      label: 'Đang xử lý',
-      value: workQueue.filter(w => w.status === 'processing').length,
+      label: 'Đã xác nhận',
+      value: workQueue.filter(w => w.status === 'confirmed').length,
       color: '#3b82f6',
+      icon: CheckCircle2
+    },
+    {
+      label: 'Đang làm việc',
+      value: workQueue.filter(w => w.status === 'in_progress').length,
+      color: '#8b5cf6',
       icon: Wrench
     },
     {
@@ -360,13 +372,81 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
       value: workQueue.filter(w => w.status === 'completed').length,
       color: '#10b981',
       icon: CheckCircle
+    },
+    {
+      label: 'Đã thanh toán',
+      value: workQueue.filter(w => w.status === 'paid').length,
+      color: '#059669',
+      icon: Package
     }
   ]
 
-  const handleStatusUpdate = (workId: number, newStatus: string) => {
-    setWorkQueue(prev => prev.map(work => 
-      work.id === workId ? { ...work, status: newStatus as any } : work
-    ))
+  const handleStatusUpdate = async (workId: number, newStatus: string) => {
+    try {
+      // Thêm workId vào set updating để hiển thị loading
+      setUpdatingStatus(prev => new Set(prev).add(workId))
+      
+      // Map status từ UI sang API format
+      const apiStatus = mapStatusToApi(newStatus)
+      
+      console.log('🔄 Updating booking status:', { workId, newStatus, apiStatus })
+      
+      // Gọi API để cập nhật trạng thái
+      await BookingService.updateBookingStatus(workId, apiStatus)
+      
+      // Cập nhật local state nếu API thành công
+      setWorkQueue(prev => prev.map(work => 
+        work.id === workId ? { ...work, status: newStatus as any } : work
+      ))
+      
+      // Hiển thị thông báo thành công
+      const statusText = getStatusText(newStatus)
+      toast.success(`Đã cập nhật trạng thái thành: ${statusText}`)
+      
+      // Làm mới dữ liệu để đồng bộ với server
+      await fetchTechnicianBookings(selectedDate)
+      
+    } catch (error: any) {
+      console.error('❌ Error updating booking status:', error)
+      toast.error(error.message || 'Không thể cập nhật trạng thái')
+    } finally {
+      // Xóa workId khỏi set updating
+      setUpdatingStatus(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(workId)
+        return newSet
+      })
+    }
+  }
+
+  // Helper function để map status từ UI sang API format
+  const mapStatusToApi = (uiStatus: string): string => {
+    const statusMap: { [key: string]: string } = {
+      'pending': 'PENDING',
+      'confirmed': 'CONFIRMED',
+      'in_progress': 'IN_PROGRESS', 
+      'completed': 'COMPLETED',
+      'paid': 'PAID',
+      'cancelled': 'CANCELLED'
+    }
+    return statusMap[uiStatus] || 'PENDING'
+  }
+
+  // Helper function để kiểm tra trạng thái có thể chuyển được không
+  const canTransitionTo = (currentStatus: string, targetStatus: string): boolean => {
+    const validTransitions: { [key: string]: string[] } = {
+      'pending': ['CONFIRMED', 'CANCELLED'],
+      'confirmed': ['IN_PROGRESS', 'CANCELLED'],
+      'in_progress': ['COMPLETED', 'CANCELLED'],
+      'completed': ['PAID'],
+      'paid': [], // Terminal state
+      'cancelled': [] // Terminal state
+    }
+    
+    const currentApiStatus = mapStatusToApi(currentStatus)
+    const targetApiStatus = mapStatusToApi(targetStatus)
+    
+    return validTransitions[currentApiStatus]?.includes(targetApiStatus) || false
   }
 
   const toggleRowExpansion = (workId: number) => {
@@ -465,9 +545,12 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
                 className="work-queue__toolbar__filters__select"
               >
                 <option value="all">Tất cả trạng thái</option>
-                <option value="waiting">Chờ tiếp nhận</option>
-                <option value="processing">Đang xử lý</option>
+                <option value="pending">Chờ xác nhận</option>
+                <option value="confirmed">Đã xác nhận</option>
+                <option value="in_progress">Đang làm việc</option>
                 <option value="completed">Hoàn thành</option>
+                <option value="paid">Đã thanh toán</option>
+                <option value="cancelled">Đã hủy</option>
               </select>
             </div>
 
@@ -575,29 +658,100 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
                         </div>
 
                         <div className="work-queue__list__item__expanded__actions">
-                          {work.status === 'waiting' && (
+                          {/* PENDING -> CONFIRMED */}
+                          {work.status === 'pending' && canTransitionTo(work.status, 'confirmed') && (
+                            <button
+                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--confirm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStatusUpdate(work.id, 'confirmed')
+                              }}
+                              disabled={updatingStatus.has(work.id)}
+                            >
+                              {updatingStatus.has(work.id) ? (
+                                <RefreshCw size={16} className="animate-spin" />
+                              ) : (
+                                <CheckCircle2 size={16} />
+                              )}
+                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Xác nhận'}
+                            </button>
+                          )}
+
+                          {/* CONFIRMED -> IN_PROGRESS */}
+                          {work.status === 'confirmed' && canTransitionTo(work.status, 'in_progress') && (
                             <button
                               className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--start"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleStatusUpdate(work.id, 'processing')
+                                handleStatusUpdate(work.id, 'in_progress')
                               }}
+                              disabled={updatingStatus.has(work.id)}
                             >
-                              <Play size={16} />
-                              Bắt đầu xử lý
+                              {updatingStatus.has(work.id) ? (
+                                <RefreshCw size={16} className="animate-spin" />
+                              ) : (
+                                <Play size={16} />
+                              )}
+                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Bắt đầu làm việc'}
                             </button>
                           )}
-                          
-                          {work.status === 'processing' && (
+
+                          {/* IN_PROGRESS -> COMPLETED */}
+                          {work.status === 'in_progress' && canTransitionTo(work.status, 'completed') && (
                             <button
                               className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--complete"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleStatusUpdate(work.id, 'completed')
                               }}
+                              disabled={updatingStatus.has(work.id)}
                             >
-                              <CheckCircle size={16} />
-                              Hoàn thành
+                              {updatingStatus.has(work.id) ? (
+                                <RefreshCw size={16} className="animate-spin" />
+                              ) : (
+                                <CheckCircle size={16} />
+                              )}
+                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Hoàn thành'}
+                            </button>
+                          )}
+
+                          {/* COMPLETED -> PAID */}
+                          {work.status === 'completed' && canTransitionTo(work.status, 'paid') && (
+                            <button
+                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--paid"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStatusUpdate(work.id, 'paid')
+                              }}
+                              disabled={updatingStatus.has(work.id)}
+                            >
+                              {updatingStatus.has(work.id) ? (
+                                <RefreshCw size={16} className="animate-spin" />
+                              ) : (
+                                <Package size={16} />
+                              )}
+                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Đánh dấu đã thanh toán'}
+                            </button>
+                          )}
+
+                          {/* Cancel buttons for non-terminal states */}
+                          {!['paid', 'cancelled'].includes(work.status) && canTransitionTo(work.status, 'cancelled') && (
+                            <button
+                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--cancel"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (confirm('Bạn có chắc chắn muốn hủy công việc này?')) {
+                                  handleStatusUpdate(work.id, 'cancelled')
+                                }
+                              }}
+                              disabled={updatingStatus.has(work.id)}
+                            >
+                              {updatingStatus.has(work.id) ? (
+                                <RefreshCw size={16} className="animate-spin" />
+                              ) : (
+                                <XCircle size={16} />
+                              )}
+                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Hủy'}
                             </button>
                           )}
                         </div>
