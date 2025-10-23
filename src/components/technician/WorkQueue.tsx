@@ -56,7 +56,16 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  // Initialize with current date in local timezone
+  const getCurrentDateString = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
+  const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -287,6 +296,14 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   useEffect(() => {
     setCurrentPage(1)
   }, [search, statusFilter, selectedDate])
+
+  // Ensure selectedDate is always current date on mount
+  useEffect(() => {
+    const currentDateString = getCurrentDateString()
+    if (selectedDate !== currentDateString) {
+      setSelectedDate(currentDateString)
+    }
+  }, [])
 
 
   const getStatusText = (status: string) => {
