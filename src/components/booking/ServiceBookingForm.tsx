@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '@/store/hooks'
 import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
@@ -11,6 +12,7 @@ import { VehicleService } from '@/services/vehicleService'
 import { CustomerService } from '@/services/customerService'
 import { ServiceManagementService } from '@/services/serviceManagementService'
 import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
+import { PayOSService } from '@/services/payOSService'
 
 // Types
 interface CustomerInfo {
@@ -49,6 +51,7 @@ interface AccountInfo {
 }
 
 interface BookingData {
+  bookingId?: string // Add booking ID
   customerInfo: CustomerInfo
   vehicleInfo: VehicleInfo
   serviceInfo: ServiceInfo
@@ -67,6 +70,10 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [currentServiceId, setCurrentServiceId] = useState<number | undefined>(undefined)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
+  const [showQRCode, setShowQRCode] = useState(false)
   const auth = useAppSelector((s) => s.auth)
   
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -216,7 +223,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     }
   }
 
-  const updateBookingData = (section: keyof BookingData, data: any) => {
+  const updateBookingData = (section: keyof BookingData, data: Record<string, any>) => {
     setBookingData(prev => ({
       ...prev,
       [section]: { ...(prev[section] as any), ...data }
@@ -428,13 +435,29 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       
       console.log('Location time info:', bookingData.locationTimeInfo)
       console.log('Holding slot...')
-      const hold = await holdSlot({
-        centerId: Number(bookingData.locationTimeInfo.centerId),
-        technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-        technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
-        date: bookingData.locationTimeInfo.date
-      })
-      console.log('Hold response:', hold)
+      
+      try {
+        const hold = await holdSlot({
+          centerId: Number(bookingData.locationTimeInfo.centerId),
+          technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
+          technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
+          date: bookingData.locationTimeInfo.date
+        })
+        console.log('Hold response:', hold)
+      } catch (holdError: any) {
+        console.error('Hold slot error:', holdError)
+        // Check if it's a slot conflict error
+        if (holdError.response?.data?.message?.includes('Slot đang được giữ bởi người khác') || 
+            holdError.message?.includes('Slot đang được giữ bởi người khác')) {
+          setSubmitError('Slot này đang được giữ bởi người khác. Vui lòng chọn slot khác hoặc thử lại sau.')
+          setIsSubmitting(false)
+          return
+        }
+        // For other hold errors, show generic message
+        setSubmitError('Không thể giữ slot này. Vui lòng chọn slot khác hoặc thử lại sau.')
+        setIsSubmitting(false)
+        return
+      }
 
       // Create booking
       const bookingPayload = {
@@ -445,14 +468,17 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
         technicianId: Number(bookingData.locationTimeInfo.technicianId),
         specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
-        serviceId: serviceId || undefined
+        serviceId: serviceId || undefined,
+        // Thêm currentMileage và licensePlate
+        currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
+        licensePlate: bookingData.vehicleInfo.licensePlate
       }
        console.log('Creating booking with data:', bookingPayload)
        const resp = await createBooking(bookingPayload)
        console.log('Booking created successfully:', resp)
 
        // Extract bookingId from response - check different possible structures
-       let bookingId: number | null = null
+       let bookingId: string | null = null
        
        // Log full response to debug
        console.log('Full booking response:', JSON.stringify(resp, null, 2))
@@ -461,65 +487,65 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
        if (resp && typeof resp === 'object') {
          // Direct properties
          if ('bookingId' in resp && resp.bookingId) {
-           bookingId = Number(resp.bookingId)
+           bookingId = String(resp.bookingId)
          } else if ('id' in resp && resp.id) {
-           bookingId = Number(resp.id)
+           bookingId = String(resp.id)
          } else if ('data' in resp && resp.data && typeof resp.data === 'object') {
            // Nested data object
            if ('bookingId' in resp.data && resp.data.bookingId) {
-             bookingId = Number(resp.data.bookingId)
+             bookingId = String(resp.data.bookingId)
            } else if ('id' in resp.data && resp.data.id) {
-             bookingId = Number(resp.data.id)
+             bookingId = String(resp.data.id)
            }
          }
        }
        
        console.log('Extracted booking ID:', bookingId)
+       console.log('Full response data:', resp.data)
        
-       if (!bookingId || isNaN(bookingId)) {
+       if (!bookingId) {
          console.error('Invalid booking ID:', bookingId, 'from response:', resp)
+         console.log('Response structure:', {
+           hasData: !!resp.data,
+           dataKeys: resp.data ? Object.keys(resp.data) : 'no data',
+           dataValues: resp.data
+         })
          // Redirect to booking success page even without valid booking ID
          const fallbackUrl = `/booking-success?bookingId=unknown&amount=${finalTotalPrice}`
-         window.location.href = fallbackUrl
+         navigate(fallbackUrl)
          return
        }
 
-       // Payment link - redirect to QR payment page
-       try {
-         const link = await createBookingPaymentLink(bookingId)
-         console.log('Payment link response:', link)
-         if (link?.checkoutUrl) {
-           // Redirect to QR payment page to show QR code
-           const qrUrl = `/payment-qr?bookingId=${bookingId}&paymentUrl=${encodeURIComponent(link.checkoutUrl)}&amount=${finalTotalPrice}`
-           console.log('Redirecting to QR payment page:', qrUrl)
-           window.location.href = qrUrl
-           return
-         } else {
-           console.warn('No checkoutUrl in payment response:', link)
-           // For debugging, redirect to debug page
-           const debugUrl = `/qr-debug?bookingId=${bookingId}&paymentUrl=${encodeURIComponent(JSON.stringify(link))}&amount=${finalTotalPrice}`
-           console.log('Redirecting to debug page:', debugUrl)
-           window.location.href = debugUrl
-           return
-         }
-       } catch (paymentError) {
-         console.error('Payment link error:', paymentError)
-       }
+      // Update bookingData with bookingId
+      setBookingData(prev => ({
+        ...prev,
+        bookingId: bookingId
+      }))
 
-       // Fallback: redirect to booking success page (no payment required)
-       console.log('No payment URL available, redirecting to booking success')
-       const fallbackUrl = `/booking-success?bookingId=${bookingId}&amount=${finalTotalPrice}`
-       window.location.href = fallbackUrl
+      // Tạo PayOS payment link (giống code mẫu)
+      console.log('Creating PayOS payment link for booking ID:', bookingId)
+      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId))
+      
+      if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
+        setPaymentUrl(paymentResponse.data.checkoutUrl)
+        setShowQRCode(true)
+        console.log('PayOS payment link created successfully:', paymentResponse.data.checkoutUrl)
+      } else {
+        console.error('Failed to create PayOS payment link:', paymentResponse.message)
+        setSubmitError('Không thể tạo link thanh toán: ' + (paymentResponse.message || 'Lỗi không xác định'))
+      }
+      return
     } catch (error: any) {
       console.error('Error submitting booking:', error)
       console.error('Error response:', error.response?.data)
       console.error('Error status:', error.response?.status)
       console.error('Error message:', error.message)
       
-      // Show user-friendly error message - redirect to payment cancel page
+      // Show user-friendly error message directly on the page
       const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đặt lịch'
-      const cancelUrl = `/payment-cancel?reason=BOOKING_FAILED&error=${encodeURIComponent(errorMessage)}`
-      window.location.href = cancelUrl
+      setSubmitError(errorMessage)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -567,6 +593,9 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               isGuest={isGuest}
               onSubmit={handleSubmit}
               onPrev={handlePrev}
+              isSubmitting={isSubmitting}
+              paymentUrl={paymentUrl || undefined}
+              showQRCode={showQRCode}
             />
           )
         default:
@@ -605,6 +634,9 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               isGuest={isGuest}
               onSubmit={handleSubmit}
               onPrev={handlePrev}
+              isSubmitting={isSubmitting}
+              paymentUrl={paymentUrl || undefined}
+              showQRCode={showQRCode}
             />
           )
         default:
@@ -620,6 +652,25 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
         <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ xe điện</p>
       </div>
+
+      {/* Error Display */}
+      {submitError && (
+        <div className="error-alert">
+          <div className="error-content">
+            <div className="error-icon">⚠️</div>
+            <div className="error-message">
+              <h3>Không thể đặt lịch</h3>
+              <p>{submitError}</p>
+            </div>
+            <button 
+              className="error-close"
+              onClick={() => setSubmitError(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Steps Progress Indicator */}
       <StepsProgressIndicator
@@ -661,6 +712,58 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           font-size: 1rem;
           color: var(--text-secondary);
           margin: 0;
+        }
+
+        .error-alert {
+          margin-bottom: 2rem;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 12px;
+          padding: 1rem;
+        }
+
+        .error-content {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .error-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
+        }
+
+        .error-message {
+          flex: 1;
+        }
+
+        .error-message h3 {
+          color: #dc2626;
+          font-size: 1rem;
+          font-weight: 600;
+          margin: 0 0 0.25rem 0;
+        }
+
+        .error-message p {
+          color: #991b1b;
+          font-size: 0.875rem;
+          margin: 0;
+          line-height: 1.4;
+        }
+
+        .error-close {
+          background: none;
+          border: none;
+          color: #dc2626;
+          font-size: 1.25rem;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          transition: background-color 0.2s;
+        }
+
+        .error-close:hover {
+          background: #fecaca;
         }
 
         .booking-content {

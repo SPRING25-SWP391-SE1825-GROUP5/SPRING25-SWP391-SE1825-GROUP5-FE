@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { ServiceManagementService } from '@/services/serviceManagementService'
+import { PayOSService } from '@/services/payOSService'
 
 interface ConfirmationBookingData {
+  bookingId?: string
   customerInfo: {
     fullName: string
     phone: string
@@ -39,6 +41,9 @@ interface ConfirmationStepProps {
   isGuest: boolean
   onSubmit: () => void
   onPrev: () => void
+  isSubmitting?: boolean
+  paymentUrl?: string
+  showQRCode?: boolean
 }
 
 interface ServiceInfo {
@@ -47,7 +52,7 @@ interface ServiceInfo {
   price: number
 }
 
-const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev }) => {
+const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false, paymentUrl, showQRCode }) => {
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -213,13 +218,124 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
         </div>
       </div>
       
+      {/* Enhanced PayOS QR Code Section */}
+      {showQRCode && paymentUrl && (
+        <div className="qr-payment-section">
+          <div className="qr-payment-header">
+            <div className="qr-title-wrapper">
+              <h3>💳 Thanh toán qua QR Code</h3>
+              <div className="payos-branding">
+                <span className="brand-badge">PayOS</span>
+                <span className="brand-text">Thanh toán an toàn & nhanh chóng</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="qr-code-wrapper">
+            <div className="qr-code-container">
+              <div className="qr-code-frame">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentUrl)}`}
+                  alt="VietQR Code thanh toán" 
+                  className="qr-code-image"
+                />
+                <div className="qr-scan-indicator">
+                  <div className="scan-line"></div>
+                </div>
+              </div>
+              <div className="qr-code-info">
+                <small className="qr-type">VietQR - Quét bằng app ngân hàng</small>
+                <div className="qr-status">
+                  <span className="status-dot"></span>
+                  <span>Sẵn sàng thanh toán</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="qr-instructions">
+            <h4>📱 Hướng dẫn thanh toán:</h4>
+            <div className="instruction-steps">
+              <div className="step">
+                <div className="step-number">1</div>
+                <div className="step-content">
+                  <strong>Mở app ngân hàng</strong>
+                  <span>MB Bank, Techcombank, Vietcombank...</span>
+                </div>
+              </div>
+              <div className="step">
+                <div className="step-number">2</div>
+                <div className="step-content">
+                  <strong>Quét mã QR</strong>
+                  <span>Chọn tính năng quét QR trong app</span>
+                </div>
+              </div>
+              <div className="step">
+                <div className="step-number">3</div>
+                <div className="step-content">
+                  <strong>Xác nhận thanh toán</strong>
+                  <span>Kiểm tra thông tin và hoàn tất</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="qr-actions">
+            <button 
+              type="button" 
+              onClick={() => {
+                navigator.clipboard.writeText(paymentUrl)
+                // Add success feedback
+              }}
+              className="btn-secondary action-btn"
+            >
+              <span className="btn-icon">📋</span>
+              Sao chép link
+            </button>
+            <button 
+              type="button" 
+              onClick={() => window.open(paymentUrl, '_blank')}
+              className="btn-primary action-btn"
+            >
+              <span className="btn-icon">🚀</span>
+              Mở PayOS
+            </button>
+          </div>
+          
+          <div className="payment-info">
+            <h4>💰 Thông tin thanh toán</h4>
+            <div className="payment-details">
+              <div className="payment-row">
+                <span className="payment-label">Booking ID:</span>
+                <span className="payment-value">#{data.bookingId || 'N/A'}</span>
+              </div>
+              <div className="payment-row highlight">
+                <span className="payment-label">Số tiền:</span>
+                <span className="payment-value amount">{formatPrice(totalPrice)}</span>
+              </div>
+              <div className="payment-row">
+                <span className="payment-label">Phương thức:</span>
+                <span className="payment-value method">VietQR</span>
+              </div>
+              <div className="payment-row">
+                <span className="payment-label">Trạng thái:</span>
+                <span className="payment-value status-pending">
+                  <span className="status-indicator"></span>
+                  Chờ thanh toán
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit}>
         <div className="form-actions">
           <button type="button" onClick={onPrev} className="btn-secondary">
             Quay lại
           </button>
-          <button type="submit" className="btn-primary">
-            Xác nhận và thanh toán
+          <button type="submit" className="btn-primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Đang xử lý...' : 'Xác nhận và thanh toán'}
           </button>
         </div>
       </form>

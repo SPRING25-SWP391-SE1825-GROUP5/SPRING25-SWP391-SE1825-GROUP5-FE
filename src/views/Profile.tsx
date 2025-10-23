@@ -1,15 +1,14 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser, syncFromLocalStorage } from '@/store/authSlice'
-import { AuthService, VehicleService } from '@/services'
+import { AuthService, VehicleService, BookingService } from '@/services'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { 
   validateFullName, 
   validateDOB16,
   validateGender, 
   validateAddress255,
-  validateChangePasswordForm,
-  validatePassword
+  validateChangePasswordForm
 } from '@/utils/validation'
 import {
   EyeIcon,
@@ -19,12 +18,7 @@ import {
   UserIcon,
   PencilIcon,
   ArrowRightOnRectangleIcon,
-  KeyIcon,
-  LockClosedIcon,
   XMarkIcon,
-  BoltIcon,
-  PhoneIcon,
-  EnvelopeIcon,
   TruckIcon,
   ClockIcon,
   GiftIcon,
@@ -38,6 +32,8 @@ import { FeedbackCard } from '@/components/feedback'
 import { mockFeedbackService } from '@/data/mockFeedbackData'
 import { BookingData } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
+import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
+import { feedbackService } from '@/services/feedbackService'
 
 import './profile.scss'
 
@@ -90,7 +86,6 @@ interface FormErrors {
   gender?: string
 }
 
-
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
@@ -111,12 +106,18 @@ export default function Profile() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-
   // Vehicle states
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false)
+
+  // Booking history states
+  const [bookingHistory, setBookingHistory] = useState<any[]>([])
+  const [isLoadingBookingHistory, setIsLoadingBookingHistory] = useState(false)
+  const [bookingHistoryPage, setBookingHistoryPage] = useState(1)
+  const [bookingHistoryTotalPages, setBookingHistoryTotalPages] = useState(1)
+
   const [vehicleFormData, setVehicleFormData] = useState<CreateVehicleRequest>({
     customerId: 0,
     vin: '',
@@ -127,6 +128,8 @@ export default function Profile() {
     purchaseDate: ''
   })
   const [vehicleFormErrors, setVehicleFormErrors] = useState<Record<string, string>>({})
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
+  const [isDeletingVehicle, setIsDeletingVehicle] = useState<number | null>(null)
   // Maintenance History states
   const [bookings, setBookings] = useState<BookingData[]>([])
   const [maintenanceLoading, setMaintenanceLoading] = useState(false)
@@ -134,7 +137,6 @@ export default function Profile() {
   const [expandedBookings, setExpandedBookings] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-
 
   const [profileData, setProfileData] = useState<UserProfile>({
     fullName: '',
@@ -148,18 +150,9 @@ export default function Profile() {
 
   const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [passwordStrength, setPasswordStrength] = useState('')
-  const [passwordRequirements, setPasswordRequirements] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-    special: false
-  })
   const [successMessage, setSuccessMessage] = useState('')
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   useEffect(() => {
     // Sync from localStorage first
@@ -173,6 +166,14 @@ export default function Profile() {
       loadVehicles()
     }
   }, [activeTab, auth.user?.id])
+
+  useEffect(() => {
+    console.log('🔄 useEffect triggered, activeTab:', activeTab, 'auth.user?.id:', auth.user?.id)
+    if (activeTab === 'service-history') {
+      console.log('📡 Loading booking history from useEffect')
+      loadBookingHistory()
+    }
+  }, [activeTab, auth.user?.id, bookingHistoryPage])
 
   // Load maintenance history data
   const loadMaintenanceData = async () => {
@@ -207,7 +208,65 @@ export default function Profile() {
     })
   }
 
-  // Handle feedback submission
+  // Handle feedback submission for booking history
+  const handleBookingFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      // Tìm booking để lấy technicianId
+      const booking = bookingHistory.find(b => b.bookingId === bookingId)
+      if (!booking || !booking.technicianId) {
+        throw new Error('Không tìm thấy thông tin kỹ thuật viên')
+      }
+
+      await feedbackService.submitFeedback(bookingId.toString(), booking.technicianId, feedback)
+      // Reload booking history to show updated feedback
+      await loadBookingHistory()
+      setSuccessMessage('Đánh giá đã được gửi thành công!')
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setUploadError('Không thể gửi đánh giá: ' + err.message)
+      console.error('Error submitting booking feedback:', err)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    }
+  }
+
+  // Handle feedback update for booking history
+  const handleBookingEditFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      // Tìm booking để lấy feedbackId
+      const booking = bookingHistory.find(b => b.bookingId === bookingId)
+      if (!booking || !booking.feedbackId) {
+        throw new Error('Không tìm thấy thông tin đánh giá')
+      }
+
+      await feedbackService.updateFeedback(booking.feedbackId, feedback)
+      // Reload booking history to show updated feedback
+      await loadBookingHistory()
+      setSuccessMessage('Đánh giá đã được cập nhật thành công!')
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (err: any) {
+      setUploadError('Không thể cập nhật đánh giá: ' + err.message)
+      console.error('Error updating booking feedback:', err)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    }
+  }
+
+  // Handle feedback submission (legacy for maintenance tab)
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
       await mockFeedbackService.submitFeedback(bookingId, feedback)
@@ -219,7 +278,7 @@ export default function Profile() {
     }
   }
 
-  // Handle feedback update
+  // Handle feedback update (legacy for maintenance tab)
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
       await mockFeedbackService.updateFeedback(bookingId, feedback)
@@ -267,28 +326,71 @@ export default function Profile() {
 
   const loadVehicles = async () => {
     if (!auth.user?.id) {
-      console.log('No user ID available for loading vehicles')
       return
     }
 
     setIsLoadingVehicles(true)
     try {
-      console.log('Loading vehicles for user:', auth.user.id)
       const response = await VehicleService.getCustomerVehicles(auth.user.id)
-      console.log('Vehicles API response:', response)
       
-      if (response.data?.vehicles) {
+      if (response.success && response.data?.vehicles) {
         setVehicles(response.data.vehicles)
-        console.log('Vehicles loaded:', response.data.vehicles)
       } else {
         setVehicles([])
-        console.log('No vehicles found')
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading vehicles:', error)
       setVehicles([])
+      
+      // Show user-friendly error message
+      const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Không thể tải danh sách phương tiện'
+      setSuccessMessage('') // Clear any success message
+      setUploadError(errorMessage)
+      
+      // Auto hide error message after 5 seconds
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
     } finally {
       setIsLoadingVehicles(false)
+    }
+  }
+
+  const loadBookingHistory = async () => {
+    if (!auth.user?.id) {
+      return
+    }
+
+    setIsLoadingBookingHistory(true)
+    try {
+      // Sử dụng userId làm customerId (vì trong hệ thống này userId = customerId)
+      const customerId = auth.user.id
+      console.log('🚀 Loading booking history for customerId:', customerId)
+      
+      const response = await BookingService.getBookingHistory(customerId, bookingHistoryPage, 10)
+      console.log('✅ Booking history response:', response)
+      
+      if (response.bookings) {
+        setBookingHistory(response.bookings)
+        setBookingHistoryTotalPages(response.pagination.totalPages)
+      } else {
+        setBookingHistory([])
+      }
+    } catch (error: unknown) {
+      console.error('Error loading booking history:', error)
+      setBookingHistory([])
+      
+      // Show user-friendly error message
+      const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Không thể tải lịch sử dịch vụ'
+      setSuccessMessage('') // Clear any success message
+      setUploadError(errorMessage)
+      
+      // Auto hide error message after 5 seconds
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    } finally {
+      setIsLoadingBookingHistory(false)
     }
   }
 
@@ -300,7 +402,6 @@ export default function Profile() {
       setFormErrors(prev => ({ ...prev, [field]: undefined }))
     }
   }
-
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -384,13 +485,13 @@ export default function Profile() {
       setTimeout(() => {
         setSuccessMessage('')
       }, 3000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('API Error:', error)
       
       // Parse API validation errors
-      if (error?.response?.data?.errors) {
+      if ((error as any)?.response?.data?.errors) {
         const apiErrors: FormErrors = {}
-        const apiErrorData = error.response.data.errors
+        const apiErrorData = (error as any).response.data.errors
         
         // Handle array format errors
         if (Array.isArray(apiErrorData)) {
@@ -437,7 +538,7 @@ export default function Profile() {
         setFormErrors(apiErrors)
       } else {
         // Fallback error message
-      const msg = error?.response?.data?.message || error?.message || 'Cập nhật thông tin thất bại'
+      const msg = (error as any)?.response?.data?.message || (error as any)?.message || 'Cập nhật thông tin thất bại'
         console.error(msg)
       }
     } finally {
@@ -449,18 +550,57 @@ export default function Profile() {
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-        const result = e.target?.result as string
-        setProfileData(prev => ({ ...prev, avatarUrl: result }))
-    }
-    reader.readAsDataURL(file)
-  }
-  }
+    if (!file) return
 
+    // Validate file
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      alert('File quá lớn. Vui lòng chọn file nhỏ hơn 5MB')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file ảnh')
+      return
+    }
+
+    try {
+      setIsUploadingAvatar(true)
+      setUploadError('')
+      
+      // Upload to server using AuthService
+      const response = await AuthService.uploadAvatar(file)
+      
+      if (response.success) {
+        // Update profile data with new avatar URL
+        setProfileData(prev => ({ ...prev, avatarUrl: response.data.avatarUrl }))
+        
+        // Update Redux store
+        dispatch(getCurrentUser())
+        
+        setSuccessMessage('Cập nhật avatar thành công!')
+        
+        // Auto hide success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage('')
+        }, 3000)
+      } else {
+        throw new Error(response.message || 'Upload thất bại')
+      }
+    } catch (error: unknown) {
+      console.error('Upload avatar error:', error)
+      const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Lỗi không xác định'
+      setUploadError('Có lỗi xảy ra khi upload avatar: ' + errorMessage)
+      
+      // Auto hide error message after 5 seconds
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
 
   const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
     setShowPasswords(prev => ({
@@ -503,12 +643,12 @@ export default function Profile() {
       setTimeout(() => {
         setSuccessMessage('')
       }, 3000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Change password error:', error)
       
       // Handle API errors
-      if (error?.response?.data?.errors) {
-        const apiErrors = error.response.data.errors
+      if ((error as any)?.response?.data?.errors) {
+        const apiErrors = (error as any).response.data.errors
         const nextErrors: Record<string, string> = {}
         
         if (Array.isArray(apiErrors)) {
@@ -544,7 +684,7 @@ export default function Profile() {
         setPasswordErrors(nextErrors)
       } else {
         setPasswordErrors({
-          currentPassword: error?.message || 'Có lỗi xảy ra khi đổi mật khẩu'
+          currentPassword: (error as any)?.message || 'Có lỗi xảy ra khi đổi mật khẩu'
         })
       }
     } finally {
@@ -597,11 +737,7 @@ export default function Profile() {
         ...vehicleFormData,
         customerId: auth.user.id
       }
-      console.log('Creating vehicle with payload:', payload) // Debug log
-      console.log('Auth user:', auth.user) // Debug log
-      
-      const result = await VehicleService.createVehicle(payload)
-      console.log('Vehicle created successfully:', result) // Debug log
+      await VehicleService.createVehicle(payload)
       
       setSuccessMessage('Thêm phương tiện thành công!')
       setShowVehicleForm(false)
@@ -622,12 +758,12 @@ export default function Profile() {
       setTimeout(() => {
         setSuccessMessage('')
       }, 3000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Create vehicle error:', error)
       
       // Handle API errors
-      if (error?.response?.data?.errors) {
-        const apiErrors = error.response.data.errors
+      if ((error as any)?.response?.data?.errors) {
+        const apiErrors = (error as any).response.data.errors
         console.log('Vehicle API errors:', apiErrors) // Debug log
         const nextErrors: Record<string, string> = {}
         
@@ -660,8 +796,9 @@ export default function Profile() {
         
         setVehicleFormErrors(nextErrors)
       } else {
+        const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Có lỗi xảy ra khi thêm phương tiện'
         setVehicleFormErrors({
-          general: error?.message || 'Có lỗi xảy ra khi thêm phương tiện'
+          general: errorMessage
         })
       }
     } finally {
@@ -669,13 +806,155 @@ export default function Profile() {
     }
   }
 
+  // Handle edit vehicle
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    setEditingVehicle(vehicle)
+    setVehicleFormData({
+      customerId: vehicle.customerId,
+      vin: vehicle.vin,
+      licensePlate: vehicle.licensePlate,
+      color: vehicle.color,
+      currentMileage: vehicle.currentMileage,
+      lastServiceDate: vehicle.lastServiceDate || '',
+      purchaseDate: vehicle.purchaseDate || ''
+    })
+    setShowVehicleForm(true)
+  }
 
-  // Removed mock tabOptions - only showing profile tab
+  // Handle update vehicle
+  const handleUpdateVehicle = async () => {
+    if (!editingVehicle) return
+
+    const errors: Record<string, string> = {}
+    
+    // Basic validation
+    if (!vehicleFormData.vin.trim()) errors.vin = 'VIN không được để trống'
+    if (!vehicleFormData.licensePlate.trim()) errors.licensePlate = 'Biển số xe không được để trống'
+    if (!vehicleFormData.color.trim()) errors.color = 'Màu sắc không được để trống'
+    if (!vehicleFormData.currentMileage || vehicleFormData.currentMileage <= 0) {
+      errors.currentMileage = 'Số km hiện tại không được để trống và phải lớn hơn 0'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setVehicleFormErrors(errors)
+      return
+    }
+
+    setIsCreatingVehicle(true)
+    try {
+      const updateData = {
+        color: vehicleFormData.color,
+        currentMileage: vehicleFormData.currentMileage,
+        lastServiceDate: vehicleFormData.lastServiceDate || undefined,
+        purchaseDate: vehicleFormData.purchaseDate || undefined
+      }
+      
+      await VehicleService.updateVehicle(editingVehicle.vehicleId, updateData)
+      
+      setSuccessMessage('Cập nhật phương tiện thành công!')
+      setShowVehicleForm(false)
+      setEditingVehicle(null)
+      setVehicleFormData({
+        customerId: 0,
+        vin: '',
+        licensePlate: '',
+        color: '',
+        currentMileage: 0,
+        lastServiceDate: '',
+        purchaseDate: ''
+      })
+      
+      // Reload vehicles
+      loadVehicles()
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (error: unknown) {
+      console.error('Update vehicle error:', error)
+      
+      // Handle API errors similar to create
+      if ((error as any)?.response?.data?.errors) {
+        const apiErrors = (error as any).response.data.errors
+        const nextErrors: Record<string, string> = {}
+        
+        if (Array.isArray(apiErrors)) {
+          apiErrors.forEach((msg: string) => {
+            const m = msg.toLowerCase()
+            if (m.includes('vin')) nextErrors.vin = msg
+            else if (m.includes('biển') || m.includes('license') || m.includes('biển số')) nextErrors.licensePlate = msg
+            else if (m.includes('màu') || m.includes('color') || m.includes('màu sắc')) nextErrors.color = msg
+            else if (m.includes('km') || m.includes('mileage') || m.includes('số km')) nextErrors.currentMileage = msg
+            else if (m.includes('ngày bảo dưỡng') || m.includes('lastservice')) nextErrors.lastServiceDate = msg
+            else if (m.includes('ngày mua') || m.includes('purchasedate')) nextErrors.purchaseDate = msg
+            else nextErrors.general = msg
+          })
+        } else if (typeof apiErrors === 'object') {
+          Object.entries(apiErrors).forEach(([field, messages]) => {
+            const fieldName = field.toLowerCase()
+            const errorMsg = Array.isArray(messages) ? messages[0] : messages
+            
+            if (fieldName === 'vin') nextErrors.vin = errorMsg
+            else if (fieldName === 'licenseplate' || fieldName === 'biensoxe') nextErrors.licensePlate = errorMsg
+            else if (fieldName === 'color' || fieldName === 'mausac') nextErrors.color = errorMsg
+            else if (fieldName === 'currentmileage' || fieldName === 'sokm') nextErrors.currentMileage = errorMsg
+            else if (fieldName === 'lastservicedate' || fieldName === 'ngaybaoduong') nextErrors.lastServiceDate = errorMsg
+            else if (fieldName === 'purchasedate' || fieldName === 'ngaymua') nextErrors.purchaseDate = errorMsg
+            else nextErrors[fieldName] = errorMsg
+          })
+        }
+        
+        setVehicleFormErrors(nextErrors)
+      } else {
+        const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Có lỗi xảy ra khi cập nhật phương tiện'
+        setVehicleFormErrors({
+          general: errorMessage
+        })
+      }
+    } finally {
+      setIsCreatingVehicle(false)
+    }
+  }
+
+  // Handle delete vehicle
+  const handleDeleteVehicle = async (vehicleId: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa phương tiện này?')) return
+
+    setIsDeletingVehicle(vehicleId)
+    try {
+      await VehicleService.deleteVehicle(vehicleId)
+      
+      setSuccessMessage('Xóa phương tiện thành công!')
+      
+      // Reload vehicles
+      loadVehicles()
+      
+      // Auto hide success message
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+    } catch (error: unknown) {
+      console.error('Delete vehicle error:', error)
+      setSuccessMessage('') // Clear any success message
+      
+      const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || 'Có lỗi xảy ra khi xóa phương tiện'
+      setUploadError(errorMessage)
+      
+      // Auto hide error message
+      setTimeout(() => {
+        setUploadError('')
+      }, 5000)
+    } finally {
+      setIsDeletingVehicle(null)
+    }
+  }
 
   return (
     <div className="profile-page">
       <div className="container">
         <div className="profile-content">
+          {/* Modern Sidebar with Gradient */}
           <div className="profile-sidebar">
             <div className="sidebar-header">
               <h1 className="sidebar-title">Quản lý tài khoản</h1>
@@ -692,8 +971,16 @@ export default function Profile() {
                     </div>
                   )}
                 </div>
-                <button className="avatar-edit-btn" onClick={handleAvatarClick}>
+                <button 
+                  className="avatar-edit-btn" 
+                  onClick={handleAvatarClick}
+                  disabled={isUploadingAvatar}
+                >
+                  {isUploadingAvatar ? (
+                    <div className="loading-spinner-small"></div>
+                  ) : (
                   <PencilIcon className="w-4 h-4" />
+                  )}
                 </button>
                 <input
                   ref={fileInputRef}
@@ -733,17 +1020,6 @@ export default function Profile() {
                 </div>
                 <span className="nav-label">Phương tiện</span>
               </button>
-
-              <button
-                className="nav-item"
-                onClick={() => setActiveTab('service-history')}
-              >
-                <div className="nav-icon">
-                  <ClockIcon className="w-5 h-5" />
-                </div>
-                <span className="nav-label">Lịch sử dịch vụ</span>
-              </button>
-
               <button
                 className="nav-item"
                 onClick={() => setActiveTab('promo-codes')}
@@ -753,17 +1029,6 @@ export default function Profile() {
                 </div>
                 <span className="nav-label">Mã khuyến mãi</span>
               </button>
-
-              <button
-                className="nav-item"
-                onClick={() => setActiveTab('notifications')}
-              >
-                <div className="nav-icon">
-                  <BellIcon className="w-5 h-5" />
-                </div>
-                <span className="nav-label">Thông báo</span>
-              </button>
-
               <button
                 className="nav-item"
                 onClick={() => setActiveTab('settings')}
@@ -775,18 +1040,20 @@ export default function Profile() {
               </button>
               
               <button
-                className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+                className={`nav-item ${activeTab === 'service-history' ? 'active' : ''}`}
                 onClick={() => {
-                  setActiveTab('maintenance')
-                  if (bookings.length === 0) {
-                    loadMaintenanceData()
+                  console.log('🚀 Clicking Lịch sử đặt lịch tab')
+                  setActiveTab('service-history')
+                  if (bookingHistory.length === 0) {
+                    console.log('📡 Loading booking history...')
+                    loadBookingHistory()
                   }
                 }}
               >
                 <div className="nav-icon">
                   <FontAwesomeIcon icon={faHistory} />
                 </div>
-                <span className="nav-label">Lịch sử bảo dưỡng</span>
+                <span className="nav-label">Lịch sử đặt lịch</span>
               </button>
             </nav>
 
@@ -800,9 +1067,9 @@ export default function Profile() {
                 <span className="logout-label">Đăng xuất</span>
               </button>
           </div>
-
           </div>
 
+          {/* Main Content Area */}
           <div className="profile-main">
             {activeTab === 'profile' && (
               <div className="profile-form-container">
@@ -836,6 +1103,12 @@ export default function Profile() {
                       <div className="success-message">
                         <CheckCircleIcon className="w-5 h-5" />
                         <span>{successMessage}</span>
+                      </div>
+                    )}
+                    {uploadError && (
+                      <div className="error-message">
+                        <ExclamationTriangleIcon className="w-5 h-5" />
+                        <span>{uploadError}</span>
                       </div>
                     )}
                     <div className="form-row">
@@ -925,67 +1198,127 @@ export default function Profile() {
               </div>
             )}
 
+            {/* Vehicles Management Section */}
             {activeTab === 'vehicles' && (
-              <div className="tab-content">
-                <BaseCard>
+              <div className="vehicles-management-container">
+                <BaseCard className="vehicles-main-card">
                 <div className="card-header">
-                    <h3 className="card-title">Phương tiện của tôi</h3>
+                    <div className="header-content">
+                      <h3 className="card-title">
+                        <TruckIcon className="w-6 h-6" />
+                        Phương tiện của tôi
+                      </h3>
+                      <p className="card-subtitle">Quản lý thông tin phương tiện của bạn</p>
+                    </div>
                     <div className="card-actions">
                   <BaseButton
                     variant="primary"
                         onClick={() => setShowVehicleForm(true)}
+                        className="add-vehicle-btn"
                   >
-                    <PlusIcon className="w-4 h-4" />
+                        <PlusIcon className="w-5 h-5" />
                         Thêm phương tiện
                   </BaseButton>
                 </div>
                   </div>
+
                   <div className="card-body">
                   {isLoadingVehicles ? (
-                    <div className="loading-state">
+                <div className="vehicles-loading-state">
+                  <div className="loading-spinner-large"></div>
                         <p>Đang tải danh sách phương tiện...</p>
                     </div>
                   ) : vehicles.length === 0 ? (
-                    <div className="empty-state">
-                        <TruckIcon className="w-6 h-6 text-gray-300 mx-auto" />
-                        <p>Bạn chưa có phương tiện nào</p>
+                      <div className="vehicles-empty-state">
+                        <div className="empty-illustration">
+                          <TruckIcon className="w-16 h-16" />
+                          <div className="empty-decoration"></div>
+                        </div>
+                        <h3>Chưa có phương tiện nào</h3>
+                        <p>Hãy thêm phương tiện đầu tiên để bắt đầu quản lý xe của bạn</p>
                       <BaseButton
-                          variant="outline"
+                          variant="primary"
                           onClick={() => setShowVehicleForm(true)}
+                          className="empty-state-cta"
                       >
-                        <PlusIcon className="w-4 h-4" />
+                          <PlusIcon className="w-5 h-5" />
                           Thêm phương tiện đầu tiên
                       </BaseButton>
                     </div>
                   ) : (
-                      <div className="vehicles-list">
+                      <div className="vehicles-grid">
                       {vehicles.map((vehicle) => (
-                          <div key={vehicle.vehicleId} className="vehicle-card">
-                            <div className="vehicle-info">
-                          <div className="vehicle-header">
+                          <div key={vehicle.vehicleId} className="vehicle-card-modern">
+                            <div className="vehicle-card-header">
+                              <div className="vehicle-license">
                                 <h4>{vehicle.licensePlate}</h4>
-                                <span className="vehicle-color" style={{ backgroundColor: vehicle.color }}></span>
+                                <span className="vehicle-status">Hoạt động</span>
                             </div>
-                          <div className="vehicle-details">
-                                <p><strong>VIN:</strong> {vehicle.vin}</p>
-                                <p><strong>Màu:</strong> {vehicle.color}</p>
-                                <p><strong>Số km hiện tại:</strong> {vehicle.currentMileage.toLocaleString()} km</p>
-                                {vehicle.lastServiceDate && (
-                                  <p><strong>Lần bảo dưỡng cuối:</strong> {new Date(vehicle.lastServiceDate).toLocaleDateString('vi-VN')}</p>
-                                )}
-                                {vehicle.purchaseDate && (
-                                  <p><strong>Ngày mua:</strong> {new Date(vehicle.purchaseDate).toLocaleDateString('vi-VN')}</p>
-                                )}
+                              <div className="vehicle-color-indicator" style={{ backgroundColor: vehicle.color }}>
+                                <div className="color-ring"></div>
                               </div>
                             </div>
-                          <div className="vehicle-actions">
-                              <BaseButton variant="outline" size="sm">
+
+                            <div className="vehicle-card-body">
+                              <div className="vehicle-info-grid">
+                                <div className="info-item">
+                                  <span className="info-label">VIN</span>
+                                  <span className="info-value">{vehicle.vin}</span>
+                                </div>
+                                <div className="info-item">
+                                  <span className="info-label">Màu sắc</span>
+                                  <span className="info-value">{vehicle.color}</span>
+                                </div>
+                                <div className="info-item">
+                                  <span className="info-label">Số km</span>
+                                  <span className="info-value">{vehicle.currentMileage.toLocaleString()} km</span>
+                                </div>
+                                {vehicle.lastServiceDate && (
+                                  <div className="info-item">
+                                    <span className="info-label">Bảo dưỡng cuối</span>
+                                    <span className="info-value">{new Date(vehicle.lastServiceDate).toLocaleDateString('vi-VN')}</span>
+                                  </div>
+                                )}
+                                {vehicle.purchaseDate && (
+                                  <div className="info-item">
+                                    <span className="info-label">Ngày mua</span>
+                                    <span className="info-value">{new Date(vehicle.purchaseDate).toLocaleDateString('vi-VN')}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="vehicle-metrics">
+                                <div className="metric-item">
+                                  <span className="metric-label">Tổng km</span>
+                                  <div className="metric-bar">
+                                    <div 
+                                      className="metric-fill" 
+                                      style={{ width: `${Math.min((vehicle.currentMileage / 100000) * 100, 100)}%` }}
+                                    ></div>
+                            </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="vehicle-card-actions">
+                              <BaseButton 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditVehicle(vehicle)}
+                                className="edit-btn"
+                              >
                                 <PencilSquareIcon className="w-4 h-4" />
                                 Sửa
                             </BaseButton>
-                              <BaseButton variant="outline" size="sm" className="delete-btn">
+                         <BaseButton 
+                           variant="outline" 
+                           size="sm" 
+                           onClick={() => handleDeleteVehicle(vehicle.vehicleId)}
+                           loading={isDeletingVehicle === vehicle.vehicleId}
+                           className="delete-btn"
+                         >
                                 <TrashIcon className="w-4 h-4" />
-                                Xóa
+                           {isDeletingVehicle === vehicle.vehicleId ? 'Đang xóa...' : 'Xóa'}
                               </BaseButton>
                           </div>
                         </div>
@@ -997,25 +1330,62 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Vehicle Form - Only show in vehicles section */}
+            {/* Vehicle Form Modal */}
             {activeTab === 'vehicles' && showVehicleForm && (
-              <div className="profile-form-container">
-                <BaseCard className="profile-form-card">
+              <div 
+                className="vehicle-form-modal-overlay"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowVehicleForm(false)
+                    setEditingVehicle(null)
+                    setVehicleFormData({
+                      customerId: 0,
+                      vin: '',
+                      licensePlate: '',
+                      color: '',
+                      currentMileage: 0,
+                      lastServiceDate: '',
+                      purchaseDate: ''
+                    })
+                  }
+                }}
+              >
+                <div className="vehicle-form-modal">
+                  <BaseCard className="vehicle-form-modal-card">
                 <div className="card-header">
-                    <h3 className="card-title">Thêm phương tiện</h3>
+                    <h3 className="card-title">
+                      {editingVehicle ? 'Sửa phương tiện' : 'Thêm phương tiện'}
+                    </h3>
                     <div className="card-actions">
                       <BaseButton
                         variant="outline"
-                        onClick={() => setShowVehicleForm(false)}
+                        onClick={() => {
+                          setShowVehicleForm(false)
+                          setEditingVehicle(null)
+                          setVehicleFormData({
+                            customerId: 0,
+                            vin: '',
+                            licensePlate: '',
+                            color: '',
+                            currentMileage: 0,
+                            lastServiceDate: '',
+                            purchaseDate: ''
+                          })
+                        }}
+                        className="modal-close-btn"
                       >
+                        <XMarkIcon className="w-4 h-4" />
                         Hủy
                       </BaseButton>
                       <BaseButton
                         variant="primary"
-                        onClick={handleCreateVehicle}
+                        onClick={editingVehicle ? handleUpdateVehicle : handleCreateVehicle}
                         loading={isCreatingVehicle}
                       >
-                        {isCreatingVehicle ? 'Đang thêm...' : 'Thêm phương tiện'}
+                        {isCreatingVehicle 
+                          ? (editingVehicle ? 'Đang cập nhật...' : 'Đang thêm...') 
+                          : (editingVehicle ? 'Cập nhật phương tiện' : 'Thêm phương tiện')
+                        }
                       </BaseButton>
                     </div>
                   </div>
@@ -1110,9 +1480,11 @@ export default function Profile() {
                   </div>
                 </div>
               </BaseCard>
+                </div>
               </div>
             )}
 
+            {/* Other tabs... */}
             {activeTab === 'service-history' && (
               <div className="tab-content">
                 <BaseCard>
@@ -1120,7 +1492,55 @@ export default function Profile() {
                     <h3 className="card-title">Lịch sử dịch vụ</h3>
                 </div>
                   <div className="card-body">
-                    <p>Lịch sử các dịch vụ đã sử dụng sẽ được hiển thị ở đây.</p>
+                    {isLoadingBookingHistory ? (
+                      <div className="loading-state">
+                        <div className="loading-spinner-large"></div>
+                        <p>Đang tải lịch sử dịch vụ...</p>
+                      </div>
+                    ) : bookingHistory.length === 0 ? (
+                      <div className="empty-state">
+                        <div className="empty-illustration">
+                          <ClockIcon className="w-16 h-16 text-gray-400" />
+                        </div>
+                        <h4 className="empty-title">Chưa có lịch sử dịch vụ</h4>
+                        <p className="empty-description">
+                          Bạn chưa sử dụng dịch vụ nào. Hãy đặt lịch để trải nghiệm dịch vụ của chúng tôi!
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="booking-history-list">
+                        {bookingHistory.map((booking: any) => (
+                          <BookingHistoryCard
+                            key={booking.bookingId}
+                            booking={booking}
+                            onFeedback={handleBookingFeedback}
+                            onEditFeedback={handleBookingEditFeedback}
+                          />
+                        ))}
+                        
+                        {bookingHistoryTotalPages > 1 && (
+                          <div className="pagination">
+                            <button 
+                              className="pagination-btn"
+                              onClick={() => setBookingHistoryPage(prev => Math.max(1, prev - 1))}
+                              disabled={bookingHistoryPage === 1}
+                            >
+                              Trước
+                            </button>
+                            <span className="pagination-info">
+                              Trang {bookingHistoryPage} / {bookingHistoryTotalPages}
+                            </span>
+                            <button 
+                              className="pagination-btn"
+                              onClick={() => setBookingHistoryPage(prev => Math.min(bookingHistoryTotalPages, prev + 1))}
+                              disabled={bookingHistoryPage === bookingHistoryTotalPages}
+                            >
+                              Sau
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     </div>
               </BaseCard>
                     </div>
@@ -1257,17 +1677,13 @@ export default function Profile() {
           </div>
         )}
 
-
-
-            
-
             {activeTab === 'maintenance' && (
               <div className="maintenance-history-container">
                 <BaseCard className="maintenance-history-card">
                   <div className="card-header">
                     <h3 className="card-title">
                       <FontAwesomeIcon icon={faHistory} />
-                      Lịch sử bảo dưỡng
+                      Lịch sử đặt lịch
                     </h3>
                     <p className="card-subtitle">Xem lịch sử dịch vụ và đánh giá trải nghiệm của bạn</p>
                   </div>

@@ -53,7 +53,7 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
         amount: totalAmount,
         paymentMethod: 'VNPAY' as PaymentMethod, // Default to VNPay
         description: `Thanh toán đặt lịch bảo dưỡng xe điện - ${vehicle.licensePlate}`,
-        returnUrl: `${window.location.origin}/booking/payment/success`,
+        returnUrl: `${window.location.origin}/profile?tab=service-history`,
         cancelUrl: `${window.location.origin}/booking/payment/cancel`
       }
 

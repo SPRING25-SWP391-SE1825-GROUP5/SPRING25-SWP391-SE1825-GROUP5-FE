@@ -638,3 +638,49 @@ body {
     height: 48px;
   }
 }
+
+/* ===== Validation Loading Styles ===== */
+.validation-loading {
+  font-size: 0.75rem;
+  color: var(--primary-500);
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.validation-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-primary);
+  border-top: 2px solid var(--primary-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.form-group__input.validating {
+  border-color: var(--primary-300);
+  background-color: var(--primary-50);
+}
+
+.form-group__input.error {
+  border-color: var(--error-500);
+  background-color: var(--error-50);
+}

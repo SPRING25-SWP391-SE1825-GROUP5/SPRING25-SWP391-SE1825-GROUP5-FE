@@ -1,132 +1,322 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Handshake, Wrench, Car, Shield, Check } from 'lucide-react'
-import banner from '@/assets/images/banner-dich-vu-sua-chua_1755497298.webp'
-import serviceCommon from '@/assets/images/dich-vu-sua-chua-chung-vinfast_0.webp'
-import policyImage from '@/assets/images/chinh-sach-cam-ket-thoi-gian-sua-chua_0.webp'
+import { Search, Filter, Star, Clock, Shield, Wrench, Car, Calendar, CheckCircle, ArrowRight, Package } from 'lucide-react'
+import { ServiceManagementService, ServicePackage, Service } from '@/services/serviceManagementService'
+import './services.scss'
 
 export default function Services() {
   const navigate = useNavigate()
+  const [services, setServices] = useState<Service[]>([])
+  const [servicePackages, setServicePackages] = useState<ServicePackage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
+  const [activeTab, setActiveTab] = useState<'services' | 'packages'>('services')
+
+  // Fetch services and service packages on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        console.log('Fetching services and packages...')
+        
+        // Fetch services
+        const servicesResponse = await ServiceManagementService.getActiveServices({
+          pageSize: 50
+        })
+        console.log('Services response:', servicesResponse)
+        setServices(servicesResponse.services)
+        
+        // Fetch service packages
+        const packagesResponse = await ServiceManagementService.getActiveServicePackages({
+          pageSize: 50
+        })
+        console.log('Packages response:', packagesResponse)
+        setServicePackages(packagesResponse.packages)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        // Set empty arrays on error to prevent crashes
+        setServices([])
+        setServicePackages([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  // Filter and sort services
+  const filteredServices = services
+    .filter(service => 
+      service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'price':
+          return a.price - b.price
+        case 'name':
+          return a.name.localeCompare(b.name)
+        default:
+          return 0
+      }
+    })
+
+  // Filter and sort packages
+  const filteredPackages = servicePackages
+    .filter(pkg => 
+      pkg.packageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pkg.serviceName.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'price':
+          return a.price - b.price
+        case 'name':
+          return a.packageName.localeCompare(b.packageName)
+        default:
+          return 0
+      }
+    })
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price)
+  }
 
   return (
-    <div style={{ background: '#fff', minHeight: 'calc(100vh - 64px)', fontFamily: 'Mulish, serif' }}>
-      {/* Top header area white background */}
-      <div style={{ paddingTop: '64px', paddingBottom: '24px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '56px', fontWeight: 700, margin: '0 0 24px 0', color: '#3C3C3C', lineHeight: 1.15 }}>
-          Dịch vụ sửa chữa
-        </h1>
-        <button
-          onClick={() => navigate('/booking')}
-          style={{
-            background: '#1464F4', color: '#FFFFFF', border: '2px solid #1464F4', padding: '14px 40px', borderRadius: '8px',
-            fontFamily: 'Mulish, serif', fontSize: '16px', fontWeight: 700, letterSpacing: 1, cursor: 'pointer', boxShadow: '0 12px 30px rgba(20,100,244,0.25)'
-          }}
-        >
-          ĐẶT LỊCH DỊCH VỤ
-        </button>
-      </div>
-
-      {/* Banner image */}
-      <img src={banner} alt="Dịch vụ sửa chữa" style={{ display: 'block', width: '100%', height: 'auto' }} />
-
-      {/* Process Section - full width */}
-      <section style={{ width: '100%', padding: '64px 24px' }}>
-        <h2 style={{ textAlign: 'center', fontSize: '36px', color: '#3C3C3C', margin: 0 }}>Quy trình dịch vụ</h2>
-        <p style={{ textAlign: 'center', color: '#64748b', marginTop: 8, marginBottom: 40 }}>Chuyên nghiệp và chu đáo với 5 bước</p>
-        {/* Steps grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 32 }}>
-          {/* ...existing steps... */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#1464F4', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Calendar size={36} color="#fff" />
-            </div>
-            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 1</div>
-            <div style={{ color: '#334155' }}>Nhắc bảo dưỡng & Đặt hẹn</div>
+    <div className="services-page">
+      {/* Hero Section */}
+      <section className="services-hero">
+        <div className="hero-content">
+          <h1 className="hero-title">Gói Dịch Vụ VinFast</h1>
+          <p className="hero-subtitle">
+            Khám phá các gói dịch vụ chuyên nghiệp với giá cả hợp lý và chất lượng đảm bảo
+          </p>
+          <div className="hero-actions">
+            <button 
+              className="btn-primary"
+              onClick={() => navigate('/booking')}
+            >
+              <Calendar className="btn-icon" />
+              Đặt Lịch Ngay
+            </button>
+            <button 
+              className="btn-outline text-color-white"
+              style={{ color: 'white' }}
+              onClick={() => navigate('/contact')}
+            >
+              Tư Vấn Miễn Phí
+            </button>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Handshake size={36} color="#64748b" />
-            </div>
-            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 2</div>
-            <div style={{ color: '#334155' }}>Tiếp nhận và tư vấn</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Wrench size={36} color="#64748b" />
-            </div>
-            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 3</div>
-            <div style={{ color: '#334155' }}>Sửa chữa</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Car size={36} color="#64748b" />
-            </div>
-            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 4</div>
-            <div style={{ color: '#334155' }}>Bàn giao xe</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 88, height: 88, borderRadius: 12, background: '#e2e8f0', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={36} color="#64748b" />
-            </div>
-            <div style={{ color: '#0f172a', fontWeight: 800, marginBottom: 6 }}>BƯỚC 5</div>
-            <div style={{ color: '#334155' }}>Chăm sóc sau sửa chữa</div>
-          </div>
-        </div>
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 24, marginTop: 40 }}>
-          <div style={{ color: '#334155', lineHeight: 1.6 }}>
-            <div>Khách hàng mua xe mới và làm dịch vụ tại xưởng sẽ được nhắc bảo dưỡng trước 10 ngày so với ngày dự kiến đến kỳ bảo dưỡng.</div>
-            <div>Các cuộc hẹn trước ít nhất 4 tiếng được tiếp nhận và xác nhận hẹn.</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 24, justifyContent: 'center', marginTop: 32, flexWrap: 'wrap' }}>
-          <button onClick={() => navigate('/booking')} style={{ background: '#1464F4', color: '#fff', border: 'none', padding: '16px 28px', borderRadius: 8, fontWeight: 800, minWidth: 280 }}>ĐẶT LỊCH BẢO DƯỠNG</button>
-          <button onClick={() => navigate('/contact')} style={{ background: '#fff', color: '#1464F4', border: '2px solid #1464F4', padding: '16px 28px', borderRadius: 8, fontWeight: 800, minWidth: 280 }}>LIÊN HỆ</button>
         </div>
       </section>
 
-      {/* Common repair section - full width with top padding 100px */}
-      <section style={{ width: '100%', padding: '100px 0px 0px', display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 48, alignItems: 'center' }}>
-        <div style={{ paddingRight: 24 }}>
-          <h3 style={{ fontSize: '40px', color: '#3C3C3C', margin: '0 0 30px' }}>Dịch vụ Sửa chữa chung VinFast</h3>
-          <div style={{ color: '#334155', lineHeight: 1.8, marginBottom: 16 }}>
-            VinFast cung cấp dịch vụ sửa chữa chuyên nghiệp với thiết bị hiện đại và đội ngũ kỹ thuật viên được đào tạo bài bản:
-          </div>
-          {[
-            'Chẩn đoán chính xác, sửa chữa hiệu quả, đảm bảo xe luôn vận hành an toàn và ổn định.',
-            'Phụ tùng chính hãng, sẵn có, chất lượng cao.',
-            'Trang thiết bị nhập khẩu từ Ý, Đức, Nhật,... đáp ứng tiêu chuẩn kỹ thuật khắt khe.',
-            'Quản lý lịch sử xe toàn quốc, chăm sóc Khách hàng đồng bộ tại mọi đại lý.',
-            'Kỹ thuật viên VinFast được đào tạo trực tiếp tại nhà máy, đảm bảo tay nghề và chuyên môn cao.'
-          ].map((text, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', color: '#0f172a', marginBottom: 12 }}>
-              <Check size={18} color="#1464F4" style={{ marginTop: 4 }} />
-              <span style={{ color: '#334155' }}>{text}</span>
-            </div>
-          ))}
+      {/* Tab Navigation */}
+      <section className="services-tabs">
+        <div className="tab-container">
+          <button 
+            className={`tab-button ${activeTab === 'services' ? 'active' : ''}`}
+            onClick={() => setActiveTab('services')}
+          >
+            <Wrench className="tab-icon" />
+            Dịch vụ
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'packages' ? 'active' : ''}`}
+            onClick={() => setActiveTab('packages')}
+          >
+            <Package className="tab-icon" />
+            Gói dịch vụ
+          </button>
         </div>
-        <img src={serviceCommon} alt="Dịch vụ sửa chữa chung" style={{ width: 760, height: 'auto', borderRadius: 8, justifySelf: 'end' }} />
       </section>
 
-      {/* Policy commitment section - full width with top padding 100px */}
-      <section style={{ width: '100%', padding: '100px 24px 48px', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', columnGap: 48, alignItems: 'center' }}>
-        <div>
-          <h3 style={{ fontSize: '44px', color: '#3C3C3C', margin: '0 0 20px' }}>Chính sách cam kết thời gian sửa chữa</h3>
-          <p style={{ color: '#334155' }}>VinFast cam kết minh bạch và đúng hẹn trong thời gian sửa chữa, nhằm nâng cao trải nghiệm và sự hài lòng của Khách hàng.</p>
-          <div style={{ marginTop: 16 }}>
-            {[
-              'Hỗ trợ 500.000 VNĐ/ngày (đã gồm VAT) nếu thời gian sửa chữa vượt quá cam kết.',
-              'Với lỗi liên quan đến pin hoặc động cơ, Khách hàng sẽ được hỗ trợ mượn pin hoặc xe trong thời gian chờ sửa chữa.',
-              'Áp dụng cho: Tất cả Khách hàng sở hữu ô tô điện và ô tô xăng VinFast.',
-              'Không áp dụng: Vào các ngày nghỉ lễ, Tết theo quy định Nhà nước.'
-            ].map((text, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', color: '#0f172a', marginBottom: 12 }}>
-                <Check size={18} color="#1464F4" style={{ marginTop: 4 }} />
-                <span style={{ color: '#334155' }}>{text}</span>
+      {/* Filter Section */}
+      <section className="services-filter">
+        <div className="filter-container">
+          <div className="search-box">
+            <Search className="search-icon" />
+            <input
+              type="text"
+              placeholder={`Tìm kiếm ${activeTab === 'services' ? 'dịch vụ' : 'gói dịch vụ'}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          <div className="filter-options">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">Tất cả danh mục</option>
+              <option value="maintenance">Bảo dưỡng</option>
+              <option value="repair">Sửa chữa</option>
+              <option value="inspection">Kiểm tra</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="filter-select"
+            >
+              <option value="name">Sắp xếp theo tên</option>
+              <option value="price">Sắp xếp theo giá</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* Services/Service Packages Grid */}
+      <section className="services-grid-section">
+        <div className="grid-container">
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p>Đang tải dữ liệu...</p>
+            </div>
+          ) : activeTab === 'services' ? (
+            filteredServices.length === 0 ? (
+              <div className="empty-state">
+                <Wrench className="empty-icon" />
+                <h3>Không tìm thấy dịch vụ</h3>
+                <p>Hãy thử tìm kiếm với từ khóa khác</p>
               </div>
-            ))}
-          </div>
-          <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', padding: 16, borderRadius: 8, color: '#92400E', marginTop: 20 }}>Lưu ý: Nếu được cung cấp xe mượn, Khách hàng tự chi trả chi phí cầu đường, phạt vi phạm… (nếu có).</div>
+            ) : (
+              <div className="services-grid">
+                {filteredServices.map((service) => (
+                  <div key={service.id} className="service-card">
+                    <div className="card-header">
+                      <div className="service-badge">
+                        <Wrench className="badge-icon" />
+                        <span>Dịch vụ</span>
+                      </div>
+                    </div>
+                    
+                    <div className="card-content">
+                      <h3 className="package-name">{service.name}</h3>
+                      <p className="package-description">{service.description}</p>
+                      
+                      <div className="package-features">
+                        <div className="feature-item">
+                          <CheckCircle className="feature-icon" />
+                          <span>Chuyên nghiệp</span>
+                        </div>
+                        <div className="feature-item">
+                          <Shield className="feature-icon" />
+                          <span>Bảo hành chính hãng</span>
+                        </div>
+                        <div className="feature-item">
+                          <Clock className="feature-icon" />
+                          <span>Hỗ trợ 24/7</span>
+                        </div>
+                      </div>
+
+                      <div className="package-pricing">
+                        <div className="price-container">
+                          <span className="price">{formatPrice(service.price)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="card-actions">
+                      <button 
+                        className="btn-primary btn-full"
+                        onClick={() => navigate('/booking', { state: { serviceId: service.id } })}
+                      >
+                        Chọn Dịch vụ
+                        <ArrowRight className="btn-icon" />
+                      </button>
+                      <button 
+                        className="btn-outline btn-full"
+                        onClick={() => navigate('/contact')}
+                      >
+                        Tư Vấn Chi Tiết
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
+            filteredPackages.length === 0 ? (
+              <div className="empty-state">
+                <Package className="empty-icon" />
+                <h3>Không tìm thấy gói dịch vụ</h3>
+                <p>Hãy thử tìm kiếm với từ khóa khác</p>
+              </div>
+            ) : (
+              <div className="services-grid">
+                {filteredPackages.map((pkg) => (
+                <div key={pkg.packageId} className="service-card">
+                  <div className="card-header">
+                    <div className="service-badge">
+                      <Star className="badge-icon" />
+                      <span>Phổ biến</span>
+                    </div>
+                    <div className="service-category">{pkg.serviceName}</div>
+                  </div>
+                  
+                  <div className="card-content">
+                    <h3 className="package-name">{pkg.packageName}</h3>
+                    <p className="package-description">{pkg.description}</p>
+                    
+                    <div className="package-features">
+                      <div className="feature-item">
+                        <CheckCircle className="feature-icon" />
+                        <span>{pkg.totalCredits} lần sử dụng</span>
+                      </div>
+                      <div className="feature-item">
+                        <Shield className="feature-icon" />
+                        <span>Bảo hành chính hãng</span>
+                      </div>
+                      <div className="feature-item">
+                        <Clock className="feature-icon" />
+                        <span>Hỗ trợ 24/7</span>
+                      </div>
+                    </div>
+
+                    <div className="package-pricing">
+                      <div className="price-container">
+                        <span className="price">{formatPrice(pkg.price)}</span>
+                        {pkg.discountPercent && pkg.discountPercent > 0 && (
+                          <span className="discount">-{pkg.discountPercent}%</span>
+                        )}
+                      </div>
+                      {pkg.validFrom && pkg.validTo && (
+                        <div className="validity">
+                          Áp dụng: {new Date(pkg.validFrom).toLocaleDateString('vi-VN')} - {new Date(pkg.validTo).toLocaleDateString('vi-VN')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button 
+                      className="btn-primary btn-full"
+                      onClick={() => navigate('/booking', { state: { packageId: pkg.packageId } })}
+                    >
+                      Chọn Gói
+                      <ArrowRight className="btn-icon" />
+                    </button>
+                    <button 
+                      className="btn-outline btn-full"
+                      onClick={() => navigate('/contact')}
+                    >
+                      Tư Vấn Chi Tiết
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
         </div>
-        <img src={policyImage} alt="Express Service" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
       </section>
     </div>
   )

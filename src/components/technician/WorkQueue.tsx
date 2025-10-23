@@ -1,13 +1,32 @@
 import { useState } from 'react'
+import { 
+  Search, 
+  Plus, 
+  Clock, 
+  Wrench, 
+  Package, 
+  CheckCircle,
+  Eye,
+  Edit,
+  Play,
+  Pause,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react'
 import './WorkQueue.scss'
 
 interface WorkOrder {
   id: number
   title: string
   customer: string
+  customerPhone: string
+  customerEmail?: string
   licensePlate: string
-  status: string
-  priority: string
+  bikeBrand?: string
+  bikeModel?: string
+  status: 'waiting' | 'processing' | 'completed'
+  priority: 'high' | 'medium' | 'low'
   estimatedTime: string
   description: string
   scheduledDate: string
@@ -15,12 +34,6 @@ interface WorkOrder {
   serviceType: string
   assignedTechnician?: string
   parts: string[]
-  customerPhone: string
-  customerEmail?: string
-  bikeBrand?: string
-  bikeModel?: string
-  partChecklist?: Record<string, { checked: boolean; status: string | null; notes: string }>
-  notes?: string
 }
 
 interface WorkQueueProps {
@@ -29,17 +42,20 @@ interface WorkQueueProps {
 
 export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
-  const [priority, setPriority] = useState('all')
-  const [serviceType, setServiceType] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   const [workQueue, setWorkQueue] = useState<WorkOrder[]>([
     {
       id: 1,
       title: 'Sửa chữa động cơ xe điện',
       customer: 'Nguyễn Văn An',
+      customerPhone: '0901234567',
+      customerEmail: 'nguyenvana@email.com',
       licensePlate: '30A-12345',
-      status: 'in-progress',
+      bikeBrand: 'VinFast',
+      bikeModel: 'VF e34',
+      status: 'processing',
       priority: 'high',
       estimatedTime: '2 giờ',
       description: 'Động cơ kêu lạ, cần kiểm tra và thay thế linh kiện',
@@ -47,35 +63,34 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
       scheduledTime: '09:00',
       serviceType: 'repair',
       assignedTechnician: 'Trần Văn B',
-      parts: ['Động cơ', 'Dây dẫn', 'IC điều khiển'],
-      customerPhone: '0901234567',
-      customerEmail: 'nguyenvana@email.com',
-      bikeBrand: 'VinFast',
-      bikeModel: 'VF e34'
+      parts: ['Động cơ', 'Dây dẫn', 'IC điều khiển']
     },
     {
       id: 2,
       title: 'Bảo dưỡng định kỳ',
       customer: 'Trần Thị Bình',
+      customerPhone: '0902345678',
       licensePlate: '29B-67890',
-      status: 'pending',
+      bikeBrand: 'Pega',
+      bikeModel: 'Newtech',
+      status: 'waiting',
       priority: 'medium',
       estimatedTime: '1.5 giờ',
       description: 'Bảo dưỡng định kỳ 6 tháng, kiểm tra tổng quát',
       scheduledDate: '2024-01-18',
       scheduledTime: '14:00',
       serviceType: 'maintenance',
-      parts: ['Dầu nhờn', 'Lọc gió', 'Phanh'],
-      customerPhone: '0902345678',
-      bikeBrand: 'Pega',
-      bikeModel: 'Newtech'
+      parts: ['Dầu nhờn', 'Lọc gió', 'Phanh']
     },
     {
       id: 3,
       title: 'Thay thế pin xe điện',
       customer: 'Lê Hoài Cường',
+      customerPhone: '0903456789',
       licensePlate: '51C-11111',
-      status: 'completed',
+      bikeBrand: 'Yadea',
+      bikeModel: 'Xmen Neo',
+      status: 'waiting',
       priority: 'high',
       estimatedTime: '3 giờ',
       description: 'Pin cũ hỏng, cần thay pin mới hoàn toàn',
@@ -83,40 +98,61 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
       scheduledTime: '08:00',
       serviceType: 'repair',
       assignedTechnician: 'Phạm Văn C',
-      parts: ['Pin Lithium 48V', 'Sạc pin', 'Cáp kết nối'],
-      customerPhone: '0903456789',
-      bikeBrand: 'Yadea',
-      bikeModel: 'Xmen Neo'
+      parts: ['Pin Lithium 48V', 'Sạc pin', 'Cáp kết nối']
+    },
+    {
+      id: 4,
+      title: 'Kiểm tra hệ thống phanh',
+      customer: 'Phạm Thị Dung',
+      customerPhone: '0904567890',
+      licensePlate: '43D-22222',
+      bikeBrand: 'Honda',
+      bikeModel: 'Lead',
+      status: 'completed',
+      priority: 'low',
+      estimatedTime: '1 giờ',
+      description: 'Khách hàng phản ánh phanh không ăn, cần kiểm tra',
+      scheduledDate: '2024-01-17',
+      scheduledTime: '10:00',
+      serviceType: 'inspection',
+      assignedTechnician: 'Nguyễn Văn D',
+      parts: ['Phanh trước', 'Phanh sau', 'Dầu phanh']
+    },
+    {
+      id: 5,
+      title: 'Thay lốp xe điện',
+      customer: 'Hoàng Văn E',
+      customerPhone: '0905678901',
+      licensePlate: '12E-33333',
+      bikeBrand: 'Yamaha',
+      bikeModel: 'NMAX',
+      status: 'waiting',
+      priority: 'medium',
+      estimatedTime: '1 giờ',
+      description: 'Lốp sau bị thủng, cần thay lốp mới',
+      scheduledDate: '2024-01-19',
+      scheduledTime: '11:00',
+      serviceType: 'repair',
+      parts: ['Lốp sau 120/70-12', 'Van lốp']
     }
   ])
 
   const filteredWork = workQueue.filter(work => {
     const matchesSearch = work.title.toLowerCase().includes(search.toLowerCase()) ||
                          work.customer.toLowerCase().includes(search.toLowerCase()) ||
-                         work.licensePlate.toLowerCase().includes(search.toLowerCase())
-    const matchesStatus = status === 'all' || work.status === status
-    const matchesPriority = priority === 'all' || work.priority === priority
-    const matchesServiceType = serviceType === 'all' || work.serviceType === serviceType
+                         work.licensePlate.toLowerCase().includes(search.toLowerCase()) ||
+                         work.customerPhone.includes(search)
+    const matchesStatus = statusFilter === 'all' || work.status === statusFilter
     
-    return matchesSearch && matchesStatus && matchesPriority && matchesServiceType
+    return matchesSearch && matchesStatus
   })
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return '#f59e0b'
-      case 'in-progress': return '#3b82f6'
-      case 'completed': return '#10b981'
-      case 'cancelled': return '#ef4444'
-      default: return '#6b7280'
-    }
-  }
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Chờ xử lý'
-      case 'in-progress': return 'Đang thực hiện'
+      case 'waiting': return 'Chờ tiếp nhận'
+      case 'processing': return 'Đang xử lý'
       case 'completed': return 'Hoàn thành'
-      case 'cancelled': return 'Đã hủy'
       default: return status
     }
   }
@@ -141,280 +177,258 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
-      case 'high': return <i className="fas fa-exclamation-triangle text-red-500"></i>
-      case 'medium': return <i className="fas fa-exclamation-triangle text-yellow-500"></i>
-      case 'low': return <i className="fas fa-check-circle text-green-500"></i>
-      default: return <i className="fas fa-exclamation-triangle text-gray-500"></i>
+      case 'high': return <AlertTriangle size={12} />
+      case 'medium': return <Clock size={12} />
+      case 'low': return <CheckCircle2 size={12} />
+      default: return <AlertTriangle size={12} />
     }
   }
 
   const stats = [
     {
-      label: 'Tổng công việc',
-      value: workQueue.length,
-      icon: <i className="fas fa-clipboard-list text-blue-500"></i>
+      label: 'Chờ tiếp nhận',
+      value: workQueue.filter(w => w.status === 'waiting').length,
+      color: '#f59e0b',
+      icon: Clock
     },
     {
-      label: 'Chờ xử lý',
-      value: workQueue.filter(w => w.status === 'pending').length,
-      icon: <i className="fas fa-clock text-yellow-500"></i>
-    },
-    {
-      label: 'Đang thực hiện',
-      value: workQueue.filter(w => w.status === 'in-progress').length,
-      icon: <i className="fas fa-wrench text-blue-500"></i>
+      label: 'Đang xử lý',
+      value: workQueue.filter(w => w.status === 'processing').length,
+      color: '#3b82f6',
+      icon: Wrench
     },
     {
       label: 'Hoàn thành',
       value: workQueue.filter(w => w.status === 'completed').length,
-      icon: <i className="fas fa-check-circle text-green-500"></i>
+      color: '#10b981',
+      icon: CheckCircle
     }
   ]
 
+  const handleStatusUpdate = (workId: number, newStatus: string) => {
+    setWorkQueue(prev => prev.map(work => 
+      work.id === workId ? { ...work, status: newStatus as any } : work
+    ))
+  }
+
+  const toggleRowExpansion = (workId: number) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(workId)) {
+        newSet.delete(workId)
+      } else {
+        newSet.add(workId)
+      }
+      return newSet
+    })
+  }
+
   return (
     <div className="work-queue">
+      {/* Main Content Area */}
+      <div className="work-queue__main">
       {/* Header */}
       <div className="work-queue__header">
-        <div className="work-queue__header__info">
-          <h1 className="work-queue__header__info__title">
-            <div className="work-queue__header__info__title__icon">
-              <i className="fas fa-wrench text-white"></i>
-            </div>
-            Hàng đợi công việc
-          </h1>
-          <p className="work-queue__header__info__description">
-            Quản lý và theo dõi tất cả các công việc sửa chữa và bảo dưỡng xe điện
-          </p>
-        </div>
+          <h1 className="work-queue__header__title">Hàng đợi công việc</h1>
       </div>
 
-      {/* Stats */}
+        {/* Stats Cards */}
       <div className="work-queue__stats">
         {stats.map((stat, index) => (
           <div key={index} className="work-queue__stats__card">
-            <div className="work-queue__stats__card__icon">
-              {stat.icon}
-            </div>
-            <div className="work-queue__stats__card__content">
-              <div className="work-queue__stats__card__content__value">
-                {stat.value}
+              <div 
+                className="work-queue__stats__card__icon"
+                style={{ backgroundColor: stat.color + '15', color: stat.color }}
+              >
+                <stat.icon size={20} />
               </div>
-              <div className="work-queue__stats__card__content__label">
-                {stat.label}
-              </div>
+              <div className="work-queue__stats__card__content">
+                <div className="work-queue__stats__card__content__value">{stat.value}</div>
+                <div className="work-queue__stats__card__content__label">{stat.label}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="work-queue__filters">
-        <div className="work-queue__filters__search">
-          <div className="work-queue__filters__search__icon">
-            <i className="fas fa-search text-gray-400"></i>
-          </div>
+        {/* Main Content Card */}
+        <div className="work-queue__main-card">
+          {/* Toolbar */}
+          <div className="work-queue__toolbar">
+            <div className="work-queue__toolbar__search">
+              <Search size={16} className="work-queue__toolbar__search__icon" />
           <input
-            className="work-queue__filters__search__input"
             type="text"
-            placeholder="Tìm kiếm theo tên, khách hàng, biển số..."
+                placeholder="Tìm theo tên khách hàng, biển số, mã công việc..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+                className="work-queue__toolbar__search__input"
           />
         </div>
 
+            <div className="work-queue__toolbar__filters">
         <select
-          className="work-queue__filters__select"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="work-queue__toolbar__filters__select"
         >
           <option value="all">Tất cả trạng thái</option>
-          <option value="pending">Chờ xử lý</option>
-          <option value="in-progress">Đang thực hiện</option>
+                <option value="waiting">Chờ tiếp nhận</option>
+                <option value="processing">Đang xử lý</option>
           <option value="completed">Hoàn thành</option>
-          <option value="cancelled">Đã hủy</option>
         </select>
 
-        <select
-          className="work-queue__filters__select"
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-        >
-          <option value="all">Tất cả mức độ</option>
-          <option value="high">Cao</option>
-          <option value="medium">Trung bình</option>
-          <option value="low">Thấp</option>
-        </select>
-
-        <select
-          className="work-queue__filters__select"
-          value={serviceType}
-          onChange={(e) => setServiceType(e.target.value)}
-        >
-          <option value="all">Tất cả loại dịch vụ</option>
-          <option value="repair">Sửa chữa</option>
-          <option value="maintenance">Bảo dưỡng</option>
-          <option value="inspection">Kiểm tra</option>
-        </select>
-      </div>
-
-      {/* Work List */}
-      <div className="work-queue__list">
-        {filteredWork.map((work) => (
-          <div key={work.id} className="work-queue__list__item">
-            {/* Item Header */}
-            <div className="work-queue__list__item__header">
-              <div className="work-queue__list__item__header__left">
-                <h3 className="work-queue__list__item__header__left__title">
-                  {work.title}
-                </h3>
-                <div className="work-queue__list__item__header__left__meta">
-                  <span className="work-queue__list__item__header__left__meta__customer">
-                    <i className="fas fa-user text-gray-500 mr-2"></i> {work.customer}
-                  </span>
-                  <span className="work-queue__list__item__header__left__meta__plate">
-                    <i className="fas fa-car text-gray-500 mr-2"></i> {work.licensePlate}
-                  </span>
-                  <span className="work-queue__list__item__header__left__meta__time">
-                    <i className="fas fa-clock text-gray-500 mr-2"></i> {work.scheduledDate} lúc {work.scheduledTime}
-                  </span>
-                </div>
-              </div>
-
-              <div className="work-queue__list__item__header__right">
-                <span 
-                  className="work-queue__list__item__header__right__priority"
-                  style={{ 
-                    backgroundColor: work.priority === 'high' ? 'rgba(239, 68, 68, 0.1)' : 
-                                   work.priority === 'medium' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                    color: getPriorityColor(work.priority)
-                  }}
-                >
-                  {getPriorityIcon(work.priority)}
-                  {getPriorityText(work.priority)}
-                </span>
-                <span 
-                  className="work-queue__list__item__header__right__status"
-                  style={{ backgroundColor: getStatusColor(work.status), color: 'white' }}
-                >
-                  {getStatusText(work.status)}
-                </span>
-              </div>
             </div>
 
-            {/* Item Body */}
-            <div className="work-queue__list__item__body">
-              <div className="work-queue__list__item__body__content">
-                <div className="work-queue__list__item__body__content__description">
-                  <h4>Mô tả công việc:</h4>
-                  <p>{work.description}</p>
-                </div>
+            <button className="work-queue__toolbar__create-btn">
+              <Plus size={16} />
+              Tạo công việc mới
+            </button>
+      </div>
 
-                <div className="work-queue__list__item__body__content__details">
-                  <div className="work-queue__list__item__body__content__details__item">
-                    <span className="work-queue__list__item__body__content__details__item__label">
-                      Thời gian ước tính:
-                    </span>
-                    <span className="work-queue__list__item__body__content__details__item__value">
-                      {work.estimatedTime}
-                    </span>
-                  </div>
-                  <div className="work-queue__list__item__body__content__details__item">
-                    <span className="work-queue__list__item__body__content__details__item__label">
-                      Loại dịch vụ:
-                    </span>
-                    <span className="work-queue__list__item__body__content__details__item__value">
-                      {work.serviceType === 'repair' ? 'Sửa chữa' : 
-                       work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
-                    </span>
-                  </div>
-                  {work.assignedTechnician && (
-                    <div className="work-queue__list__item__body__content__details__item">
-                      <span className="work-queue__list__item__body__content__details__item__label">
-                        Kỹ thuật viên:
+          {/* Work List */}
+          <div className="work-queue__list-container">
+            {/* List Header */}
+            <div className="work-queue__list-header">
+              <div className="work-queue__list-header__item">Khách hàng</div>
+              <div className="work-queue__list-header__item">Xe</div>
+              <div className="work-queue__list-header__item">Dịch vụ</div>
+              <div className="work-queue__list-header__item">Trạng thái</div>
+              <div className="work-queue__list-header__item">Hẹn lúc</div>
+            </div>
+
+            {/* Work Items List */}
+            <div className="work-queue__list">
+              {filteredWork.map((work) => (
+                <div key={work.id}>
+                  {/* Main Work Card */}
+                  <div 
+                    className="work-queue__list__item"
+                    onClick={() => toggleRowExpansion(work.id)}
+                  >
+                    <div className="work-queue__list__item__cell">
+                      <div className="work-queue__list__item__cell__primary">{work.customer}</div>
+                      <div className="work-queue__list__item__cell__secondary">{work.customerPhone}</div>
+                    </div>
+                    <div className="work-queue__list__item__cell">
+                      <div className="work-queue__list__item__cell__primary">{work.licensePlate}</div>
+                      <div className="work-queue__list__item__cell__secondary">{work.bikeBrand} {work.bikeModel}</div>
+                    </div>
+                    <div className="work-queue__list__item__cell">
+                      <div className="work-queue__list__item__cell__primary">{work.title}</div>
+                      <div className="work-queue__list__item__cell__secondary">
+                        {work.serviceType === 'repair' ? 'Sửa chữa' : 
+                         work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
+                      </div>
+                    </div>
+                    <div className="work-queue__list__item__cell">
+                      <span className={`work-queue__list__item__status work-queue__list__item__status--${work.status}`}>
+                        {getStatusText(work.status)}
                       </span>
-                      <span className="work-queue__list__item__body__content__details__item__value">
-                        {work.assignedTechnician}
-                      </span>
+                    </div>
+                    <div className="work-queue__list__item__cell">
+                      <div className="work-queue__list__item__cell__primary">{work.scheduledDate}</div>
+                      <div className="work-queue__list__item__cell__secondary">{work.scheduledTime}</div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {expandedRows.has(work.id) && (
+                    <div className="work-queue__list__item__expanded">
+                      <div className="work-queue__list__item__expanded__content">
+                        <div className="work-queue__list__item__expanded__details">
+                          <div className="work-queue__list__item__expanded__section">
+                            <h4>Mô tả công việc</h4>
+                            <p>{work.description}</p>
+                          </div>
+
+                          <div className="work-queue__list__item__expanded__section">
+                            <h4>Linh kiện cần thiết</h4>
+                            <div className="work-queue__list__item__expanded__parts">
+                              {work.parts.map((part, index) => (
+                                <span key={index} className="work-queue__list__item__expanded__part">
+                                  {part}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="work-queue__list__item__expanded__section">
+                            <h4>Thông tin bổ sung</h4>
+                            <div className="work-queue__list__item__expanded__info">
+                              <div className="work-queue__list__item__expanded__info-item">
+                                <span>Thời gian ước tính:</span>
+                                <span>{work.estimatedTime}</span>
+                              </div>
+                              <div className="work-queue__list__item__expanded__info-item">
+                                <span>Mức độ ưu tiên:</span>
+                                <span 
+                                  className="work-queue__list__item__expanded__priority"
+                                  style={{ color: getPriorityColor(work.priority) }}
+                                >
+                                  {getPriorityText(work.priority)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="work-queue__list__item__expanded__actions">
+                          {work.status === 'waiting' && (
+                            <button
+                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--start"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStatusUpdate(work.id, 'processing')
+                              }}
+                            >
+                              <Play size={16} />
+                              Bắt đầu xử lý
+                            </button>
+                          )}
+                          
+                          {work.status === 'processing' && (
+                            <button
+                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--complete"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStatusUpdate(work.id, 'completed')
+                              }}
+                            >
+                              <CheckCircle size={16} />
+                              Hoàn thành
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                <div className="work-queue__list__item__body__content__parts">
-                  <h4>Linh kiện cần thiết:</h4>
-                  <div className="work-queue__list__item__body__content__parts__list">
-                    {work.parts.map((part, index) => (
-                      <span key={index} className="work-queue__list__item__body__content__parts__list__item">
-                        <i className="fas fa-cube text-gray-500 mr-2"></i> {part}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="work-queue__list__item__body__actions">
-                <button
-                  className="work-queue__list__item__body__actions__button work-queue__list__item__body__actions__button--primary"
-                  onClick={() => onViewDetails(work)}
-                >
-                  <i className="fas fa-eye mr-2"></i> Xem chi tiết
-                </button>
-                
-                {work.status === 'pending' && (
-                  <button
-                    className="work-queue__list__item__body__actions__button work-queue__list__item__body__actions__button--success"
-                    onClick={() => {
-                      setWorkQueue(workQueue.map(w => 
-                        w.id === work.id 
-                          ? { ...w, status: 'in-progress' }
-                          : w
-                      ))
-                    }}
-                  >
-                    <i className="fas fa-wrench mr-2"></i> Bắt đầu làm việc
-                  </button>
-                )}
-                
-                {work.status === 'in-progress' && (
-                  <button
-                    className="work-queue__list__item__body__actions__button work-queue__list__item__body__actions__button--success"
-                    onClick={() => {
-                      setWorkQueue(workQueue.map(w => 
-                        w.id === work.id 
-                          ? { ...w, status: 'completed' }
-                          : w
-                      ))
-                    }}
-                  >
-                    <i className="fas fa-check-circle mr-2"></i> Hoàn thành
-                  </button>
-                )}
-              </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
 
       {/* Empty State */}
       {filteredWork.length === 0 && (
         <div className="work-queue__empty">
           <div className="work-queue__empty__icon">
-            <i className="fas fa-clipboard-list text-gray-400"></i>
+                <Clock size={48} />
           </div>
           <h3 className="work-queue__empty__title">
-            {search || status !== 'all' || priority !== 'all' || serviceType !== 'all'
+                {search || statusFilter !== 'all'
               ? 'Không tìm thấy công việc phù hợp'
               : 'Chưa có công việc nào'
             }
           </h3>
           <p className="work-queue__empty__description">
-            {search || status !== 'all' || priority !== 'all' || serviceType !== 'all'
+                {search || statusFilter !== 'all'
               ? 'Hãy thử điều chỉnh bộ lọc để tìm kiếm công việc khác'
-              : 'Hiện tại chưa có công việc nào trong hàng đợi. Các công việc mới sẽ xuất hiện ở đây khi được tạo.'
+                  : 'Hiện tại chưa có công việc nào trong hàng đợi'
             }
           </p>
         </div>
       )}
+        </div>
+      </div>
     </div>
   )
 }

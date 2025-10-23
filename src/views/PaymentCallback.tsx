@@ -1,31 +1,68 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { handlePaymentCallback } from '@/services/paymentService'
 
 const PaymentCallback: React.FC = () => {
   const [searchParams] = useSearchParams()
   const [isProcessing, setIsProcessing] = useState(true)
+  const [processingMessage, setProcessingMessage] = useState('Đang xử lý thanh toán...')
   
   useEffect(() => {
-    // Get all URL parameters
-    const params = Object.fromEntries(searchParams.entries())
-    console.log('Payment callback params:', params)
-    
-    // Check if payment was successful
-    const isSuccess = params.status === 'PAID' || params.success === 'true'
-    const bookingId = params.orderCode || params.bookingId
-    const amount = params.amount
-    
-    if (isSuccess && bookingId) {
-      // Redirect to payment success page with parameters
-      const successUrl = `/payment-success?bookingId=${bookingId}&status=PAID${amount ? `&amount=${amount}` : ''}`
-      console.log('Redirecting to payment success page:', successUrl)
-      window.location.href = successUrl
-    } else {
-      // Redirect to payment cancel page if failed
-      const cancelUrl = `/payment-cancel?bookingId=${bookingId}${amount ? `&amount=${amount}` : ''}&reason=${params.reason || 'PAYMENT_FAILED'}`
-      console.log('Payment failed, redirecting to payment cancel page:', cancelUrl)
-      window.location.href = cancelUrl
+    const processPaymentCallback = async () => {
+      try {
+        // Get all URL parameters
+        const params = Object.fromEntries(searchParams.entries())
+        console.log('Payment callback params:', params)
+        
+        setProcessingMessage('Đang kiểm tra trạng thái thanh toán...')
+        
+        // Sử dụng API để kiểm tra trạng thái thanh toán
+        const result = await handlePaymentCallback(params)
+        console.log('Payment status check result:', result)
+        
+        // Fallback: Nếu API không hoạt động, dựa vào URL params
+        const isSuccessFromUrl = params.status === 'PAID' || params.success === 'true'
+        const orderCode = params.orderCode || params.bookingId
+        const amount = params.amount
+        
+        if ((result.success && result.status === 'PAID') || isSuccessFromUrl) {
+          // Thanh toán thành công
+          const successUrl = `/payment-success?bookingId=${result.orderCode || orderCode}&status=PAID&amount=${result.amount || amount}${result.bookingId ? `&bookingId=${result.bookingId}` : ''}`
+          console.log('Payment successful, redirecting to:', successUrl)
+          window.location.href = successUrl
+        } else {
+          // Thanh toán thất bại hoặc chưa hoàn tất
+          const cancelUrl = `/payment-cancel?bookingId=${result.orderCode || orderCode}&amount=${result.amount || amount}&reason=${result.message || 'PAYMENT_FAILED'}`
+          console.log('Payment failed, redirecting to:', cancelUrl)
+          window.location.href = cancelUrl
+        }
+      } catch (error) {
+        console.error('Error processing payment callback:', error)
+        setProcessingMessage('Có lỗi xảy ra khi xử lý thanh toán')
+        
+        // Fallback: redirect sau 3 giây dựa vào URL params
+        setTimeout(() => {
+          const params = Object.fromEntries(searchParams.entries())
+          const orderCode = params.orderCode || params.bookingId
+          const amount = params.amount
+          const isSuccessFromUrl = params.status === 'PAID' || params.success === 'true'
+          
+          if (isSuccessFromUrl) {
+            // Nếu URL có status=PAID, redirect đến success
+            const successUrl = `/payment-success?bookingId=${orderCode}&status=PAID&amount=${amount}`
+            console.log('Fallback: redirecting to success page:', successUrl)
+            window.location.href = successUrl
+          } else {
+            // Ngược lại, redirect đến cancel
+            const cancelUrl = `/payment-cancel?bookingId=${orderCode}&amount=${amount}&reason=PROCESSING_ERROR`
+            console.log('Fallback: redirecting to cancel page:', cancelUrl)
+            window.location.href = cancelUrl
+          }
+        }, 3000)
+      }
     }
+    
+    processPaymentCallback()
   }, [searchParams])
   
   return (
@@ -53,7 +90,7 @@ const PaymentCallback: React.FC = () => {
           margin: '0 auto 1rem'
         }} />
         <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-          Đang xử lý thanh toán...
+          {processingMessage}
         </h3>
         <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
           Vui lòng đợi trong giây lát

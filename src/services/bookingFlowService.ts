@@ -39,76 +39,14 @@ function formatSlotTime(slotTime: string): string {
 }
 
 export async function getCenterAvailability(centerId: number, date: string, serviceId?: number): Promise<CenterAvailabilityResponse> {
-    // Get time slots for proper time display
-    const timeSlots = await getTimeSlots()
-    const slotMap = new Map<number, { slotTime: string; slotLabel: string }>()
+    // DEPRECATED: This function is no longer used in the new flow
+    // The new flow uses: Center → Technician → Date → TimeSlot
+    // Use the correct API: /api/TechnicianTimeSlot/technician/{technicianId}/center/{centerId}
 
-    timeSlots.forEach(slot => {
-        slotMap.set(slot.slotId, {
-            slotTime: formatSlotTime(slot.slotTime || ''),
-            slotLabel: slot.slotLabel || formatSlotTime(slot.slotTime || '')
-        })
-    })
+    console.warn('getCenterAvailability is deprecated. Use the new flow: Center → Technician → Date → TimeSlot')
 
-    // Try to use customer-friendly endpoint first (requires serviceId)
-    if (serviceId) {
-        try {
-            const availability = await TechnicianService.getCenterTechniciansAvailability(centerId, date, { serviceId })
-
-            // Map the response to our expected format
-            if (availability?.data?.technicians) {
-                const technicianSlots: CenterAvailabilityItem[] = []
-                const technicians = availability.data.technicians
-
-                // Convert technicians dict to slots array
-                Object.entries(technicians).forEach(([technicianId, slotIds]) => {
-                    (slotIds as number[]).forEach(slotId => {
-                        const slotInfo = slotMap.get(slotId) || { slotTime: `Slot ${slotId}`, slotLabel: `Slot ${slotId}` }
-                        technicianSlots.push({
-                            technicianSlotId: slotId, // Use slotId as technicianSlotId
-                            technicianId: parseInt(technicianId),
-                            slotLabel: slotInfo.slotLabel,
-                            slotTime: slotInfo.slotTime,
-                            isAvailable: true, // All slots from this endpoint are available
-                        })
-                    })
-                })
-
-                return { technicianSlots }
-            }
-        } catch (error) {
-            console.warn('Failed to get availability from TechnicianService, falling back to schedule API:', error)
-        }
-    }
-
-    // Fallback to schedule API (requires StaffOrAdmin permission)
-    try {
-        const schedule: TechnicianScheduleItem[] = await TechnicianTimeSlotService.getCenterSchedule(centerId, date, date)
-        const technicianSlots: CenterAvailabilityItem[] = (schedule || [])
-            .filter(s => !!s.isAvailable && !s.hasBooking) // Chỉ lấy timeslot available
-            .map((s) => {
-                const slotInfo = slotMap.get(s.slotId) || { slotTime: s.slotLabel || `Slot ${s.slotId}`, slotLabel: s.slotLabel || `Slot ${s.slotId}` }
-                return {
-                    technicianSlotId: s.technicianSlotId,
-                    technicianId: 0, // backend schedule may not include technicianId; if needed, extend API later
-                    slotLabel: slotInfo.slotLabel,
-                    slotTime: slotInfo.slotTime,
-                    isAvailable: true, // Đã filter ở trên nên luôn true
-                }
-            })
-        return { technicianSlots }
-    } catch (error) {
-        console.error('Failed to get center availability:', error)
-        // Final fallback: return basic time slots with mock booking status
-        const technicianSlots: CenterAvailabilityItem[] = timeSlots.map((slot) => ({
-            technicianSlotId: slot.slotId,
-            technicianId: 1, // Default technician
-            slotLabel: slot.slotLabel || formatSlotTime(slot.slotTime || ''),
-            slotTime: formatSlotTime(slot.slotTime || ''),
-            isAvailable: Math.random() > 0.3, // Mock some slots as unavailable
-        }))
-        return { technicianSlots }
-    }
+    // Return empty response to avoid breaking existing code
+    return { technicianSlots: [] }
 }
 
 // Slot hold APIs
@@ -156,24 +94,37 @@ export type CreateBookingRequest = {
     centerId: number
     bookingDate: string // YYYY-MM-DD
     technicianSlotId: number
-    technicianId: number
+    technicianId?: number // Optional - if not provided, system will auto-assign
     specialRequests?: string
     serviceId?: number
     packageCode?: string
+    // Thêm currentMileage và licensePlate
+    currentMileage?: number
+    licensePlate?: string
 }
 
 export type CreateBookingResponse = {
-    bookingId: number
-    pricing: {
-        originalServicePrice: number
-        discount: number
-        totalAmount: number
+    success: boolean
+    message: string
+    data: {
+        bookingId: number
+        pricing: {
+            originalServicePrice: number
+            discount: number
+            totalAmount: number
+        }
     }
 }
 
 export async function createBooking(payload: CreateBookingRequest): Promise<CreateBookingResponse> {
     const { data } = await api.post('/booking', payload)
     return data as CreateBookingResponse
+}
+
+// Auto-assign technician
+export async function autoAssignTechnician(bookingId: number): Promise<{ success: boolean; message: string; technicianId?: number }> {
+    const { data } = await api.post(`/api/Booking/${bookingId}/auto-assign-technician`)
+    return data as { success: boolean; message: string; technicianId?: number }
 }
 
 // Payment link (PayOS)
