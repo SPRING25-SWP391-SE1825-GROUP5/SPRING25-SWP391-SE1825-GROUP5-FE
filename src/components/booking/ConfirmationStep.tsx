@@ -273,7 +273,6 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           </button>
         </div>
       </form>
-      
       <style>{`
         .confirmation-step {
           max-width: 800px;

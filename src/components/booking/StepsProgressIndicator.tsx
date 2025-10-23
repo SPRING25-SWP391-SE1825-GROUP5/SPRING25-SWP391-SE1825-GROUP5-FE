@@ -15,24 +15,24 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
   isGuest
 }) => {
   const steps = isGuest ? [
-    // Khách vãng lai: 4 bước (gộp Dịch vụ & Xe)
+    // Khách vãng lai: 4 bước (1. Thông tin liên hệ -> 2. Dịch vụ & Xe -> 3. Địa điểm & Thời gian -> 4. Xác nhận)
     { 
       number: 1, 
+      label: 'Thông tin liên hệ', 
+      icon: UserPlus,
+      description: 'Họ tên, SĐT, Email'
+    },
+    { 
+      number: 2, 
       label: 'Dịch vụ & Xe', 
       icon: Wrench,
       description: 'Chọn dịch vụ và thông tin xe'
     },
     { 
-      number: 2, 
+      number: 3, 
       label: 'Địa điểm & Thời gian', 
       icon: MapPin,
       description: 'Nơi và thời gian thực hiện'
-    },
-    { 
-      number: 3, 
-      label: 'Thông tin liên hệ', 
-      icon: UserPlus,
-      description: 'Họ tên, SĐT, Email, Mật khẩu'
     },
     { 
       number: 4, 
