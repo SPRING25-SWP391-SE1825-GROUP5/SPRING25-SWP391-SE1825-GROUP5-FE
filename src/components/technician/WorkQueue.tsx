@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Search, 
   Plus, 
@@ -12,12 +12,18 @@ import {
   Pause,
   AlertTriangle,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Calendar,
+  RefreshCw
 } from 'lucide-react'
+import { TechnicianService } from '@/services/technicianService'
+import { useAppSelector } from '@/store/hooks'
+import toast from 'react-hot-toast'
 import './WorkQueue.scss'
 
 interface WorkOrder {
   id: number
+  bookingId?: number
   title: string
   customer: string
   customerPhone: string
@@ -25,7 +31,7 @@ interface WorkOrder {
   licensePlate: string
   bikeBrand?: string
   bikeModel?: string
-  status: 'waiting' | 'processing' | 'completed'
+  status: 'waiting' | 'processing' | 'completed' | 'pending' | 'in_progress' | 'done'
   priority: 'high' | 'medium' | 'low'
   estimatedTime: string
   description: string
@@ -34,6 +40,12 @@ interface WorkOrder {
   serviceType: string
   assignedTechnician?: string
   parts: string[]
+  workDate?: string
+  startTime?: string
+  endTime?: string
+  serviceName?: string
+  vehicleId?: number
+  centerId?: number
 }
 
 interface WorkQueueProps {
@@ -44,98 +56,215 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
 
-  const [workQueue, setWorkQueue] = useState<WorkOrder[]>([
-    {
-      id: 1,
-      title: 'Sửa chữa động cơ xe điện',
-      customer: 'Nguyễn Văn An',
-      customerPhone: '0901234567',
-      customerEmail: 'nguyenvana@email.com',
-      licensePlate: '30A-12345',
-      bikeBrand: 'VinFast',
-      bikeModel: 'VF e34',
-      status: 'processing',
-      priority: 'high',
-      estimatedTime: '2 giờ',
-      description: 'Động cơ kêu lạ, cần kiểm tra và thay thế linh kiện',
-      scheduledDate: '2024-01-18',
-      scheduledTime: '09:00',
-      serviceType: 'repair',
-      assignedTechnician: 'Trần Văn B',
-      parts: ['Động cơ', 'Dây dẫn', 'IC điều khiển']
-    },
-    {
-      id: 2,
-      title: 'Bảo dưỡng định kỳ',
-      customer: 'Trần Thị Bình',
-      customerPhone: '0902345678',
-      licensePlate: '29B-67890',
-      bikeBrand: 'Pega',
-      bikeModel: 'Newtech',
-      status: 'waiting',
-      priority: 'medium',
-      estimatedTime: '1.5 giờ',
-      description: 'Bảo dưỡng định kỳ 6 tháng, kiểm tra tổng quát',
-      scheduledDate: '2024-01-18',
-      scheduledTime: '14:00',
-      serviceType: 'maintenance',
-      parts: ['Dầu nhờn', 'Lọc gió', 'Phanh']
-    },
-    {
-      id: 3,
-      title: 'Thay thế pin xe điện',
-      customer: 'Lê Hoài Cường',
-      customerPhone: '0903456789',
-      licensePlate: '51C-11111',
-      bikeBrand: 'Yadea',
-      bikeModel: 'Xmen Neo',
-      status: 'waiting',
-      priority: 'high',
-      estimatedTime: '3 giờ',
-      description: 'Pin cũ hỏng, cần thay pin mới hoàn toàn',
-      scheduledDate: '2024-01-17',
-      scheduledTime: '08:00',
-      serviceType: 'repair',
-      assignedTechnician: 'Phạm Văn C',
-      parts: ['Pin Lithium 48V', 'Sạc pin', 'Cáp kết nối']
-    },
-    {
-      id: 4,
-      title: 'Kiểm tra hệ thống phanh',
-      customer: 'Phạm Thị Dung',
-      customerPhone: '0904567890',
-      licensePlate: '43D-22222',
-      bikeBrand: 'Honda',
-      bikeModel: 'Lead',
-      status: 'completed',
-      priority: 'low',
-      estimatedTime: '1 giờ',
-      description: 'Khách hàng phản ánh phanh không ăn, cần kiểm tra',
-      scheduledDate: '2024-01-17',
-      scheduledTime: '10:00',
-      serviceType: 'inspection',
-      assignedTechnician: 'Nguyễn Văn D',
-      parts: ['Phanh trước', 'Phanh sau', 'Dầu phanh']
-    },
-    {
-      id: 5,
-      title: 'Thay lốp xe điện',
-      customer: 'Hoàng Văn E',
-      customerPhone: '0905678901',
-      licensePlate: '12E-33333',
-      bikeBrand: 'Yamaha',
-      bikeModel: 'NMAX',
-      status: 'waiting',
-      priority: 'medium',
-      estimatedTime: '1 giờ',
-      description: 'Lốp sau bị thủng, cần thay lốp mới',
-      scheduledDate: '2024-01-19',
-      scheduledTime: '11:00',
-      serviceType: 'repair',
-      parts: ['Lốp sau 120/70-12', 'Van lốp']
+  // Lấy thông tin user từ store và resolve đúng technicianId
+  const user = useAppSelector((state) => state.auth.user)
+  const [technicianId, setTechnicianId] = useState<number | null>(null)
+
+  // Resolve technicianId bằng cách gọi API để lấy technicianId chính xác từ userId
+  useEffect(() => {
+    const resolveTechnicianId = async () => {
+      // 1) Thử lấy từ localStorage trước (đã lưu trước đó)
+      try {
+        const cached = localStorage.getItem('technicianId')
+        if (cached) {
+          const parsed = Number(cached)
+          if (Number.isFinite(parsed) && parsed > 0) {
+            console.log('✅ Using cached technicianId:', parsed)
+            setTechnicianId(parsed)
+            return
+          }
+        }
+      } catch {}
+
+      // 2) Gọi API để lấy technicianId chính xác từ userId
+      const userId = user?.id
+      if (userId && Number.isFinite(Number(userId))) {
+        try {
+          console.log('🔍 Resolving technicianId for userId:', userId)
+          const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
+          
+          if (result?.technicianId) {
+            console.log('✅ Resolved technicianId:', result.technicianId, 'for userId:', userId)
+            setTechnicianId(result.technicianId)
+            // Cache lại để lần sau nhanh hơn
+            try { localStorage.setItem('technicianId', String(result.technicianId)) } catch {}
+            return
+          }
+        } catch (e) {
+          console.warn('Could not resolve technicianId for userId:', userId, e)
+          // Không dùng fallback vì userId không phải technicianId
+          console.log('⚠️ Could not resolve technicianId, skipping bookings fetch')
+          setTechnicianId(null)
+          return
+        }
+      }
+
+      // 3) Fallback: null nếu không resolve được
+      console.log('⚠️ Could not resolve technicianId')
+      setTechnicianId(null)
     }
-  ])
+
+    resolveTechnicianId()
+  }, [user])
+
+  const [workQueue, setWorkQueue] = useState<WorkOrder[]>([])
+
+  // Function để fetch bookings từ API
+  const fetchTechnicianBookings = async (date?: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      if (!technicianId) {
+        console.log('TechnicianId is not resolved yet, skipping bookings fetch')
+        setWorkQueue([])
+        return
+      }
+      const response = await TechnicianService.getTechnicianBookings(technicianId, date)
+      
+      console.log('API Response:', response) // Debug log
+      
+      // Kiểm tra cấu trúc response và lấy data array
+      let bookingsData = []
+      
+      if (response?.success && response?.data) {
+        // Case 1: response.data là array
+        if (Array.isArray(response.data)) {
+          bookingsData = response.data
+        }
+        // Case 2: response.data có property chứa array
+        else if (response.data.bookings && Array.isArray(response.data.bookings)) {
+          bookingsData = response.data.bookings
+        }
+        // Case 3: response.data có property khác chứa array
+        else if (response.data.items && Array.isArray(response.data.items)) {
+          bookingsData = response.data.items
+        }
+        // Case 4: response.data có property results
+        else if (response.data.results && Array.isArray(response.data.results)) {
+          bookingsData = response.data.results
+        }
+      }
+      // Case 5: response trực tiếp là array
+      else if (Array.isArray(response)) {
+        bookingsData = response
+      }
+      // Case 6: response.data trực tiếp là array (không có success flag)
+      else if (Array.isArray(response?.data)) {
+        bookingsData = response.data
+      }
+      
+      console.log('Bookings Data:', bookingsData) // Debug log
+      
+      // Kiểm tra nếu bookingsData là array và có length > 0
+      if (Array.isArray(bookingsData) && bookingsData.length > 0) {
+        // Transform API data to WorkOrder format
+        const transformedData: WorkOrder[] = bookingsData.map((booking: any) => ({
+          id: booking.bookingId || booking.id,
+          bookingId: booking.bookingId || booking.id,
+          title: booking.serviceName || booking.title || 'Dịch vụ bảo dưỡng',
+          customer: booking.customerName || booking.customer || 'Khách hàng',
+          customerPhone: booking.customerPhone || booking.phone || '',
+          customerEmail: booking.customerEmail || booking.email,
+          licensePlate: booking.licensePlate || booking.vehiclePlate || '',
+          bikeBrand: booking.vehicleBrand || booking.brand,
+          bikeModel: booking.vehicleModel || booking.model,
+          status: mapBookingStatus(booking.status) as 'waiting' | 'processing' | 'completed' | 'pending' | 'in_progress' | 'done',
+          priority: mapPriority(booking.priority) as 'low' | 'medium' | 'high',
+          estimatedTime: booking.estimatedTime || booking.duration || '1 giờ',
+          description: booking.description || booking.notes || 'Không có mô tả',
+          scheduledDate: booking.workDate || booking.scheduledDate || booking.date,
+          scheduledTime: booking.startTime || booking.scheduledTime || booking.time,
+          serviceType: booking.serviceType || 'maintenance',
+          assignedTechnician: booking.technicianName || booking.assignedTechnician,
+          parts: booking.parts || booking.requiredParts || [],
+          workDate: booking.workDate,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          serviceName: booking.serviceName,
+          vehicleId: booking.vehicleId,
+          centerId: booking.centerId
+        }))
+        
+        setWorkQueue(transformedData)
+      } else {
+        console.log('No bookings data found or empty array')
+        setWorkQueue([])
+        // Không hiển thị error nếu không có data, chỉ log
+        if (bookingsData.length === 0) {
+          console.log('No bookings found for the selected date')
+        }
+      }
+    } catch (err: any) {
+      console.error('Error fetching technician bookings:', err)
+      setError(err?.message || 'Không thể tải dữ liệu')
+      toast.error('Không thể tải danh sách công việc')
+      
+      // Fallback: sử dụng mock data nếu API fail
+      console.log('Using fallback mock data due to API error')
+      setWorkQueue([
+        {
+          id: 1,
+          title: 'Sửa chữa động cơ xe điện',
+          customer: 'Nguyễn Văn An',
+          customerPhone: '0901234567',
+          customerEmail: 'nguyenvana@email.com',
+          licensePlate: '30A-12345',
+          bikeBrand: 'VinFast',
+          bikeModel: 'VF e34',
+          status: 'waiting',
+          priority: 'high',
+          estimatedTime: '2 giờ',
+          description: 'Động cơ kêu lạ, cần kiểm tra và thay thế linh kiện',
+          scheduledDate: selectedDate,
+          scheduledTime: '09:00',
+          serviceType: 'repair',
+          assignedTechnician: 'Trần Văn B',
+          parts: ['Động cơ', 'Dây dẫn', 'IC điều khiển']
+        }
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Helper functions để map data
+  const mapBookingStatus = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      'pending': 'waiting',
+      'confirmed': 'waiting', 
+      'in_progress': 'processing',
+      'processing': 'processing',
+      'completed': 'completed',
+      'done': 'completed',
+      'cancelled': 'waiting'
+    }
+    return statusMap[status?.toLowerCase()] || 'waiting'
+  }
+
+  const mapPriority = (priority: string) => {
+    const priorityMap: { [key: string]: string } = {
+      'urgent': 'high',
+      'high': 'high',
+      'medium': 'medium',
+      'normal': 'medium',
+      'low': 'low'
+    }
+    return priorityMap[priority?.toLowerCase()] || 'medium'
+  }
+
+  // Load data khi component mount và khi date thay đổi
+  useEffect(() => {
+    fetchTechnicianBookings(selectedDate)
+  }, [technicianId, selectedDate])
 
   const filteredWork = workQueue.filter(work => {
     const matchesSearch = work.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -146,6 +275,18 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
     
     return matchesSearch && matchesStatus
   })
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredWork.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedWork = filteredWork.slice(startIndex, endIndex)
+
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, statusFilter, selectedDate])
 
 
   const getStatusText = (status: string) => {
@@ -226,7 +367,16 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   return (
     <div className="work-queue">
       {/* Main Content Area */}
-      <div className="work-queue__main">
+        <div 
+          className="work-queue__main"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#F3F4F6',
+            padding: '1.5rem',
+            gap: '1.5rem'
+          }}
+        >
       {/* Header */}
       <div className="work-queue__header">
           <h1 className="work-queue__header__title">Hàng đợi công việc</h1>
@@ -254,36 +404,58 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
         <div className="work-queue__main-card">
           {/* Toolbar */}
           <div className="work-queue__toolbar">
-            <div className="work-queue__toolbar__search">
-              <Search size={16} className="work-queue__toolbar__search__icon" />
-          <input
-            type="text"
-                placeholder="Tìm theo tên khách hàng, biển số, mã công việc..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-                className="work-queue__toolbar__search__input"
-          />
-        </div>
+            {/* Date and Controls Row */}
+            <div className="work-queue__toolbar__date-row">
+              <div className="work-queue__toolbar__date-controls">
+                <Calendar size={16} />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="work-queue__toolbar__date-input"
+                />
+                <button
+                  onClick={() => fetchTechnicianBookings(selectedDate)}
+                  disabled={loading}
+                  className="work-queue__toolbar__refresh-btn"
+                  title="Làm mới dữ liệu"
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  {loading ? 'Đang tải...' : 'Làm mới'}
+                </button>
+              </div>
+              
+              {error && (
+                <div className="work-queue__toolbar__error">
+                  <AlertTriangle size={16} />
+                  <span>{error}</span>
+                </div>
+              )}
+            </div>
 
-            <div className="work-queue__toolbar__filters">
-        <select
+            {/* Search and Filter Row */}
+            <div className="work-queue__toolbar__search-wrapper">
+              <input
+                type="text"
+                placeholder="Tìm theo tên khách hàng, biển số, mã công việc..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="work-queue__toolbar__search__input"
+              />
+              <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="work-queue__toolbar__filters__select"
-        >
-          <option value="all">Tất cả trạng thái</option>
+              >
+                <option value="all">Tất cả trạng thái</option>
                 <option value="waiting">Chờ tiếp nhận</option>
                 <option value="processing">Đang xử lý</option>
-          <option value="completed">Hoàn thành</option>
-        </select>
-
+                <option value="completed">Hoàn thành</option>
+              </select>
             </div>
 
-            <button className="work-queue__toolbar__create-btn">
-              <Plus size={16} />
-              Tạo công việc mới
-            </button>
-      </div>
+            {/* Action Buttons */}
+          </div>
 
           {/* Work List */}
           <div className="work-queue__list-container">
@@ -297,8 +469,21 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
             </div>
 
             {/* Work Items List */}
-            <div className="work-queue__list">
-              {filteredWork.map((work) => (
+            <div 
+              className="work-queue__list"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem'
+              }}
+            >
+              {loading ? (
+                <div className="work-queue__loading">
+                  <RefreshCw size={24} className="animate-spin" />
+                  <span>Đang tải dữ liệu...</span>
+                </div>
+              ) : (
+                paginatedWork.map((work) => (
                 <div key={work.id}>
                   {/* Main Work Card */}
                   <div 
@@ -403,12 +588,99 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
                     </div>
                   )}
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
 
+      {/* Pagination */}
+      {!loading && filteredWork.length > 0 && (
+        <div 
+          className="work-queue__pagination"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '1rem 1.5rem',
+            background: 'white',
+            borderTop: '1px solid #e5e7eb',
+            marginTop: '1rem',
+            marginBottom: '2rem' // Thêm margin bottom để có thể scroll đến
+          }}
+        >
+          <div className="work-queue__pagination__info">
+            Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredWork.length)} trong {filteredWork.length} kết quả
+          </div>
+          <div className="work-queue__pagination__controls">
+            <button
+              className="work-queue__pagination__button"
+              style={{
+                padding: '0.5rem 1rem',
+                border: '1px solid #e5e7eb',
+                background: 'white',
+                color: '#374151',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.5 : 1
+              }}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </button>
+            
+            <div className="work-queue__pagination__pages">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  className={`work-queue__pagination__page ${
+                    currentPage === page ? 'work-queue__pagination__page--active' : ''
+                  }`}
+                  style={{
+                    width: '2rem',
+                    height: '2rem',
+                    border: '1px solid #e5e7eb',
+                    background: currentPage === page ? '#004030' : 'white',
+                    color: currentPage === page ? 'white' : '#374151',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 0.125rem'
+                  }}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              className="work-queue__pagination__button"
+              style={{
+                padding: '0.5rem 1rem',
+                border: '1px solid #e5e7eb',
+                background: 'white',
+                color: '#374151',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.5 : 1
+              }}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Empty State */}
-      {filteredWork.length === 0 && (
+      {!loading && filteredWork.length === 0 && (
         <div className="work-queue__empty">
           <div className="work-queue__empty__icon">
                 <Clock size={48} />
