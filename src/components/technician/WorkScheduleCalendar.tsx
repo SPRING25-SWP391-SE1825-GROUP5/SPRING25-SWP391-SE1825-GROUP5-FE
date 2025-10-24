@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import { useAppSelector } from '@/store/hooks'
 import { TechnicianTimeSlotService, type TechnicianTimeSlotData } from '@/services/technicianTimeSlotService'
+import { TechnicianService } from '@/services/technicianService'
 import { format } from 'date-fns'
 import { type TimeSlot } from '@/types/technician'
 import './WorkScheduleCalendar.scss'
@@ -43,62 +44,60 @@ export default function WorkScheduleCalendar({
     setError(null)
     
     try {
-      // Step 1: Get technician details first to get the correct centerId
-      const tempTechnicianId = 4 // Default technician ID for testing
-      
-      console.log('🔍 Getting technician details for ID:', tempTechnicianId)
-      
-      const technicianResponse = await TechnicianTimeSlotService.getTechnicianById(tempTechnicianId)
-      
-      console.log('👤 Technician details response:', technicianResponse)
+      // Check if user is available
+      if (!user?.id) {
+        console.log('⚠️ User not available or no ID found')
+        setError('Vui lòng đăng nhập để xem lịch làm việc')
+        setWorkDays(new Set())
+        return
+      }
 
-      if (technicianResponse.success && technicianResponse.data) {
-        const technicianData = technicianResponse.data
-        const actualTechnicianId = technicianData.technicianId || tempTechnicianId
-        const actualCenterId = technicianData.centerId
+      // Step 1: Resolve technicianId from userId
+      console.log('🔍 Resolving technicianId for userId:', user.id)
+      
+      const technicianInfo = await TechnicianService.getTechnicianIdByUserId(user.id)
+      
+      console.log('👤 Resolved technician info:', technicianInfo)
+      
+      const technicianId = technicianInfo.technicianId
+      const centerId = technicianInfo.centerId
+      
+      console.log('📋 Using resolved IDs:', { 
+        technicianId,
+        centerId,
+        technicianName: technicianInfo.technicianName
+      })
+      
+      // Update state with resolved IDs
+      setTechnicianId(technicianId)
+      setCenterId(centerId)
+      
+      // Step 2: Get work schedule using the resolved technicianId and centerId
+      console.log('🔍 Getting work schedule with resolved IDs:', { 
+        technicianId,
+        centerId
+      })
+      
+      const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, centerId)
+      
+      console.log('📡 Work schedule response:', scheduleResponse)
+
+      if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
+        // Process work dates and create a Set of unique work days
+        const workDaysSet = new Set<string>()
         
-        console.log('📋 Using technician and center IDs from technician API:', { 
-          technicianId: actualTechnicianId,
-          centerId: actualCenterId,
-          technicianName: technicianData.userFullName
+        scheduleResponse.data.forEach((slot: TechnicianTimeSlotData) => {
+          // Normalize workDate to get only the date part (YYYY-MM-DD)
+          const workDate = new Date(slot.workDate)
+          const normalizedDate = format(workDate, 'yyyy-MM-dd')
+          workDaysSet.add(normalizedDate)
         })
-        
-        // Update state with actual IDs from technician API
-        setTechnicianId(actualTechnicianId)
-        setCenterId(actualCenterId)
-        
-        // Step 3: Get work schedule using the correct technicianId and centerId
-        console.log('🔍 Getting work schedule with correct IDs:', { 
-          technicianId: actualTechnicianId,
-          centerId: actualCenterId
-        })
-        
-        const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(actualTechnicianId, actualCenterId)
-        
-        console.log('📡 Work schedule response:', scheduleResponse)
 
-        if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
-          // Process work dates and create a Set of unique work days
-          const workDaysSet = new Set<string>()
-          
-          scheduleResponse.data.forEach((slot: TechnicianTimeSlotData) => {
-            // Normalize workDate to get only the date part (YYYY-MM-DD)
-            const workDate = new Date(slot.workDate)
-            const normalizedDate = format(workDate, 'yyyy-MM-dd')
-            workDaysSet.add(normalizedDate)
-          })
-
-          console.log('✅ Work days loaded:', Array.from(workDaysSet))
-          setWorkDays(workDaysSet)
-          setTimeSlots(scheduleResponse.data)
-        } else {
-          console.log('⚠️ No work schedule data found for this technician and center')
-          setError('Không tìm thấy lịch làm việc cho technician này')
-          setWorkDays(new Set())
-        }
+        console.log('✅ Work days loaded:', Array.from(workDaysSet))
+        setWorkDays(workDaysSet)
+        setTimeSlots(scheduleResponse.data)
       } else {
-        console.log('⚠️ No technician data found')
-        setError('Không tìm thấy thông tin technician')
+        console.log('⚠️ No work schedule data found for this technician and center')
         setWorkDays(new Set())
       }
     } catch (error: any) {
@@ -108,12 +107,15 @@ export default function WorkScheduleCalendar({
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user?.id])
 
   // Load work schedule when component mounts or when month changes
   useEffect(() => {
-    loadWorkSchedule()
-  }, [loadWorkSchedule, currentDate.getMonth(), currentDate.getFullYear()])
+    // Only load if user is available
+    if (user?.id) {
+      loadWorkSchedule()
+    }
+  }, [loadWorkSchedule, currentDate.getMonth(), currentDate.getFullYear(), user?.id])
 
   // Check if a day has work schedule
   const hasWork = (date: Date): boolean => {
@@ -231,20 +233,25 @@ export default function WorkScheduleCalendar({
         </div>
 
 
+         {/* Loading State */}
+         {(loading || !user?.id) && (
+           <div className="work-schedule-calendar__loading">
+             <p className="text-center text-gray-500">
+               {!user?.id ? 'Đang tải thông tin người dùng...' : 'Đang tải dữ liệu lịch làm việc...'}
+             </p>
+           </div>
+         )}
+
          {/* Error Message */}
          {error && (
            <div className="work-schedule-calendar__error">
              <p className="text-red-600 text-sm">⚠️ {error}</p>
-             <button 
-               onClick={loadWorkSchedule}
-               className="text-blue-600 text-sm underline ml-2"
-             >
-               Thử lại
-             </button>
            </div>
          )}
 
-        <div className="work-schedule-calendar__content">
+        {/* Calendar - only show when not loading, no error, and user is available */}
+        {!loading && !error && user?.id && (
+          <div className="work-schedule-calendar__content">
           <div className="work-schedule-calendar__month">
             <div className="work-schedule-calendar__month__header">
               {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((day) => (
@@ -274,6 +281,7 @@ export default function WorkScheduleCalendar({
             </div>
           </div>
         </div>
+        )}
       </div>
 
              <DayDetailModal

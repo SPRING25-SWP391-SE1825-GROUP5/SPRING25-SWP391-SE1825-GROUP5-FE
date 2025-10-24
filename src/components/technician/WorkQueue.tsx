@@ -82,39 +82,45 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   // Resolve technicianId bằng cách gọi API để lấy technicianId chính xác từ userId
   useEffect(() => {
     const resolveTechnicianId = async () => {
-      // 1) Thử lấy từ localStorage trước (đã lưu trước đó)
-      try {
-        const cached = localStorage.getItem('technicianId')
-        if (cached) {
-          const parsed = Number(cached)
-          if (Number.isFinite(parsed) && parsed > 0) {
-            console.log('✅ Using cached technicianId:', parsed)
-            setTechnicianId(parsed)
-            return
-          }
-        }
-      } catch {}
-
-      // 2) Gọi API để lấy technicianId chính xác từ userId
+      // 1) Thử lấy từ localStorage trước (đã lưu trước đó) - cache theo userId
       const userId = user?.id
-      if (userId && Number.isFinite(Number(userId))) {
+      if (userId) {
         try {
-          console.log('🔍 Resolving technicianId for userId:', userId)
-          const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
-          
-          if (result?.technicianId) {
-            console.log('✅ Resolved technicianId:', result.technicianId, 'for userId:', userId)
-            setTechnicianId(result.technicianId)
-            // Cache lại để lần sau nhanh hơn
-            try { localStorage.setItem('technicianId', String(result.technicianId)) } catch {}
+          const cacheKey = `technicianId_${userId}`
+          const cached = localStorage.getItem(cacheKey)
+          if (cached) {
+            const parsed = Number(cached)
+            if (Number.isFinite(parsed) && parsed > 0) {
+              console.log('✅ Using cached technicianId:', parsed, 'for userId:', userId)
+              setTechnicianId(parsed)
+              return
+            }
+          }
+        } catch {}
+
+        // 2) Gọi API để lấy technicianId chính xác từ userId
+        if (Number.isFinite(Number(userId))) {
+          try {
+            console.log('🔍 Resolving technicianId for userId:', userId)
+            const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
+            
+            if (result?.technicianId) {
+              console.log('✅ Resolved technicianId:', result.technicianId, 'for userId:', userId)
+              setTechnicianId(result.technicianId)
+              // Cache lại để lần sau nhanh hơn - cache theo userId
+              try { 
+                const cacheKey = `technicianId_${userId}`
+                localStorage.setItem(cacheKey, String(result.technicianId)) 
+              } catch {}
+              return
+            }
+          } catch (e) {
+            console.warn('Could not resolve technicianId for userId:', userId, e)
+            // Không dùng fallback vì userId không phải technicianId
+            console.log('⚠️ Could not resolve technicianId, skipping bookings fetch')
+            setTechnicianId(null)
             return
           }
-        } catch (e) {
-          console.warn('Could not resolve technicianId for userId:', userId, e)
-          // Không dùng fallback vì userId không phải technicianId
-          console.log('⚠️ Could not resolve technicianId, skipping bookings fetch')
-          setTechnicianId(null)
-          return
         }
       }
 
@@ -219,29 +225,8 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
       setError(err?.message || 'Không thể tải dữ liệu')
       toast.error('Không thể tải danh sách công việc')
       
-      // Fallback: sử dụng mock data nếu API fail
-      console.log('Using fallback mock data due to API error')
-      setWorkQueue([
-        {
-          id: 1,
-          title: 'Sửa chữa động cơ xe điện',
-          customer: 'Nguyễn Văn An',
-          customerPhone: '0901234567',
-          customerEmail: 'nguyenvana@email.com',
-          licensePlate: '30A-12345',
-          bikeBrand: 'VinFast',
-          bikeModel: 'VF e34',
-          status: 'pending',
-          priority: 'high',
-          estimatedTime: '2 giờ',
-          description: 'Động cơ kêu lạ, cần kiểm tra và thay thế linh kiện',
-          scheduledDate: selectedDate,
-          scheduledTime: '09:00',
-          serviceType: 'repair',
-          assignedTechnician: 'Trần Văn B',
-          parts: ['Động cơ', 'Dây dẫn', 'IC điều khiển']
-        }
-      ])
+      // Set empty array instead of mock data
+      setWorkQueue([])
     } finally {
       setLoading(false)
     }
