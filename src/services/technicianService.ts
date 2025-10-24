@@ -20,6 +20,50 @@ export type TechnicianListResponse = {
 }
 
 export const TechnicianService = {
+    // Lấy technicianId từ userId bằng cách gọi API Technician list
+    async getTechnicianIdByUserId(userId: number) {
+        try {
+            console.log('🔍 Getting technicianId for userId:', userId)
+            
+            // Gọi API lấy danh sách technicians và tìm technician có userId tương ứng
+            const response = await api.get('/Technician', { 
+                params: { 
+                    pageSize: 1000, // Lấy nhiều để tìm được
+                    // Không dùng searchTerm vì có thể không tìm được
+                } 
+            })
+            
+            console.log('📋 Technician list response:', response?.data)
+            
+            if (response?.data?.success && response.data.data) {
+                const technicians = response.data.data.technicians || response.data.data
+                
+                if (Array.isArray(technicians)) {
+                    console.log('📋 Found technicians:', technicians.length)
+                    
+                    // Tìm technician có userId tương ứng
+                    const technician = technicians.find((t: any) => {
+                        console.log('🔍 Checking technician:', t, 'userId:', t.userId, 'user.id:', t.user?.id, 'target userId:', userId)
+                        return t.userId === userId || t.user?.id === userId
+                    })
+                    
+                    if (technician && technician.technicianId) {
+                        console.log('✅ Found technicianId:', technician.technicianId, 'for userId:', userId)
+                        return {
+                            technicianId: Number(technician.technicianId),
+                            centerId: technician.centerId,
+                            technicianName: technician.userFullName || technician.name
+                        }
+                    }
+                }
+            }
+            
+            throw new Error('Không tìm thấy technician cho userId này')
+        } catch (error) {
+            console.error('Error getting technicianId by userId:', error)
+            throw error
+        }
+    },
     async list(params: { pageNumber?: number; pageSize?: number; searchTerm?: string; centerId?: number } = {}) {
         const { data } = await api.get('/Technician', { params })
         if (data?.success && data?.data) {
@@ -116,6 +160,24 @@ export const TechnicianService = {
             }
         })
         return data
+    },
+
+    // Lấy danh sách bookings của technician theo ngày
+    async getTechnicianBookings(technicianId: number, date?: string) {
+        try {
+            const params: any = {}
+            if (date) {
+                params.date = date
+            }
+            
+            console.log(`Fetching bookings for technician ${technicianId} with params:`, params)
+            const { data } = await api.get(`/Technician/${technicianId}/bookings`, { params })
+            console.log('Raw API response:', data)
+            return data
+        } catch (error) {
+            console.error('Error fetching technician bookings:', error)
+            throw error
+        }
     },
 }
 

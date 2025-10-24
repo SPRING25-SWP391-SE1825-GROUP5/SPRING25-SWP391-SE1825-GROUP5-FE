@@ -4,6 +4,7 @@
   height: 100vh;
   background: var(--bg-primary);
   font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  overflow: hidden; // Ngăn scroll ở container chính
 
   // Sidebar Styles
   &__sidebar {
@@ -152,7 +153,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100vh;
 
     &__header {
       height: 70px;
@@ -247,7 +250,9 @@
 
     &__content {
       flex: 1;
-      overflow: auto;
+      overflow: visible; // Cho phép scroll toàn trang
+      min-height: 0; // Quan trọng để flex item có thể shrink
+      position: relative; // Đảm bảo scroll context
     }
   }
 }
@@ -256,7 +261,7 @@
 .dashboard-overview {
   padding: 24px;
   background: var(--bg-secondary);
-  min-height: 100vh;
+  min-height: auto;
 
   &__welcome {
     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));

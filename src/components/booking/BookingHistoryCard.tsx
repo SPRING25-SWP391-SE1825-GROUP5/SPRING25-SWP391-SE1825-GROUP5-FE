@@ -42,7 +42,7 @@ export default function BookingHistoryCard({
   onEditFeedback 
 }: BookingHistoryCardProps) {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false) // Mặc định thu gọn
 
   // Kiểm tra xem có thể đánh giá không - chỉ cho phép khi status là COMPLETED
   const canGiveFeedback = () => {
@@ -123,8 +123,8 @@ export default function BookingHistoryCard({
 
   return (
     <>
-      <div className="booking-history-card">
-        {/* Header */}
+      <div className="booking-history-card" onClick={() => setIsExpanded(!isExpanded)}>
+        {/* Header - Always visible */}
         <div className="booking-card-header">
           <div className="booking-info">
             <h4 className="booking-title">{booking.serviceName}</h4>
@@ -137,132 +137,222 @@ export default function BookingHistoryCard({
           </div>
         </div>
 
-        {/* Basic Info */}
-        <div className="booking-basic-info">
-          <div className="info-row">
+        {/* Compact Info - Always visible */}
+        <div className="booking-compact-info">
+          <div className="compact-row">
             <ClockIcon className="info-icon" />
-            <span className="info-label">Ngày đặt lịch:</span>
             <span className="info-value">
               {new Date(booking.bookingDate).toLocaleDateString('vi-VN', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
               })}
             </span>
-          </div>
-          
-          <div className="info-row">
             <MapPinIcon className="info-icon" />
-            <span className="info-label">Trung tâm:</span>
             <span className="info-value">{booking.centerName}</span>
-          </div>
-
-          {booking.technicianName && (
-            <div className="info-row">
-              <UserIcon className="info-icon" />
-              <span className="info-label">Kỹ thuật viên:</span>
-              <span className="info-value">{booking.technicianName}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Vehicle Info */}
-        <div className="booking-vehicle-info">
-          <div className="vehicle-info">
-            <span className="vehicle-label">Phương tiện:</span>
             <span className="vehicle-value">
-              {booking.vehicleInfo.licensePlate} - {booking.vehicleInfo.carModel}
-            </span>
-          </div>
-        </div>
-
-        {/* Cost Info */}
-        <div className="booking-cost-info">
-          <div className="cost-row">
-            <span className="cost-label">Chi phí:</span>
-            <span className="cost-value">
-              {booking.actualCost ? 
-                `${booking.actualCost.toLocaleString('vi-VN')} VNĐ` : 
-                `Ước tính: ${booking.estimatedCost?.toLocaleString('vi-VN')} VNĐ`
-              }
+              {booking.vehicleInfo.licensePlate}
             </span>
           </div>
         </div>
 
         {/* Expandable Details */}
-        <div className="booking-details">
-          <button 
-            className="expand-button"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <span>Chi tiết</span>
-            <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          </button>
+        {isExpanded && (
+          <div className="booking-expanded-content">
+            {/* Detailed Info */}
+            <div className="booking-basic-info">
+              <div className="info-row">
+                <ClockIcon className="info-icon" />
+                <span className="info-label">Ngày đặt lịch:</span>
+                <span className="info-value">
+                  {new Date(booking.bookingDate).toLocaleDateString('vi-VN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
+              
+              <div className="info-row">
+                <MapPinIcon className="info-icon" />
+                <span className="info-label">Trung tâm:</span>
+                <span className="info-value">{booking.centerName}</span>
+              </div>
 
-          {isExpanded && (
-            <div className="booking-details-content">
-              {booking.notes && (
-                <div className="detail-section">
-                  <h5 className="detail-section-title">Ghi chú</h5>
-                  <p className="detail-section-content">{booking.notes}</p>
+              {booking.technicianName && (
+                <div className="info-row">
+                  <UserIcon className="info-icon" />
+                  <span className="info-label">Kỹ thuật viên:</span>
+                  <span className="info-value">{booking.technicianName}</span>
                 </div>
               )}
+            </div>
 
-              {/* Feedback Section */}
-              {booking.hasFeedback && booking.feedback && (
-                <div className="detail-section">
-                  <h5 className="detail-section-title">Đánh giá của bạn</h5>
-                  <div className="feedback-display">
+            {/* Vehicle Info */}
+            <div className="booking-vehicle-info">
+              <div className="vehicle-info">
+                <span className="vehicle-label">Phương tiện:</span>
+                <span className="vehicle-value">
+                  {booking.vehicleInfo.licensePlate} - {booking.vehicleInfo.carModel}
+                </span>
+              </div>
+            </div>
+
+            {/* Cost Info - Only show if we have valid cost data */}
+            {(booking.actualCost || (booking.estimatedCost && booking.estimatedCost > 0)) && (
+              <div className="booking-cost-info">
+                <div className="cost-row">
+                  <span className="cost-label">Chi phí:</span>
+                  <span className="cost-value">
+                    {booking.actualCost ? 
+                      `${booking.actualCost.toLocaleString('vi-VN')} VNĐ` : 
+                      `Ước tính: ${booking.estimatedCost?.toLocaleString('vi-VN')} VNĐ`
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Details */}
+            {booking.notes && (
+              <div className="detail-section">
+                <h5 className="detail-section-title">Ghi chú</h5>
+                <p className="detail-section-content">{booking.notes}</p>
+              </div>
+            )}
+
+            {/* Debug Feedback Data */}
+            {(() => {
+              console.log('🔍 Booking feedback debug:', {
+                bookingId: booking.bookingId,
+                hasFeedback: booking.hasFeedback,
+                feedback: booking.feedback,
+                status: booking.status
+              })
+              return null
+            })()}
+
+            {/* Debug Feedback Info */}
+            {(() => {
+              console.log('🔍 BookingHistoryCard - Feedback debug:', {
+                bookingId: booking.bookingId,
+                status: booking.status,
+                hasFeedback: booking.hasFeedback,
+                feedback: booking.feedback,
+                feedbackExists: !!booking.feedback
+              })
+              return null
+            })()}
+
+            {/* Feedback Section */}
+            {((booking.hasFeedback && booking.feedback) || (booking.feedback && booking.feedback.technicianRating > 0)) && (
+              <div className="detail-section">
+                <h5 className="detail-section-title">Đánh giá của bạn</h5>
+                <div className="feedback-display">
+                  {/* Technician Rating */}
+                  <div className="feedback-rating-section">
+                    <h6 className="rating-label">Đánh giá kỹ thuật viên:</h6>
                     <div className="feedback-rating">
                       {[...Array(5)].map((_, i) => (
                         <StarIcon 
                           key={i} 
-                          className={`star-icon ${i < booking.feedback.rating ? 'filled' : ''}`}
+                          className={`star-icon ${i < (booking.feedback.technicianRating || 0) ? 'filled' : ''}`}
                         />
                       ))}
+                      <span className="rating-text">
+                        {booking.feedback.technicianRating || 0}/5
+                      </span>
                     </div>
-                    <p className="feedback-comment">{booking.feedback.comment}</p>
                   </div>
+
+                  {/* Parts Rating */}
+                  {booking.feedback.partsRating > 0 && (
+                    <div className="feedback-rating-section">
+                      <h6 className="rating-label">Đánh giá phụ tùng thay thế:</h6>
+                      <div className="feedback-rating">
+                        {[...Array(5)].map((_, i) => (
+                          <StarIcon 
+                            key={i} 
+                            className={`star-icon ${i < (booking.feedback.partsRating || 0) ? 'filled' : ''}`}
+                          />
+                        ))}
+                        <span className="rating-text">
+                          {booking.feedback.partsRating || 0}/5
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comment */}
+                  <div className="feedback-comment-section">
+                    <h6 className="comment-label">Nhận xét:</h6>
+                    <p className="feedback-comment">{booking.feedback.comment || 'Không có nhận xét'}</p>
+                  </div>
+
+                  {/* Tags */}
+                  {booking.feedback.tags && booking.feedback.tags.length > 0 && (
+                    <div className="feedback-tags-section">
+                      <h6 className="tags-label">Thẻ đánh giá:</h6>
+                      <div className="feedback-tags">
+                        {booking.feedback.tags.map((tag: string, index: number) => (
+                          <span key={index} className="feedback-tag">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="booking-actions">
+              {canGiveFeedback() && (
+                <BaseButton
+                  variant="primary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleFeedbackClick()
+                  }}
+                  className="feedback-button"
+                >
+                  <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                  Đánh giá dịch vụ
+                </BaseButton>
+              )}
+
+              {canEditFeedback() && (
+                <BaseButton
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleFeedbackClick()
+                  }}
+                  className="edit-feedback-button"
+                >
+                  <StarIcon className="w-4 h-4" />
+                  Sửa đánh giá
+                </BaseButton>
+              )}
+
+              {booking.status === 'CANCELLED' && (
+                <div className="cancelled-info">
+                  <ExclamationTriangleIcon className="w-4 h-4" />
+                  <span>Đặt lịch đã bị hủy</span>
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Actions */}
-        <div className="booking-actions">
-          {canGiveFeedback() && (
-            <BaseButton
-              variant="primary"
-              size="sm"
-              onClick={handleFeedbackClick}
-              className="feedback-button"
-            >
-              <ChatBubbleLeftRightIcon className="w-4 h-4" />
-              Đánh giá dịch vụ
-            </BaseButton>
-          )}
-
-          {canEditFeedback() && (
-            <BaseButton
-              variant="outline"
-              size="sm"
-              onClick={handleFeedbackClick}
-              className="edit-feedback-button"
-            >
-              <StarIcon className="w-4 h-4" />
-              Sửa đánh giá
-            </BaseButton>
-          )}
-
-          {booking.status === 'CANCELLED' && (
-            <div className="cancelled-info">
-              <ExclamationTriangleIcon className="w-4 h-4" />
-              <span>Đặt lịch đã bị hủy</span>
-            </div>
-          )}
+        {/* Expand/Collapse Indicator */}
+        <div className="expand-indicator">
+          <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
+            {isExpanded ? '▲' : '▼'}
+          </span>
         </div>
       </div>
 
@@ -276,7 +366,12 @@ export default function BookingHistoryCard({
           technician={booking.technicianName || 'Chưa xác định'}
           partsUsed={[]} // Có thể cần thêm thông tin phụ tùng từ API
           onSubmit={booking.hasFeedback ? handleEditFeedback : handleSubmitFeedback}
-          initialData={booking.feedback}
+          initialData={booking.feedback ? {
+            technicianRating: booking.feedback.technicianRating || 0,
+            partsRating: booking.feedback.partsRating || 0,
+            comment: booking.feedback.comment || '',
+            tags: booking.feedback.tags || []
+          } : undefined}
         />
       )}
     </>

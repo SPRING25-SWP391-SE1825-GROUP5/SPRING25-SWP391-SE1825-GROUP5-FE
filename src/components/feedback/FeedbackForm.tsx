@@ -10,6 +10,16 @@ export interface FeedbackData {
   tags: string[]
 }
 
+// New interface for API request
+export interface BookingFeedbackRequest {
+  customerId: number
+  rating: number
+  comment: string
+  isAnonymous: boolean
+  technicianId: number
+  partId?: number
+}
+
 interface FeedbackFormProps {
   bookingId: string
   serviceName: string
@@ -50,6 +60,8 @@ export default function FeedbackForm({
     comment: initialData.comment || '',
     tags: initialData.tags || []
   })
+  
+  const [isAnonymous, setIsAnonymous] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 

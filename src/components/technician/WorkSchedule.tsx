@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import WorkScheduleHeader from './WorkScheduleHeader'
 import WorkScheduleCalendar from './WorkScheduleCalendar'
-import WorkScheduleFilters from './WorkScheduleFilters'
+import { useAppSelector } from '@/store/hooks'
 import './WorkSchedule.scss'
 
 interface Appointment {
@@ -23,146 +23,50 @@ interface ScheduleData {
 }
 
 interface WorkScheduleProps {
-  onNavigateToLeaveRequest: () => void
   onNavigateToVehicleDetails: () => void
 }
 
-export default function WorkSchedule({ onNavigateToLeaveRequest, onNavigateToVehicleDetails }: WorkScheduleProps) {
+export default function WorkSchedule({ onNavigateToVehicleDetails }: WorkScheduleProps) {
   // Removed viewMode - only using month view
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({
-    status: [] as string[],
-    priority: [] as string[],
-    dateRange: {
-      start: '',
-      end: ''
-    }
-  })
+  const [scheduleData, setScheduleData] = useState<ScheduleData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const scheduleData: ScheduleData[] = [
-    {
-      id: 1,
-      date: '2024-01-18',
-      timeSlot: '08:00 - 17:00',
-      appointments: [
-        {
-          id: 1,
-          time: '09:00',
-          customer: 'Nguyễn Văn An',
-          service: 'Sửa chữa động cơ',
-          vehicle: 'VF e34 - 30A-12345',
-          status: 'confirmed',
-          priority: 'high'
-        },
-        {
-          id: 2,
-          time: '14:00',
-          customer: 'Trần Thị Bình',
-          service: 'Bảo dưỡng định kỳ',
-          vehicle: 'Newtech - 29B-67890',
-          status: 'pending',
-          priority: 'medium'
-        }
-      ],
-      workload: 'moderate'
-    },
-    {
-      id: 2,
-      date: '2024-01-19',
-      timeSlot: '08:00 - 17:00',
-      appointments: [
-        {
-          id: 3,
-          time: '08:00',
-          customer: 'Lê Hoài Cường',
-          service: 'Thay thế pin',
-          vehicle: 'Xmen Neo - 51C-11111',
-          status: 'confirmed',
-          priority: 'high'
-        },
-        {
-          id: 4,
-          time: '10:30',
-          customer: 'Phạm Thị Dung',
-          service: 'Kiểm tra hệ thống điện',
-          vehicle: 'VF 5 Plus - 52D-22222',
-          status: 'confirmed',
-          priority: 'medium'
-        },
-        {
-          id: 5,
-          time: '15:00',
-          customer: 'Hoàng Văn Em',
-          service: 'Sửa chữa phanh',
-          vehicle: 'Klara S - 53E-33333',
-          status: 'pending',
-          priority: 'low'
-        }
-      ],
-      workload: 'heavy'
-    },
-    {
-      id: 3,
-      date: '2024-01-20',
-      timeSlot: '08:00 - 17:00',
-      appointments: [
-        {
-          id: 6,
-          time: '11:00',
-          customer: 'Nguyễn Thị Phương',
-          service: 'Bảo dưỡng định kỳ',
-          vehicle: 'Feliz S - 54F-44444',
-          status: 'confirmed',
-          priority: 'low'
-        }
-      ],
-      workload: 'light'
-    }
-  ]
+  // Get user data from Redux
+  const user = useAppSelector((state) => state.auth.user)
 
-  // Filter and search logic
-  const filteredScheduleData = scheduleData.filter(schedule => {
-    // Search filter
-    if (searchTerm) {
-      const hasMatchingAppointment = schedule.appointments.some(apt => 
-        apt.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        apt.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        apt.vehicle.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      if (!hasMatchingAppointment) return false
-    }
-
-    // Status filter
-    if (filters.status.length > 0) {
-      const hasMatchingStatus = schedule.appointments.some(apt => 
-        filters.status.includes(apt.status)
-      )
-      if (!hasMatchingStatus) return false
-    }
-
-    // Priority filter
-    if (filters.priority.length > 0) {
-      const hasMatchingPriority = schedule.appointments.some(apt => 
-        filters.priority.includes(apt.priority)
-      )
-      if (!hasMatchingPriority) return false
-    }
-
-    // Date range filter
-    if (filters.dateRange.start && filters.dateRange.end) {
-      const scheduleDate = new Date(schedule.date)
-      const startDate = new Date(filters.dateRange.start)
-      const endDate = new Date(filters.dateRange.end)
+  // Load schedule data from API
+  useEffect(() => {
+    const loadScheduleData = async () => {
+      setLoading(true)
+      setError(null)
       
-      if (scheduleDate < startDate || scheduleDate > endDate) {
-        return false
+      try {
+        // TODO: Replace with actual API call to get technician's appointments
+        // For now, return empty array to indicate no mock data
+        console.log('📅 Loading schedule data from API...')
+        
+        // This would be replaced with actual API call:
+        // const response = await BookingService.getTechnicianAppointments(user?.id)
+        // setScheduleData(response.data)
+        
+        setScheduleData([]) // Empty array - no mock data
+        console.log('✅ Schedule data loaded (empty - no mock data)')
+      } catch (error: any) {
+        console.error('❌ Error loading schedule data:', error)
+        setError(error.message || 'Không thể tải dữ liệu lịch làm việc')
+        setScheduleData([])
+      } finally {
+        setLoading(false)
       }
     }
 
-    return true
-  })
+    loadScheduleData()
+  }, [user?.id])
+
+  // Use schedule data directly without filtering
+  const filteredScheduleData = scheduleData
 
   const handleAppointmentClick = (appointment: Appointment) => {
     console.log('Appointment clicked:', appointment)
@@ -171,29 +75,33 @@ export default function WorkSchedule({ onNavigateToLeaveRequest, onNavigateToVeh
 
   return (
     <div className="work-schedule">
-      <WorkScheduleHeader
-        onNavigateToLeaveRequest={onNavigateToLeaveRequest}
-        showFilters={showFilters}
-        onToggleFilters={() => setShowFilters(!showFilters)}
-      />
+      <WorkScheduleHeader />
 
-      <WorkScheduleCalendar
-        viewMode="month"
-        currentDate={currentDate}
-        onDateChange={setCurrentDate}
-        appointments={filteredScheduleData.flatMap(schedule => schedule.appointments)}
-        onAppointmentClick={handleAppointmentClick}
-        onNavigateToVehicleDetails={onNavigateToVehicleDetails}
-      />
+      {/* Loading State */}
+      {loading && (
+        <div className="work-schedule__loading">
+          <p className="text-center text-gray-500">Đang tải dữ liệu lịch làm việc...</p>
+        </div>
+      )}
 
-      <WorkScheduleFilters
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
+      {/* Error State */}
+      {error && (
+        <div className="work-schedule__error">
+          <p className="text-red-600 text-center">⚠️ {error}</p>
+        </div>
+      )}
+
+      {/* Calendar - only show when not loading and no error */}
+      {!loading && !error && (
+        <WorkScheduleCalendar
+          viewMode="month"
+          currentDate={currentDate}
+          onDateChange={setCurrentDate}
+          appointments={[]}
+          onAppointmentClick={() => {}}
+          onNavigateToVehicleDetails={onNavigateToVehicleDetails}
+        />
+      )}
     </div>
   )
 }

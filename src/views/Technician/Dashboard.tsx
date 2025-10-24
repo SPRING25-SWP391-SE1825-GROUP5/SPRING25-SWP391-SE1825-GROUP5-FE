@@ -5,19 +5,18 @@ import { logout } from '@/store/authSlice'
 import toast from 'react-hot-toast'
 import { 
   Wrench, 
-  ClipboardCheck, 
-  Package, 
   Clock,
   CheckCircle,
   AlertCircle,
   User,
   Bell,
   Menu,
-  Settings,
   BarChart3,
   Calendar,
+  Car,
   FileText,
-  Car
+  Settings,
+  ClipboardCheck
 } from 'lucide-react'
 import {
   WorkQueue,
@@ -189,11 +188,10 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
         <div className="work-detail-modal__content__tabs">
           <div className="work-detail-modal__content__tabs__nav">
             {[
-              { id: 'overview', label: 'Tổng quan', icon: Settings },
+              { id: 'overview', label: 'Tổng quan', icon: BarChart3 },
               { id: 'progress', label: 'Tiến độ', icon: Clock },
-              { id: 'parts', label: 'Phụ tùng', icon: Package },
-              { id: 'time', label: 'Thời gian', icon: BarChart3 },
-              { id: 'notes', label: 'Ghi chú', icon: ClipboardCheck }
+              { id: 'time', label: 'Thời gian', icon: Clock },
+              { id: 'notes', label: 'Ghi chú', icon: FileText }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -318,27 +316,6 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
             </div>
           )}
 
-          {activeTab === 'parts' && (
-            <div className="parts-tab">
-              <h3 className="parts-tab__title">
-                Checklist kiểm tra phụ tùng
-              </h3>
-              {selectedWork.parts && selectedWork.parts.length > 0 ? (
-                <div className="parts-tab__list">
-                  {selectedWork.parts.map((part: string, index: number) => (
-                    <div key={index} className="parts-tab__list__item">
-                      <span>{part}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="parts-tab__empty">
-                  <Package size={48} className="parts-tab__empty__icon" />
-                  <p>Không cần kiểm tra phụ tùng cho công việc này</p>
-                </div>
-              )}
-            </div>
-          )}
 
           {activeTab === 'notes' && (
             <div className="notes-tab">
@@ -468,32 +445,10 @@ export default function TechnicianDashboard() {
         }} />
       case 'work-schedule':
         return <WorkSchedule 
-          onNavigateToLeaveRequest={() => setActivePage('leave-request')}
           onNavigateToVehicleDetails={() => setActivePage('vehicle-details')}
         />
       case 'vehicle-details':
         return <VehicleDetails />
-      case 'checklists':
-        return (
-          <div>
-            <h2>Danh sách kiểm tra</h2>
-            <p>Tính năng đang được phát triển...</p>
-          </div>
-        )
-      case 'parts-request':
-        return (
-          <div>
-            <h2>Yêu cầu phụ tùng</h2>
-            <p>Tính năng đang được phát triển...</p>
-          </div>
-        )
-      case 'settings':
-        return (
-          <div>
-            <h2>Cài đặt</h2>
-            <p>Tính năng đang được phát triển...</p>
-          </div>
-        )
       default:
         return <DashboardOverview />
     }
@@ -655,9 +610,6 @@ export default function TechnicianDashboard() {
       case 'work-queue': return 'Hàng đợi công việc'
       case 'work-schedule': return 'Lịch làm việc'
       case 'vehicle-details': return 'Chi tiết xe khách'
-      case 'checklists': return 'Danh sách kiểm tra'
-      case 'parts-request': return 'Yêu cầu phụ tùng'
-      case 'settings': return 'Cài đặt'
       default: return 'Dashboard'
     }
   }
@@ -716,11 +668,8 @@ export default function TechnicianDashboard() {
               </h3>
               {[
                 { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
-              { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
-              { icon: Car, label: 'Chi tiết xe khách', page: 'vehicle-details' },
-                { icon: ClipboardCheck, label: 'Danh sách kiểm tra', page: 'checklists' },
-                { icon: Package, label: 'Yêu cầu phụ tùng', page: 'parts-request' },
-                { icon: Settings, label: 'Cài đặt', page: 'settings' }
+                { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
+                { icon: Car, label: 'Chi tiết xe khách', page: 'vehicle-details' }
               ].map((item, index) => (
                 <div 
                   key={index}
