@@ -151,6 +151,118 @@ export class ChatService {
     }
   }
 
+  // Create conversation with staff (for customer support)
+  static async createSupportConversation(): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await api.post('/conversation', {
+        subject: 'Hỗ trợ khách hàng VIP',
+        members: [
+          {
+            userId: null,
+            guestSessionId: null,
+            roleInConversation: 'CUSTOMER'
+          },
+          {
+            userId: null,
+            guestSessionId: null,
+            roleInConversation: 'STAFF'
+          }
+        ]
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error creating support conversation:', error)
+      throw error
+    }
+  }
+
+  // Get or create conversation for customer support
+  static async getOrCreateSupportConversation(): Promise<{ success: boolean; data: any }> {
+    try {
+      console.log('Attempting to get or create support conversation...')
+      
+      // Try to get current user ID from localStorage or auth state
+      const currentUserId = localStorage.getItem('userId') || null
+      const guestSessionId = localStorage.getItem('guestSessionId') || null
+      
+      console.log('Current user ID:', currentUserId, 'Guest session ID:', guestSessionId)
+      
+      const response = await api.post('/conversation/get-or-create', {
+        member1: {
+          userId: currentUserId ? parseInt(currentUserId) : null,
+          guestSessionId: guestSessionId,
+          roleInConversation: 'CUSTOMER'
+        },
+        member2: {
+          userId: null,
+          guestSessionId: null,
+          roleInConversation: 'STAFF'
+        },
+        subject: 'Hỗ trợ khách hàng'
+      })
+      console.log('Get or create conversation response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('Error getting or creating support conversation:', error)
+      console.log('Attempting fallback: creating new conversation...')
+      // Fallback to creating a new conversation
+      try {
+        const currentUserId = localStorage.getItem('userId') || null
+        const guestSessionId = localStorage.getItem('guestSessionId') || null
+        
+        const fallbackResponse = await api.post('/conversation', {
+          subject: 'Hỗ trợ khách hàng',
+          members: [
+            {
+              userId: currentUserId ? parseInt(currentUserId) : null,
+              guestSessionId: guestSessionId,
+              roleInConversation: 'CUSTOMER'
+            },
+            {
+              userId: null,
+              guestSessionId: null,
+              roleInConversation: 'STAFF'
+            }
+          ]
+        })
+        console.log('Fallback conversation response:', fallbackResponse.data)
+        return fallbackResponse.data
+      } catch (fallbackError) {
+        console.error('Error creating fallback conversation:', fallbackError)
+        throw error
+      }
+    }
+  }
+
+  // Send message to conversation
+  static async sendMessageToConversation(conversationId: number, content: string): Promise<{ success: boolean; data: any }> {
+    try {
+      console.log('Sending message to conversation:', conversationId, 'Content:', content)
+      const response = await api.post('/message', {
+        conversationId: conversationId,
+        content: content
+      })
+      console.log('Send message response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('Error sending message:', error)
+      throw error
+    }
+  }
+
+  // Get messages from conversation
+  static async getConversationMessages(conversationId: number, page: number = 1, pageSize: number = 50): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await api.get(`/message/conversations/${conversationId}`, {
+        params: { page, pageSize }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error getting conversation messages:', error)
+      throw error
+    }
+  }
+
   // Get available staff/technicians for chat
   static async getAvailableStaff(): Promise<ChatUser[]> {
     try {
