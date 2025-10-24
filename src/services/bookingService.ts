@@ -290,7 +290,7 @@ class BookingServiceClass {
   async updateBookingStatus(bookingId: number, status: string): Promise<any> {
     try {
       console.log('🌐 BookingService.updateBookingStatus called:', { bookingId, status })
-      const url = `/Booking/${bookingId}/status`
+      const url = `/api/Booking/${bookingId}/status`
       console.log('📡 API URL:', url)
       
       const response = await api.put(url, { status })

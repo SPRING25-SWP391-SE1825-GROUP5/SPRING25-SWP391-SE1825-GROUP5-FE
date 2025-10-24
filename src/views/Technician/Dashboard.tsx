@@ -13,15 +13,12 @@ import {
   Menu,
   BarChart3,
   Calendar,
-  Car,
   FileText,
-  Settings,
-  ClipboardCheck
+  Settings
 } from 'lucide-react'
 import {
   WorkQueue,
-  WorkSchedule,
-  VehicleDetails
+  WorkSchedule
 } from '@/components/technician'
 import {
   AreaChart,
@@ -375,25 +372,11 @@ export default function TechnicianDashboard() {
 
   const stats = [
     {
-      title: 'Công việc hoàn thành',
+      title: 'Tổng đơn công việc đã nhận',
       value: 156,
       change: '+12%',
       icon: CheckCircle,
       color: 'var(--success-500)'
-    },
-    {
-      title: 'Đang thực hiện',
-      value: 8,
-      change: '+3',
-      icon: Clock,
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Chờ nhận',
-      value: 12,
-      change: '-2',
-      icon: AlertCircle,
-      color: 'var(--warning-500)'
     },
     {
       title: 'Đánh giá trung bình',
@@ -404,36 +387,6 @@ export default function TechnicianDashboard() {
     }
   ]
 
-  const quickActions = [
-    {
-      title: 'Hàng đợi công việc',
-      description: 'Xem và nhận công việc mới',
-      icon: Wrench,
-      page: 'work-queue',
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Lịch làm việc',
-      description: 'Xem lịch trình và ca làm việc',
-      icon: Calendar,
-      page: 'work-schedule',
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Chi tiết xe khách',
-      description: 'Xem thông tin xe và phụ tùng',
-      icon: Car,
-      page: 'vehicle-details',
-      color: '#06b6d4'
-    },
-    {
-      title: 'Danh sách kiểm tra',
-      description: 'Checklist bảo trì và sửa chữa',
-      icon: ClipboardCheck,
-      page: 'checklists',
-      color: 'var(--success-500)'
-    }
-  ]
 
   // Page components
   const renderPageContent = () => {
@@ -444,11 +397,7 @@ export default function TechnicianDashboard() {
           setIsDetailModalOpen(true)
         }} />
       case 'work-schedule':
-        return <WorkSchedule 
-          onNavigateToVehicleDetails={() => setActivePage('vehicle-details')}
-        />
-      case 'vehicle-details':
-        return <VehicleDetails />
+        return <WorkSchedule />
       default:
         return <DashboardOverview />
     }
@@ -559,47 +508,6 @@ export default function TechnicianDashboard() {
         </div>
       </div>
 
-        {/* Quick Actions */}
-        <div className="dashboard-overview__quick-actions">
-          <h3 className="dashboard-overview__quick-actions__title">
-            Thao tác nhanh
-          </h3>
-          <div className="dashboard-overview__quick-actions__grid">
-            {quickActions.map((action, index) => (
-              <div
-                key={index}
-                onClick={() => setActivePage(action.page)}
-                className="dashboard-overview__quick-actions__grid__item"
-                style={{
-                  '--action-color': action.color
-                } as React.CSSProperties}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = action.color + '10'
-                  e.currentTarget.style.borderColor = action.color + '40'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.borderColor = 'var(--border-primary)'
-                }}
-              >
-                <div 
-                  className="dashboard-overview__quick-actions__grid__item__icon"
-                  style={{ background: action.color + '15' }}
-                >
-                  <action.icon size={24} style={{ color: action.color }} />
-                </div>
-                <div className="dashboard-overview__quick-actions__grid__item__content">
-                  <h4 className="dashboard-overview__quick-actions__grid__item__content__title">
-                    {action.title}
-                  </h4>
-                  <p className="dashboard-overview__quick-actions__grid__item__content__description">
-                    {action.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
                 </div>
     )
   }
@@ -609,7 +517,6 @@ export default function TechnicianDashboard() {
       case 'dashboard': return 'Dashboard'
       case 'work-queue': return 'Hàng đợi công việc'
       case 'work-schedule': return 'Lịch làm việc'
-      case 'vehicle-details': return 'Chi tiết xe khách'
       default: return 'Dashboard'
     }
   }
@@ -668,8 +575,7 @@ export default function TechnicianDashboard() {
               </h3>
               {[
                 { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
-                { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
-                { icon: Car, label: 'Chi tiết xe khách', page: 'vehicle-details' }
+                { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' }
               ].map((item, index) => (
                 <div 
                   key={index}

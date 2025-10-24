@@ -8,15 +8,13 @@ interface DayDetailModalProps {
   onClose: () => void
   selectedDate: string | null
   timeSlots: TimeSlot[]
-  onNavigateToVehicleDetails: () => void
 }
 
 export default function DayDetailModal({
   isOpen,
   onClose,
   selectedDate,
-  timeSlots,
-  onNavigateToVehicleDetails
+  timeSlots
 }: DayDetailModalProps) {
   if (!isOpen || !selectedDate) return null
 
