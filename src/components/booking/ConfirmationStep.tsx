@@ -67,8 +67,8 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
       try {
         setLoading(true)
         const response = await ServiceManagementService.getActiveServices({ pageSize: 100 })
-        if (response.success && response.data) {
-          setServices(response.data.items || [])
+        if (response && response.services) {
+          setServices(response.services || [])
         }
       } catch (error) {
         console.error('Error fetching services:', error)

@@ -112,7 +112,7 @@ const PromotionSelector: React.FC<PromotionSelectorProps> = ({
   }
 
   const formatDiscount = (promotion: Promotion) => {
-    if (promotion.discountType === 'PERCENTAGE') {
+    if (promotion.discountType === 'PERCENT') {
       return `${promotion.discountValue}%`
     } else {
       return formatPrice(promotion.discountValue)

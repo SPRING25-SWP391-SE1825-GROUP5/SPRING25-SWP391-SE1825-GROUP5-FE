@@ -36,7 +36,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
     code: '',
     description: '',
     discountValue: 0,
-    discountType: 'PERCENTAGE',
+    discountType: 'PERCENT',
     minOrderAmount: 0,
     startDate: '',
     endDate: '',
@@ -67,7 +67,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
         code: '',
         description: '',
         discountValue: 0,
-        discountType: 'PERCENTAGE',
+        discountType: 'PERCENT',
         minOrderAmount: 0,
         startDate: '',
         endDate: '',
@@ -99,7 +99,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
       newErrors.discountValue = 'Giá trị giảm giá phải lớn hơn 0'
     }
 
-    if (formData.discountType === 'PERCENTAGE') {
+    if (formData.discountType === 'PERCENT') {
       if (formData.discountValue > 100) {
         newErrors.discountValue = 'Giảm giá theo % không được vượt quá 100%'
       }
@@ -149,7 +149,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
     e.preventDefault()
     if (validateForm()) {
       // Sanitize payload to match backend validation (DateOnly, nullable optionals)
-      const resolvedMaxDiscount = (formData.discountType === 'PERCENTAGE')
+      const resolvedMaxDiscount = (formData.discountType === 'PERCENT')
         ? (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : 1)
         : (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : null)
 
@@ -176,13 +176,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
       const next: any = { ...prev }
       if (field === 'discountValue') {
         const numeric = typeof value === 'number' ? value : parseFloat(value)
-        next.discountValue = prev.discountType === 'PERCENTAGE'
+        next.discountValue = prev.discountType === 'PERCENT'
           ? Math.max(0, Math.min(100, isNaN(numeric) ? 0 : numeric))
           : Math.max(0, isNaN(numeric) ? 0 : numeric)
       } else if (field === 'discountType') {
         next.discountType = value
         // If switching to percentage, clamp current value
-        if (value === 'PERCENTAGE') {
+        if (value === 'PERCENT') {
           next.discountValue = Math.max(0, Math.min(100, Number(prev.discountValue) || 0))
         }
       } else if (field === 'minOrderAmount' || field === 'maxDiscount' || field === 'usageLimit') {
@@ -418,7 +418,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                     e.target.style.boxShadow = 'none'
                   }}
                 >
-                  <option value="PERCENTAGE">Phần trăm (%)</option>
+                  <option value="PERCENT">Phần trăm (%)</option>
                   <option value="FIXED">Số tiền cố định (VNĐ)</option>
                 </select>
               </div>
@@ -449,9 +449,9 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
-                  placeholder={formData.discountType === 'PERCENTAGE' ? '0-100' : '0'}
+                  placeholder={formData.discountType === 'PERCENT' ? '0-100' : '0'}
                   min="0"
-                  max={formData.discountType === 'PERCENTAGE' ? 100 : undefined}
+                  max={formData.discountType === 'PERCENT' ? 100 : undefined}
                   onFocus={(e) => {
                     e.target.style.borderColor = errors.discountValue ? 'var(--error-500)' : 'var(--primary-500)'
                     e.target.style.boxShadow = errors.discountValue ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
@@ -974,7 +974,7 @@ function PromotionFiltersComponent({ filters, onFiltersChange, onSearch }: Promo
             }}
           >
             <option value="">Tất cả</option>
-            <option value="PERCENTAGE">Phần trăm</option>
+            <option value="PERCENT">Phần trăm</option>
             <option value="FIXED">Số tiền cố định</option>
           </select>
         </div>
@@ -1286,7 +1286,7 @@ function PromotionTable({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {promotion.discountType === 'PERCENTAGE' 
+                    {promotion.discountType === 'PERCENT' 
                       ? `${promotion.discountValue}%`
                       : formatCurrency(promotion.discountValue)
                     }
@@ -2241,13 +2241,13 @@ export default function PromotionManagement() {
                   <div>
                     <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Loại giảm giá</div>
                     <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.discountType === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Số tiền cố định (VNĐ)'}
+                      {selectedPromotion.discountType === 'PERCENT' ? 'Phần trăm (%)' : 'Số tiền cố định (VNĐ)'}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giá trị giảm</div>
                     <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.discountType === 'PERCENTAGE' 
+                      {selectedPromotion.discountType === 'PERCENT' 
                         ? `${selectedPromotion.discountValue}%`
                         : formatCurrency(selectedPromotion.discountValue)
                       }

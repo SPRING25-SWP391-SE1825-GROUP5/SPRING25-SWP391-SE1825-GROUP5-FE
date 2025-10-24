@@ -47,7 +47,7 @@ const mapBackendToFrontend = (backendPromotion: BackendPromotion): AdminPromotio
         code: backendPromotion.code,
         description: backendPromotion.description,
         discountValue: backendPromotion.discountValue,
-        discountType: backendPromotion.discountType === 'PERCENT' ? 'PERCENTAGE' : 'FIXED',
+        discountType: backendPromotion.discountType === 'PERCENT' ? 'PERCENT' : 'FIXED',
         minOrderAmount: backendPromotion.minOrderAmount,
         startDate: backendPromotion.startDate,
         endDate: backendPromotion.endDate,

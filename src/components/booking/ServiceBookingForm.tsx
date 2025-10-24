@@ -59,6 +59,10 @@ interface BookingData {
   accountInfo?: AccountInfo
   images: File[]
   guestCustomerId?: number // Thêm customerId của khách vãng lai
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
 }
 
 interface ServiceBookingFormProps {
