@@ -15,7 +15,6 @@ interface WorkScheduleCalendarProps {
   onDateChange: (date: Date) => void
   appointments: TimeSlot[]
   onAppointmentClick: (appointment: TimeSlot) => void
-  onNavigateToVehicleDetails: () => void
 }
 
 export default function WorkScheduleCalendar({
@@ -23,8 +22,7 @@ export default function WorkScheduleCalendar({
   currentDate,
   onDateChange,
   appointments,
-  onAppointmentClick,
-  onNavigateToVehicleDetails
+  onAppointmentClick
 }: WorkScheduleCalendarProps) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showDayDetail, setShowDayDetail] = useState(false)
@@ -289,7 +287,6 @@ export default function WorkScheduleCalendar({
                onClose={handleCloseDayDetail}
                selectedDate={selectedDay}
                timeSlots={selectedDay ? getTimeSlotsForDay(new Date(selectedDay)) : []}
-               onNavigateToVehicleDetails={onNavigateToVehicleDetails}
              />
     </>
   )

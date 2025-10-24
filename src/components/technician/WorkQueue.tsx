@@ -82,6 +82,12 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
   // Resolve technicianId bằng cách gọi API để lấy technicianId chính xác từ userId
   useEffect(() => {
     const resolveTechnicianId = async () => {
+      // Reset technicianId khi user thay đổi
+      setTechnicianId(null)
+      setWorkQueue([])
+      setCurrentPage(1)
+      setExpandedRows(new Set())
+      
       // 1) Thử lấy từ localStorage trước (đã lưu trước đó) - cache theo userId
       const userId = user?.id
       if (userId) {
@@ -130,7 +136,7 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
     }
 
     resolveTechnicianId()
-  }, [user])
+  }, [user?.id]) // Thay đổi dependency từ [user] thành [user?.id] để chỉ trigger khi userId thay đổi
 
   const [workQueue, setWorkQueue] = useState<WorkOrder[]>([])
 
@@ -303,6 +309,18 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
       case 'paid': return 'Đã thanh toán'
       case 'cancelled': return 'Đã hủy'
       default: return status
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return '#F59E0B' // Vàng
+      case 'confirmed': return '#F97316' // Cam
+      case 'in_progress': return '#3B82F6' // Xanh dương
+      case 'completed': return '#10B981' // Xanh lá
+      case 'paid': return '#059669' // Xanh lá đậm
+      case 'cancelled': return '#EF4444' // Đỏ
+      default: return '#6B7280' // Xám
     }
   }
 
@@ -591,9 +609,149 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
                       </div>
                     </div>
                     <div className="work-queue__list__item__cell">
-                      <span className={`work-queue__list__item__status work-queue__list__item__status--${work.status}`}>
-                        {getStatusText(work.status)}
-                      </span>
+                      {/* Show status badge and buttons for non-terminal states */}
+                      {!['completed', 'paid', 'cancelled'].includes(work.status) ? (
+                        <div className="work-queue__list__item__status-container">
+                          <span 
+                            className={`work-queue__list__item__status work-queue__list__item__status--${work.status}`}
+                            style={{ 
+                              backgroundColor: getStatusColor(work.status) + '15',
+                              color: getStatusColor(work.status),
+                              borderColor: getStatusColor(work.status) + '40'
+                            }}
+                          >
+                            {getStatusText(work.status)}
+                          </span>
+                          
+                          {/* Status change buttons */}
+                          <div className="work-queue__list__item__status-actions">
+                            {/* PENDING -> CONFIRMED */}
+                            {work.status === 'pending' && canTransitionTo(work.status, 'confirmed') && (
+                              <button
+                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--confirm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStatusUpdate(work.id, 'confirmed')
+                                }}
+                                disabled={updatingStatus.has(work.id)}
+                                title="Xác nhận"
+                              >
+                                {updatingStatus.has(work.id) ? (
+                                  <RefreshCw size={14} className="animate-spin" />
+                                ) : (
+                                  <CheckCircle2 size={14} />
+                                )}
+                              </button>
+                            )}
+
+                            {/* CONFIRMED -> IN_PROGRESS */}
+                            {work.status === 'confirmed' && canTransitionTo(work.status, 'in_progress') && (
+                              <button
+                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--start"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStatusUpdate(work.id, 'in_progress')
+                                }}
+                                disabled={updatingStatus.has(work.id)}
+                                title="Bắt đầu làm việc"
+                              >
+                                {updatingStatus.has(work.id) ? (
+                                  <RefreshCw size={14} className="animate-spin" />
+                                ) : (
+                                  <Play size={14} />
+                                )}
+                              </button>
+                            )}
+
+                            {/* IN_PROGRESS -> COMPLETED */}
+                            {work.status === 'in_progress' && canTransitionTo(work.status, 'completed') && (
+                              <button
+                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--complete"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStatusUpdate(work.id, 'completed')
+                                }}
+                                disabled={updatingStatus.has(work.id)}
+                                title="Hoàn thành"
+                              >
+                                {updatingStatus.has(work.id) ? (
+                                  <RefreshCw size={14} className="animate-spin" />
+                                ) : (
+                                  <CheckCircle size={14} />
+                                )}
+                              </button>
+                            )}
+
+                            {/* COMPLETED -> PAID */}
+                            {work.status === 'completed' && canTransitionTo(work.status, 'paid') && (
+                              <button
+                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--paid"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStatusUpdate(work.id, 'paid')
+                                }}
+                                disabled={updatingStatus.has(work.id)}
+                                title="Đánh dấu đã thanh toán"
+                              >
+                                {updatingStatus.has(work.id) ? (
+                                  <RefreshCw size={14} className="animate-spin" />
+                                ) : (
+                                  <Package size={14} />
+                                )}
+                              </button>
+                            )}
+
+                            {/* Cancel button for non-terminal states */}
+                            {!['paid', 'cancelled'].includes(work.status) && canTransitionTo(work.status, 'cancelled') && (
+                              <button
+                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--cancel"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (confirm('Bạn có chắc chắn muốn hủy công việc này?')) {
+                                    handleStatusUpdate(work.id, 'cancelled')
+                                  }
+                                }}
+                                disabled={updatingStatus.has(work.id)}
+                                title="Hủy"
+                              >
+                                {updatingStatus.has(work.id) ? (
+                                  <RefreshCw size={14} className="animate-spin" />
+                                ) : (
+                                  <XCircle size={14} />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Show terminal status box for completed/paid/cancelled states */
+                        <div className="work-queue__list__item__terminal-status">
+                          <div className="work-queue__list__item__terminal-status__info">
+                            <div 
+                              className="work-queue__list__item__terminal-status__icon"
+                              style={{ 
+                                backgroundColor: getStatusColor(work.status) + '15',
+                                color: getStatusColor(work.status)
+                              }}
+                            >
+                              {work.status === 'completed' && <CheckCircle size={16} />}
+                              {work.status === 'paid' && <Package size={16} />}
+                              {work.status === 'cancelled' && <XCircle size={16} />}
+                            </div>
+                            <div className="work-queue__list__item__terminal-status__text">
+                              <span className="work-queue__list__item__terminal-status__label">
+                                TRẠNG THÁI CUỐI CÙNG:
+                              </span>
+                              <span 
+                                className="work-queue__list__item__terminal-status__value"
+                                style={{ color: getStatusColor(work.status) }}
+                              >
+                                {getStatusText(work.status)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="work-queue__list__item__cell">
                       <div className="work-queue__list__item__cell__primary">{work.scheduledDate}</div>
@@ -622,124 +780,9 @@ export default function WorkQueue({ onViewDetails }: WorkQueueProps) {
                             </div>
                           </div>
 
-                          <div className="work-queue__list__item__expanded__section">
-                            <h4>Thông tin bổ sung</h4>
-                            <div className="work-queue__list__item__expanded__info">
-                              <div className="work-queue__list__item__expanded__info-item">
-                                <span>Thời gian ước tính:</span>
-                                <span>{work.estimatedTime}</span>
-                              </div>
-                              <div className="work-queue__list__item__expanded__info-item">
-                                <span>Mức độ ưu tiên:</span>
-                                <span 
-                                  className="work-queue__list__item__expanded__priority"
-                                  style={{ color: getPriorityColor(work.priority) }}
-                                >
-                                  {getPriorityText(work.priority)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
 
-                        <div className="work-queue__list__item__expanded__actions">
-                          {/* PENDING -> CONFIRMED */}
-                          {work.status === 'pending' && canTransitionTo(work.status, 'confirmed') && (
-                            <button
-                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--confirm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStatusUpdate(work.id, 'confirmed')
-                              }}
-                              disabled={updatingStatus.has(work.id)}
-                            >
-                              {updatingStatus.has(work.id) ? (
-                                <RefreshCw size={16} className="animate-spin" />
-                              ) : (
-                                <CheckCircle2 size={16} />
-                              )}
-                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Xác nhận'}
-                            </button>
-                          )}
 
-                          {/* CONFIRMED -> IN_PROGRESS */}
-                          {work.status === 'confirmed' && canTransitionTo(work.status, 'in_progress') && (
-                            <button
-                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--start"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStatusUpdate(work.id, 'in_progress')
-                              }}
-                              disabled={updatingStatus.has(work.id)}
-                            >
-                              {updatingStatus.has(work.id) ? (
-                                <RefreshCw size={16} className="animate-spin" />
-                              ) : (
-                                <Play size={16} />
-                              )}
-                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Bắt đầu làm việc'}
-                            </button>
-                          )}
-
-                          {/* IN_PROGRESS -> COMPLETED */}
-                          {work.status === 'in_progress' && canTransitionTo(work.status, 'completed') && (
-                            <button
-                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--complete"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStatusUpdate(work.id, 'completed')
-                              }}
-                              disabled={updatingStatus.has(work.id)}
-                            >
-                              {updatingStatus.has(work.id) ? (
-                                <RefreshCw size={16} className="animate-spin" />
-                              ) : (
-                                <CheckCircle size={16} />
-                              )}
-                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Hoàn thành'}
-                            </button>
-                          )}
-
-                          {/* COMPLETED -> PAID */}
-                          {work.status === 'completed' && canTransitionTo(work.status, 'paid') && (
-                            <button
-                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--paid"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStatusUpdate(work.id, 'paid')
-                              }}
-                              disabled={updatingStatus.has(work.id)}
-                            >
-                              {updatingStatus.has(work.id) ? (
-                                <RefreshCw size={16} className="animate-spin" />
-                              ) : (
-                                <Package size={16} />
-                              )}
-                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Đánh dấu đã thanh toán'}
-                            </button>
-                          )}
-
-                          {/* Cancel buttons for non-terminal states */}
-                          {!['paid', 'cancelled'].includes(work.status) && canTransitionTo(work.status, 'cancelled') && (
-                            <button
-                              className="work-queue__list__item__expanded__action-btn work-queue__list__item__expanded__action-btn--cancel"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (confirm('Bạn có chắc chắn muốn hủy công việc này?')) {
-                                  handleStatusUpdate(work.id, 'cancelled')
-                                }
-                              }}
-                              disabled={updatingStatus.has(work.id)}
-                            >
-                              {updatingStatus.has(work.id) ? (
-                                <RefreshCw size={16} className="animate-spin" />
-                              ) : (
-                                <XCircle size={16} />
-                              )}
-                              {updatingStatus.has(work.id) ? 'Đang cập nhật...' : 'Hủy'}
-                            </button>
-                          )}
-                        </div>
                       </div>
                     </div>
                   )}
