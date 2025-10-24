@@ -357,6 +357,13 @@
       }
     }
 
+    &__status-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: flex-start;
+    }
+
     &__status {
       display: inline-block;
       padding: 0.25rem 0.75rem; // px-3 py-1
@@ -365,21 +372,136 @@
       font-weight: 500; // font-medium
       white-space: nowrap;
       width: fit-content; // Đảm bảo tag chỉ vừa vặn nội dung
+      border: 1px solid;
+      // Colors are now handled by inline styles for dynamic status colors
+    }
 
-      // Status-specific colors
-      &--waiting {
-        background-color: #FEF3C7; // bg-yellow-100
-        color: #92400E; // text-yellow-800
+    &__status-actions {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+    }
+
+    &__status-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.75rem;
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
       }
 
-      &--processing {
-        background-color: #BFDBFE; // bg-blue-200 (xanh đậm hơn)
-        color: #1E3A8A; // text-blue-900 (chữ xanh đậm hơn)
+      &--confirm {
+        background: #EFF6FF;
+        color: #1E40AF;
+        border: 1px solid #DBEAFE;
+
+        &:hover:not(:disabled) {
+          background: #DBEAFE;
+          border-color: #93C5FD;
+        }
       }
 
-      &--completed {
-        background-color: #D1FAE5; // bg-green-100
-        color: #065F46; // text-green-800
+      &--start {
+        background: #F0FDF4;
+        color: #059669;
+        border: 1px solid #D1FAE5;
+
+        &:hover:not(:disabled) {
+          background: #D1FAE5;
+          border-color: #6EE7B7;
+        }
+      }
+
+      &--complete {
+        background: #FEF3C7;
+        color: #D97706;
+        border: 1px solid #FDE68A;
+
+        &:hover:not(:disabled) {
+          background: #FDE68A;
+          border-color: #FCD34D;
+        }
+      }
+
+      &--paid {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #D1FAE5;
+
+        &:hover:not(:disabled) {
+          background: #D1FAE5;
+          border-color: #6EE7B7;
+        }
+      }
+
+      &--cancel {
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+
+        &:hover:not(:disabled) {
+          background: #FECACA;
+          border-color: #F87171;
+        }
+      }
+    }
+
+    &__terminal-status {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+
+      &__info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      &__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #F1F5F9;
+      }
+
+      &__text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+      }
+
+      &__label {
+        font-size: 0.625rem;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      &__value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #1E293B;
       }
     }
 
@@ -621,6 +743,58 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Terminal Status Styles */
+.work-queue__list__item__expanded__terminal-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  margin-top: 1rem;
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #F1F5F9;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1E293B;
   }
 }
 
