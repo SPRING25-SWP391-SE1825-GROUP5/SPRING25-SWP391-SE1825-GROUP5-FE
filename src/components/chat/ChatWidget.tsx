@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { toggleWidget, openWidget, closeWidget } from '@/store/chatSlice'
 import type { ChatMessage } from '@/types/chat'
 import ChatService from '@/services/chatService'
+import signalRService from '@/services/signalRService'
 import './ChatWidget.scss'
 
 /**
@@ -55,6 +56,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setConversationId(parseInt(savedConversationId))
         setIsConversationStarted(true)
         
+        // Join SignalR conversation group
+        try {
+          await signalRService.joinConversation(savedConversationId)
+        } catch (error) {
+          console.error('Error joining SignalR conversation:', error)
+        }
+        
         // Load existing messages
         try {
           const response = await ChatService.getConversationMessages(parseInt(savedConversationId))
@@ -79,6 +87,39 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     checkExistingConversation()
   }, [])
+
+  // Setup SignalR event handlers for real-time messages
+  useEffect(() => {
+    // Handle new messages from staff
+    signalRService.setOnMessageReceived((message: ChatMessage) => {
+      console.log('Customer received new message:', message)
+      
+      // If message is for current conversation, add it to messages
+      if (conversationId && message.conversationId === String(conversationId)) {
+        setMessages(prev => [...prev, message])
+      }
+    })
+
+    // Handle typing indicators
+    signalRService.setOnTypingStarted((userId: string, conversationId: string) => {
+      if (conversationId && String(conversationId) === conversationId) {
+        setIsTyping(true)
+      }
+    })
+
+    signalRService.setOnTypingStopped((userId: string, conversationId: string) => {
+      if (conversationId && String(conversationId) === conversationId) {
+        setIsTyping(false)
+      }
+    })
+
+    return () => {
+      // Cleanup event handlers
+      signalRService.setOnMessageReceived(undefined)
+      signalRService.setOnTypingStarted(undefined)
+      signalRService.setOnTypingStopped(undefined)
+    }
+  }, [conversationId])
 
   // Auto resize textarea
   useEffect(() => {
@@ -159,6 +200,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         // Save conversation ID to localStorage
         localStorage.setItem('currentConversationId', String(newConversationId))
         
+        // Join SignalR conversation group
+        try {
+          await signalRService.joinConversation(String(newConversationId))
+        } catch (error) {
+          console.error('Error joining SignalR conversation:', error)
+        }
+        
         // Load existing messages if any
         if (response.data.messages && response.data.messages.length > 0) {
           const formattedMessages = response.data.messages.map((msg: any) => ({
@@ -211,6 +259,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const handleSendMessage = async () => {
     if (!message.trim() || !isConversationStarted) return
 
+    console.log('Sending message - conversationId:', conversationId, 'isConversationStarted:', isConversationStarted)
+
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       conversationId: String(conversationId || '0'),
@@ -228,13 +278,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
     try {
       if (conversationId && conversationId > 0) {
-        // Send to API
-        const response = await ChatService.sendMessageToConversation(conversationId, messageContent)
-        console.log('Message sent successfully:', response)
+        console.log('Attempting to send message to conversation:', conversationId)
         
-        // TODO: Implement real-time message receiving from staff
-        // For now, we'll just show that the message was sent
-        // In a real implementation, you would use WebSocket or polling to get staff responses
+        // Send via SignalR for real-time delivery
+        try {
+          await signalRService.sendMessage(String(conversationId), messageContent)
+        } catch (signalRError) {
+          console.warn('SignalR send failed, continuing with API only:', signalRError)
+        }
+        
+        // Save to database via API
+        const response = await ChatService.sendMessageToConversation(conversationId, messageContent)
+        console.log('Message sent successfully via API:', response)
+      } else {
+        console.error('Invalid conversationId:', conversationId)
+        throw new Error('Invalid conversation ID')
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -375,7 +433,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <div className="chat-widget__messages">
                   {messages.map((msg, index) => {
                     // Debug: log message info
-                    console.log('Message:', {
+                    console.log('Customer Chat - Message:', {
                       id: msg.id,
                       senderId: msg.senderId,
                       senderName: msg.senderName,
@@ -385,9 +443,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     })
                     
                     // Determine if this is user's own message
-                    const isOwnMessage = msg.senderId === String(user?.userId || 'current-user') || 
+                    // For customer messages, check if senderId matches user ID or if it's a guest session
+                    const currentUserId = user?.userId ? String(user.userId) : 'current-user'
+                    const isOwnMessage = msg.senderId === currentUserId || 
                                        msg.senderId === 'current-user' ||
-                                       msg.senderName === (user?.fullName || 'Bạn')
+                                       (msg.senderId && msg.senderId.includes('user-')) ||
+                                       msg.senderName === (user?.fullName || 'Bạn') ||
+                                       msg.senderName === 'Bạn' ||
+                                       msg.senderId === String(user?.userId || '')
                     
                     return (
                     <div

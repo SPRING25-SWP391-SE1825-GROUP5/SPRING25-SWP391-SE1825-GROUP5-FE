@@ -14,6 +14,21 @@ export class ChatService {
   private static lastConversationsAt = 0
   private static cachedConversations: ChatConversation[] = []
   private static readonly CONVERSATIONS_TTL_MS = 3000
+  // Test API endpoints for debugging
+  static async testStaffEndpoint(): Promise<any> {
+    try {
+      console.log('Testing /conversation/staff endpoint...')
+      const response = await api.get('/conversation/staff', {
+        params: { page: 1, pageSize: 10 }
+      })
+      console.log('Staff endpoint success:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('Staff endpoint error:', error.response?.data || error.message)
+      throw error
+    }
+  }
+
   // Get all conversations for current user
   static async getConversations(): Promise<ChatConversation[]> {
     const now = Date.now()
@@ -26,7 +41,26 @@ export class ChatService {
       return ChatService.inFlightConversations
     }
     ChatService.inFlightConversations = (async () => {
-      const response = await api.get('/conversation/my-conversations')
+      // Try staff endpoint first, fallback to my-conversations
+      let response
+      try {
+        console.log('Attempting to call /conversation/staff...')
+        response = await api.get('/conversation/staff', {
+          params: { page: 1, pageSize: 50 }
+        })
+        console.log('Staff conversations response:', response.data)
+      } catch (error) {
+        console.log('Staff endpoint failed, trying my-conversations:', error)
+        console.log('Error details:', error.response?.data || error.message)
+        try {
+          response = await api.get('/conversation/my-conversations')
+          console.log('My conversations response:', response.data)
+        } catch (fallbackError) {
+          console.error('Both endpoints failed:', fallbackError)
+          // Return empty array as fallback
+          return []
+        }
+      }
       const items: any[] = response?.data?.data || []
       return items.map((c: any) => {
         const convId = String(c.id || c.conversationId || c.conversationID || c.ConversationId)
@@ -238,27 +272,51 @@ export class ChatService {
   static async sendMessageToConversation(conversationId: number, content: string): Promise<{ success: boolean; data: any }> {
     try {
       console.log('Sending message to conversation:', conversationId, 'Content:', content)
-      const response = await api.post('/message', {
+      
+      // Get current user info
+      const currentUserId = localStorage.getItem('userId')
+      const guestSessionId = localStorage.getItem('guestSessionId')
+      
+      console.log('Current user ID:', currentUserId, 'Guest session ID:', guestSessionId)
+      
+      // Prepare request body
+      const requestBody: any = {
         conversationId: conversationId,
         content: content
-      })
+      }
+      
+      // Add sender info if available
+      if (currentUserId) {
+        requestBody.senderUserId = parseInt(currentUserId)
+      }
+      if (guestSessionId) {
+        requestBody.senderGuestSessionId = guestSessionId
+      }
+      
+      console.log('Sending message with body:', requestBody)
+      
+      const response = await api.post('/message', requestBody)
       console.log('Send message response:', response.data)
       return response.data
     } catch (error) {
       console.error('Error sending message:', error)
+      console.error('Error details:', error.response?.data || error.message)
       throw error
     }
   }
 
   // Get messages from conversation
-  static async getConversationMessages(conversationId: number, page: number = 1, pageSize: number = 50): Promise<{ success: boolean; data: any }> {
+  static async getConversationMessages(conversationId: number, page: number = 1, pageSize: number = 100): Promise<{ success: boolean; data: any }> {
     try {
+      console.log('Getting messages for conversation:', conversationId, 'page:', page, 'pageSize:', pageSize)
       const response = await api.get(`/message/conversations/${conversationId}`, {
         params: { page, pageSize }
       })
+      console.log('Messages response:', response.data)
       return response.data
     } catch (error) {
       console.error('Error getting conversation messages:', error)
+      console.error('Error details:', error.response?.data || error.message)
       throw error
     }
   }

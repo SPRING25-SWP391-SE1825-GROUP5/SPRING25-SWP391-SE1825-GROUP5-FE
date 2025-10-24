@@ -44,6 +44,7 @@ const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
 const ChatDemo = lazy(() => import('@/views/ChatDemo'))
+const StaffChat = lazy(() => import('@/views/Staff/StaffChat'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
@@ -98,6 +99,7 @@ const router = createBrowserRouter([
       { path: 'appointments', element: suspense(<StaffAppointments />) },
       { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
       { path: 'technician-schedule', element: suspense(<StaffTechnicianSchedule />) },
+      { path: 'chat', element: suspense(<StaffChat />) },
     ],
   },
   // Manager routes with manager layout (no global header)
