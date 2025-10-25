@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppSelector } from '@/store/hooks'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { getCurrentUser } from '@/store/authSlice'
 import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
@@ -81,6 +82,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const auth = useAppSelector((s) => s.auth)
+  const dispatch = useAppDispatch()
   
   const [bookingData, setBookingData] = useState<BookingData>({
     customerInfo: {
@@ -128,14 +130,36 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     setIsGuest(!loggedIn)
 
     if (loggedIn && auth.user) {
-      setBookingData((prev) => ({
-        ...prev,
-        customerInfo: {
-          fullName: auth.user.fullName || prev.customerInfo.fullName,
-          phone: auth.user.phoneNumber || prev.customerInfo.phone,
-          email: auth.user.email || prev.customerInfo.email
-        }
-      }))
+      console.log('Auth user data:', auth.user)
+      console.log('Auth user phoneNumber:', auth.user.phoneNumber)
+      
+      // Nếu không có phoneNumber, gọi API để lấy profile đầy đủ
+      if (!auth.user.phoneNumber) {
+        console.log('No phoneNumber in auth.user, fetching full profile...')
+        dispatch(getCurrentUser()).then((result) => {
+          if (result.payload) {
+            console.log('Full profile loaded:', result.payload)
+            setBookingData((prev) => ({
+              ...prev,
+              customerInfo: {
+                fullName: result.payload.fullName || prev.customerInfo.fullName,
+                phone: result.payload.phoneNumber || prev.customerInfo.phone,
+                email: result.payload.email || prev.customerInfo.email
+              }
+            }))
+          }
+        })
+      } else {
+        // Có phoneNumber rồi, dùng luôn
+        setBookingData((prev) => ({
+          ...prev,
+          customerInfo: {
+            fullName: auth.user.fullName || prev.customerInfo.fullName,
+            phone: auth.user.phoneNumber || prev.customerInfo.phone,
+            email: auth.user.email || prev.customerInfo.email
+          }
+        }))
+      }
 
       // Nếu đang ở bước 1 (thông tin KH) thì tự động qua bước 1 (dịch vụ) cho user đã đăng nhập
       // Không cần thay đổi step vì logic renderCurrentStep đã xử lý
@@ -234,10 +258,15 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   }
 
   const updateBookingData = (section: keyof BookingData, data: Record<string, any>) => {
-    setBookingData(prev => ({
-      ...prev,
-      [section]: { ...(prev[section] as any), ...data }
-    }))
+    console.log(`updateBookingData - Section: ${section}, Data:`, data)
+    setBookingData(prev => {
+      const newData = {
+        ...prev,
+        [section]: { ...(prev[section] as any), ...data }
+      }
+      console.log(`updateBookingData - New bookingData:`, newData)
+      return newData
+    })
   }
 
   const handleGuestCustomerCreated = (customerId: number) => {

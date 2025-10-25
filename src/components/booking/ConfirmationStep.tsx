@@ -61,6 +61,11 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
   const [loading, setLoading] = useState(true)
   const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
   const [discountAmount, setDiscountAmount] = useState(0)
+  
+  // Debug log để kiểm tra dữ liệu
+  console.log('ConfirmationStep - Full data:', data)
+  console.log('ConfirmationStep - Customer info:', data.customerInfo)
+  console.log('ConfirmationStep - Phone:', data.customerInfo.phone)
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -138,7 +143,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
             </div>
             <div className="info-item">
               <span className="label">Số điện thoại:</span>
-              <span className="value">{data.customerInfo.phone}</span>
+              <span className="value">{data.customerInfo.phone?.trim() || 'Chưa có'}</span>
             </div>
             <div className="info-item">
               <span className="label">Email:</span>
