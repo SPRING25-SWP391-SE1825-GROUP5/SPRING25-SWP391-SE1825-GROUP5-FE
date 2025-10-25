@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { getCurrentUser } from '@/store/authSlice'
-import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
+import { getCurrentUser, type User } from '@/store/authSlice'
+import { User as UserIcon, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
 import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
@@ -139,12 +139,13 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         dispatch(getCurrentUser()).then((result) => {
           if (result.payload) {
             console.log('Full profile loaded:', result.payload)
+            const user = result.payload as User
             setBookingData((prev) => ({
               ...prev,
               customerInfo: {
-                fullName: result.payload.fullName || prev.customerInfo.fullName,
-                phone: result.payload.phoneNumber || prev.customerInfo.phone,
-                email: result.payload.email || prev.customerInfo.email
+                fullName: user.fullName || prev.customerInfo.fullName,
+                phone: user.phoneNumber || prev.customerInfo.phone,
+                email: user.email || prev.customerInfo.email
               }
             }))
           }
