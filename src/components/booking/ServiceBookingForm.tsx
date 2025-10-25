@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppSelector } from '@/store/hooks'
-import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { getCurrentUser, type User } from '@/store/authSlice'
+import { User as UserIcon, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
 import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
@@ -59,10 +60,18 @@ interface BookingData {
   accountInfo?: AccountInfo
   images: File[]
   guestCustomerId?: number // Thêm customerId của khách vãng lai
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
 }
 
 interface ServiceBookingFormProps {
   forceGuestMode?: boolean
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
 }
 
 const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false }) => {
@@ -72,9 +81,8 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   const [currentServiceId, setCurrentServiceId] = useState<number | undefined>(undefined)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
-  const [showQRCode, setShowQRCode] = useState(false)
   const auth = useAppSelector((s) => s.auth)
+  const dispatch = useAppDispatch()
   
   const [bookingData, setBookingData] = useState<BookingData>({
     customerInfo: {
@@ -103,7 +111,11 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       password: '',
       confirmPassword: ''
     },
-    images: []
+    images: [],
+    promotionInfo: {
+      promotionCode: undefined,
+      discountAmount: 0
+    }
   })
 
   // Đồng bộ trạng thái đăng nhập và tự điền thông tin khách hàng
@@ -118,14 +130,37 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     setIsGuest(!loggedIn)
 
     if (loggedIn && auth.user) {
-      setBookingData((prev) => ({
-        ...prev,
-        customerInfo: {
-          fullName: auth.user.fullName || prev.customerInfo.fullName,
-          phone: auth.user.phoneNumber || prev.customerInfo.phone,
-          email: auth.user.email || prev.customerInfo.email
-        }
-      }))
+      console.log('Auth user data:', auth.user)
+      console.log('Auth user phoneNumber:', auth.user.phoneNumber)
+      
+      // Nếu không có phoneNumber, gọi API để lấy profile đầy đủ
+      if (!auth.user.phoneNumber) {
+        console.log('No phoneNumber in auth.user, fetching full profile...')
+        dispatch(getCurrentUser()).then((result) => {
+          if (result.payload) {
+            console.log('Full profile loaded:', result.payload)
+            const user = result.payload as User
+            setBookingData((prev) => ({
+              ...prev,
+              customerInfo: {
+                fullName: user.fullName || prev.customerInfo.fullName,
+                phone: user.phoneNumber || prev.customerInfo.phone,
+                email: user.email || prev.customerInfo.email
+              }
+            }))
+          }
+        })
+      } else {
+        // Có phoneNumber rồi, dùng luôn
+        setBookingData((prev) => ({
+          ...prev,
+          customerInfo: {
+            fullName: auth.user.fullName || prev.customerInfo.fullName,
+            phone: auth.user.phoneNumber || prev.customerInfo.phone,
+            email: auth.user.email || prev.customerInfo.email
+          }
+        }))
+      }
 
       // Nếu đang ở bước 1 (thông tin KH) thì tự động qua bước 1 (dịch vụ) cho user đã đăng nhập
       // Không cần thay đổi step vì logic renderCurrentStep đã xử lý
@@ -168,7 +203,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         case 3:
           return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 4:
-          return true
+          return false // Bước xác nhận chỉ hoàn thành khi đã submit thành công
         default:
           return false
       }
@@ -184,7 +219,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         case 2:
           return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 3:
-          return true // Bước xác nhận luôn có thể hoàn thành
+          return false // Bước xác nhận chỉ hoàn thành khi đã submit thành công
         default:
           return false
       }
@@ -224,10 +259,15 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   }
 
   const updateBookingData = (section: keyof BookingData, data: Record<string, any>) => {
-    setBookingData(prev => ({
-      ...prev,
-      [section]: { ...(prev[section] as any), ...data }
-    }))
+    console.log(`updateBookingData - Section: ${section}, Data:`, data)
+    setBookingData(prev => {
+      const newData = {
+        ...prev,
+        [section]: { ...(prev[section] as any), ...data }
+      }
+      console.log(`updateBookingData - New bookingData:`, newData)
+      return newData
+    })
   }
 
   const handleGuestCustomerCreated = (customerId: number) => {
@@ -440,7 +480,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         const hold = await holdSlot({
           centerId: Number(bookingData.locationTimeInfo.centerId),
           technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-          technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
+          technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : 0,
           date: bookingData.locationTimeInfo.date
         })
         console.log('Hold response:', hold)
@@ -466,7 +506,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         centerId: Number(bookingData.locationTimeInfo.centerId),
         bookingDate: bookingData.locationTimeInfo.date,
         technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-        technicianId: Number(bookingData.locationTimeInfo.technicianId),
+        technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : undefined,
         specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
         serviceId: serviceId || undefined,
         // Thêm currentMileage và licensePlate
@@ -522,14 +562,20 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         bookingId: bookingId
       }))
 
-      // Tạo PayOS payment link (giống code mẫu)
+      // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
       console.log('Creating PayOS payment link for booking ID:', bookingId)
       const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId))
       
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
-        setPaymentUrl(paymentResponse.data.checkoutUrl)
-        setShowQRCode(true)
         console.log('PayOS payment link created successfully:', paymentResponse.data.checkoutUrl)
+        
+        // Redirect trực tiếp đến PayOS checkout - đơn giản như ban đầu
+        console.log('Redirecting to PayOS checkout...')
+        window.location.href = paymentResponse.data.checkoutUrl
+        
+        // Đánh dấu bước cuối cùng là completed khi booking được tạo thành công
+        const finalStep = isGuest ? 4 : 3
+        setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
       } else {
         console.error('Failed to create PayOS payment link:', paymentResponse.message)
         setSubmitError('Không thể tạo link thanh toán: ' + (paymentResponse.message || 'Lỗi không xác định'))
@@ -594,8 +640,6 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
-              paymentUrl={paymentUrl || undefined}
-              showQRCode={showQRCode}
             />
           )
         default:
@@ -635,8 +679,6 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
-              paymentUrl={paymentUrl || undefined}
-              showQRCode={showQRCode}
             />
           )
         default:

@@ -14,7 +14,8 @@ import {
   Settings,
   BarChart3,
   Package,
-  PlusCircle
+  PlusCircle,
+  MessageCircle
 } from 'lucide-react'
 import CustomersPage from '@/components/staff/CustomersPage'
 import InventoryPage from '@/components/staff/InventoryPage'
@@ -24,6 +25,7 @@ import SettingsPage from '@/components/staff/SettingsPage'
 import DashboardContent from '@/components/staff/DashboardContent'
 import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
 import StaffBookingForm from '@/components/staff/StaffBookingForm'
+import StaffChatInterface from '@/components/chat/StaffChatInterface'
 import './staff.scss'
 
 export default function StaffDashboard() {
@@ -56,6 +58,8 @@ export default function StaffDashboard() {
         return <TechnicianSchedulePage />
       case 'create-booking':
         return <StaffBookingForm />
+      case 'chat':
+        return <StaffChatInterface />
       default:
         return <DashboardContent />
     }
@@ -93,6 +97,8 @@ export default function StaffDashboard() {
               color: 'var(--text-primary)'
             }}
             className="mobile-menu-btn"
+            title="Toggle mobile menu"
+            aria-label="Toggle mobile menu"
           >
             <Menu size={20} />
           </button>
@@ -279,6 +285,7 @@ export default function StaffDashboard() {
                 { icon: Users, label: 'Khách hàng', page: 'customers' },
                 { icon: Calendar, label: 'Lịch hẹn', page: 'appointments' },
                 { icon: ClipboardList, label: 'Đơn hàng dịch vụ', page: 'service-orders' },
+                { icon: MessageCircle, label: 'Chat hỗ trợ', page: 'chat' },
                 { icon: PlusCircle, label: 'Tạo Booking', page: 'create-booking' },
                 { icon: Package, label: 'Quản lý kho', page: 'inventory' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings' }

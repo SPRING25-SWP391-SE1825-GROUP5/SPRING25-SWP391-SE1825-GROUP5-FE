@@ -90,7 +90,7 @@ export default function Promotions() {
   // Filter categories based on actual data
   const filterCategories = [
     { id: 'all', label: 'Tất cả', count: Array.isArray(promotions) ? promotions.length : 0 },
-    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENTAGE').length : 0 },        
+    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENT').length : 0 },        
     { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'FIXED').length : 0 },
     { id: 'shipping', label: 'Free ship', count: 0 },
     { id: 'saved', label: 'Đã lưu', count: promo?.savedPromotions?.length || 0 }
@@ -102,7 +102,7 @@ export default function Promotions() {
     
     switch (activeFilter) {
       case 'percentage':
-        return promotions.filter(p => p.discountType === 'PERCENTAGE')        
+        return promotions.filter(p => p.discountType === 'PERCENT')        
       case 'fixed':
         return promotions.filter(p => p.discountType === 'FIXED')
       case 'shipping':
@@ -457,7 +457,7 @@ export default function Promotions() {
                   color: '#10b981',
                   opacity: 0.8
                 }}>
-                  {promotion.discountType === 'PERCENTAGE' ? <Percent size={48} /> :
+                  {promotion.discountType === 'PERCENT' ? <Percent size={48} /> :
                    promotion.discountType === 'FIXED' ? <DollarSign size={48} /> :
                    promotion.discountType === 'SHIPPING' ? <Truck size={48} /> : <Sparkles size={48} />}
                 </div>

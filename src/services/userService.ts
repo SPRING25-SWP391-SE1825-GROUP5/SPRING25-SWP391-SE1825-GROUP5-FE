@@ -90,15 +90,21 @@ export const UserService = {
   /**
    * Get paginated list of users (Admin only)
    * 
-   * @param params - Query parameters for filtering and pagination        
+   * @param params - Query parameters for filtering, pagination and sorting        
    * @returns Promise with user list and pagination info
    * @throws {Error} When request fails or unauthorized
    */
   async getUsers(params: GetUsersRequest = {}): Promise<UserListResponse> {
-  const defaultParams = { pageNumber: 1, pageSize: 100, ...params }
-  const { data } = await api.get<UserListResponse>('/user', { params: defaultParams })
-  return data
-},
+    const defaultParams = { 
+      pageNumber: 1, 
+      pageSize: 100, 
+      sortBy: 'fullName',
+      sortOrder: 'asc',
+      ...params 
+    }
+    const { data } = await api.get<UserListResponse>('/user', { params: defaultParams })
+    return data
+  },
 
 
   /**

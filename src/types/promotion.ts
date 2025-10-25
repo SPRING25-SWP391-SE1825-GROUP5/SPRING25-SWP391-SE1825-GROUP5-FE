@@ -4,7 +4,7 @@ export interface Promotion {
   code: string
   description: string
   discountValue: number
-  discountType: 'PERCENTAGE' | 'FIXED'
+  discountType: 'PERCENT' | 'FIXED'
   minOrderAmount?: number
   startDate: string
   endDate?: string
@@ -24,7 +24,7 @@ export interface CreatePromotionRequest {
   code: string
   description: string
   discountValue: number
-  discountType: 'PERCENTAGE' | 'FIXED'
+  discountType: 'PERCENT' | 'FIXED'
   minOrderAmount?: number
   startDate: string
   endDate?: string
@@ -37,7 +37,7 @@ export interface UpdatePromotionRequest {
   code?: string
   description?: string
   discountValue?: number
-  discountType?: 'PERCENTAGE' | 'FIXED'
+  discountType?: 'PERCENT' | 'FIXED'
   minOrderAmount?: number
   startDate?: string
   endDate?: string

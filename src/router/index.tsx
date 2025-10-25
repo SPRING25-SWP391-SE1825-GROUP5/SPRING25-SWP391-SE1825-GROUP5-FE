@@ -44,6 +44,7 @@ const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
 const ChatDemo = lazy(() => import('@/views/ChatDemo'))
+const StaffChat = lazy(() => import('@/views/Staff/StaffChat'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
@@ -72,6 +73,12 @@ const router = createBrowserRouter([
       { path: 'payment-success', element: suspense(<PaymentSuccess />) },
       { path: 'payment-cancel', element: suspense(<PaymentCancel />) },
       { path: 'payment-callback', element: suspense(<PaymentCallback />) },
+      { path: 'payment/result', element: suspense(<PaymentCallback />) },
+      { path: 'payment/cancel', element: suspense(<PaymentCancel />) },
+      { path: 'payment/success', element: suspense(<PaymentSuccess />) },
+      { path: 'payment/error', element: suspense(<PaymentSuccess />) },
+      { path: 'payment/failed', element: suspense(<PaymentSuccess />) },
+      { path: 'payment/cancelled', element: suspense(<PaymentSuccess />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
       { path: 'map-demo', element: suspense(<MapDemo />) },
@@ -96,6 +103,7 @@ const router = createBrowserRouter([
       { path: 'appointments', element: suspense(<StaffAppointments />) },
       { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
       { path: 'technician-schedule', element: suspense(<StaffTechnicianSchedule />) },
+      { path: 'chat', element: suspense(<StaffChat />) },
     ],
   },
   // Manager routes with manager layout (no global header)

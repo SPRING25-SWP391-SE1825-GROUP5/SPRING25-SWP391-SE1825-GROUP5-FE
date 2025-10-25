@@ -147,6 +147,13 @@ const slice = createSlice({
         localStorage.removeItem('user')
         localStorage.removeItem('authToken')
         localStorage.removeItem('refreshToken')
+        
+        // Clear all technicianId cache to prevent stale data when switching accounts
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('technicianId_')) {
+            localStorage.removeItem(key)
+          }
+        })
       }
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem('loginToasted')

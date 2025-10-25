@@ -23,10 +23,10 @@ interface ScheduleData {
 }
 
 interface WorkScheduleProps {
-  onNavigateToVehicleDetails: () => void
+  // No props needed
 }
 
-export default function WorkSchedule({ onNavigateToVehicleDetails }: WorkScheduleProps) {
+export default function WorkSchedule({}: WorkScheduleProps) {
   // Removed viewMode - only using month view
   const [currentDate, setCurrentDate] = useState(new Date())
   const [scheduleData, setScheduleData] = useState<ScheduleData[]>([])
@@ -99,7 +99,6 @@ export default function WorkSchedule({ onNavigateToVehicleDetails }: WorkSchedul
           onDateChange={setCurrentDate}
           appointments={[]}
           onAppointmentClick={() => {}}
-          onNavigateToVehicleDetails={onNavigateToVehicleDetails}
         />
       )}
     </div>
