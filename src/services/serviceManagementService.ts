@@ -59,6 +59,8 @@ const mapServiceToBackendService = (s: Partial<Service> & { notes?: string }): a
 
 export type ServiceStats = {
   totalServices: number
+  activeServices: number
+  inactiveServices: number
   serviceBookings: number
   serviceRevenue: number
   completionRate: number
@@ -240,6 +242,7 @@ export const ServiceManagementService = {
 
       const totalServices = services.length
       const activeServices = services.filter(s => s.isActive).length
+      const inactiveServices = totalServices - activeServices
 
       const serviceBookings = 0
       const serviceRevenue = 0
@@ -247,6 +250,8 @@ export const ServiceManagementService = {
 
       return {
         totalServices,
+        activeServices,
+        inactiveServices,
         serviceBookings,
         serviceRevenue,
         completionRate,
@@ -256,6 +261,8 @@ export const ServiceManagementService = {
     } catch (error) {
       return {
         totalServices: 0,
+        activeServices: 0,
+        inactiveServices: 0,
         serviceBookings: 0,
         serviceRevenue: 0,
         completionRate: 0,

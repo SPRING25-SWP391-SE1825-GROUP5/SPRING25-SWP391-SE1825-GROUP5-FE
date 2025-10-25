@@ -27,6 +27,7 @@ export type {
   UpdateUserProfileRequest,
   GetUsersRequest,
   CreateUserRequest,
+  CreateUserByAdminRequest,
   UserListResponse
 } from './userService'
 
