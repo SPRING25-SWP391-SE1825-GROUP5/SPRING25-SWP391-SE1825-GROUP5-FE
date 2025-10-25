@@ -15,8 +15,8 @@ export type GetUsersRequest = {
   pageSize?: number
   searchTerm?: string
   role?: string
-  // sortBy?: string
-  // sortOrder?: 'asc' | 'desc'
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 export type CreateUserRequest = {
@@ -26,6 +26,19 @@ export type CreateUserRequest = {
   role: string
   phone?: string
   isActive?: boolean
+}
+
+export type CreateUserByAdminRequest = {
+  fullName: string
+  email: string
+  password: string
+  phoneNumber: string
+  dateOfBirth: string
+  gender: 'MALE' | 'FEMALE'
+  address: string
+  role: 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'MANAGER' | 'TECHNICIAN'
+  isActive: boolean
+  emailVerified: boolean
 }
 
 export type UserListResponse = {
@@ -101,6 +114,19 @@ export const UserService = {
   },
 
   /**
+   * Create new user by admin with full details
+   * 
+   * @param userData - Complete user creation data
+   * @returns Promise with created user
+   * @throws {Error} When creation fails or unauthorized
+   */
+  async createUserByAdmin(userData: CreateUserByAdminRequest): Promise<any> {
+    const response = await api.post('/User', userData)
+    // API returns { data: User, message: string, success: boolean }
+    return response.data
+  },
+
+  /**
    * Update user by ID (Admin only)
    * 
    * @param userId - User ID to update
@@ -125,7 +151,31 @@ export const UserService = {
   },
 
   /**
-   * Activate/Deactivate user account (Admin only)
+   * Activate user account (Admin only)
+   * 
+   * @param userId - User ID to activate
+   * @returns Promise with updated user
+   * @throws {Error} When activation fails or unauthorized
+   */
+  async activateUser(userId: string): Promise<User> {
+    const { data } = await api.patch<User>(`/User/${userId}/activate`)
+    return data
+  },
+
+  /**
+   * Deactivate user account (Admin only)
+   * 
+   * @param userId - User ID to deactivate
+   * @returns Promise with updated user
+   * @throws {Error} When deactivation fails or unauthorized
+   */
+  async deactivateUser(userId: string): Promise<User> {
+    const { data } = await api.patch<User>(`/User/${userId}/deactivate`)
+    return data
+  },
+
+  /**
+   * Toggle user status (convenience method)
    * 
    * @param userId - User ID to update
    * @param isActive - Active status
@@ -133,8 +183,11 @@ export const UserService = {
    * @throws {Error} When update fails or unauthorized
    */
   async toggleUserStatus(userId: string, isActive: boolean): Promise<User> {
-    const { data } = await api.patch<User>(`/users/${userId}/status`, { isActive })
-    return data
+    if (isActive) {
+      return this.activateUser(userId)
+    } else {
+      return this.deactivateUser(userId)
+    }
   },
 
   /**
