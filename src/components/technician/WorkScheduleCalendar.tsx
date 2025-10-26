@@ -44,7 +44,6 @@ export default function WorkScheduleCalendar({
     try {
       // Check if user is available
       if (!user?.id) {
-        console.log('⚠️ User not available or no ID found')
         setError('Vui lòng đăng nhập để xem lịch làm việc')
         setWorkDays(new Set())
         return
@@ -57,13 +56,13 @@ export default function WorkScheduleCalendar({
       
       console.log('👤 Resolved technician info:', technicianInfo)
       
-      const technicianId = technicianInfo.technicianId
-      const centerId = technicianInfo.centerId
+      const technicianId = technicianInfo.data?.technicianId
+      const centerId = technicianInfo.data?.centerId
       
       console.log('📋 Using resolved IDs:', { 
         technicianId,
         centerId,
-        technicianName: technicianInfo.technicianName
+        technicianName: technicianInfo.data?.technicianName
       })
       
       // Update state with resolved IDs

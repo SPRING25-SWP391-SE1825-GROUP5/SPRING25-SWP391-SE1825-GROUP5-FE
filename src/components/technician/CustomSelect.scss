@@ -1,0 +1,135 @@
+/* Custom Select Component with Rounded Corners */
+.custom-select {
+  position: relative;
+  display: inline-block;
+  min-width: 160px;
+  z-index: 10;
+
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #374151;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: 14px;
+    font-weight: 400;
+
+    &:hover {
+      background: white;
+      border-color: #D1D5DB;
+    }
+
+    &__text {
+      flex: 1;
+      text-align: left;
+    }
+
+    &__icon {
+      transition: transform 0.3s ease;
+      color: #6B7280;
+
+      &--open {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    box-shadow: 
+      0 4px 12px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    overflow: hidden;
+    animation: dropdownFadeIn 0.2s ease-out;
+  }
+
+  &__option {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #F3F4F6;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: #FFD875;
+      color: #000000;
+      transform: translateX(2px);
+    }
+
+    &--selected {
+      background: #FFD875;
+      color: #B8860B;
+      font-weight: 600;
+
+      &:hover {
+        background: #FFE4B5;
+        color: #000000;
+        transform: translateX(2px);
+      }
+    }
+  }
+}
+
+/* Animation for dropdown */
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .custom-select {
+    min-width: 140px;
+
+    &__trigger {
+      padding: 0.5rem 0.625rem;
+      font-size: 13px;
+    }
+
+    &__option {
+      padding: 0.625rem 0.875rem;
+      font-size: 13px;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .custom-select {
+    min-width: 120px;
+
+    &__trigger {
+      padding: 0.375rem 0.5rem;
+      font-size: 12px;
+    }
+
+    &__option {
+      padding: 0.5rem 0.75rem;
+      font-size: 12px;
+    }
+  }
+}

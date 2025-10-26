@@ -23,45 +23,44 @@ export const TechnicianService = {
     // Lấy technicianId từ userId bằng cách gọi API Technician list
     async getTechnicianIdByUserId(userId: number) {
         try {
-            console.log('🔍 Getting technicianId for userId:', userId)
-            
-            // Gọi API lấy danh sách technicians và tìm technician có userId tương ứng
             const response = await api.get('/Technician', { 
                 params: { 
-                    pageSize: 1000, // Lấy nhiều để tìm được
-                    // Không dùng searchTerm vì có thể không tìm được
+                    pageSize: 1000,
                 } 
             })
-            
-            console.log('📋 Technician list response:', response?.data)
             
             if (response?.data?.success && response.data.data) {
                 const technicians = response.data.data.technicians || response.data.data
                 
                 if (Array.isArray(technicians)) {
-                    console.log('📋 Found technicians:', technicians.length)
-                    
-                    // Tìm technician có userId tương ứng
                     const technician = technicians.find((t: any) => {
-                        console.log('🔍 Checking technician:', t, 'userId:', t.userId, 'user.id:', t.user?.id, 'target userId:', userId)
                         return t.userId === userId || t.user?.id === userId
                     })
                     
                     if (technician && technician.technicianId) {
-                        console.log('✅ Found technicianId:', technician.technicianId, 'for userId:', userId)
                         return {
-                            technicianId: Number(technician.technicianId),
-                            centerId: technician.centerId,
-                            technicianName: technician.userFullName || technician.name
+                            success: true,
+                            data: {
+                                technicianId: Number(technician.technicianId),
+                                centerId: technician.centerId,
+                                technicianName: technician.userFullName || technician.name
+                            }
                         }
                     }
                 }
             }
             
-            throw new Error('Không tìm thấy technician cho userId này')
+            return {
+                success: false,
+                data: null,
+                message: 'Không tìm thấy technician cho userId này'
+            }
         } catch (error) {
-            console.error('Error getting technicianId by userId:', error)
-            throw error
+            return {
+                success: false,
+                data: null,
+                message: 'Lỗi khi tìm technician: ' + (error as Error).message
+            }
         }
     },
     async list(params: { pageNumber?: number; pageSize?: number; searchTerm?: string; centerId?: number } = {}) {
@@ -103,7 +102,6 @@ export const TechnicianService = {
                 inactiveTechnicians: 0
             }
         } catch (error) {
-            console.error('Error fetching technician stats:', error)
             return {
                 totalTechnicians: 0,
                 activeTechnicians: 0,
@@ -162,21 +160,89 @@ export const TechnicianService = {
         return data
     },
 
-    // Lấy danh sách bookings của technician theo ngày
-    async getTechnicianBookings(technicianId: number, date?: string) {
+  // Lấy danh sách bookings của technician theo ngày
+  async getTechnicianBookings(technicianId: number, date?: string) {
+    try {
+      const params: any = {}
+      if (date) {
+        params.date = date
+      }
+      
+      const { data } = await api.get(`/Technician/${technicianId}/bookings`, { params })
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        message: 'Không thể tải danh sách booking'
+      }
+    }
+  },
+
+  // Lấy chi tiết booking của technician
+  async getBookingDetail(technicianId: number, bookingId: number) {
+    try {
+      const { data } = await api.get(`/Technician/${technicianId}/bookings/${bookingId}`)
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: 'Không thể tải chi tiết booking'
+      }
+    }
+  },
+
+  // Cập nhật maintenance checklist
+  async updateMaintenanceChecklist(bookingId: number, items: Array<{ resultId: number; description: string; result: string }>) {
+    try {
+      const { data } = await api.put(`/maintenance-checklist/${bookingId}`, { items })
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể cập nhật maintenance checklist'
+      }
+    }
+  },
+
+    // Lấy thông tin kỹ thuật viên theo centerId
+    async getTechniciansByCenter(centerId: number) {
         try {
-            const params: any = {}
-            if (date) {
-                params.date = date
-            }
-            
-            console.log(`Fetching bookings for technician ${technicianId} with params:`, params)
-            const { data } = await api.get(`/Technician/${technicianId}/bookings`, { params })
-            console.log('Raw API response:', data)
+            const { data } = await api.get(`/Technician/by-center/${centerId}`)
             return data
         } catch (error) {
-            console.error('Error fetching technician bookings:', error)
             throw error
+        }
+    },
+
+    // Lấy thống kê booking theo trạng thái cho technician
+
+    // Lấy danh sách booking của technician cho calendar
+    async getTechnicianBookings(technicianId: number) {
+        try {
+            const { data } = await api.get(`/Technician/${technicianId}/bookings`)
+            return data
+        } catch (error) {
+            return {
+                success: false,
+                data: [],
+                message: 'Không thể tải lịch đặt hẹn'
+            }
+        }
+    },
+
+    // Lấy thông tin chi tiết booking
+    async getBookingDetail(technicianId: number, bookingId: number) {
+        try {
+            const { data } = await api.get(`/Technician/${technicianId}/bookings/${bookingId}`)
+            return data
+        } catch (error) {
+            return {
+                success: false,
+                data: null,
+                message: 'Không thể tải thông tin chi tiết booking'
+            }
         }
     },
 }

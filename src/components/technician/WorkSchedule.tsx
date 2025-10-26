@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import WorkScheduleHeader from './WorkScheduleHeader'
 import WorkScheduleCalendar from './WorkScheduleCalendar'
+import WorkScheduleCalendarNew from './WorkScheduleCalendarNew'
 import { useAppSelector } from '@/store/hooks'
 import './WorkSchedule.scss'
 
@@ -75,8 +75,6 @@ export default function WorkSchedule({}: WorkScheduleProps) {
 
   return (
     <div className="work-schedule">
-      <WorkScheduleHeader />
-
       {/* Loading State */}
       {loading && (
         <div className="work-schedule__loading">
@@ -93,12 +91,9 @@ export default function WorkSchedule({}: WorkScheduleProps) {
 
       {/* Calendar - only show when not loading and no error */}
       {!loading && !error && (
-        <WorkScheduleCalendar
-          viewMode="month"
+        <WorkScheduleCalendarNew
           currentDate={currentDate}
           onDateChange={setCurrentDate}
-          appointments={[]}
-          onAppointmentClick={() => {}}
         />
       )}
     </div>
