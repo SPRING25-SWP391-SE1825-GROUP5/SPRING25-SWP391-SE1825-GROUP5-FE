@@ -332,11 +332,7 @@ export default function StaffManagement() {
               background: '#F8FAFC',
               borderRadius: '10px',
               border: '2px solid #E2E8F0',
-              transition: 'all 0.2s ease',
-              ':focus-within': {
-                borderColor: '#FFD875',
-                boxShadow: '0 0 0 3px rgba(255, 216, 117, 0.1)'
-              }
+              transition: 'all 0.2s ease'
             }}>
               <Search size={20} style={{ color: '#64748B' }} />
               <input

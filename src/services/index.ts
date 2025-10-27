@@ -34,12 +34,16 @@ export type {
 // Booking Services
 export { BookingService } from './bookingService'
 export type {
-  AvailabilityParams,
-  AvailabilityResponse,
+  BookingResponse,
+  BookingDetail,
+  BookingDetailResponse,
+  MaintenanceChecklist,
+  MaintenanceChecklistItem,
+  MaintenanceChecklistSummary,
+  MaintenanceChecklistStatus,
   TimeSlotAvailability,
   TechnicianAvailability,
-  ReservationRequest,
-  ReservationResponse
+  AvailabilityResponse
 } from './bookingService'
 
 // Service Management Services

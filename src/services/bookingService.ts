@@ -1,5 +1,25 @@
 import api from './api'
 
+// Types used by booking UI components
+export interface TimeSlotAvailability {
+  slotId: number
+  slotTime: string
+  isAvailable: boolean
+  isPast?: boolean
+}
+
+export interface TechnicianAvailability {
+  id: number
+  name: string
+  specialization: string
+  available: boolean
+}
+
+export interface AvailabilityResponse {
+  timeSlots: TimeSlotAvailability[]
+  technicians: TechnicianAvailability[]
+}
+
 export interface CenterInfo {
   centerId: number
   centerName: string
@@ -164,6 +184,29 @@ export const BookingService = {
   async getBookingDetail(bookingId: number): Promise<BookingDetailResponse> {
     const response = await api.get(`/Booking/${bookingId}`)
     return response.data
+  },
+
+  // Lấy lịch sử booking của customer
+  async getBookingHistory(customerId: number, page: number = 1, limit: number = 10): Promise<any> {
+    try {
+      console.log('🌐 BookingService.getBookingHistory called:', { customerId, page, limit })
+      const url = `/Booking/Customer/${customerId}/booking-history`
+      console.log('📡 API URL:', url)
+      
+      const response = await api.get(url, {
+        params: { 
+          page, 
+          pageSize: limit,
+          sortBy: 'bookingDate',
+          sortOrder: 'desc'
+        }
+      })
+      console.log('✅ BookingService API response:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Error fetching booking history:', error)
+      throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy lịch sử booking')
+    }
   },
 
   // Lấy maintenance checklist
