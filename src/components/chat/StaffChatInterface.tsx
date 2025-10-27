@@ -4,7 +4,7 @@ import { useAppSelector } from '@/store/hooks'
 import type { ChatMessage, ChatConversation } from '@/types/chat'
 import ChatService from '@/services/chatService'
 import signalRService from '@/services/signalRService'
-import notificationService from '@/services/notificationService'
+import { NotificationService } from '@/services/notificationService'
 import './StaffChatInterface.scss'
 
 interface StaffChatInterfaceProps {
@@ -72,12 +72,12 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
       // Show notification if message is not from current user
       const isFromCurrentUser = message.senderId === String(user?.userId || 'staff')
       if (!isFromCurrentUser) {
-        notificationService.showMessageNotification(
+        NotificationService.showMessageNotification(
           message.senderName,
           message.content,
           message.conversationId
         )
-        notificationService.playNotificationSound()
+        NotificationService.playNotificationSound()
       }
     })
 
