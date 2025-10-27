@@ -17,18 +17,18 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
   const dropdownRef = useRef<HTMLDivElement>(null)
   const callbacksRegistered = useRef(false)
   
-  const { user } = useAppSelector((state) => state.auth)
+  const { user, token } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     // Lấy token từ Redux hoặc localStorage
-    const token = user?.token || localStorage.getItem('token')
+    const authToken = token || localStorage.getItem('token')
     
-    if (token) {
+    if (authToken) {
       loadNotifications()
       loadUnreadCount()
       
       // Kết nối SignalR (chỉ kết nối nếu chưa kết nối)
-      signalRService.connect(token)
+      signalRService.connect(authToken)
       
       // Đăng ký callback để nhận thông báo real-time (chỉ đăng ký một lần)
       if (!callbacksRegistered.current) {

@@ -242,35 +242,6 @@ export const TechnicianService = {
         }
     },
 
-    // Lấy thống kê booking theo trạng thái cho technician
-
-    // Lấy danh sách booking của technician cho calendar
-    async getTechnicianBookings(technicianId: number) {
-        try {
-            const { data } = await api.get(`/Technician/${technicianId}/bookings`)
-            return data
-        } catch (error) {
-            return {
-                success: false,
-                data: [],
-                message: 'Không thể tải lịch đặt hẹn'
-            }
-        }
-    },
-
-    // Lấy thông tin chi tiết booking
-    async getBookingDetail(technicianId: number, bookingId: number) {
-        try {
-            const { data } = await api.get(`/Technician/${technicianId}/bookings/${bookingId}`)
-            return data
-        } catch (error) {
-            return {
-                success: false,
-                data: null,
-                message: 'Không thể tải thông tin chi tiết booking'
-            }
-        }
-    },
 }
 
 export type TimeSlot = {

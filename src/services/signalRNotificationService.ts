@@ -9,6 +9,7 @@ export interface SignalRNotification {
   createdAt: string
   type: string
   status: 'NEW' | 'READ'
+  readAt: string | null
 }
 
 class SignalRService {
