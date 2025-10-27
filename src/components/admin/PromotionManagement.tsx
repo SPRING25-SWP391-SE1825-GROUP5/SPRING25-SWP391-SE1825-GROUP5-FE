@@ -56,6 +56,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (promotion) {
@@ -87,6 +88,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
       })
     }
     setErrors({})
+    setFormError(null)
   }, [promotion, isOpen])
 
   // Validation function
@@ -155,27 +157,43 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
   }
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
+    
     if (validateForm()) {
-      // Sanitize payload to match backend validation (DateOnly, nullable optionals)
-      const resolvedMaxDiscount = (formData.discountType === 'PERCENT')
-        ? (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : 1)
-        : (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : null)
+      try {
+        // Sanitize payload to match backend validation (DateOnly, nullable optionals)
+        const resolvedMaxDiscount = (formData.discountType === 'PERCENT')
+          ? (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : 1)
+          : (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : null)
 
-      const payload: any = {
-        code: formData.code.trim(),
-        description: formData.description.trim(),
-        discountValue: Number(formData.discountValue),
-        discountType: formData.discountType,
-        minOrderAmount: formData.minOrderAmount && formData.minOrderAmount > 0 ? Number(formData.minOrderAmount) : null,
-        startDate: formData.startDate, // YYYY-MM-DD
-        endDate: formData.endDate && formData.endDate.length > 0 ? formData.endDate : null,
-        maxDiscount: resolvedMaxDiscount,
-        status: formData.status,
-        usageLimit: formData.usageLimit && formData.usageLimit > 0 ? Number(formData.usageLimit) : null
+        const payload: any = {
+          code: formData.code.trim(),
+          description: formData.description.trim(),
+          discountValue: Number(formData.discountValue),
+          discountType: formData.discountType,
+          minOrderAmount: formData.minOrderAmount && formData.minOrderAmount > 0 ? Number(formData.minOrderAmount) : null,
+          startDate: formData.startDate, // YYYY-MM-DD
+          endDate: formData.endDate && formData.endDate.length > 0 ? formData.endDate : null,
+          maxDiscount: resolvedMaxDiscount,
+          status: formData.status,
+          usageLimit: formData.usageLimit && formData.usageLimit > 0 ? Number(formData.usageLimit) : null
+        }
+
+        console.log({payload});
+        
+        await onSave(payload)
+      } catch (error) {
+        console.error('Error saving promotion:', error)
+        // Extract server message if available
+        // @ts-ignore
+        const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
+        const errorMessage = serverMsg
+          ? `Không thể lưu khuyến mãi: ${serverMsg}`
+          : 'Có lỗi xảy ra khi lưu khuyến mãi. Vui lòng thử lại.'
+        setFormError(errorMessage)
       }
-      onSave(payload)
     }
   }
 
@@ -206,6 +224,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+    // Clear form error when user starts typing
+    if (formError) {
+      setFormError(null)
     }
   }
 
@@ -293,6 +315,23 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
         </div>
 
         <div style={{ display: 'grid', gap: '20px' }}>
+          {/* Form Error Message */}
+          {formError && (
+            <div style={{
+              background: 'var(--error-50)',
+              border: '1px solid var(--error-200)',
+              color: 'var(--error-700)',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <AlertCircle size={20} />
+              {formError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '20px' }}>
             {/* Mã khuyến mãi */}
             <div>
@@ -1401,7 +1440,7 @@ function PromotionTable({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {promotion.discountType === 'PERCENTAGE'
+                    {promotion.discountType === 'PERCENT'
                       ? `${promotion.discountValue}%`
                       : formatCurrency(promotion.discountValue)
                     }
@@ -1825,14 +1864,8 @@ export default function PromotionManagement() {
       await loadPromotions()
     } catch (error) {
       console.error('Error saving promotion:', error)
-      // Extract server message if available
-      // @ts-ignore
-      const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
-      const errorMessage = serverMsg
-        ? `Không thể lưu khuyến mãi: ${serverMsg}`
-        : 'Có lỗi xảy ra khi lưu khuyến mãi. Vui lòng thử lại.'
-      setError(errorMessage)
-      setTimeout(() => setError(null), 5000)
+      // Re-throw error to be handled in form
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -2857,13 +2890,13 @@ export default function PromotionManagement() {
                     <div>
                       <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Loại giảm giá</div>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        {selectedPromotion.discountType === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Số tiền cố định (VNĐ)'}
+                        {selectedPromotion.discountType === 'PERCENT' ? 'Phần trăm (%)' : 'Số tiền cố định (VNĐ)'}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giá trị giảm</div>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        {selectedPromotion.discountType === 'PERCENTAGE'
+                        {selectedPromotion.discountType === 'PERCENT'
                           ? `${selectedPromotion.discountValue}%`
                           : formatCurrency(selectedPromotion.discountValue)
                         }
