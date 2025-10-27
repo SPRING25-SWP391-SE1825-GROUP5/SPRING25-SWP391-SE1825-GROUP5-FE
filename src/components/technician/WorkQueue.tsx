@@ -292,17 +292,17 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                            work.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            work.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            work.customerPhone.includes(searchTerm)
-      
-      // Sửa logic filter status - map từ uppercase sang lowercase
-      let matchesStatus = true
-      if (statusFilter && statusFilter !== '' && statusFilter !== 'all') {
-        // Map status filter từ uppercase sang lowercase để so sánh
-        const mappedStatus = mapBookingStatus(statusFilter)
-        matchesStatus = work.status === mappedStatus
-      }
-      
-      return matchesSearch && matchesStatus
-    })
+    
+    // Sửa logic filter status - map từ uppercase sang lowercase
+    let matchesStatus = true
+    if (statusFilter && statusFilter !== '' && statusFilter !== 'all') {
+      // Map status filter từ uppercase sang lowercase để so sánh
+      const mappedStatus = mapBookingStatus(statusFilter)
+      matchesStatus = work.status === mappedStatus
+    }
+    
+    return matchesSearch && matchesStatus
+  })
     .sort((a, b) => {
       // Sort theo booking mới nhất (bookingId cao nhất)
       return b.bookingId - a.bookingId
@@ -421,7 +421,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
 
   const handleStatusUpdate = async (e: React.MouseEvent, workId: number, newStatus: string) => {
     e.stopPropagation()
-    setUpdatingStatus(prev => new Set(prev).add(workId))
+      setUpdatingStatus(prev => new Set(prev).add(workId))
     try {
       const response = await api.put(`/Booking/${workId}/status`, { 
         status: mapStatusToApi(newStatus) 
@@ -588,8 +588,8 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                               <div className="work-queue__list__item__terminal-status__info">
                                 <div 
                                   className="work-queue__list__item__terminal-status__icon"
-                                  style={{ 
-                                    backgroundColor: getStatusColor(work.status) + '15',
+                            style={{ 
+                              backgroundColor: getStatusColor(work.status) + '15',
                                     color: getStatusColor(work.status)
                                   }}
                                 >
@@ -599,9 +599,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   <span 
                                     className="work-queue__list__item__terminal-status__value"
                                     style={{ color: getStatusColor(work.status) }}
-                                  >
-                                    {getStatusText(work.status)}
-                                  </span>
+                          >
+                            {getStatusText(work.status)}
+                          </span>
                                 </div>
                               </div>
                             </div>
@@ -742,10 +742,10 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                         </button>
                         
                         {/* Nút xác nhận - hiển thị luôn nhưng disable khi không phù hợp */}
-                        <button
-                          className="work-queue__list__item__action-btn work-queue__list__item__action-btn--confirm"
-                          onClick={(e) => {
-                            e.stopPropagation()
+                          <button
+                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--confirm"
+                            onClick={(e) => {
+                              e.stopPropagation()
                             if (work.status === 'pending') {
                               handleStatusUpdate(e, work.id, 'confirmed')
                             }
@@ -757,15 +757,15 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                             color: work.status === 'pending' ? '#ffffff' : '#9ca3af',
                             cursor: work.status === 'pending' ? 'pointer' : 'not-allowed'
                           }}
-                        >
-                          {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                        </button>
+                          >
+                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                          </button>
                         
                         {/* Nút bắt đầu - hiển thị luôn nhưng disable khi không phù hợp */}
-                        <button
-                          className="work-queue__list__item__action-btn work-queue__list__item__action-btn--start"
-                          onClick={(e) => {
-                            e.stopPropagation()
+                          <button
+                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--start"
+                            onClick={(e) => {
+                              e.stopPropagation()
                             if (work.status === 'confirmed') {
                               handleStatusUpdate(e, work.id, 'in_progress')
                             }
@@ -777,15 +777,15 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                             color: work.status === 'confirmed' ? '#ffffff' : '#9ca3af',
                             cursor: work.status === 'confirmed' ? 'pointer' : 'not-allowed'
                           }}
-                        >
-                          {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                        </button>
+                          >
+                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                          </button>
                         
                         {/* Nút hoàn thành - đổi từ in_progress sang completed */}
-                        <button
-                          className="work-queue__list__item__action-btn work-queue__list__item__action-btn--complete"
-                          onClick={(e) => {
-                            e.stopPropagation()
+                          <button
+                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--complete"
+                            onClick={(e) => {
+                              e.stopPropagation()
                             if (work.status === 'in_progress') {
                               handleStatusUpdate(e, work.id, 'completed')
                             }
@@ -797,16 +797,16 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                             color: work.status === 'in_progress' ? '#ffffff' : '#9ca3af',
                             cursor: work.status === 'in_progress' ? 'pointer' : 'not-allowed'
                           }}
-                        >
-                          {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
-                        </button>
+                          >
+                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
+                          </button>
                         
                         
                         {/* Nút hủy - sử dụng API cancel */}
-                        <button
-                          className="work-queue__list__item__action-btn work-queue__list__item__action-btn--cancel"
-                          onClick={(e) => {
-                            e.stopPropagation()
+                          <button
+                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--cancel"
+                            onClick={(e) => {
+                              e.stopPropagation()
                             if (work.status !== 'completed' && work.status !== 'paid' && work.status !== 'cancelled') {
                               handleCancelBooking(e, work.id)
                             }
@@ -818,9 +818,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                             color: !['completed', 'paid', 'cancelled'].includes(work.status) ? '#ffffff' : '#9ca3af',
                             cursor: !['completed', 'paid', 'cancelled'].includes(work.status) ? 'pointer' : 'not-allowed'
                           }}
-                        >
-                          {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
-                        </button>
+                          >
+                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                          </button>
                       </div>
                     </div>
                   </div>

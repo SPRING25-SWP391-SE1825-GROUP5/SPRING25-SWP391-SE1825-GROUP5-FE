@@ -124,6 +124,16 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
     return date.toLocaleDateString('vi-VN')
   }
 
+  const translateStatus = (message: string): string => {
+    return message
+      .replace(/COMPLETED/g, 'Hoàn thành')
+      .replace(/IN_PROGRESS/g, 'Đang xử lý')
+      .replace(/CONFIRMED/g, 'Đã xác nhận')
+      .replace(/PENDING/g, 'Chờ xác nhận')
+      .replace(/CANCELLED/g, 'Đã hủy')
+      .replace(/PAID/g, 'Đã thanh toán')
+  }
+
   const toggleDropdown = () => {
     setShowDropdown(!showDropdown)
     if (!showDropdown) {
@@ -188,7 +198,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
                         )}
                       </div>
                       <p className="notification-bell__item-message">
-                        {notification.message}
+                        {translateStatus(notification.message)}
                       </p>
                       <span className="notification-bell__item-time">
                         {formatTime(notification.createdAt)}

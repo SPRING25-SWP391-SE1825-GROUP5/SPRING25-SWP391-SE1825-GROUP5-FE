@@ -108,7 +108,6 @@ export default function WorkScheduleCalendarNew({
 
       // Load bookings
       const bookingsResponse = await TechnicianService.getTechnicianBookings(technicianId)
-      console.log('📅 Bookings API Response:', bookingsResponse)
       
       if (bookingsResponse.success && bookingsResponse.data) {
         // Check if data is array or has nested array
@@ -116,15 +115,8 @@ export default function WorkScheduleCalendarNew({
           ? bookingsResponse.data 
           : bookingsResponse.data.bookings || bookingsResponse.data.data || []
         
-        console.log('📅 Bookings Array:', bookingsArray)
         
         const bookingsData = bookingsArray.map((booking: any) => {
-          console.log('📅 Processing booking:', {
-            bookingId: booking.bookingId,
-            slotLabel: booking.slotLabel,
-            slotTime: booking.slotTime,
-            status: booking.status
-          })
           // Use slotLabel directly if available, otherwise parse slotTime
           let startTime = '08:00'
           let endTime = '09:00'
@@ -165,10 +157,8 @@ export default function WorkScheduleCalendarNew({
           }
         })
         
-        console.log('📅 Processed Bookings:', bookingsData)
         setBookings(bookingsData)
       } else {
-        console.log('📅 No bookings data from API')
         setBookings([])
       }
     } catch (error: any) {
@@ -199,7 +189,6 @@ export default function WorkScheduleCalendarNew({
   const getAppointmentsForDay = (date: Date): Booking[] => {
     const dateString = format(date, 'yyyy-MM-dd')
     const dayBookings = bookings.filter(booking => booking.date === dateString)
-    console.log(`📅 Bookings for ${dateString}:`, dayBookings)
     return dayBookings
   }
 
@@ -351,16 +340,6 @@ export default function WorkScheduleCalendarNew({
               // Total position = timezone height + (slot index * slot height) + position within slot
               const totalPosition = timezoneHeight + (slotIndex * slotHeight) + positionInSlot
               
-              console.log('🕐 Current time calculation:', {
-                currentHour,
-                currentMinute,
-                slotIndex,
-                minutesInSlot,
-                positionInSlot,
-                totalPosition,
-                timezoneHeight,
-                slotHeight
-              })
               
               return (
                 <div 
@@ -418,7 +397,6 @@ export default function WorkScheduleCalendarNew({
                         const appStartTime = app.startTime
                         const matches = appStartTime === timeString
                         if (matches) {
-                          console.log(`📅 Found appointment at ${timeString}:`, app)
                         }
                         return matches
                       })

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, Calendar, User, Car, Wrench, MapPin, CheckCircle, Clock, Phone, Mail, Hash, DollarSign, FileText, XCircle } from 'lucide-react'
+import { ArrowLeft, Calendar, User, Car, Wrench, MapPin, CheckCircle, Clock, Phone, Mail, Hash, DollarSign, FileText, XCircle, ChevronDown } from 'lucide-react'
 import { useAppSelector } from '@/store/hooks'
 import { TechnicianService } from '@/services/technicianService'
 import './BookingDetail.scss'
@@ -64,6 +64,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
   const [maintenanceChecklist, setMaintenanceChecklist] = useState<MaintenanceChecklist | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    customerInfo: true,
+    specialRequests: true,
+    maintenanceChecklist: true
+  })
 
   const fetchBookingDetail = useCallback(async (bookingId: number) => {
     try {
@@ -104,32 +109,88 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
     try {
       setUpdating(true)
       
-      const updatedResults = maintenanceChecklist.results.map(item => 
-        item.resultId === resultId ? { ...item, result, status: result === 'PASS' ? 'completed' : result === 'FAIL' ? 'failed' : 'pending' } : item
+      // Tìm partId từ resultId
+      const checklistItem = maintenanceChecklist.results.find(item => item.resultId === resultId)
+      if (!checklistItem) {
+        toast.error('Không tìm thấy item checklist')
+        return
+      }
+
+      // Gọi API mới với partId
+      const response = await TechnicianService.updateMaintenanceChecklistItem(
+        bookingId, 
+        checklistItem.partId, 
+        result
       )
 
-      const items = updatedResults.map(item => ({
-        resultId: item.resultId,
-        description: item.description,
-        result: item.result || result
-      }))
-
-      const response = await TechnicianService.updateMaintenanceChecklist(bookingId, items)
-
       if (response.success) {
+        // Cập nhật local state
+        const updatedResults = maintenanceChecklist.results.map(item => 
+          item.resultId === resultId ? { 
+            ...item, 
+            result, 
+            status: result === 'PASS' ? 'completed' : result === 'FAIL' ? 'failed' : 'pending' 
+          } : item
+        )
+
         setMaintenanceChecklist({
           ...maintenanceChecklist,
           results: updatedResults
         })
         toast.success('Cập nhật trạng thái thành công')
       } else {
-        toast.error('Cập nhật trạng thái thất bại')
+        toast.error(response.message || 'Cập nhật trạng thái thất bại')
       }
     } catch (error) {
       toast.error('Lỗi khi cập nhật trạng thái')
     } finally {
       setUpdating(false)
     }
+  }
+
+  const canConfirmChecklist = () => {
+    if (!maintenanceChecklist) return false
+    
+    // Kiểm tra xem tất cả items đã được đánh giá chưa
+    return maintenanceChecklist.results.every(item => 
+      item.result === 'PASS' || item.result === 'FAIL'
+    )
+  }
+
+  const handleConfirmChecklist = async () => {
+    if (!maintenanceChecklist || !canConfirmChecklist()) {
+      toast.error('Vui lòng đánh giá tất cả các phụ tùng trước khi xác nhận')
+      return
+    }
+
+    try {
+      setUpdating(true)
+      
+      const response = await TechnicianService.confirmMaintenanceChecklist(bookingId)
+
+      if (response.success) {
+        toast.success('Xác nhận hoàn thành kiểm tra thành công')
+        
+        // Cập nhật trạng thái checklist
+        setMaintenanceChecklist({
+          ...maintenanceChecklist,
+          status: 'completed'
+        })
+      } else {
+        toast.error(response.message || 'Xác nhận thất bại')
+      }
+    } catch (error) {
+      toast.error('Lỗi khi xác nhận checklist')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const toggleSection = (sectionKey: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }))
   }
 
   if (loading) {
@@ -159,88 +220,94 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
 
   return (
     <div className="booking-detail">
-      {/* Header giống WorkQueue */}
-      <div className="booking-detail__header">
-        <button onClick={onBack} className="booking-detail__back-btn">
-          <ArrowLeft size={16} />
-          Quay lại
-        </button>
-        <h1>Chi tiết đơn đặt lịch #{bookingData.bookingId}</h1>
-      </div>
-
-      {/* Main Content Card giống WorkQueue */}
-      <div className="booking-detail__main-card">
-        {/* Status Overview Cards */}
-        <div className="booking-detail__stats">
-          <div className="booking-detail__stat-card">
-            <div className="booking-detail__stat-icon">
-              <Hash size={20} />
-            </div>
-            <div className="booking-detail__stat-content">
-              <div className="booking-detail__stat-value">#{bookingData.bookingId}</div>
-              <div className="booking-detail__stat-label">Mã đơn</div>
-            </div>
-          </div>
-          
-          <div className="booking-detail__stat-card">
-            <div className="booking-detail__stat-icon">
-              <User size={20} />
-            </div>
-            <div className="booking-detail__stat-content">
-              <div className="booking-detail__stat-value">{bookingData.customerName}</div>
-              <div className="booking-detail__stat-label">Khách hàng</div>
-            </div>
-          </div>
-
-          <div className="booking-detail__stat-card">
-            <div className="booking-detail__stat-icon">
-              <Car size={20} />
-            </div>
-            <div className="booking-detail__stat-content">
-              <div className="booking-detail__stat-value">{bookingData.vehiclePlate}</div>
-              <div className="booking-detail__stat-label">Biển số xe</div>
-            </div>
-          </div>
-
-          <div className="booking-detail__stat-card">
-            <div className="booking-detail__stat-icon">
-              <Wrench size={20} />
-            </div>
-            <div className="booking-detail__stat-content">
-              <div className="booking-detail__stat-value">{bookingData.serviceName}</div>
-              <div className="booking-detail__stat-label">Dịch vụ</div>
-            </div>
-          </div>
-
-          <div className="booking-detail__stat-card">
-            <div className="booking-detail__stat-icon">
-              <Clock size={20} />
-            </div>
-            <div className="booking-detail__stat-content">
-              <div className="booking-detail__stat-value">{bookingData.slotTime.replace(' SA', '').replace(' CH', '')}</div>
-              <div className="booking-detail__stat-label">Thời gian</div>
-            </div>
-          </div>
-
-          <div className="booking-detail__stat-card">
-            <div className="booking-detail__stat-icon">
-              <DollarSign size={20} />
-            </div>
-            <div className="booking-detail__stat-content">
-              <div className="booking-detail__stat-value">{bookingData.servicePrice.toLocaleString('vi-VN')} VNĐ</div>
-              <div className="booking-detail__stat-label">Giá dịch vụ</div>
-            </div>
-          </div>
+      <div className="booking-detail__main">
+        {/* Compact Header */}
+        <div className="booking-detail__header">
+          <button onClick={onBack} className="booking-detail__back-btn">
+            <ArrowLeft size={16} />
+            Quay lại
+          </button>
+          <h1>Chi tiết đơn đặt lịch #{bookingData.bookingId}</h1>
         </div>
+
+        {/* Main Content Card */}
+        <div className="booking-detail__main-card">
+          {/* Compact Stats Cards */}
+          <div className="booking-detail__stats">
+            <div className="booking-detail__stats__card">
+              <div className="booking-detail__stats__card__icon">
+                <Hash size={16} />
+              </div>
+              <div className="booking-detail__stats__card__content">
+                <div className="booking-detail__stats__card__content__value">#{bookingData.bookingId}</div>
+                <div className="booking-detail__stats__card__content__label">Mã đơn</div>
+              </div>
+            </div>
+            
+            <div className="booking-detail__stats__card">
+              <div className="booking-detail__stats__card__icon">
+                <User size={16} />
+              </div>
+              <div className="booking-detail__stats__card__content">
+                <div className="booking-detail__stats__card__content__value">{bookingData.customerName}</div>
+                <div className="booking-detail__stats__card__content__label">Khách hàng</div>
+              </div>
+            </div>
+
+            <div className="booking-detail__stats__card">
+              <div className="booking-detail__stats__card__icon">
+                <Car size={16} />
+              </div>
+              <div className="booking-detail__stats__card__content">
+                <div className="booking-detail__stats__card__content__value">{bookingData.vehiclePlate}</div>
+                <div className="booking-detail__stats__card__content__label">Biển số xe</div>
+              </div>
+            </div>
+
+            <div className="booking-detail__stats__card">
+              <div className="booking-detail__stats__card__icon">
+                <Wrench size={16} />
+              </div>
+              <div className="booking-detail__stats__card__content">
+                <div className="booking-detail__stats__card__content__value" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bookingData.serviceName}</div>
+                <div className="booking-detail__stats__card__content__label">Dịch vụ</div>
+              </div>
+            </div>
+
+            <div className="booking-detail__stats__card">
+              <div className="booking-detail__stats__card__icon">
+                <Clock size={16} />
+              </div>
+              <div className="booking-detail__stats__card__content">
+                <div className="booking-detail__stats__card__content__value">{bookingData.slotTime.replace(' SA', '').replace(' CH', '')}</div>
+                <div className="booking-detail__stats__card__content__label">Thời gian</div>
+              </div>
+            </div>
+
+            <div className="booking-detail__stats__card">
+              <div className="booking-detail__stats__card__icon">
+                <DollarSign size={16} />
+              </div>
+              <div className="booking-detail__stats__card__content">
+                <div className="booking-detail__stats__card__content__value" style={{ fontSize: '0.875rem' }}>{bookingData.servicePrice.toLocaleString('vi-VN')} VNĐ</div>
+                <div className="booking-detail__stats__card__content__label">Giá dịch vụ</div>
+              </div>
+            </div>
+          </div>
 
         {/* Detailed Information */}
         <div className="booking-detail__content">
           {/* Customer Information */}
           <div className="booking-detail__section">
-            <div className="booking-detail__section-header">
+            <div className="booking-detail__section-header" onClick={() => toggleSection('customerInfo')}>
               <User size={16} />
               <h3>Thông tin khách hàng</h3>
+              <ChevronDown 
+                size={20} 
+                className={`booking-detail__section-header__arrow ${!expandedSections.customerInfo ? 'collapsed' : ''}`}
+              />
             </div>
+            {expandedSections.customerInfo && (
             <div className="booking-detail__info-grid">
               <div className="booking-detail__info-item">
                 <label>Tên khách hàng</label>
@@ -258,84 +325,47 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 <label>Địa chỉ</label>
                 <span>{bookingData.customerAddress}</span>
               </div>
-            </div>
-          </div>
-
-          {/* Vehicle Information */}
-          <div className="booking-detail__section">
-            <div className="booking-detail__section-header">
-              <Car size={16} />
-              <h3>Thông tin xe</h3>
-            </div>
-            <div className="booking-detail__info-grid">
-              <div className="booking-detail__info-item">
-                <label>Biển số xe</label>
-                <span>{bookingData.vehiclePlate}</span>
-              </div>
-              <div className="booking-detail__info-item">
-                <label>Màu xe</label>
-                <span>{bookingData.vehicleColor}</span>
-              </div>
               <div className="booking-detail__info-item">
                 <label>Số km hiện tại</label>
                 <span>{bookingData.currentMileage.toLocaleString()} km</span>
               </div>
-              {bookingData.lastServiceDate && (
-                <div className="booking-detail__info-item">
-                  <label>Lần bảo dưỡng cuối</label>
-                  <span>{new Date(bookingData.lastServiceDate).toLocaleDateString('vi-VN')}</span>
-                </div>
-              )}
             </div>
-          </div>
-
-          {/* Service Information */}
-          <div className="booking-detail__section">
-            <div className="booking-detail__section-header">
-              <Wrench size={16} />
-              <h3>Thông tin dịch vụ</h3>
-            </div>
-            <div className="booking-detail__info-grid">
-              <div className="booking-detail__info-item">
-                <label>Tên dịch vụ</label>
-                <span>{bookingData.serviceName}</span>
-              </div>
-              <div className="booking-detail__info-item">
-                <label>Mô tả</label>
-                <span>{bookingData.serviceDescription}</span>
-              </div>
-              <div className="booking-detail__info-item">
-                <label>Giá dịch vụ</label>
-                <span>{bookingData.servicePrice.toLocaleString('vi-VN')} VNĐ</span>
-              </div>
-              <div className="booking-detail__info-item">
-                <label>Trung tâm</label>
-                <span>{bookingData.centerName}</span>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Special Requests */}
           {bookingData.specialRequests && (
             <div className="booking-detail__section">
-              <div className="booking-detail__section-header">
+              <div className="booking-detail__section-header" onClick={() => toggleSection('specialRequests')}>
                 <FileText size={16} />
                 <h3>Yêu cầu đặc biệt</h3>
+                <ChevronDown 
+                  size={20} 
+                  className={`booking-detail__section-header__arrow ${!expandedSections.specialRequests ? 'collapsed' : ''}`}
+                />
               </div>
+              {expandedSections.specialRequests && (
               <div className="booking-detail__special-requests">
                 <p>{bookingData.specialRequests}</p>
               </div>
+              )}
             </div>
           )}
 
           {/* Maintenance Checklist */}
           {maintenanceChecklist && (
             <div className="booking-detail__section">
-              <div className="booking-detail__section-header">
+              <div className="booking-detail__section-header" onClick={() => toggleSection('maintenanceChecklist')}>
                 <CheckCircle size={16} />
                 <h3>Danh sách kiểm tra bảo dưỡng</h3>
+                <ChevronDown 
+                  size={20} 
+                  className={`booking-detail__section-header__arrow ${!expandedSections.maintenanceChecklist ? 'collapsed' : ''}`}
+                />
               </div>
               
+              {expandedSections.maintenanceChecklist && (
+              <>
               {/* Checklist Items - 2 columns */}
               <div className="booking-detail__checklist-list">
                 {maintenanceChecklist.results.map((item, index) => (
@@ -344,9 +374,9 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                       <input
                         type="checkbox"
                         className="booking-detail__checklist-checkbox"
-                        checked={item.status === 'completed'}
-                        onChange={() => !updating && handleUpdateChecklistItem(item.resultId, item.status === 'completed' ? 'FAIL' : 'PASS')}
-                        disabled={updating}
+                        checked={item.result === 'PASS' || item.result === 'FAIL'}
+                        readOnly
+                        disabled
                       />
                     </div>
                     <div className="booking-detail__checklist-content">
@@ -375,8 +405,28 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                   </div>
                 ))}
               </div>
+
+              {/* Confirm Button */}
+              <div className="booking-detail__checklist-confirm">
+                <button
+                  className="booking-detail__checklist-confirm-btn"
+                  onClick={handleConfirmChecklist}
+                  disabled={updating || !canConfirmChecklist()}
+                >
+                  <CheckCircle size={16} />
+                  Xác nhận hoàn thành kiểm tra
+                </button>
+                {!canConfirmChecklist() && (
+                  <p className="booking-detail__checklist-warning">
+                    Vui lòng đánh giá tất cả các phụ tùng trước khi xác nhận
+                  </p>
+                )}
+              </div>
+              </>
+              )}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

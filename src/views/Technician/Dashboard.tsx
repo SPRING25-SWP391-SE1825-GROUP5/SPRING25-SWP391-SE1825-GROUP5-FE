@@ -15,7 +15,6 @@ import {
   User,
   Bell,
   Menu,
-  BarChart3,
   Calendar,
   FileText,
   Settings
@@ -25,6 +24,7 @@ import {
   WorkSchedule
 } from '@/components/technician'
 import BookingDetail from '@/components/technician/BookingDetail'
+import TechnicianProfile from '@/components/technician/TechnicianProfile'
 import NotificationBell from '@/components/common/NotificationBell'
 import './technician.scss'
 import './technician-dashboard.scss'
@@ -336,7 +336,7 @@ export default function TechnicianDashboard() {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((s) => s.auth)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState('work-queue')
   const [selectedWork, setSelectedWork] = useState<any>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null)
@@ -451,68 +451,19 @@ export default function TechnicianDashboard() {
             onBack={handleBackFromBookingDetail}
           />
         ) : null
+      case 'profile':
+        return <TechnicianProfile />
       default:
-        return <DashboardOverview />
+        return <WorkQueue onViewDetails={(work) => {
+          setSelectedWork(work)
+          setIsDetailModalOpen(true)
+        }} onViewBookingDetail={handleViewBookingDetail} />
     }
   }
 
-  function DashboardOverview() {
-    // Hiển thị loading
-    if (loading) {
-      return (
-        <div className="dashboard-overview">
-          <div className="dashboard-overview__loading">
-            <div className="dashboard-overview__loading__spinner"></div>
-            <p>Đang tải thông tin...</p>
-          </div>
-        </div>
-      )
-    }
-
-    // Hiển thị thông báo khi chưa có trung tâm
-    if (!hasCenter) {
-      return (
-        <div className="dashboard-overview">
-          <div className="dashboard-overview__no-center">
-            <div className="dashboard-overview__no-center__icon">
-              <AlertCircle size={64} style={{ color: 'var(--warning-500)' }} />
-            </div>
-            <h2 className="dashboard-overview__no-center__title">
-              Chưa được phân công trung tâm
-            </h2>
-            <p className="dashboard-overview__no-center__message">
-              Bạn chưa được phân công vào trung tâm nào. Vui lòng liên hệ với quản lý để được phân công vào trung tâm trước khi sử dụng hệ thống.
-            </p>
-            <div className="dashboard-overview__no-center__actions">
-              <button 
-                className="btn-primary"
-                onClick={() => window.location.reload()}
-              >
-                Tải lại trang
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div className="dashboard-overview">
-
-
-
-                </div>
-    )
-  }
 
   const getPageTitle = () => {
-    switch (activePage) {
-      case 'dashboard': return centerInfo?.centerName || 'Dashboard'
-      case 'work-queue': return 'Hàng đợi công việc'
-      case 'work-schedule': return 'Lịch làm việc'
-      case 'booking-detail': return `Chi tiết đơn đặt lịch #${selectedBookingId}`
-      default: return centerInfo?.centerName || 'Dashboard'
-    }
+    return centerInfo?.centerName || 'Dashboard'
   }
 
   const handleViewBookingDetail = (bookingId: number) => {
@@ -545,9 +496,9 @@ export default function TechnicianDashboard() {
         <div className={`technician-dashboard__sidebar__nav ${sidebarCollapsed ? 'technician-dashboard__sidebar__nav--collapsed' : ''}`}>
           <div className="technician-dashboard__sidebar__nav__section">
             {[
-              { icon: BarChart3, label: 'Tổng quan', page: 'dashboard' },
               { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
-              { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' }
+              { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
+              { icon: Settings, label: 'Thông tin cá nhân', page: 'profile' }
             ].map((item, index) => (
               <div 
                 key={index}

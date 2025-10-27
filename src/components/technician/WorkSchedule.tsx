@@ -45,14 +45,12 @@ export default function WorkSchedule({}: WorkScheduleProps) {
       try {
         // TODO: Replace with actual API call to get technician's appointments
         // For now, return empty array to indicate no mock data
-        console.log('📅 Loading schedule data from API...')
         
         // This would be replaced with actual API call:
         // const response = await BookingService.getTechnicianAppointments(user?.id)
         // setScheduleData(response.data)
         
         setScheduleData([]) // Empty array - no mock data
-        console.log('✅ Schedule data loaded (empty - no mock data)')
       } catch (error: any) {
         console.error('❌ Error loading schedule data:', error)
         setError(error.message || 'Không thể tải dữ liệu lịch làm việc')

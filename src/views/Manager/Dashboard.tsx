@@ -3,28 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import { 
-  Bell,
-  Search,
   Menu,
   LogOut,
   Settings,
   BarChart3,
-  Building2,
   Users,
-  Wrench,
   FileText,
   Target,
-  Car
+  Calendar
 } from 'lucide-react'
 import {
   DashboardOverview,
-  BranchesManagement,
   StaffManagement,
-  ServicesManagement,
-  ReportsManagement,
   InventoryManagement
 } from '../../components/manager'
-import VehicleModel from '../../components/manager/VehicleModel'
+import NotificationBell from '@/components/common/NotificationBell'
+import BookingManagement from '@/components/manager/BookingManagement'
 import './manager.scss'
 
 export default function ManagerDashboard() {
@@ -42,18 +36,12 @@ export default function ManagerDashboard() {
 
   const renderPageContent = () => {
     switch (activePage) {
-      case 'branches':
-        return <BranchesManagement />
       case 'staff':
         return <StaffManagement />
-      case 'services':
-        return <ServicesManagement />
-      case 'reports':
-        return <ReportsManagement />
+      case 'bookings':
+        return <BookingManagement />
       case 'inventory':
         return <InventoryManagement />
-      case 'vehicles':
-        return <VehicleModel />
       case 'settings':
         return (
           <div>
@@ -115,32 +103,18 @@ export default function ManagerDashboard() {
             color: 'var(--text-primary)',
             margin: 0
           }}>
-            Bảng điều khiển Quản lý
+            Chi nhánh Quận 7
           </h1>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={20} style={{ color: 'var(--text-tertiary)' }} />
-          </div>
-          <div style={{ position: 'relative' }}>
-            <Bell size={20} style={{ color: 'var(--text-tertiary)' }} />
-            <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              width: '8px',
-              height: '8px',
-              background: 'var(--error-500)',
-              borderRadius: '50%'
-            }} />
-          </div>
+          <NotificationBell />
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             padding: '8px 12px',
-            background: 'var(--primary-50)',
+            background: '#FFF8E5',
             borderRadius: '8px',
             cursor: 'pointer'
           }}
@@ -149,7 +123,7 @@ export default function ManagerDashboard() {
             <div style={{
               width: '32px',
               height: '32px',
-              background: 'var(--primary-500)',
+              background: '#FFD875',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -193,21 +167,16 @@ export default function ManagerDashboard() {
             marginBottom: '32px',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'var(--primary-500)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              marginRight: sidebarCollapsed ? '0' : '12px'
-            }}>
-              M
-            </div>
+            <img 
+              src="/src/assets/images/10.webp" 
+              alt="Logo" 
+              style={{ 
+                width: '40px', 
+                height: '40px', 
+                objectFit: 'contain',
+                marginRight: sidebarCollapsed ? '0' : '12px'
+              }}
+            />
             {!sidebarCollapsed && (
               <div>
                 <h1 style={{ 
@@ -216,14 +185,14 @@ export default function ManagerDashboard() {
                   color: 'var(--text-primary)',
                   margin: '0'
                 }}>
-                  Bảng điều khiển Quản lý
+                  AutoEV
                 </h1>
                 <p style={{ 
                   fontSize: '12px', 
                   color: 'var(--text-secondary)',
                   margin: '0'
                 }}>
-                  Quản lý chi nhánh và kinh doanh
+                  EV Service Center
                 </p>
               </div>
             )}
@@ -251,16 +220,16 @@ export default function ManagerDashboard() {
                   padding: '12px 16px',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  color: activePage === 'dashboard' ? 'var(--primary-500)' : 'var(--text-secondary)',
-                  background: activePage === 'dashboard' ? 'var(--primary-50)' : 'transparent',
+                  color: activePage === 'dashboard' ? '#FFD875' : 'var(--text-secondary)',
+                  background: activePage === 'dashboard' ? '#FFF8E5' : 'transparent',
                   fontWeight: '500',
                   marginBottom: '4px',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
                   if (activePage !== 'dashboard') {
-                    e.currentTarget.style.background = 'var(--primary-50)'
-                    e.currentTarget.style.color = 'var(--primary-500)'
+                    e.currentTarget.style.background = '#FFF8E5'
+                    e.currentTarget.style.color = '#FFD875'
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -271,7 +240,7 @@ export default function ManagerDashboard() {
                 }}
               >
                 <BarChart3 size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
-                {!sidebarCollapsed && 'Bảng điều khiển'}
+                {!sidebarCollapsed && 'Báo cáo'}
               </div>
             </div>
 
@@ -288,11 +257,8 @@ export default function ManagerDashboard() {
                 Quản lý
               </h3>
               {[
-                { icon: Building2, label: 'Chi nhánh', page: 'branches' },
                 { icon: Users, label: 'Nhân viên', page: 'staff' },
-                { icon: Wrench, label: 'Dịch vụ', page: 'services' },
-                { icon: Car, label: 'Mẫu xe', page: 'vehicles' },
-                { icon: FileText, label: 'Báo cáo', page: 'reports' },
+                { icon: Calendar, label: 'Quản lý đặt lịch', page: 'bookings' },
                 { icon: Target, label: 'Kho', page: 'inventory' },
                 { icon: Settings, label: 'Cài đặt', page: 'settings' }
               ].map((item, index) => (
@@ -305,15 +271,15 @@ export default function ManagerDashboard() {
                     padding: '12px 16px',
                     borderRadius: '8px',
                     cursor: 'pointer',
-                    color: activePage === item.page ? 'var(--primary-500)' : 'var(--text-secondary)',
-                    background: activePage === item.page ? 'var(--primary-50)' : 'transparent',
+                    color: activePage === item.page ? '#FFD875' : 'var(--text-secondary)',
+                    background: activePage === item.page ? '#FFF8E5' : 'transparent',
                     transition: 'all 0.2s ease',
                     marginBottom: '4px'
                   }}
                   onMouseEnter={(e) => {
                     if (activePage !== item.page) {
-                      e.currentTarget.style.background = 'var(--primary-50)'
-                      e.currentTarget.style.color = 'var(--primary-500)'
+                      e.currentTarget.style.background = '#FFF8E5'
+                      e.currentTarget.style.color = '#FFD875'
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -331,28 +297,31 @@ export default function ManagerDashboard() {
           </nav>
         </div>
 
-        {/* Collapse Button */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          style={{
-            position: 'absolute',
-            top: '24px',
-            right: '-12px',
-            width: '24px',
-            height: '24px',
-            background: 'var(--primary-500)',
-            border: 'none',
-            borderRadius: '50%',
-            color: 'white',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px'
-          }}
-        >
-          {sidebarCollapsed ? '→' : '←'}
-        </button>
+        {/* Sidebar Toggle */}
+        <div style={{ position: 'absolute', bottom: '24px', left: '0', right: '0', padding: '0 24px' }}>
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: '#FFD875',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: sidebarCollapsed ? '0' : '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Menu size={16} />
+            {!sidebarCollapsed && <span>Thu gọn</span>}
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

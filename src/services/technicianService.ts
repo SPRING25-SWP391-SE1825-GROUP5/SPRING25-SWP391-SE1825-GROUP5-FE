@@ -193,7 +193,20 @@ export const TechnicianService = {
     }
   },
 
-  // Cập nhật maintenance checklist
+  // Cập nhật maintenance checklist item
+  async updateMaintenanceChecklistItem(bookingId: number, partId: number, result: string) {
+    try {
+      const { data } = await api.put(`/maintenance-checklist/${bookingId}/parts/${partId}`, { result })
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể cập nhật trạng thái checklist'
+      }
+    }
+  },
+
+  // Cập nhật maintenance checklist (legacy - giữ để tương thích)
   async updateMaintenanceChecklist(bookingId: number, items: Array<{ resultId: number; description: string; result: string }>) {
     try {
       const { data } = await api.put(`/maintenance-checklist/${bookingId}`, { items })
@@ -202,6 +215,19 @@ export const TechnicianService = {
       return {
         success: false,
         message: 'Không thể cập nhật maintenance checklist'
+      }
+    }
+  },
+
+  // Xác nhận hoàn thành maintenance checklist
+  async confirmMaintenanceChecklist(bookingId: number) {
+    try {
+      const { data } = await api.post(`/maintenance-checklist/${bookingId}/confirm`)
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể xác nhận checklist'
       }
     }
   },

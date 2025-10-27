@@ -5,7 +5,7 @@
   &__trigger {
     position: relative;
     background: white;
-    border: 2px solid #FFD875;
+    border: none;
     cursor: pointer;
     padding: 8px;
     border-radius: 8px;
@@ -13,13 +13,12 @@
     color: #6B7280;
 
     &:hover {
-      background: #FFF8E5;
+      background: #F3F4F6;
       color: #374151;
-      border-color: #F4C430;
     }
 
     &:focus {
-      outline: 2px solid #FFD875;
+      outline: 2px solid #E5E7EB;
       outline-offset: 2px;
     }
   }
