@@ -14,7 +14,16 @@ import {
   Building2,
   UserX,
   WrenchIcon,
-  RotateCcw
+  RotateCcw,
+  ToggleLeft,
+  ToggleRight,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  RefreshCw
 } from 'lucide-react'
 import { CenterService, type Center, type CenterListParams } from '../../services/centerService'
 import { StaffService } from '../../services/staffService'
@@ -25,10 +34,12 @@ export default function CenterManagement() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
   const [searchTerm, setSearchTerm] = useState('')
   const [city, setCity] = useState('')
-  const [onlyActive, setOnlyActive] = useState(false)
+  const [centerStatus, setCenterStatus] = useState('all')
+  const [sortBy, setSortBy] = useState('centerName')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [totalPages, setTotalPages] = useState(1)
   
   // Modal states
   const [formOpen, setFormOpen] = useState(false)
@@ -133,26 +144,71 @@ export default function CenterManagement() {
       setLoading(true)
       setError(null)
       
-      const params: CenterListParams = { pageNumber: page, pageSize }
+      // Fetch all centers first (without pagination)
+      const params: CenterListParams = { pageNumber: 1, pageSize: 1000 }
       if (searchTerm) params.searchTerm = searchTerm
       if (city) params.city = city
       
       console.log('Fetching centers with params:', params)
-      console.log('Only active:', onlyActive)
+      console.log('Center status:', centerStatus)
       
-      const response = onlyActive 
-        ? await CenterService.getActiveCenters(params)
-        : await CenterService.getCenters(params)
+      // Get all centers (both active and inactive)
+      const response = await CenterService.getCenters(params)
       
       console.log('Centers response:', response)
       
-      if (response && response.centers) {
-        setCenters(response.centers)
-        console.log('Set centers:', response.centers)
-      } else {
-        console.warn('No centers found in response:', response)
-        setCenters([])
+      let allCenters = response?.centers || []
+
+      // Apply status filter
+      if (centerStatus !== 'all') {
+        const isActive = centerStatus === 'active'
+        allCenters = allCenters.filter(center => center.isActive === isActive)
       }
+
+      // Apply sorting to all centers
+      if (allCenters.length > 0) {
+        allCenters = allCenters.sort((a, b) => {
+          let aValue: any, bValue: any;
+          switch (sortBy) {
+            case 'centerName':
+              aValue = a.centerName?.toLowerCase() || '';
+              bValue = b.centerName?.toLowerCase() || '';
+              break;
+            case 'address':
+              aValue = a.address?.toLowerCase() || '';
+              bValue = b.address?.toLowerCase() || '';
+              break;
+            case 'phoneNumber':
+              aValue = a.phoneNumber?.toLowerCase() || '';
+              bValue = b.phoneNumber?.toLowerCase() || '';
+              break;
+            case 'createdAt':
+              aValue = new Date(a.createdAt).getTime();
+              bValue = new Date(b.createdAt).getTime();
+              break;
+            default:
+              aValue = a.centerName?.toLowerCase() || '';
+              bValue = b.centerName?.toLowerCase() || '';
+          }
+          if (sortOrder === 'asc') {
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+          } else {
+            return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+          }
+        });
+      }
+
+      // Calculate total pages
+      const pageSize = 10;
+      const calculatedTotalPages = Math.ceil(allCenters.length / pageSize);
+      setTotalPages(calculatedTotalPages);
+      
+      // Apply pagination to sorted results
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedCenters = allCenters.slice(startIndex, endIndex);
+      
+      setCenters(paginatedCenters)
     } catch (err: any) {
       console.error('Error fetching centers:', err)
       setError('Không thể tải danh sách trung tâm: ' + (err.message || 'Unknown error'))
@@ -314,10 +370,33 @@ export default function CenterManagement() {
     }
   }
 
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+    setPage(1);
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortBy !== field) {
+      return <ChevronUp size={14} style={{ opacity: 0.3 }} />;
+    }
+    return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+  };
+
+  const statusOptions = [
+    { value: "all", label: "Tất cả trạng thái" },
+    { value: "active", label: "Hoạt động" },
+    { value: "inactive", label: "Không hoạt động" },
+  ];
+
   useEffect(() => {
     fetchCenters()
     fetchStats()
-  }, [page, pageSize, searchTerm, city, onlyActive])
+  }, [page, searchTerm, city, centerStatus, sortBy, sortOrder])
 
   return (
     <div style={{ 
@@ -370,6 +449,42 @@ export default function CenterManagement() {
           </p>
         </div>
         
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button onClick={() => {
+            fetchCenters();
+            fetchStats();
+          }} style={{
+            padding: '12px 20px',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '2px solid var(--border-primary)',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            transition: 'all 0.2s ease',
+            transform: 'translateY(0)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)'
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
+            e.currentTarget.style.borderColor = 'var(--primary-500)'
+            e.currentTarget.style.background = 'var(--primary-50)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)'
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
+            e.currentTarget.style.borderColor = 'var(--border-primary)'
+            e.currentTarget.style.background = 'var(--bg-card)'
+          }}>
+            <RefreshCw size={18} />
+            Làm mới
+          </button>
+          
           <button onClick={openCreateForm} style={{
             padding: '12px 24px',
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -397,6 +512,7 @@ export default function CenterManagement() {
             <Plus size={18} />
             Thêm trung tâm
           </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -556,8 +672,7 @@ export default function CenterManagement() {
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
           gap: '16px',
-          alignItems: 'end',
-
+          alignItems: 'end'
         }}>
           <div>
             <label style={{ 
@@ -650,11 +765,11 @@ export default function CenterManagement() {
               color: 'var(--text-primary)', 
               marginBottom: '8px' 
             }}>
-              Hiển thị
+              Trạng thái
             </label>
             <select
-              value={pageSize}
-              onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)) }}
+              value={centerStatus}
+              onChange={(e) => { setPage(1); setCenterStatus(e.target.value) }}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -667,40 +782,21 @@ export default function CenterManagement() {
                 outline: 'none'
               }}
             >
-              <option value={10}>10 mỗi trang</option>
-              <option value={20}>20 mỗi trang</option>
-              <option value={50}>50 mỗi trang</option>
+              {statusOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <label style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              color: 'var(--text-primary)', 
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              padding: '12px 16px',
-              background: onlyActive ? 'var(--primary-50)' : 'var(--bg-secondary)',
-              border: `2px solid ${onlyActive ? 'var(--primary-500)' : 'var(--border-primary)'}`,
-              borderRadius: '10px',
-              transition: 'all 0.2s ease'
-            }}>
-              <input 
-                type="checkbox" 
-                checked={onlyActive} 
-                onChange={(e) => { setPage(1); setOnlyActive(e.target.checked) }}
-                style={{ margin: 0 }}
-              />
-              Chỉ hiện hoạt động
-            </label>
           </div>
 
           <div>
             <button 
-              onClick={fetchCenters}
+              onClick={() => {
+                setPage(1)
+                setSearchTerm('')
+                setCenterStatus('all')
+                setSortBy('name')
+                setSortOrder('asc')
+              }}
               style={{
                 width: '100%',
                 padding: '12px 20px',
@@ -726,8 +822,8 @@ export default function CenterManagement() {
                 e.currentTarget.style.background = 'var(--bg-secondary)'
               }}
             >
-              <RotateCcw size={16} />
-              Làm mới
+              <RefreshCw size={16} />
+              Đặt lại bộ lọc
             </button>
           </div>
         </div>
@@ -741,31 +837,98 @@ export default function CenterManagement() {
         border: '1px solid var(--border-primary)',
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '24px' 
-        }}>
-          <h3 style={{ 
-            fontSize: '20px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0'
-          }}>
-            Danh sách Trung tâm
-          </h3>
           <div style={{
-            padding: '8px 16px',
-            background: 'var(--primary-50)',
-            color: 'var(--primary-700)',
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: '600'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '24px'
           }}>
-            {centers.length} trung tâm
+            <h3 style={{
+              fontSize: '20px', 
+              fontWeight: '700', 
+              color: 'var(--text-primary)',
+              margin: '0'
+            }}>
+              Danh sách Trung tâm
+            </h3>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              {/* Simple Header Pagination */}
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+                style={{ 
+                  padding: "6px 10px", 
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-primary)",
+                  background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
+                  color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
+                  cursor: page === 1 ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  if (page !== 1) {
+                    e.currentTarget.style.background = "var(--primary-50)"
+                    e.currentTarget.style.borderColor = "var(--primary-500)"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (page !== 1) {
+                    e.currentTarget.style.background = "var(--bg-card)"
+                    e.currentTarget.style.borderColor = "var(--border-primary)"
+                  }
+                }}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span style={{
+                padding: "6px 10px",
+                background: "var(--primary-50)",
+                borderRadius: "6px",
+                color: "var(--primary-700)",
+                fontSize: "12px",
+                fontWeight: "600",
+                minWidth: "60px",
+                textAlign: "center"
+              }}>
+                {page} / {totalPages}
+              </span>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                style={{ 
+                  padding: "6px 10px", 
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-primary)",
+                  background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
+                  color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+                  cursor: page === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  if (page !== totalPages) {
+                    e.currentTarget.style.background = "var(--primary-50)"
+                    e.currentTarget.style.borderColor = "var(--primary-500)"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (page !== totalPages) {
+                    e.currentTarget.style.background = "var(--bg-card)"
+                    e.currentTarget.style.borderColor = "var(--border-primary)"
+                  }
+                }}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
-        </div>
         
         {loading ? (
           <div style={{ 
@@ -835,41 +998,96 @@ export default function CenterManagement() {
               width: '100%',
               borderCollapse: 'collapse',
               background: 'var(--bg-card)',
-              borderRadius: '12px',
+              borderRadius: '16px',
               overflow: 'hidden',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid var(--border-primary)'
             }}>
               <thead>
                 <tr style={{
                   background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  color: 'white'
+                  color: 'white',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 }}>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Tên trung tâm
+                  <th 
+                    onClick={() => handleSort('centerName')}
+                    style={{
+                      padding: '16px 20px',
+                      textAlign: 'left',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      Tên trung tâm
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        opacity: sortBy === 'centerName' ? 1 : 0.4,
+                        transition: 'opacity 0.2s ease'
+                      }}>
+                        {getSortIcon('centerName')}
+                      </div>
+                    </div>
                   </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Địa chỉ
+                  <th 
+                    style={{
+                      padding: '16px 20px',
+                      textAlign: 'left',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      Địa chỉ
+                      
+                    </div>
                   </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Số điện thoại
+                  <th 
+                    style={{
+                      padding: '16px 20px',
+                      textAlign: 'left',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      Số điện thoại
+                      
+                    </div>
                   </th>
                   <th style={{
                     padding: '16px 20px',
@@ -880,14 +1098,37 @@ export default function CenterManagement() {
                   }}>
                     Trạng thái
                   </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Ngày tạo
+                  <th 
+                    onClick={() => handleSort('createdAt')}
+                    style={{
+                      padding: '16px 20px',
+                      textAlign: 'center',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      Ngày tạo
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        opacity: sortBy === 'createdAt' ? 1 : 0.4,
+                        transition: 'opacity 0.2s ease'
+                      }}>
+                        {getSortIcon('createdAt')}
+                      </div>
+                    </div>
                   </th>
                   <th style={{
                     padding: '16px 20px',
@@ -905,15 +1146,21 @@ export default function CenterManagement() {
                   <tr 
                     key={center.centerId}
                     style={{
-                      borderBottom: '1px solid var(--border-primary)',
-                      transition: 'all 0.2s ease',
-                      background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                      borderBottom: index < centers.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                      transition: 'all 0.3s ease',
+                      background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                      transform: 'translateY(0)',
+                      boxShadow: 'none'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = 'var(--primary-50)'
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                      e.currentTarget.style.transform = 'translateY(0)'
+                      e.currentTarget.style.boxShadow = 'none'
                     }}
                   >
                     <td style={{
@@ -1113,9 +1360,9 @@ export default function CenterManagement() {
                               e.currentTarget.style.background = 'var(--bg-card)'
                             }
                           }}
-                          title={center.isActive ? 'Tắt trung tâm' : 'Bật trung tâm'}
+                          title={center.isActive ? 'Vô hiệu hóa trung tâm' : 'Kích hoạt trung tâm'}
                         >
-                          <CheckCircle size={16} />
+                          {center.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                         </button>
                       </div>
                     </td>
@@ -1125,6 +1372,298 @@ export default function CenterManagement() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Enhanced Pagination */}
+      <div style={{
+        marginTop: '24px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        background: 'var(--bg-card)',
+        padding: '20px 24px',
+        borderRadius: '16px',
+        border: '1px solid var(--border-primary)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+      }}>
+        {/* Pagination Controls */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {/* First Page */}
+          <button
+            disabled={page === 1}
+            onClick={() => setPage(1)}
+            style={{ 
+              padding: "8px 12px", 
+              borderRadius: "8px",
+              border: "1px solid var(--border-primary)",
+              background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
+              color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
+              cursor: page === 1 ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+            onMouseEnter={(e) => {
+              if (page !== 1) {
+                e.currentTarget.style.background = "var(--primary-50)"
+                e.currentTarget.style.borderColor = "var(--primary-500)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (page !== 1) {
+                e.currentTarget.style.background = "var(--bg-card)"
+                e.currentTarget.style.borderColor = "var(--border-primary)"
+              }
+            }}
+          >
+            <ChevronsLeft size={16} />
+            <span style={{ marginLeft: '4px' }}>Đầu</span>
+          </button>
+
+          {/* Previous Page */}
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            style={{ 
+              padding: "8px 12px", 
+              borderRadius: "8px",
+              border: "1px solid var(--border-primary)",
+              background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
+              color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
+              cursor: page === 1 ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+            onMouseEnter={(e) => {
+              if (page !== 1) {
+                e.currentTarget.style.background = "var(--primary-50)"
+                e.currentTarget.style.borderColor = "var(--primary-500)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (page !== 1) {
+                e.currentTarget.style.background = "var(--bg-card)"
+                e.currentTarget.style.borderColor = "var(--border-primary)"
+              }
+            }}
+          >
+            <ChevronLeft size={16} />
+            <span style={{ marginLeft: '4px' }}>Trước</span>
+          </button>
+
+          {/* Page Numbers */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            margin: '0 8px'
+          }}>
+            {(() => {
+              const pages = [];
+              const maxVisible = 5;
+              let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+              
+              if (endPage - startPage + 1 < maxVisible) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+              }
+
+              // First page + ellipsis
+              if (startPage > 1) {
+                pages.push(
+                  <button
+                    key={1}
+                    onClick={() => setPage(1)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-primary)",
+                      background: "var(--bg-card)",
+                      color: "var(--text-primary)",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--primary-50)"
+                      e.currentTarget.style.borderColor = "var(--primary-500)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "var(--bg-card)"
+                      e.currentTarget.style.borderColor = "var(--border-primary)"
+                    }}
+                  >
+                    1
+                  </button>
+                );
+                if (startPage > 2) {
+                  pages.push(
+                    <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
+                      ...
+                    </span>
+                  );
+                }
+              }
+
+              // Visible pages
+              for (let i = startPage; i <= endPage; i++) {
+                pages.push(
+                  <button
+                    key={i}
+                    onClick={() => setPage(i)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: i === page ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
+                      background: i === page ? "var(--primary-50)" : "var(--bg-card)",
+                      color: i === page ? "var(--primary-700)" : "var(--text-primary)",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: i === page ? "600" : "500",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (i !== page) {
+                        e.currentTarget.style.background = "var(--primary-50)"
+                        e.currentTarget.style.borderColor = "var(--primary-500)"
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (i !== page) {
+                        e.currentTarget.style.background = "var(--bg-card)"
+                        e.currentTarget.style.borderColor = "var(--border-primary)"
+                      }
+                    }}
+                  >
+                    {i}
+                  </button>
+                );
+              }
+
+              // Last page + ellipsis
+              if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                  pages.push(
+                    <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
+                      ...
+                    </span>
+                  );
+                }
+                pages.push(
+                  <button
+                    key={totalPages}
+                    onClick={() => setPage(totalPages)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-primary)",
+                      background: "var(--bg-card)",
+                      color: "var(--text-primary)",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--primary-50)"
+                      e.currentTarget.style.borderColor = "var(--primary-500)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "var(--bg-card)"
+                      e.currentTarget.style.borderColor = "var(--border-primary)"
+                    }}
+                  >
+                    {totalPages}
+                  </button>
+                );
+              }
+
+              return pages;
+            })()}
+          </div>
+
+          {/* Next Page */}
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            style={{ 
+              padding: "8px 12px", 
+              borderRadius: "8px",
+              border: "1px solid var(--border-primary)",
+              background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
+              color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+              cursor: page === totalPages ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+            onMouseEnter={(e) => {
+              if (page !== totalPages) {
+                e.currentTarget.style.background = "var(--primary-50)"
+                e.currentTarget.style.borderColor = "var(--primary-500)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (page !== totalPages) {
+                e.currentTarget.style.background = "var(--bg-card)"
+                e.currentTarget.style.borderColor = "var(--border-primary)"
+              }
+            }}
+          >
+            <span style={{ marginRight: '4px' }}>Sau</span>
+            <ChevronRight size={16} />
+          </button>
+
+          {/* Last Page */}
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage(totalPages)}
+            style={{ 
+              padding: "8px 12px", 
+              borderRadius: "8px",
+              border: "1px solid var(--border-primary)",
+              background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
+              color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+              cursor: page === totalPages ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+            onMouseEnter={(e) => {
+              if (page !== totalPages) {
+                e.currentTarget.style.background = "var(--primary-50)"
+                e.currentTarget.style.borderColor = "var(--primary-500)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (page !== totalPages) {
+                e.currentTarget.style.background = "var(--bg-card)"
+                e.currentTarget.style.borderColor = "var(--border-primary)"
+              }
+            }}
+          >
+            <span style={{ marginRight: '4px' }}>Cuối</span>
+            <ChevronsRight size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Form Modal */}

@@ -23,7 +23,9 @@ import {
     TrendingUp,
     UserPlus,
     Settings,
-    BarChart3
+    BarChart3,
+    ToggleLeft,
+    ToggleRight
 } from 'lucide-react'
 import { StaffService } from '@/services/staffService'
 import { TechnicianService } from '@/services/technicianService'
@@ -138,7 +140,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
             setCenters(centersData.centers)
             setUsers(staffUsersData.data.users)
             setTechnicianUsers(technicianUsersData.data.users)
-            
+
             // Kết hợp thống kê từ staff và technician
             setStats({
                 ...staffStatsData,
@@ -167,11 +169,18 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 pageSize: staffPagination.pageSize
             })
 
-            setStaff(response.data.staff)
+            let staffData = response.data.staff || []
+            
+            // Apply status filter client-side if needed
+            if (staffFilters.isActive !== null) {
+                staffData = staffData.filter((staff: any) => staff.isActive === staffFilters.isActive)
+            }
+
+            setStaff(staffData)
             setStaffPagination(prev => ({
                 ...prev,
-                totalCount: response.data.totalCount,
-                totalPages: response.data.totalPages
+                totalCount: staffData.length,
+                totalPages: Math.ceil(staffData.length / staffPagination.pageSize)
             }))
 
         } catch (err: any) {
@@ -195,14 +204,21 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 TechnicianService.getStats()
             ])
 
-            // Cập nhật danh sách technician
-            setTechnicians(response.technicians)
+            let technicianData = response.technicians || []
             
+            // Apply status filter client-side if needed
+            if (technicianFilters.isActive !== null) {
+                technicianData = technicianData.filter((technician: any) => technician.isActive === technicianFilters.isActive)
+            }
+
+            // Cập nhật danh sách technician
+            setTechnicians(technicianData)
+
             // Cập nhật thông tin pagination
             setTechnicianPagination(prev => ({
                 ...prev,
-                totalCount: response.totalCount,
-                totalPages: response.totalPages
+                totalCount: technicianData.length,
+                totalPages: Math.ceil(technicianData.length / technicianPagination.pageSize)
             }))
 
             // Cập nhật thống kê technician
@@ -369,42 +385,42 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
         title: string
         value: number
         icon: any
-         color?: 'blue' | 'green' | 'purple' | 'orange' | 'white'
+        color?: 'blue' | 'green' | 'purple' | 'orange' | 'white'
         secondaryValue?: number
         secondaryLabel?: string
     }) => {
-         const colorStyles = {
-             blue: {
-                 background: 'var(--primary-50)',
-                 border: 'var(--primary-200)',
-                 iconBg: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                 text: 'var(--primary-700)'
-             },
-             green: {
-                 background: 'var(--success-50)',
-                 border: 'var(--success-200)',
-                 iconBg: 'linear-gradient(135deg, var(--success-500), var(--success-600))',
-                 text: 'var(--success-700)'
-             },
-             purple: {
-                 background: 'var(--purple-50)',
-                 border: 'var(--purple-200)',
-                 iconBg: 'linear-gradient(135deg, var(--purple-500), var(--purple-600))',
-                 text: 'var(--purple-700)'
-             },
-             orange: {
-                 background: 'var(--orange-50)',
-                 border: 'var(--orange-200)',
-                 iconBg: 'linear-gradient(135deg, var(--orange-500), var(--orange-600))',
-                 text: 'var(--orange-700)'
-             },
-             white: {
-                 background: 'white',
-                 border: 'var(--border-primary)',
-                 iconBg: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                 text: 'var(--text-primary)'
-             }
-         }
+        const colorStyles = {
+            blue: {
+                background: 'var(--primary-50)',
+                border: 'var(--primary-200)',
+                iconBg: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                text: 'var(--primary-700)'
+            },
+            green: {
+                background: 'var(--success-50)',
+                border: 'var(--success-200)',
+                iconBg: 'linear-gradient(135deg, var(--success-500), var(--success-600))',
+                text: 'var(--success-700)'
+            },
+            purple: {
+                background: 'var(--purple-50)',
+                border: 'var(--purple-200)',
+                iconBg: 'linear-gradient(135deg, var(--purple-500), var(--purple-600))',
+                text: 'var(--purple-700)'
+            },
+            orange: {
+                background: 'var(--orange-50)',
+                border: 'var(--orange-200)',
+                iconBg: 'linear-gradient(135deg, var(--orange-500), var(--orange-600))',
+                text: 'var(--orange-700)'
+            },
+            white: {
+                background: 'white',
+                border: 'var(--border-primary)',
+                iconBg: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                text: 'var(--text-primary)'
+            }
+        }
 
         const colors = colorStyles[color]
 
@@ -481,76 +497,47 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
 
     const ActionButton = ({
         onClick,
-        icon: Icon,
-        variant = 'default',
+        isActive,
         disabled = false
     }: {
         onClick: () => void
-        icon: any
-        variant?: 'default' | 'success' | 'error' | 'warning'
+        isActive: boolean
         disabled?: boolean
     }) => {
-        const variantStyles = {
-            default: {
-                color: 'var(--text-primary)',
-                hoverBg: 'var(--bg-secondary)',
-                hoverColor: 'var(--text-primary)'
-            },
-            success: {
-                color: 'var(--success-600)',
-                hoverBg: 'var(--success-50)',
-                hoverColor: 'var(--success-700)'
-            },
-            error: {
-                color: 'var(--error-500)',
-                hoverBg: 'var(--error-50)',
-                hoverColor: 'var(--error-600)'
-            },
-            warning: {
-                color: 'var(--warning-600)',
-                hoverBg: 'var(--warning-50)',
-                hoverColor: 'var(--warning-700)'
-            }
-        }
-
-        const styles = variantStyles[variant]
-
         return (
             <button
                 onClick={onClick}
                 disabled={disabled}
                 style={{
-                    padding: '8px 12px',
+                    padding: '8px',
                     border: '2px solid var(--border-primary)',
                     borderRadius: '8px',
                     background: 'var(--bg-card)',
-                    color: styles.color,
+                    color: 'var(--text-primary)',
                     cursor: disabled ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '600',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    justifyContent: 'center',
                     transition: 'all 0.2s ease',
-                    opacity: disabled ? 0.7 : 1
+                    opacity: disabled ? 0.7 : 1,
+                    width: '36px',
+                    height: '36px'
                 }}
                 onMouseEnter={(e) => {
                     if (!disabled) {
-                        e.currentTarget.style.borderColor = styles.color
-                        e.currentTarget.style.background = styles.hoverBg
-                        e.currentTarget.style.color = styles.hoverColor
+                        e.currentTarget.style.borderColor = isActive ? 'var(--error-500)' : 'var(--success-500)'
+                        e.currentTarget.style.background = isActive ? 'var(--error-50)' : 'var(--success-50)'
                     }
                 }}
                 onMouseLeave={(e) => {
                     if (!disabled) {
                         e.currentTarget.style.borderColor = 'var(--border-primary)'
                         e.currentTarget.style.background = 'var(--bg-card)'
-                        e.currentTarget.style.color = styles.color
                     }
                 }}
+                title={isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
             >
-                <Icon size={14} />
-                {variant === 'error' ? 'Tắt' : 'Bật'}
+                {isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
             </button>
         )
     }
@@ -760,22 +747,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                     </p>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                        padding: '8px 16px',
-                        background: 'var(--primary-50)',
-                        color: 'var(--primary-700)',
-                        borderRadius: '20px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}>
-                        <BarChart3 size={16} />
-                        Thống kê
-                    </div>
-                </div>
+
             </div>
 
             {/* Error Alert */}
@@ -1072,12 +1044,12 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                     marginBottom: '24px',
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                 }}>
-                     <div style={{
-                         display: 'grid',
-                         gridTemplateColumns: '1fr 1fr 1fr auto',
-                         gap: '16px',
-                         alignItems: 'end'
-                     }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr 1fr auto',
+                        gap: '16px',
+                        alignItems: 'end'
+                    }}>
                         <div>
                             <label style={{
                                 display: 'block',
@@ -1202,75 +1174,75 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                             </select>
                         </div>
 
-                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap', minWidth: 0 }}>
-                             <button
-                                 onClick={activeTab === 'staff' ? loadStaffData : loadTechnicianData}
-                                 disabled={loading}
-                                 style={{
-                                     padding: '12px 16px',
-                                     border: '2px solid var(--border-primary)',
-                                     background: 'var(--bg-secondary)',
-                                     color: 'var(--text-primary)',
-                                     borderRadius: '10px',
-                                     fontSize: '14px',
-                                     fontWeight: '600',
-                                     cursor: 'pointer',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     justifyContent: 'center',
-                                     gap: '6px',
-                                     transition: 'all 0.2s ease',
-                                     whiteSpace: 'nowrap',
-                                     flexShrink: 0
-                                 }}
-                                 onMouseEnter={(e) => {
-                                     e.currentTarget.style.borderColor = 'var(--primary-500)'
-                                     e.currentTarget.style.background = 'var(--primary-50)'
-                                 }}
-                                 onMouseLeave={(e) => {
-                                     e.currentTarget.style.borderColor = 'var(--border-primary)'
-                                     e.currentTarget.style.background = 'var(--bg-secondary)'
-                                 }}
-                             >
-                                 <RefreshCw size={14} style={{
-                                     animation: loading ? 'spin 1s linear infinite' : 'none'
-                                 }} />
-                                 Làm mới
-                             </button>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap', minWidth: 0 }}>
+                            <button
+                                onClick={activeTab === 'staff' ? loadStaffData : loadTechnicianData}
+                                disabled={loading}
+                                style={{
+                                    padding: '12px 16px',
+                                    border: '2px solid var(--border-primary)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-primary)',
+                                    borderRadius: '10px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    transition: 'all 0.2s ease',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--primary-500)'
+                                    e.currentTarget.style.background = 'var(--primary-50)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--border-primary)'
+                                    e.currentTarget.style.background = 'var(--bg-secondary)'
+                                }}
+                            >
+                                <RefreshCw size={14} style={{
+                                    animation: loading ? 'spin 1s linear infinite' : 'none'
+                                }} />
+                                Làm mới
+                            </button>
 
-                             <button
-                                 onClick={activeTab === 'staff' ? () => setShowStaffModal(true) : () => setShowTechnicianModal(true)}
-                                 style={{
-                                     padding: '12px 16px',
-                                     background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                                     color: 'white',
-                                     border: 'none',
-                                     borderRadius: '12px',
-                                     fontSize: '14px',
-                                     fontWeight: '600',
-                                     cursor: 'pointer',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     gap: '6px',
-                                     boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                                     transition: 'all 0.2s ease',
-                                     transform: 'translateY(0)',
-                                     whiteSpace: 'nowrap',
-                                     flexShrink: 0
-                                 }}
-                                 onMouseEnter={(e) => {
-                                     e.currentTarget.style.transform = 'translateY(-2px)'
-                                     e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-                                 }}
-                                 onMouseLeave={(e) => {
-                                     e.currentTarget.style.transform = 'translateY(0)'
-                                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-                                 }}
-                             >
-                                 <Plus size={16} />
-                                 Phân công
-                             </button>
-                         </div>
+                            <button
+                                onClick={activeTab === 'staff' ? () => setShowStaffModal(true) : () => setShowTechnicianModal(true)}
+                                style={{
+                                    padding: '12px 16px',
+                                    background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                                    transition: 'all 0.2s ease',
+                                    transform: 'translateY(0)',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)'
+                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)'
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
+                                }}
+                            >
+                                <Plus size={16} />
+                                Phân công
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1485,8 +1457,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                                         ? handleUpdateStaffStatus(item.staffId, !item.isActive)
                                                         : handleUpdateTechnicianStatus(item.technicianId, !item.isActive)
                                                     }
-                                                    icon={item.isActive ? X : CheckCircle}
-                                                    variant={item.isActive ? 'error' : 'success'}
+                                                    isActive={item.isActive}
                                                 />
                                             </div>
                                         </td>
@@ -1512,9 +1483,9 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 margin: '0 auto 16px',
-                                fontSize: '24px'
+                                color: 'var(--text-tertiary)'
                             }}>
-                                👥
+                                <Users size={32} />
                             </div>
                             <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
                                 Không tìm thấy {activeTab === 'staff' ? 'nhân viên' : 'kỹ thuật viên'} nào

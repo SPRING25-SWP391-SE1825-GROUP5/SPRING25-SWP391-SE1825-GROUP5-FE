@@ -21,6 +21,7 @@ import { ReportsService } from '@/services/reportsService'
 import { StaffService } from '@/services/staffService'
 import './DashboardOverview.scss'
 
+
 interface DashboardOverviewProps {
   onNavigate: (page: string) => void
 }
@@ -188,7 +189,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
           </div>
         ))}
       </div>
-
+      
       {/* Charts Section */}
       <div className="charts-section">
         <h2>Biểu đồ thống kê chi nhánh</h2>

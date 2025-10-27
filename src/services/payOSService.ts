@@ -22,13 +22,15 @@ export class PayOSService {
   static async createPaymentLink(bookingId: number): Promise<PayOSResponse> {
     try {
       const response = await api.post(`/payment/booking/${bookingId}/link`)
+      console.log('PayOS API response:', response.data)
+
       return {
         success: true,
         data: {
-          checkoutUrl: response.data.checkoutUrl,
-          orderCode: response.data.orderCode || bookingId, // Use bookingId as orderCode
-          amount: response.data.amount || 0,
-          description: response.data.description || '',
+          checkoutUrl: response.data.data?.checkoutUrl,
+          orderCode: bookingId,
+          amount: 0,
+          description: `Thanh toán vé #${bookingId}`,
           status: 'PENDING'
         }
       }

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser, syncFromLocalStorage } from '@/store/authSlice'
 import { AuthService, VehicleService, BookingService } from '@/services'
@@ -90,6 +91,7 @@ interface FormErrors {
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
+  const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<'favorites' | 'list' | 'continue-watching' | 'notifications' | 'profile' | 'vehicles' | 'service-history' | 'promo-codes' | 'settings' | 'maintenance'>('profile')
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -162,6 +164,14 @@ export default function Profile() {
     // Then load profile data
     loadProfileData()
   }, [dispatch])
+
+  // Handle tab from URL query parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'booking-history') {
+      setActiveTab('service-history')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (activeTab === 'vehicles') {

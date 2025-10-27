@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   FunnelIcon,
   Edit,
   TrashIcon,
@@ -13,14 +13,24 @@ import {
   AlertCircle,
   CheckCircle,
   RotateCcw,
-  X
+  X,
+  ChevronUp,
+  ChevronDown,
+  ToggleLeft,
+  ToggleRight,
+  TrendingUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  RefreshCw
 } from 'lucide-react'
 import promotionService from '../../services/promotionService'
-import type { 
-  Promotion, 
-  CreatePromotionRequest, 
-  UpdatePromotionRequest, 
-  PromotionFilters 
+import type {
+  Promotion,
+  CreatePromotionRequest,
+  UpdatePromotionRequest,
+  PromotionFilters
 } from '../../types/promotion'
 
 interface PromotionFormProps {
@@ -46,6 +56,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (promotion) {
@@ -77,6 +88,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
       })
     }
     setErrors({})
+    setFormError(null)
   }, [promotion, isOpen])
 
   // Validation function
@@ -117,7 +129,7 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
       newErrors.startDate = 'Ngày bắt đầu là bắt buộc'
     } else {
       const today = new Date()
-      today.setHours(0,0,0,0)
+      today.setHours(0, 0, 0, 0)
       const start = new Date(formData.startDate)
       if (start < today) {
         newErrors.startDate = 'Ngày bắt đầu không được là ngày trong quá khứ'
@@ -145,27 +157,43 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
   }
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
+    
     if (validateForm()) {
-      // Sanitize payload to match backend validation (DateOnly, nullable optionals)
-      const resolvedMaxDiscount = (formData.discountType === 'PERCENT')
-        ? (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : 1)
-        : (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : null)
+      try {
+        // Sanitize payload to match backend validation (DateOnly, nullable optionals)
+        const resolvedMaxDiscount = (formData.discountType === 'PERCENT')
+          ? (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : 1)
+          : (formData.maxDiscount && formData.maxDiscount > 0 ? Number(formData.maxDiscount) : null)
 
-      const payload: any = {
-        code: formData.code.trim(),
-        description: formData.description.trim(),
-        discountValue: Number(formData.discountValue),
-        discountType: formData.discountType,
-        minOrderAmount: formData.minOrderAmount && formData.minOrderAmount > 0 ? Number(formData.minOrderAmount) : null,
-        startDate: formData.startDate, // YYYY-MM-DD
-        endDate: formData.endDate && formData.endDate.length > 0 ? formData.endDate : null,
-        maxDiscount: resolvedMaxDiscount,
-        status: formData.status,
-        usageLimit: formData.usageLimit && formData.usageLimit > 0 ? Number(formData.usageLimit) : null
+        const payload: any = {
+          code: formData.code.trim(),
+          description: formData.description.trim(),
+          discountValue: Number(formData.discountValue),
+          discountType: formData.discountType,
+          minOrderAmount: formData.minOrderAmount && formData.minOrderAmount > 0 ? Number(formData.minOrderAmount) : null,
+          startDate: formData.startDate, // YYYY-MM-DD
+          endDate: formData.endDate && formData.endDate.length > 0 ? formData.endDate : null,
+          maxDiscount: resolvedMaxDiscount,
+          status: formData.status,
+          usageLimit: formData.usageLimit && formData.usageLimit > 0 ? Number(formData.usageLimit) : null
+        }
+
+        console.log({payload});
+        
+        await onSave(payload)
+      } catch (error) {
+        console.error('Error saving promotion:', error)
+        // Extract server message if available
+        // @ts-ignore
+        const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
+        const errorMessage = serverMsg
+          ? `Không thể lưu khuyến mãi: ${serverMsg}`
+          : 'Có lỗi xảy ra khi lưu khuyến mãi. Vui lòng thử lại.'
+        setFormError(errorMessage)
       }
-      onSave(payload)
     }
   }
 
@@ -197,46 +225,50 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
+    // Clear form error when user starts typing
+    if (formError) {
+      setFormError(null)
+    }
   }
 
   if (!isOpen) return null
 
   return (
-    <div style={{ 
-      position: 'fixed', 
-      inset: 0, 
-      background: 'rgba(0,0,0,0.6)', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.6)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       zIndex: 2000,
       backdropFilter: 'blur(4px)'
     }}>
-      <div style={{ 
-        background: 'var(--bg-card)', 
-        color: 'var(--text-primary)', 
+      <div style={{
+        background: 'var(--bg-card)',
+        color: 'var(--text-primary)',
         borderRadius: '20px',
-        border: '1px solid var(--border-primary)', 
-        width: '700px', 
-        maxWidth: '90vw', 
+        border: '1px solid var(--border-primary)',
+        width: '700px',
+        maxWidth: '90vw',
         maxHeight: '90vh',
         overflow: 'auto',
         padding: '32px',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
         animation: 'modalSlideIn 0.3s ease-out'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           marginBottom: '24px',
           paddingBottom: '16px',
           borderBottom: '2px solid var(--border-primary)'
         }}>
           <div>
-            <h3 style={{ 
-              margin: '0 0 4px 0', 
-              fontSize: '24px', 
+            <h3 style={{
+              margin: '0 0 4px 0',
+              fontSize: '24px',
               fontWeight: '700',
               background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
               WebkitBackgroundClip: 'text',
@@ -244,22 +276,22 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
             }}>
               {promotion ? 'Chỉnh sửa khuyến mãi' : 'Tạo khuyến mãi mới'}
             </h3>
-            <p style={{ 
-              margin: 0, 
-              fontSize: '14px', 
-              color: 'var(--text-secondary)' 
+            <p style={{
+              margin: 0,
+              fontSize: '14px',
+              color: 'var(--text-secondary)'
             }}>
-              {promotion 
-                ? 'Cập nhật thông tin khuyến mãi' 
+              {promotion
+                ? 'Cập nhật thông tin khuyến mãi'
                 : 'Thêm chương trình khuyến mãi mới vào hệ thống'
               }
             </p>
           </div>
           <button
             onClick={onClose}
-            style={{ 
-              border: 'none', 
-              background: 'var(--bg-secondary)', 
+            style={{
+              border: 'none',
+              background: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
               cursor: 'pointer',
               padding: '12px',
@@ -283,15 +315,32 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
         </div>
 
         <div style={{ display: 'grid', gap: '20px' }}>
+          {/* Form Error Message */}
+          {formError && (
+            <div style={{
+              background: 'var(--error-50)',
+              border: '1px solid var(--error-200)',
+              color: 'var(--error-700)',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <AlertCircle size={20} />
+              {formError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '20px' }}>
             {/* Mã khuyến mãi */}
             <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '14px', 
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
                 fontWeight: '600',
-                color: 'var(--text-primary)', 
-                marginBottom: '8px' 
+                color: 'var(--text-primary)',
+                marginBottom: '8px'
               }}>
                 Mã khuyến mãi <span style={{ color: 'var(--error-500)' }}>*</span>
               </label>
@@ -299,13 +348,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                 type="text"
                 value={formData.code}
                 onChange={(e) => handleInputChange('code', e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '14px 16px', 
-                  border: `2px solid ${errors.code ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                  borderRadius: '12px', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)', 
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: `2px solid ${errors.code ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                  borderRadius: '12px',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
                   fontSize: '14px',
                   transition: 'all 0.2s ease',
                   outline: 'none',
@@ -322,10 +371,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                 }}
               />
               {errors.code && (
-                <div style={{ 
-                  color: 'var(--error-600)', 
-                  fontSize: '12px', 
-                  marginTop: '4px' 
+                <div style={{
+                  color: 'var(--error-600)',
+                  fontSize: '12px',
+                  marginTop: '4px'
                 }}>
                   {errors.code}
                 </div>
@@ -334,25 +383,25 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
 
             {/* Mô tả */}
             <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '14px', 
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
                 fontWeight: '600',
-                color: 'var(--text-primary)', 
-                marginBottom: '8px' 
+                color: 'var(--text-primary)',
+                marginBottom: '8px'
               }}>
                 Mô tả <span style={{ color: 'var(--error-500)' }}>*</span>
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '14px 16px', 
-                  border: `2px solid ${errors.description ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                  borderRadius: '12px', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)', 
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: `2px solid ${errors.description ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                  borderRadius: '12px',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
                   fontSize: '14px',
                   transition: 'all 0.2s ease',
                   outline: 'none',
@@ -372,10 +421,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                 }}
               />
               {errors.description && (
-                <div style={{ 
-                  color: 'var(--error-600)', 
-                  fontSize: '12px', 
-                  marginTop: '4px' 
+                <div style={{
+                  color: 'var(--error-600)',
+                  fontSize: '12px',
+                  marginTop: '4px'
                 }}>
                   {errors.description}
                 </div>
@@ -385,12 +434,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
             {/* Loại giảm giá và giá trị */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Loại giảm giá <span style={{ color: 'var(--error-500)' }}>*</span>
                 </label>
@@ -424,12 +473,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
               </div>
 
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Giá trị giảm giá <span style={{ color: 'var(--error-500)' }}>*</span>
                 </label>
@@ -437,13 +486,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   type="number"
                   value={formData.discountValue}
                   onChange={(e) => handleInputChange('discountValue', e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${errors.discountValue ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px solid ${errors.discountValue ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
                     outline: 'none',
@@ -462,10 +511,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   }}
                 />
                 {errors.discountValue && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                  <div style={{
+                    color: 'var(--error-600)',
+                    fontSize: '12px',
+                    marginTop: '4px'
                   }}>
                     {errors.discountValue}
                   </div>
@@ -476,12 +525,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
             {/* Giá trị đơn hàng tối thiểu và giảm giá tối đa */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Giá trị đơn hàng tối thiểu (VNĐ)
                 </label>
@@ -489,13 +538,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   type="number"
                   value={formData.minOrderAmount || ''}
                   onChange={(e) => handleInputChange('minOrderAmount', parseFloat(e.target.value) || 0)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${errors.minOrderAmount ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px solid ${errors.minOrderAmount ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
                     outline: 'none',
@@ -513,10 +562,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   }}
                 />
                 {errors.minOrderAmount && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                  <div style={{
+                    color: 'var(--error-600)',
+                    fontSize: '12px',
+                    marginTop: '4px'
                   }}>
                     {errors.minOrderAmount}
                   </div>
@@ -524,12 +573,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
               </div>
 
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Giảm giá tối đa (VNĐ)
                 </label>
@@ -537,13 +586,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   type="number"
                   value={formData.maxDiscount || ''}
                   onChange={(e) => handleInputChange('maxDiscount', parseFloat(e.target.value) || 0)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${errors.maxDiscount ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px solid ${errors.maxDiscount ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
                     outline: 'none',
@@ -561,10 +610,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   }}
                 />
                 {errors.maxDiscount && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                  <div style={{
+                    color: 'var(--error-600)',
+                    fontSize: '12px',
+                    marginTop: '4px'
                   }}>
                     {errors.maxDiscount}
                   </div>
@@ -575,12 +624,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
             {/* Thời gian hiệu lực */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Ngày bắt đầu <span style={{ color: 'var(--error-500)' }}>*</span>
                 </label>
@@ -588,13 +637,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   type="date"
                   value={formData.startDate}
                   onChange={(e) => handleInputChange('startDate', e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${errors.startDate ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px solid ${errors.startDate ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
                     outline: 'none',
@@ -610,10 +659,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   }}
                 />
                 {errors.startDate && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                  <div style={{
+                    color: 'var(--error-600)',
+                    fontSize: '12px',
+                    marginTop: '4px'
                   }}>
                     {errors.startDate}
                   </div>
@@ -621,12 +670,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
               </div>
 
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Ngày kết thúc
                 </label>
@@ -634,13 +683,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   type="date"
                   value={formData.endDate || ''}
                   onChange={(e) => handleInputChange('endDate', e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${errors.endDate ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px solid ${errors.endDate ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
                     outline: 'none',
@@ -656,10 +705,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   }}
                 />
                 {errors.endDate && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                  <div style={{
+                    color: 'var(--error-600)',
+                    fontSize: '12px',
+                    marginTop: '4px'
                   }}>
                     {errors.endDate}
                   </div>
@@ -670,12 +719,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
             {/* Giới hạn sử dụng và trạng thái */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Giới hạn sử dụng
                 </label>
@@ -683,13 +732,13 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   type="number"
                   value={formData.usageLimit || ''}
                   onChange={(e) => handleInputChange('usageLimit', parseInt(e.target.value) || 0)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${errors.usageLimit ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: `2px solid ${errors.usageLimit ? 'var(--error-500)' : 'var(--border-primary)'}`,
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '14px',
                     transition: 'all 0.2s ease',
                     outline: 'none',
@@ -707,10 +756,10 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
                   }}
                 />
                 {errors.usageLimit && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
+                  <div style={{
+                    color: 'var(--error-600)',
+                    fontSize: '12px',
+                    marginTop: '4px'
                   }}>
                     {errors.usageLimit}
                   </div>
@@ -718,12 +767,12 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
               </div>
 
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px'
                 }}>
                   Trạng thái <span style={{ color: 'var(--error-500)' }}>*</span>
                 </label>
@@ -759,11 +808,11 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
             </div>
 
             {/* Action buttons */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'flex-end', 
-              gap: '12px', 
-              paddingTop: '24px', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+              paddingTop: '24px',
               borderTop: '2px solid var(--border-primary)',
               marginTop: '8px'
             }}>
@@ -860,30 +909,30 @@ function PromotionFiltersComponent({ filters, onFiltersChange, onSearch }: Promo
       marginBottom: '24px',
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
     }}>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '16px',
         alignItems: 'end'
       }}>
         {/* Tìm kiếm */}
         <div>
-          <label style={{ 
-            display: 'block', 
-            fontSize: '14px', 
-            fontWeight: '600', 
-            color: 'var(--text-primary)', 
+          <label style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: 'var(--text-primary)',
             marginBottom: '8px'
           }}>
             Tìm kiếm
           </label>
           <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ 
-              position: 'absolute', 
-              left: '12px', 
-              top: '50%', 
-              transform: 'translateY(-50%)', 
-              color: 'var(--text-tertiary)' 
+            <Search size={16} style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-tertiary)'
             }} />
             <input
               type="text"
@@ -916,12 +965,12 @@ function PromotionFiltersComponent({ filters, onFiltersChange, onSearch }: Promo
 
         {/* Trạng thái */}
         <div>
-          <label style={{ 
-            display: 'block', 
-            fontSize: '14px', 
-            fontWeight: '600', 
-            color: 'var(--text-primary)', 
-            marginBottom: '8px' 
+          <label style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            marginBottom: '8px'
           }}>
             Trạng thái
           </label>
@@ -949,12 +998,12 @@ function PromotionFiltersComponent({ filters, onFiltersChange, onSearch }: Promo
 
         {/* Loại khuyến mãi */}
         <div>
-          <label style={{ 
-            display: 'block', 
-            fontSize: '14px', 
-            fontWeight: '600', 
-            color: 'var(--text-primary)', 
-            marginBottom: '8px' 
+          <label style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            marginBottom: '8px'
           }}>
             Loại khuyến mãi
           </label>
@@ -982,7 +1031,13 @@ function PromotionFiltersComponent({ filters, onFiltersChange, onSearch }: Promo
         {/* Nút tìm kiếm */}
         <div>
           <button 
-            onClick={onSearch}
+            onClick={() => {
+              onFiltersChange({
+                searchTerm: '',
+                status: undefined,
+                promotionType: undefined
+              })
+            }}
             style={{
               width: '100%',
               padding: '12px 20px',
@@ -1008,10 +1063,11 @@ function PromotionFiltersComponent({ filters, onFiltersChange, onSearch }: Promo
               e.currentTarget.style.background = 'var(--bg-secondary)'
             }}
           >
-            <FunnelIcon size={16} />
-            Tìm kiếm
+            <RefreshCw size={16} />
+            Đặt lại bộ lọc
           </button>
         </div>
+
       </div>
     </div>
   )
@@ -1048,15 +1104,19 @@ interface PromotionTableProps {
   onDeactivate: (id: number) => void
   onViewDetails: (promotion: Promotion) => void
   isLoading: boolean
+  onSort: (field: string) => void
+  getSortIcon: (field: string) => React.ReactNode
 }
 
-function PromotionTable({ 
-  promotions, 
-  onEdit, 
-  onActivate, 
-  onDeactivate, 
-  onViewDetails, 
-  isLoading 
+function PromotionTable({
+  promotions,
+  onEdit,
+  onActivate,
+  onDeactivate,
+  onViewDetails,
+  isLoading,
+  onSort,
+  getSortIcon
 }: PromotionTableProps) {
   // Ensure promotions is always an array
   const safePromotions = Array.isArray(promotions) ? promotions : []
@@ -1068,10 +1128,10 @@ function PromotionTable({
 
   if (isLoading) {
     return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '60px', 
-        color: 'var(--text-secondary)' 
+      <div style={{
+        textAlign: 'center',
+        padding: '60px',
+        color: 'var(--text-secondary)'
       }}>
         <div style={{
           width: '40px',
@@ -1089,10 +1149,10 @@ function PromotionTable({
 
   if (safePromotions.length === 0) {
     return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '60px', 
-        color: 'var(--text-secondary)' 
+      <div style={{
+        textAlign: 'center',
+        padding: '60px',
+        color: 'var(--text-secondary)'
       }}>
         <div style={{
           width: '64px',
@@ -1118,7 +1178,7 @@ function PromotionTable({
   }
 
   return (
-    <div style={{ 
+    <div style={{
       overflow: 'auto',
       width: '100%'
     }}>
@@ -1127,54 +1187,133 @@ function PromotionTable({
         minWidth: '800px', // Set minimum width instead of fixed width
         borderCollapse: 'collapse',
         background: 'var(--bg-card)',
-        borderRadius: '12px',
+        borderRadius: '16px',
         overflow: 'hidden',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        border: '1px solid var(--border-primary)'
       }}>
         <thead>
           <tr style={{
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            color: 'white'
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
           }}>
-            <th style={{
-              padding: '16px 12px',
-              textAlign: 'left',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: 'none',
-              width: '140px'
-            }}>
-              Mã khuyến mãi
+            <th
+              onClick={() => onSort('code')}
+              style={{
+                padding: '16px 12px',
+                textAlign: 'left',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                width: '140px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Mã khuyến mãi
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: 1,
+                  transition: 'opacity 0.2s ease'
+                }}>
+                  {getSortIcon('code')}
+                </div>
+              </div>
             </th>
-            <th style={{
-              padding: '16px 12px',
-              textAlign: 'left',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: 'none',
-              minWidth: '200px'
-            }}>
-              Mô tả
+            <th
+              style={{
+                padding: '16px 12px',
+                textAlign: 'left',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                minWidth: '200px',
+                userSelect: 'none',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Mô tả
+
+              </div>
             </th>
-            <th style={{
-              padding: '16px 12px',
-              textAlign: 'left',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: 'none',
-              width: '150px'
-            }}>
-              Giá trị giảm
+            <th
+              onClick={() => onSort('discountValue')}
+              style={{
+                padding: '16px 12px',
+                textAlign: 'left',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                width: '150px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Giá trị giảm
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: 1,
+                  transition: 'opacity 0.2s ease'
+                }}>
+                  {getSortIcon('discountValue')}
+                </div>
+              </div>
             </th>
-            <th style={{
-              padding: '16px 12px',
-              textAlign: 'left',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: 'none',
-              width: '140px'
-            }}>
-              Thời gian
+            <th
+              onClick={() => onSort('startDate')}
+              style={{
+                padding: '16px 12px',
+                textAlign: 'left',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                width: '140px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Thời gian
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: 1,
+                  transition: 'opacity 0.2s ease'
+                }}>
+                  {getSortIcon('startDate')}
+                </div>
+              </div>
             </th>
             <th style={{
               padding: '16px 12px',
@@ -1186,15 +1325,24 @@ function PromotionTable({
             }}>
               Sử dụng
             </th>
-            <th style={{
-              padding: '16px 12px',
-              textAlign: 'center',
-              fontSize: '14px',
-              fontWeight: '600',
-              border: 'none',
-              width: '130px'
-            }}>
-              Trạng thái
+            <th
+              style={{
+                padding: '16px 12px',
+                textAlign: 'center',
+                fontSize: '14px',
+                fontWeight: '600',
+                border: 'none',
+                width: '130px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                Trạng thái
+
+              </div>
             </th>
             <th style={{
               padding: '16px 12px',
@@ -1210,18 +1358,24 @@ function PromotionTable({
         </thead>
         <tbody>
           {safePromotions.map((promotion, index) => (
-            <tr 
+            <tr
               key={`${promotion.promotionId ?? 'row'}-${index}`}
               style={{
                 borderBottom: '1px solid var(--border-primary)',
-                transition: 'all 0.2s ease',
+                transition: 'all 0.3s ease',
+                transform: 'translateY(0)',
+                boxShadow: 'none',
                 background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--primary-50)'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
               }}
             >
               {/* Mã khuyến mãi */}
@@ -1246,7 +1400,7 @@ function PromotionTable({
                   }}>
                     <Gift size={16} />
                   </div>
-                  <div style={{ 
+                  <div style={{
                     wordBreak: 'break-word',
                     lineHeight: '1.4'
                   }}>
@@ -1262,8 +1416,8 @@ function PromotionTable({
                 color: 'var(--text-secondary)',
                 verticalAlign: 'top'
               }}>
-                <div 
-                  style={{ 
+                <div
+                  style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
                     WebkitBoxOrient: 'vertical',
@@ -1286,15 +1440,15 @@ function PromotionTable({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {promotion.discountType === 'PERCENT' 
+                    {promotion.discountType === 'PERCENT'
                       ? `${promotion.discountValue}%`
                       : formatCurrency(promotion.discountValue)
                     }
                   </div>
                 </div>
                 {promotion.minOrderAmount && promotion.minOrderAmount > 0 && (
-                  <div style={{ 
-                    fontSize: '12px', 
+                  <div style={{
+                    fontSize: '12px',
                     color: 'var(--text-tertiary)',
                     marginTop: '4px',
                     lineHeight: '1.3'
@@ -1315,8 +1469,8 @@ function PromotionTable({
                   {formatDate(promotion.startDate)}
                 </div>
                 {promotion.endDate && (
-                  <div style={{ 
-                    fontSize: '12px', 
+                  <div style={{
+                    fontSize: '12px',
                     color: 'var(--text-tertiary)',
                     marginTop: '4px',
                     lineHeight: '1.3'
@@ -1338,8 +1492,8 @@ function PromotionTable({
                   {promotion.usageLimit && promotion.usageLimit > 0 && ` / ${promotion.usageLimit}`}
                 </div>
                 {promotion.usageLimit && promotion.usageLimit > 0 && (
-                  <div style={{ 
-                    fontSize: '12px', 
+                  <div style={{
+                    fontSize: '12px',
                     color: 'var(--text-tertiary)',
                     marginTop: '4px',
                     lineHeight: '1.3'
@@ -1361,14 +1515,14 @@ function PromotionTable({
                   gap: '6px',
                   padding: '6px 12px',
                   borderRadius: '20px',
-                  background: promotion.status === 'ACTIVE' ? 'var(--success-50)' : 
-                             promotion.status === 'INACTIVE' ? 'var(--error-50)' : 'var(--warning-50)',
-                  color: promotion.status === 'ACTIVE' ? 'var(--success-700)' : 
-                         promotion.status === 'INACTIVE' ? 'var(--error-700)' : 'var(--warning-700)',
+                  background: promotion.status === 'ACTIVE' ? 'var(--success-50)' :
+                    promotion.status === 'INACTIVE' ? 'var(--error-50)' : 'var(--warning-50)',
+                  color: promotion.status === 'ACTIVE' ? 'var(--success-700)' :
+                    promotion.status === 'INACTIVE' ? 'var(--error-700)' : 'var(--warning-700)',
                   fontSize: '12px',
                   fontWeight: '600',
-                  border: `1px solid ${promotion.status === 'ACTIVE' ? 'var(--success-200)' : 
-                                    promotion.status === 'INACTIVE' ? 'var(--error-200)' : 'var(--warning-200)'}`,
+                  border: `1px solid ${promotion.status === 'ACTIVE' ? 'var(--success-200)' :
+                    promotion.status === 'INACTIVE' ? 'var(--error-200)' : 'var(--warning-200)'}`,
                   whiteSpace: 'nowrap'
                 }}>
                   {promotion.status === 'ACTIVE' ? (
@@ -1396,9 +1550,9 @@ function PromotionTable({
                 textAlign: 'center',
                 verticalAlign: 'top'
               }}>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '6px', 
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
                   justifyContent: 'center',
                   alignItems: 'flex-start',
                   flexWrap: 'wrap'
@@ -1432,7 +1586,7 @@ function PromotionTable({
                   >
                     <Eye size={14} />
                   </button>
-                  
+
                   <button
                     onClick={() => onEdit(promotion)}
                     style={{
@@ -1462,72 +1616,46 @@ function PromotionTable({
                   >
                     <Edit size={14} />
                   </button>
-                  
-                  {promotion.status === 'ACTIVE' ? (
-                    <button
-                      onClick={() => onDeactivate(promotion.promotionId)}
-                      style={{
-                        padding: '6px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '6px',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
+
+                  <button
+                    onClick={() => promotion.status === 'ACTIVE' ? onDeactivate(promotion.promotionId) : onActivate(promotion.promotionId)}
+                    style={{
+                      padding: '6px',
+                      border: '2px solid var(--border-primary)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
                       cursor: isLoading ? 'not-allowed' : 'pointer',
                       opacity: isLoading ? 0.6 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        width: '32px',
-                        height: '32px',
-                        flexShrink: 0
-                      }}
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                      width: '32px',
+                      height: '32px',
+                      flexShrink: 0
+                    }}
                     disabled={isLoading}
-                      onMouseEnter={(e) => {
+                    onMouseEnter={(e) => {
+                      if (promotion.status === 'ACTIVE') {
                         e.currentTarget.style.borderColor = 'var(--error-500)'
                         e.currentTarget.style.background = 'var(--error-50)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                        e.currentTarget.style.background = 'var(--bg-card)'
-                      }}
-                      title="Vô hiệu hóa"
-                    >
-                      <Pause size={14} />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => onActivate(promotion.promotionId)}
-                      style={{
-                        padding: '6px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '6px',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        opacity: isLoading ? 0.6 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        width: '32px',
-                        height: '32px',
-                        flexShrink: 0
-                      }}
-                      disabled={isLoading}
-                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--error-600)'
+                      } else {
                         e.currentTarget.style.borderColor = 'var(--success-500)'
                         e.currentTarget.style.background = 'var(--success-50)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                        e.currentTarget.style.background = 'var(--bg-card)'
-                      }}
-                      title="Kích hoạt"
-                    >
-                      <Play size={14} />
-                    </button>
-                  )}
+                        e.currentTarget.style.color = 'var(--success-600)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-primary)'
+                      e.currentTarget.style.background = 'var(--bg-card)'
+                      e.currentTarget.style.color = 'var(--text-primary)'
+                    }}
+                    title={promotion.status === 'ACTIVE' ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                  >
+                    {promotion.status === 'ACTIVE' ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
+                  </button>
                 </div>
               </td>
             </tr>
@@ -1557,6 +1685,32 @@ export default function PromotionManagement() {
   const [totalPages, setTotalPages] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState('code')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [stats, setStats] = useState({
+    totalPromotions: 0,
+    activePromotions: 0,
+    inactivePromotions: 0,
+    expiredPromotions: 0,
+    totalUsage: 0
+  })
+
+  // Sort functions
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortBy !== field) {
+      return <ChevronUp size={14} style={{ opacity: 0.3 }} />;
+    }
+    return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+  };
 
   // Load promotions with fallback to mock data
   const loadPromotions = async () => {
@@ -1564,49 +1718,101 @@ export default function PromotionManagement() {
       setIsLoading(true)
       setError(null)
       console.log('🔄 Loading promotions with filters:', filters)
-      
+
       // Use the main getPromotions method for real API calls
       const response = await promotionService.getPromotions(filters)
       console.log('✅ API Response:', response)
-      
-      const promotionsData = response.data as Promotion[] || []
+
+      let promotionsData = response.data as Promotion[] || []
       const responseTotalCount = response.totalCount || 0
       const responsePageNumber = response.pageNumber || 1
       const responseTotalPages = response.totalPages || 0
-      
+
+      // Apply sorting to promotions data
+      if (promotionsData.length > 0) {
+        promotionsData = promotionsData.sort((a, b) => {
+          let aValue: any, bValue: any;
+          switch (sortBy) {
+            case 'code':
+              aValue = a.code?.toLowerCase() || '';
+              bValue = b.code?.toLowerCase() || '';
+              break;
+            case 'description':
+              aValue = a.description?.toLowerCase() || '';
+              bValue = b.description?.toLowerCase() || '';
+              break;
+            case 'discountValue':
+              aValue = a.discountValue || 0;
+              bValue = b.discountValue || 0;
+              break;
+            case 'startDate':
+              aValue = new Date(a.startDate).getTime();
+              bValue = new Date(b.startDate).getTime();
+              break;
+            case 'status':
+              aValue = a.status?.toLowerCase() || '';
+              bValue = b.status?.toLowerCase() || '';
+              break;
+            default:
+              aValue = a.code?.toLowerCase() || '';
+              bValue = b.code?.toLowerCase() || '';
+          }
+          if (sortOrder === 'asc') {
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+          } else {
+            return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+          }
+        });
+      }
+
       console.log('📊 Processed promotions data:', {
         count: promotionsData.length,
         totalCount: responseTotalCount,
         pageNumber: responsePageNumber,
         totalPages: responseTotalPages
       })
-      
+
       setPromotions(promotionsData)
       setTotalCount(responseTotalCount)
       setCurrentPage(responsePageNumber)
       setTotalPages(responseTotalPages)
-      
+
+      // Calculate stats from promotions data
+      const totalPromotions = promotionsData.length
+      const activePromotions = promotionsData.filter(p => p.status === 'ACTIVE').length
+      const inactivePromotions = promotionsData.filter(p => p.status === 'INACTIVE').length
+      const expiredPromotions = promotionsData.filter(p => p.status === 'EXPIRED').length
+      const totalUsage = promotionsData.reduce((sum, p) => sum + (p.usageCount || 0), 0)
+
+      setStats({
+        totalPromotions,
+        activePromotions,
+        inactivePromotions,
+        expiredPromotions,
+        totalUsage
+      })
+
       // Show success message if data loaded
-      if (promotionsData.length > 0) {
-        console.log(`✅ Loaded ${promotionsData.length} promotions successfully`)
-        setSuccessMessage(`Đã tải ${promotionsData.length} khuyến mãi`)
-        setTimeout(() => setSuccessMessage(null), 3000)
-      } else {
-        console.log('⚠️ No promotions found')
-        setSuccessMessage('Không tìm thấy khuyến mãi nào')
-        setTimeout(() => setSuccessMessage(null), 3000)
-      }
+      // if (promotionsData.length > 0) {
+      //   console.log(`✅ Loaded ${promotionsData.length} promotions successfully`)
+      //   setSuccessMessage(`Đã tải ${promotionsData.length} khuyến mãi`)
+      //   setTimeout(() => setSuccessMessage(null), 3000)
+      // } else {
+      //   console.log('⚠️ No promotions found')
+      //   setSuccessMessage('Không tìm thấy khuyến mãi nào')
+      //   setTimeout(() => setSuccessMessage(null), 3000)
+      // }
     } catch (error) {
       console.error('❌ Error loading promotions:', error)
-      
+
       // Set error message
-      const errorMessage = error instanceof Error 
+      const errorMessage = error instanceof Error
         ? `Không thể tải danh sách khuyến mãi: ${error.message}`
         : 'Không thể tải danh sách khuyến mãi. Vui lòng thử lại sau.'
-      
+
       setError(errorMessage)
       setTimeout(() => setError(null), 5000)
-      
+
       // Reset to empty array on error
       setPromotions([])
       setTotalCount(0)
@@ -1620,7 +1826,7 @@ export default function PromotionManagement() {
   // Load promotions on component mount and when filters change
   useEffect(() => {
     loadPromotions()
-  }, [filters])
+  }, [filters, sortBy, sortOrder])
 
   // Handle create new promotion
   const handleCreateNew = () => {
@@ -1640,7 +1846,7 @@ export default function PromotionManagement() {
       setIsLoading(true)
       setError(null)
       console.log('Saving promotion:', data)
-      
+
       if (editingPromotion) {
         console.log('Updating promotion with ID:', editingPromotion.promotionId)
         await promotionService.updatePromotion(editingPromotion.promotionId, data)
@@ -1652,20 +1858,14 @@ export default function PromotionManagement() {
         setSuccessMessage('Tạo khuyến mãi mới thành công!')
         setTimeout(() => setSuccessMessage(null), 3000)
       }
-      
+
       setIsFormOpen(false)
       setEditingPromotion(undefined)
       await loadPromotions()
     } catch (error) {
       console.error('Error saving promotion:', error)
-      // Extract server message if available
-      // @ts-ignore
-      const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
-      const errorMessage = serverMsg
-        ? `Không thể lưu khuyến mãi: ${serverMsg}`
-        : 'Có lỗi xảy ra khi lưu khuyến mãi. Vui lòng thử lại.'
-      setError(errorMessage)
-      setTimeout(() => setError(null), 5000)
+      // Re-throw error to be handled in form
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -1738,7 +1938,7 @@ export default function PromotionManagement() {
       console.log('Promotion details loaded:', promotionDetailsResp)
     } catch (error) {
       console.error('Error loading promotion details:', error)
-      const errorMessage = error instanceof Error 
+      const errorMessage = error instanceof Error
         ? `Không thể tải chi tiết khuyến mãi: ${error.message}`
         : 'Không thể tải chi tiết khuyến mãi. Vui lòng thử lại.'
       setError(errorMessage)
@@ -1782,9 +1982,9 @@ export default function PromotionManagement() {
           to { opacity: 1; }
         }
       `}</style>
-      <div style={{ 
-        padding: '24px', 
-        background: 'var(--bg-secondary)', 
+      <div style={{
+        padding: '24px',
+        background: 'var(--bg-secondary)',
         minHeight: '100vh',
         animation: 'fadeIn 0.5s ease-out'
       }}>
@@ -1794,623 +1994,1072 @@ export default function PromotionManagement() {
             to { transform: rotate(360deg); }
           }
         `}</style>
-      
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Quản lý Khuyến mãi
-          </h2>
-          <p style={{ 
-            fontSize: '16px', 
-            color: 'var(--text-secondary)',
-            margin: '0'
-          }}>
-            Quản lý và theo dõi các chương trình khuyến mãi và giảm giá
-          </p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={handleRefresh} style={{
-            padding: '12px 16px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
-            e.currentTarget.style.background = 'var(--primary-50)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-            e.currentTarget.style.background = 'var(--bg-card)'
-          }}>
-            <RotateCcw size={18} />
-            Làm mới
-          </button>
 
-          <button onClick={handleCreateNew} style={{
-            padding: '12px 24px',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-          }}>
-            <Plus size={18} />
-            Tạo khuyến mãi mới
-          </button>
-        </div>
-      </div>
-
-      {/* Success/Error Messages */}
-      {successMessage && (
+        {/* Header */}
         <div style={{
-          background: 'var(--success-50)',
-          border: '1px solid var(--success-200)',
-          color: 'var(--success-700)',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          marginBottom: '16px',
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '8px'
+          marginBottom: '32px',
+          flexWrap: 'wrap',
+          gap: '16px'
         }}>
-          <CheckCircle size={20} />
-          {successMessage}
-        </div>
-      )}
+          <div>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              margin: '0 0 8px 0',
+              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Quản lý Khuyến mãi
+            </h2>
+            <p style={{
+              fontSize: '16px',
+              color: 'var(--text-secondary)',
+              margin: '0'
+            }}>
+              Quản lý và theo dõi các chương trình khuyến mãi và giảm giá
+            </p>
+          </div>
 
-      {error && (
-        <div style={{
-          background: 'var(--error-50)',
-          border: '1px solid var(--error-200)',
-          color: 'var(--error-700)',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button onClick={handleRefresh} style={{
+              padding: '12px 16px',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              border: '2px solid var(--border-primary)',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s ease'
+            }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--primary-500)'
+                e.currentTarget.style.background = 'var(--primary-50)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-primary)'
+                e.currentTarget.style.background = 'var(--bg-card)'
+              }}>
+              <RefreshCw size={18} />
+              Làm mới
+            </button>
 
-      {/* Filters */}
-      <PromotionFiltersComponent
-        filters={filters}
-        onFiltersChange={setFilters}
-        onSearch={handleSearch}
-      />
-
-      {/* Table */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '32px',
-        borderRadius: '20px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '24px' 
-        }}>
-          <h3 style={{ 
-            fontSize: '20px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0'
-          }}>
-            Danh sách Khuyến mãi
-          </h3>
-          <div style={{
-            padding: '8px 16px',
-            background: 'var(--primary-50)',
-            color: 'var(--primary-700)',
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: '600'
-          }}>
-            {promotions.length} khuyến mãi
+            <button onClick={handleCreateNew} style={{
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              transition: 'all 0.2s ease',
+              transform: 'translateY(0)'
+            }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
+              }}>
+              <Plus size={18} />
+              Tạo khuyến mãi mới
+            </button>
           </div>
         </div>
-        
-        <PromotionTable
-          promotions={promotions}
-          onEdit={handleEdit}
-          onActivate={handleActivate}
-          onDeactivate={handleDeactivate}
-          onViewDetails={handleViewDetails}
-          isLoading={isLoading}
-        />
-      </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+        {/* Success/Error Messages */}
+        {successMessage && (
+          <div style={{
+            background: 'var(--success-50)',
+            border: '1px solid var(--success-200)',
+            color: 'var(--success-700)',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <CheckCircle size={20} />
+            {successMessage}
+          </div>
+        )}
+
+        {error && (
+          <div style={{
+            background: 'var(--error-50)',
+            border: '1px solid var(--error-200)',
+            color: 'var(--error-700)',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <AlertCircle size={20} />
+            {error}
+          </div>
+        )}
+
+        {/* Stats Cards */}
         <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '20px',
+          marginBottom: '24px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              color: 'white'
+            }}>
+              <Gift size={24} />
+            </div>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '4px'
+            }}>
+              {stats.totalPromotions}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--text-secondary)',
+              fontWeight: '500'
+            }}>
+              Tổng khuyến mãi
+            </div>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, var(--success-500), var(--success-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              color: 'white'
+            }}>
+              <CheckCircle size={24} />
+            </div>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '4px'
+            }}>
+              {stats.activePromotions}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--text-secondary)',
+              fontWeight: '500'
+            }}>
+              Đang hoạt động
+            </div>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, var(--error-500), var(--error-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              color: 'white'
+            }}>
+              <AlertCircle size={24} />
+            </div>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '4px'
+            }}>
+              {stats.inactivePromotions}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--text-secondary)',
+              fontWeight: '500'
+            }}>
+              Không hoạt động
+            </div>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, var(--warning-500), var(--warning-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              color: 'white'
+            }}>
+              <Circle size={24} />
+            </div>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '4px'
+            }}>
+              {stats.expiredPromotions}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--text-secondary)',
+              fontWeight: '500'
+            }}>
+              Hết hạn
+            </div>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              color: 'white'
+            }}>
+              <TrendingUp size={24} />
+            </div>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '4px'
+            }}>
+              {stats.totalUsage}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--text-secondary)',
+              fontWeight: '500'
+            }}>
+              Lượt sử dụng
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <PromotionFiltersComponent
+          filters={filters}
+          onFiltersChange={setFilters}
+          onSearch={handleSearch}
+        />
+
+        {/* Table */}
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '32px',
+          borderRadius: '20px',
+          border: '1px solid var(--border-primary)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '24px'
+          }}>
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              margin: '0'
+            }}>
+              Danh sách Khuyến mãi
+            </h3>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              {/* Simple Header Pagination */}
+              <button
+                disabled={currentPage === 1}
+                onClick={() => handlePageChange(currentPage - 1)}
+                style={{ 
+                  padding: "6px 10px", 
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-primary)",
+                  background: currentPage === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
+                  color: currentPage === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  if (currentPage !== 1) {
+                    e.currentTarget.style.background = "var(--primary-50)"
+                    e.currentTarget.style.borderColor = "var(--primary-500)"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (currentPage !== 1) {
+                    e.currentTarget.style.background = "var(--bg-card)"
+                    e.currentTarget.style.borderColor = "var(--border-primary)"
+                  }
+                }}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span style={{
+                padding: "6px 10px",
+                background: "var(--primary-50)",
+                borderRadius: "6px",
+                color: "var(--primary-700)",
+                fontSize: "12px",
+                fontWeight: "600",
+                minWidth: "60px",
+                textAlign: "center"
+              }}>
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(currentPage + 1)}
+                style={{ 
+                  padding: "6px 10px", 
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-primary)",
+                  background: currentPage === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
+                  color: currentPage === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  if (currentPage !== totalPages) {
+                    e.currentTarget.style.background = "var(--primary-50)"
+                    e.currentTarget.style.borderColor = "var(--primary-500)"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (currentPage !== totalPages) {
+                    e.currentTarget.style.background = "var(--bg-card)"
+                    e.currentTarget.style.borderColor = "var(--border-primary)"
+                  }
+                }}
+              >
+                <ChevronRight size={14} />
+              </button>
+              
+              
+            </div>
+          </div>
+
+          <PromotionTable
+            promotions={promotions}
+            onEdit={handleEdit}
+            onActivate={handleActivate}
+            onDeactivate={handleDeactivate}
+            onViewDetails={handleViewDetails}
+            isLoading={isLoading}
+            onSort={handleSort}
+            getSortIcon={getSortIcon}
+          />
+        </div>
+
+        {/* Enhanced Pagination */}
+        <div style={{
+          marginTop: '24px',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          gap: '8px',
-          marginTop: '24px',
-          padding: '20px',
           background: 'var(--bg-card)',
+          padding: '20px 24px',
           borderRadius: '16px',
-          border: '1px solid var(--border-primary)'
+          border: '1px solid var(--border-primary)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
         }}>
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            style={{
-              padding: '10px 16px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: currentPage === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
-              background: 'var(--bg-secondary)',
-              border: '2px solid var(--border-primary)',
-              borderRadius: '10px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              opacity: currentPage === 1 ? 0.5 : 1,
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 1) {
-                e.currentTarget.style.borderColor = 'var(--primary-500)'
-                e.currentTarget.style.background = 'var(--primary-50)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== 1) {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.background = 'var(--bg-secondary)'
-              }
-            }}
-          >
-            Trước
-          </button>
-          
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+          {/* Pagination Controls */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            {/* First Page */}
             <button
-              key={page}
-              onClick={() => handlePageChange(page)}
-              style={{
-                padding: '10px 16px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: page === currentPage ? 'white' : 'var(--text-primary)',
-                background: page === currentPage 
-                  ? 'linear-gradient(135deg, var(--primary-500), var(--primary-600))' 
-                  : 'var(--bg-secondary)',
-                border: page === currentPage ? 'none' : '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: page === currentPage ? '0 2px 8px rgba(59, 130, 246, 0.3)' : 'none'
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(1)}
+              style={{ 
+                padding: "8px 12px", 
+                borderRadius: "8px",
+                border: "1px solid var(--border-primary)",
+                background: currentPage === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
+                color: currentPage === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
               }}
               onMouseEnter={(e) => {
-                if (page !== currentPage) {
-                  e.currentTarget.style.borderColor = 'var(--primary-500)'
-                  e.currentTarget.style.background = 'var(--primary-50)'
+                if (currentPage !== 1) {
+                  e.currentTarget.style.background = "var(--primary-50)"
+                  e.currentTarget.style.borderColor = "var(--primary-500)"
                 }
               }}
               onMouseLeave={(e) => {
-                if (page !== currentPage) {
-                  e.currentTarget.style.borderColor = 'var(--border-primary)'
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
+                if (currentPage !== 1) {
+                  e.currentTarget.style.background = "var(--bg-card)"
+                  e.currentTarget.style.borderColor = "var(--border-primary)"
                 }
               }}
             >
-              {page}
+              <ChevronsLeft size={16} />
+              <span style={{ marginLeft: '4px' }}>Đầu</span>
             </button>
-          ))}
-          
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            style={{
-              padding: '10px 16px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: currentPage === totalPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
-              background: 'var(--bg-secondary)',
-              border: '2px solid var(--border-primary)',
-              borderRadius: '10px',
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              opacity: currentPage === totalPages ? 0.5 : 1,
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== totalPages) {
-                e.currentTarget.style.borderColor = 'var(--primary-500)'
-                e.currentTarget.style.background = 'var(--primary-50)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== totalPages) {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.background = 'var(--bg-secondary)'
-              }
-            }}
-          >
-            Sau
-          </button>
-        </div>
-      )}
 
-      {/* Form Modal */}
-      <PromotionForm
-        promotion={editingPromotion}
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSave={handleSave}
-        isLoading={isLoading}
-      />
+            {/* Previous Page */}
+            <button
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+              style={{ 
+                padding: "8px 12px", 
+                borderRadius: "8px",
+                border: "1px solid var(--border-primary)",
+                background: currentPage === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
+                color: currentPage === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== 1) {
+                  e.currentTarget.style.background = "var(--primary-50)"
+                  e.currentTarget.style.borderColor = "var(--primary-500)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== 1) {
+                  e.currentTarget.style.background = "var(--bg-card)"
+                  e.currentTarget.style.borderColor = "var(--border-primary)"
+                }
+              }}
+            >
+              <ChevronLeft size={16} />
+              <span style={{ marginLeft: '4px' }}>Trước</span>
+            </button>
 
-      {/* Details Modal */}
-      {selectedPromotion && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '800px', 
-            maxWidth: '95vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '24px',
-              paddingBottom: '16px',
-              borderBottom: '2px solid var(--border-primary)'
+            {/* Page Numbers */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              margin: '0 8px'
             }}>
-              <div>
-                <h3 style={{ 
-                  margin: '0 0 4px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>
-                  Chi tiết Khuyến mãi
-                </h3>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  {selectedPromotion.code}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedPromotion(undefined)}
-                style={{ 
-                  border: 'none', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--error-50)'
-                  e.currentTarget.style.color = 'var(--error-600)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }}
-              >
-                <X size={20} />
-              </button>
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                
+                if (endPage - startPage + 1 < maxVisible) {
+                  startPage = Math.max(1, endPage - maxVisible + 1);
+                }
+
+                // First page + ellipsis
+                if (startPage > 1) {
+                  pages.push(
+                    <button
+                      key={1}
+                      onClick={() => handlePageChange(1)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border-primary)",
+                        background: "var(--bg-card)",
+                        color: "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--primary-50)"
+                        e.currentTarget.style.borderColor = "var(--primary-500)"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "var(--bg-card)"
+                        e.currentTarget.style.borderColor = "var(--border-primary)"
+                      }}
+                    >
+                      1
+                    </button>
+                  );
+                  if (startPage > 2) {
+                    pages.push(
+                      <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
+                        ...
+                      </span>
+                    );
+                  }
+                }
+
+                // Visible pages
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: i === currentPage ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
+                        background: i === currentPage ? "var(--primary-50)" : "var(--bg-card)",
+                        color: i === currentPage ? "var(--primary-700)" : "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: i === currentPage ? "600" : "500",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (i !== currentPage) {
+                          e.currentTarget.style.background = "var(--primary-50)"
+                          e.currentTarget.style.borderColor = "var(--primary-500)"
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (i !== currentPage) {
+                          e.currentTarget.style.background = "var(--bg-card)"
+                          e.currentTarget.style.borderColor = "var(--border-primary)"
+                        }
+                      }}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+
+                // Last page + ellipsis
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(
+                      <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
+                        ...
+                      </span>
+                    );
+                  }
+                  pages.push(
+                    <button
+                      key={totalPages}
+                      onClick={() => handlePageChange(totalPages)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border-primary)",
+                        background: "var(--bg-card)",
+                        color: "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--primary-50)"
+                        e.currentTarget.style.borderColor = "var(--primary-500)"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "var(--bg-card)"
+                        e.currentTarget.style.borderColor = "var(--border-primary)"
+                      }}
+                    >
+                      {totalPages}
+                    </button>
+                  );
+                }
+
+                return pages;
+              })()}
             </div>
 
-            {/* Promotion Details */}
-            <div style={{ display: 'grid', gap: '24px' }}>
-              {/* Basic Info */}
-              <div style={{
-                background: 'var(--bg-secondary)',
-                padding: '20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-primary)'
-              }}>
-                <h4 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '18px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}>
-                  Thông tin cơ bản
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mã khuyến mãi</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.code}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Trạng thái</div>
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      background: selectedPromotion.status === 'ACTIVE' ? 'var(--success-50)' : 
-                                 selectedPromotion.status === 'INACTIVE' ? 'var(--error-50)' : 'var(--warning-50)',
-                      color: selectedPromotion.status === 'ACTIVE' ? 'var(--success-700)' : 
-                             selectedPromotion.status === 'INACTIVE' ? 'var(--error-700)' : 'var(--warning-700)',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      border: `1px solid ${selectedPromotion.status === 'ACTIVE' ? 'var(--success-200)' : 
-                                        selectedPromotion.status === 'INACTIVE' ? 'var(--error-200)' : 'var(--warning-200)'}`
-                    }}>
-                      {selectedPromotion.status === 'ACTIVE' ? 'Hoạt động' : 
-                       selectedPromotion.status === 'INACTIVE' ? 'Không hoạt động' : 'Hết hạn'}
-                    </div>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mô tả</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', lineHeight: '1.5' }}>
-                      {selectedPromotion.description}
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Next Page */}
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
+              style={{ 
+                padding: "8px 12px", 
+                borderRadius: "8px",
+                border: "1px solid var(--border-primary)",
+                background: currentPage === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
+                color: currentPage === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.background = "var(--primary-50)"
+                  e.currentTarget.style.borderColor = "var(--primary-500)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.background = "var(--bg-card)"
+                  e.currentTarget.style.borderColor = "var(--border-primary)"
+                }
+              }}
+            >
+              <span style={{ marginRight: '4px' }}>Sau</span>
+              <ChevronRight size={16} />
+            </button>
 
-              {/* Discount Info */}
-              <div style={{
-                background: 'var(--bg-secondary)',
-                padding: '20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-primary)'
-              }}>
-                <h4 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '18px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}>
-                  Thông tin giảm giá
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Loại giảm giá</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.discountType === 'PERCENT' ? 'Phần trăm (%)' : 'Số tiền cố định (VNĐ)'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giá trị giảm</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.discountType === 'PERCENT' 
-                        ? `${selectedPromotion.discountValue}%`
-                        : formatCurrency(selectedPromotion.discountValue)
-                      }
-                    </div>
-                  </div>
-                  {selectedPromotion.minOrderAmount && selectedPromotion.minOrderAmount > 0 && (
-                    <div>
-                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Đơn hàng tối thiểu</div>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        {formatCurrency(selectedPromotion.minOrderAmount)}
-                      </div>
-                    </div>
-                  )}
-                  {selectedPromotion.maxDiscount && selectedPromotion.maxDiscount > 0 && (
-                    <div>
-                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giảm tối đa</div>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        {formatCurrency(selectedPromotion.maxDiscount)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* Last Page */}
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(totalPages)}
+              style={{ 
+                padding: "8px 12px", 
+                borderRadius: "8px",
+                border: "1px solid var(--border-primary)",
+                background: currentPage === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
+                color: currentPage === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.background = "var(--primary-50)"
+                  e.currentTarget.style.borderColor = "var(--primary-500)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.background = "var(--bg-card)"
+                  e.currentTarget.style.borderColor = "var(--border-primary)"
+                }
+              }}
+            >
+              <span style={{ marginRight: '4px' }}>Cuối</span>
+              <ChevronsRight size={16} />
+            </button>
+          </div>
+        </div>
 
-              {/* Time Info */}
-              <div style={{
-                background: 'var(--bg-secondary)',
-                padding: '20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-primary)'
-              }}>
-                <h4 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '18px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}>
-                  Thời gian hiệu lực
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày bắt đầu</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {formatDate(selectedPromotion.startDate)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày kết thúc</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.endDate ? formatDate(selectedPromotion.endDate) : 'Không giới hạn'}
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {/* Form Modal */}
+        <PromotionForm
+          promotion={editingPromotion}
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSave={handleSave}
+          isLoading={isLoading}
+        />
 
-              {/* Usage Info */}
+        {/* Details Modal */}
+        {selectedPromotion && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            backdropFilter: 'blur(4px)'
+          }}>
+            <div style={{
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              borderRadius: '20px',
+              border: '1px solid var(--border-primary)',
+              width: '800px',
+              maxWidth: '95vw',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              padding: '32px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+              animation: 'modalSlideIn 0.3s ease-out'
+            }}>
               <div style={{
-                background: 'var(--bg-secondary)',
-                padding: '20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-primary)'
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px',
+                paddingBottom: '16px',
+                borderBottom: '2px solid var(--border-primary)'
               }}>
-                <h4 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '18px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}>
-                  Thông tin sử dụng
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Đã sử dụng</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.usageCount} lần
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giới hạn sử dụng</div>
-                    <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                      {selectedPromotion.usageLimit && selectedPromotion.usageLimit > 0 
-                        ? `${selectedPromotion.usageLimit} lần` 
-                        : 'Không giới hạn'
-                      }
-                    </div>
-                  </div>
-                  {selectedPromotion.usageLimit && selectedPromotion.usageLimit > 0 && (
-                    <div>
-                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Còn lại</div>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        {selectedPromotion.remainingUsage} lần
-                      </div>
-                    </div>
-                  )}
+                <div>
+                  <h3 style={{
+                    margin: '0 0 4px 0',
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>
+                    Chi tiết Khuyến mãi
+                  </h3>
+                  <p style={{
+                    margin: 0,
+                    fontSize: '14px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {selectedPromotion.code}
+                  </p>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', 
-                gap: '12px', 
-                paddingTop: '24px', 
-                borderTop: '2px solid var(--border-primary)'
-              }}>
                 <button
                   onClick={() => setSelectedPromotion(undefined)}
                   style={{
-                    padding: '12px 24px',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    border: '2px solid var(--border-primary)',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--error-500)'
-                    e.currentTarget.style.background = 'var(--error-50)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                    e.currentTarget.style.background = 'var(--bg-card)'
-                  }}
-                >
-                  Đóng
-                </button>
-                <button
-                  onClick={() => {
-                    const promotionToEdit = selectedPromotion
-                    setSelectedPromotion(undefined)
-                    handleEdit(promotionToEdit)
-                  }}
-                  style={{
-                    padding: '12px 24px',
-                    background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                    color: 'white',
                     border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontWeight: '600',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
                     cursor: 'pointer',
+                    padding: '12px',
+                    borderRadius: '12px',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
+                    e.currentTarget.style.background = 'var(--error-50)'
+                    e.currentTarget.style.color = 'var(--error-600)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    e.currentTarget.style.background = 'var(--bg-secondary)'
+                    e.currentTarget.style.color = 'var(--text-primary)'
                   }}
                 >
-                  Chỉnh sửa
+                  <X size={20} />
                 </button>
+              </div>
+
+              {/* Promotion Details */}
+              <div style={{ display: 'grid', gap: '24px' }}>
+                {/* Basic Info */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-primary)'
+                }}>
+                  <h4 style={{
+                    margin: '0 0 16px 0',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'var(--text-primary)'
+                  }}>
+                    Thông tin cơ bản
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mã khuyến mãi</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {selectedPromotion.code}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Trạng thái</div>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        background: selectedPromotion.status === 'ACTIVE' ? 'var(--success-50)' :
+                          selectedPromotion.status === 'INACTIVE' ? 'var(--error-50)' : 'var(--warning-50)',
+                        color: selectedPromotion.status === 'ACTIVE' ? 'var(--success-700)' :
+                          selectedPromotion.status === 'INACTIVE' ? 'var(--error-700)' : 'var(--warning-700)',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        border: `1px solid ${selectedPromotion.status === 'ACTIVE' ? 'var(--success-200)' :
+                          selectedPromotion.status === 'INACTIVE' ? 'var(--error-200)' : 'var(--warning-200)'}`
+                      }}>
+                        {selectedPromotion.status === 'ACTIVE' ? 'Hoạt động' :
+                          selectedPromotion.status === 'INACTIVE' ? 'Không hoạt động' : 'Hết hạn'}
+                      </div>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mô tả</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', lineHeight: '1.5' }}>
+                        {selectedPromotion.description}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Discount Info */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-primary)'
+                }}>
+                  <h4 style={{
+                    margin: '0 0 16px 0',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'var(--text-primary)'
+                  }}>
+                    Thông tin giảm giá
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Loại giảm giá</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {selectedPromotion.discountType === 'PERCENT' ? 'Phần trăm (%)' : 'Số tiền cố định (VNĐ)'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giá trị giảm</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {selectedPromotion.discountType === 'PERCENT'
+                          ? `${selectedPromotion.discountValue}%`
+                          : formatCurrency(selectedPromotion.discountValue)
+                        }
+                      </div>
+                    </div>
+                    {selectedPromotion.minOrderAmount && selectedPromotion.minOrderAmount > 0 && (
+                      <div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Đơn hàng tối thiểu</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                          {formatCurrency(selectedPromotion.minOrderAmount)}
+                        </div>
+                      </div>
+                    )}
+                    {selectedPromotion.maxDiscount && selectedPromotion.maxDiscount > 0 && (
+                      <div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giảm tối đa</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                          {formatCurrency(selectedPromotion.maxDiscount)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Time Info */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-primary)'
+                }}>
+                  <h4 style={{
+                    margin: '0 0 16px 0',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'var(--text-primary)'
+                  }}>
+                    Thời gian hiệu lực
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày bắt đầu</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {formatDate(selectedPromotion.startDate)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày kết thúc</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {selectedPromotion.endDate ? formatDate(selectedPromotion.endDate) : 'Không giới hạn'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Usage Info */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-primary)'
+                }}>
+                  <h4 style={{
+                    margin: '0 0 16px 0',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'var(--text-primary)'
+                  }}>
+                    Thông tin sử dụng
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Đã sử dụng</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {selectedPromotion.usageCount} lần
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giới hạn sử dụng</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {selectedPromotion.usageLimit && selectedPromotion.usageLimit > 0
+                          ? `${selectedPromotion.usageLimit} lần`
+                          : 'Không giới hạn'
+                        }
+                      </div>
+                    </div>
+                    {selectedPromotion.usageLimit && selectedPromotion.usageLimit > 0 && (
+                      <div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Còn lại</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                          {selectedPromotion.remainingUsage} lần
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  paddingTop: '24px',
+                  borderTop: '2px solid var(--border-primary)'
+                }}>
+                  <button
+                    onClick={() => setSelectedPromotion(undefined)}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      border: '2px solid var(--border-primary)',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--error-500)'
+                      e.currentTarget.style.background = 'var(--error-50)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-primary)'
+                      e.currentTarget.style.background = 'var(--bg-card)'
+                    }}
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    onClick={() => {
+                      const promotionToEdit = selectedPromotion
+                      setSelectedPromotion(undefined)
+                      handleEdit(promotionToEdit)
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    }}
+                  >
+                    Chỉnh sửa
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </>
   )
