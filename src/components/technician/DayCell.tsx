@@ -1,22 +1,13 @@
 import React from 'react'
+import { type TimeSlot } from '@/types/technician'
 import './DayCell.scss'
-
-interface Appointment {
-  id: number
-  time: string
-  customer: string
-  service: string
-  vehicle: string
-  status: 'confirmed' | 'pending' | 'cancelled'
-  priority: 'high' | 'medium' | 'low'
-  serviceType?: 'repair' | 'maintenance' | 'inspection' | 'replacement' | 'other'
-}
 
 interface DayCellProps {
   day: Date
   isCurrentMonth: boolean
   isToday: boolean
-  events: Appointment[]
+  events: TimeSlot[]
+  hasWork: boolean
   onDayClick: (day: Date) => void
 }
 
@@ -25,9 +16,10 @@ export default function DayCell({
   isCurrentMonth,
   isToday,
   events,
+  hasWork,
   onDayClick
 }: DayCellProps) {
-  // Check if day has events/appointments
+  // Check if day has events/time slots
   const hasEvents = events && events.length > 0
 
   // Handle day click
@@ -54,9 +46,9 @@ export default function DayCell({
         {day.getDate()}
       </div>
 
-      {/* Work Indicator - Blue dot for days with events */}
-      {hasEvents && (
-        <div className="day-cell__indicator" />
+      {/* Work Schedule Indicator - Green dot for days with work schedule */}
+      {hasWork && (
+        <div className="day-cell__work-indicator" />
       )}
     </div>
   )

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppSelector } from '@/store/hooks'
-import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { getCurrentUser, type User } from '@/store/authSlice'
+import { User as UserIcon, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
 import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
@@ -58,19 +59,30 @@ interface BookingData {
   locationTimeInfo: LocationTimeInfo
   accountInfo?: AccountInfo
   images: File[]
+  guestCustomerId?: number // Thêm customerId của khách vãng lai
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
 }
 
-const ServiceBookingForm: React.FC = () => {
-  const navigate = useNavigate()
+interface ServiceBookingFormProps {
+  forceGuestMode?: boolean
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
+}
+
+const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false }) => {
   const [currentStep, setCurrentStep] = useState(1)
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [currentServiceId, setCurrentServiceId] = useState<number | undefined>(undefined)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
-  const [showQRCode, setShowQRCode] = useState(false)
   const auth = useAppSelector((s) => s.auth)
+  const dispatch = useAppDispatch()
   
   const [bookingData, setBookingData] = useState<BookingData>({
     customerInfo: {
@@ -99,28 +111,61 @@ const ServiceBookingForm: React.FC = () => {
       password: '',
       confirmPassword: ''
     },
-    images: []
+    images: [],
+    promotionInfo: {
+      promotionCode: undefined,
+      discountAmount: 0
+    }
   })
 
   // Đồng bộ trạng thái đăng nhập và tự điền thông tin khách hàng
   useEffect(() => {
+    // Nếu forceGuestMode = true, luôn ở guest mode
+    if (forceGuestMode) {
+      setIsGuest(true)
+      return
+    }
+
     const loggedIn = !!auth?.token
     setIsGuest(!loggedIn)
 
     if (loggedIn && auth.user) {
-      setBookingData((prev) => ({
-        ...prev,
-        customerInfo: {
-          fullName: auth.user.fullName || prev.customerInfo.fullName,
-          phone: auth.user.phoneNumber || prev.customerInfo.phone,
-          email: auth.user.email || prev.customerInfo.email
-        }
-      }))
+      console.log('Auth user data:', auth.user)
+      console.log('Auth user phoneNumber:', auth.user.phoneNumber)
+      
+      // Nếu không có phoneNumber, gọi API để lấy profile đầy đủ
+      if (!auth.user.phoneNumber) {
+        console.log('No phoneNumber in auth.user, fetching full profile...')
+        dispatch(getCurrentUser()).then((result) => {
+          if (result.payload) {
+            console.log('Full profile loaded:', result.payload)
+            const user = result.payload as User
+            setBookingData((prev) => ({
+              ...prev,
+              customerInfo: {
+                fullName: user.fullName || prev.customerInfo.fullName,
+                phone: user.phoneNumber || prev.customerInfo.phone,
+                email: user.email || prev.customerInfo.email
+              }
+            }))
+          }
+        })
+      } else {
+        // Có phoneNumber rồi, dùng luôn
+        setBookingData((prev) => ({
+          ...prev,
+          customerInfo: {
+            fullName: auth.user.fullName || prev.customerInfo.fullName,
+            phone: auth.user.phoneNumber || prev.customerInfo.phone,
+            email: auth.user.email || prev.customerInfo.email
+          }
+        }))
+      }
 
       // Nếu đang ở bước 1 (thông tin KH) thì tự động qua bước 1 (dịch vụ) cho user đã đăng nhập
       // Không cần thay đổi step vì logic renderCurrentStep đã xử lý
     }
-  }, [auth?.token, auth?.user])
+  }, [auth?.token, auth?.user, forceGuestMode])
 
   // Update serviceId when serviceInfo changes
   useEffect(() => {
@@ -145,20 +190,20 @@ const ServiceBookingForm: React.FC = () => {
   // Kiểm tra xem bước hiện tại đã hoàn thành chưa
   const isStepCompleted = (step: number): boolean => {
     if (isGuest) {
-      // Khách vãng lai: 4 bước (Dịch vụ & Xe -> Địa điểm -> Tài khoản -> Xác nhận)
+      // Khách vãng lai: 4 bước (1. Thông tin liên hệ -> 2. Dịch vụ & Xe -> 3. Địa điểm & Thời gian -> 4. Xác nhận)
       switch (step) {
         case 1:
+          return !!(bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
+        case 2:
           return (
             bookingData.serviceInfo.services.length > 0 &&
             !!bookingData.vehicleInfo.carModel &&
             !!bookingData.vehicleInfo.licensePlate
           )
-        case 2:
-          return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 3:
-          return !!(bookingData.accountInfo?.username && bookingData.accountInfo?.password && bookingData.accountInfo?.confirmPassword && bookingData.customerInfo.fullName && bookingData.customerInfo.phone && bookingData.customerInfo.email)
+          return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 4:
-          return true
+          return false // Bước xác nhận chỉ hoàn thành khi đã submit thành công
         default:
           return false
       }
@@ -174,7 +219,7 @@ const ServiceBookingForm: React.FC = () => {
         case 2:
           return !!(bookingData.locationTimeInfo.centerId && bookingData.locationTimeInfo.technicianId && bookingData.locationTimeInfo.date && bookingData.locationTimeInfo.time)
         case 3:
-          return true // Bước xác nhận luôn có thể hoàn thành
+          return false // Bước xác nhận chỉ hoàn thành khi đã submit thành công
         default:
           return false
       }
@@ -214,17 +259,106 @@ const ServiceBookingForm: React.FC = () => {
   }
 
   const updateBookingData = (section: keyof BookingData, data: Record<string, any>) => {
-    setBookingData(prev => ({
-      ...prev,
-      [section]: { ...(prev[section] as Record<string, any>), ...data }
-    }))
+    console.log(`updateBookingData - Section: ${section}, Data:`, data)
+    setBookingData(prev => {
+      const newData = {
+        ...prev,
+        [section]: { ...(prev[section] as any), ...data }
+      }
+      console.log(`updateBookingData - New bookingData:`, newData)
+      return newData
+    })
+  }
+
+  const handleGuestCustomerCreated = (customerId: number) => {
+    console.log('Guest customer created with ID:', customerId)
+    setBookingData(prev => {
+      console.log('Setting guestCustomerId in bookingData:', customerId)
+      return {
+        ...prev,
+        guestCustomerId: customerId
+      }
+    })
   }
 
   const handleSubmit = async () => {
     try {
-      setSubmitError(null)
-      setIsSubmitting(true)
+      console.log('=== STARTING BOOKING SUBMISSION ===')
+      console.log(' Booking data:', JSON.stringify(bookingData, null, 2))
+      console.log('guestCustomerId:', bookingData.guestCustomerId)
       
+      // Validate required fields first
+      const validationErrors: string[] = []
+      
+      if (!bookingData.customerInfo.fullName?.trim()) {
+        validationErrors.push('Thiếu họ tên khách hàng')
+      }
+      if (!bookingData.customerInfo.phone?.trim()) {
+        validationErrors.push('Thiếu số điện thoại')
+      }
+      if (!bookingData.customerInfo.email?.trim()) {
+        validationErrors.push('Thiếu email')
+      }
+      if (!bookingData.vehicleInfo.licensePlate?.trim()) {
+        validationErrors.push('Thiếu biển số xe')
+      }
+      if (!bookingData.vehicleInfo.carModel?.trim()) {
+        validationErrors.push('Thiếu dòng xe')
+      }
+      if (!bookingData.serviceInfo.services?.length) {
+        validationErrors.push('Chưa chọn dịch vụ')
+      }
+      if (!bookingData.locationTimeInfo.centerId) {
+        validationErrors.push('Chưa chọn trung tâm')
+      }
+      if (!bookingData.locationTimeInfo.technicianId) {
+        validationErrors.push('Chưa chọn kỹ thuật viên')
+      }
+      if (!bookingData.locationTimeInfo.date) {
+        validationErrors.push('Chưa chọn ngày')
+      }
+      if (!bookingData.locationTimeInfo.time) {
+        validationErrors.push('Chưa chọn giờ')
+      }
+      if (!bookingData.locationTimeInfo.technicianSlotId) {
+        validationErrors.push('Chưa chọn slot kỹ thuật viên')
+      }
+      
+      if (validationErrors.length > 0) {
+        console.error('Validation errors:', validationErrors)
+        alert('Dữ liệu không hợp lệ:\n' + validationErrors.join('\n'))
+        return
+      }
+
+      // Ensure customer exists for guest/staff flow (Plan A)
+      // If in guest mode and guestCustomerId not set, create a quick customer first
+      let ensuredGuestCustomerId: number | undefined = bookingData.guestCustomerId
+      if (isGuest && !ensuredGuestCustomerId) {
+        try {
+          console.log('Guest flow detected and no guestCustomerId. Creating quick customer...')
+          const { fullName, phone, email } = bookingData.customerInfo
+          if (!fullName || !phone || !email) {
+            throw new Error('Thiếu thông tin khách hàng để tạo nhanh (họ tên/số điện thoại/email)')
+          }
+          const quick = await CustomerService.quickCreateCustomer({
+            fullName,
+            phoneNumber: phone,
+            email
+          })
+          const createdId = quick?.data?.customerId
+          if (!createdId) {
+            throw new Error('Không lấy được customerId sau khi tạo nhanh')
+          }
+          ensuredGuestCustomerId = createdId
+          // Persist to bookingData for subsequent steps/navigation
+          setBookingData(prev => ({ ...prev, guestCustomerId: createdId }))
+        } catch (e) {
+          console.error('Failed to quick-create guest customer:', e)
+          alert('Không thể tạo khách vãng lai. Vui lòng kiểm tra lại thông tin liên hệ hoặc thử lại.')
+          return
+        }
+      }
+
       // Calculate total price for payment
       const totalPrice = bookingData.serviceInfo.services.reduce(async (sum, serviceId) => {
         try {
@@ -242,10 +376,24 @@ const ServiceBookingForm: React.FC = () => {
 
       // Resolve current user -> customerId
       console.log('Getting current customer...')
-      const me = await CustomerService.getCurrentCustomer()
-      console.log('Current customer response:', me)
-      const customerId: number | null = me?.data?.customerId || null
-      console.log('Customer ID:', customerId)
+      let me: any = null
+      if (!isGuest) {
+        me = await CustomerService.getCurrentCustomer()
+        console.log('Current customer response:', me)
+      } else {
+        console.log('Skip getCurrentCustomer for guest flow')
+      }
+      
+      // Sử dụng guestCustomerId nếu có (khi staff tạo booking cho khách vãng lai)
+      let customerId: number | null = null
+      if (ensuredGuestCustomerId || bookingData.guestCustomerId) {
+        customerId = ensuredGuestCustomerId ?? bookingData.guestCustomerId!
+        console.log('✅ Using guest customer ID:', customerId)
+      } else {
+        customerId = me?.data?.customerId || null
+        console.log('❌ Using staff customer ID:', customerId, '(guestCustomerId was:', bookingData.guestCustomerId, ')')
+      }
+      
       if (!customerId) throw new Error('Không xác định được khách hàng')
 
       // Resolve vehicle: nếu đã có xe theo biển số -> dùng luôn, ngược lại tạo mới
@@ -332,7 +480,7 @@ const ServiceBookingForm: React.FC = () => {
         const hold = await holdSlot({
           centerId: Number(bookingData.locationTimeInfo.centerId),
           technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-          technicianId: Number(bookingData.locationTimeInfo.technicianId) || 0,
+          technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : 0,
           date: bookingData.locationTimeInfo.date
         })
         console.log('Hold response:', hold)
@@ -358,9 +506,12 @@ const ServiceBookingForm: React.FC = () => {
         centerId: Number(bookingData.locationTimeInfo.centerId),
         bookingDate: bookingData.locationTimeInfo.date,
         technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
-        technicianId: Number(bookingData.locationTimeInfo.technicianId),
+        technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : undefined,
         specialRequests: bookingData.serviceInfo.notes || "Không có yêu cầu đặc biệt",
-        serviceId: serviceId || undefined
+        serviceId: serviceId || undefined,
+        // Thêm currentMileage và licensePlate
+        currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
+        licensePlate: bookingData.vehicleInfo.licensePlate
       }
        console.log('Creating booking with data:', bookingPayload)
        const resp = await createBooking(bookingPayload)
@@ -401,7 +552,7 @@ const ServiceBookingForm: React.FC = () => {
          })
          // Redirect to booking success page even without valid booking ID
          const fallbackUrl = `/booking-success?bookingId=unknown&amount=${finalTotalPrice}`
-         navigate(fallbackUrl)
+         window.location.href = fallbackUrl
          return
        }
 
@@ -411,14 +562,20 @@ const ServiceBookingForm: React.FC = () => {
         bookingId: bookingId
       }))
 
-      // Tạo PayOS payment link (giống code mẫu)
+      // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
       console.log('Creating PayOS payment link for booking ID:', bookingId)
       const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId))
       
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
-        setPaymentUrl(paymentResponse.data.checkoutUrl)
-        setShowQRCode(true)
         console.log('PayOS payment link created successfully:', paymentResponse.data.checkoutUrl)
+        
+        // Redirect trực tiếp đến PayOS checkout - đơn giản như ban đầu
+        console.log('Redirecting to PayOS checkout...')
+        window.location.href = paymentResponse.data.checkoutUrl
+        
+        // Đánh dấu bước cuối cùng là completed khi booking được tạo thành công
+        const finalStep = isGuest ? 4 : 3
+        setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
       } else {
         console.error('Failed to create PayOS payment link:', paymentResponse.message)
         setSubmitError('Không thể tạo link thanh toán: ' + (paymentResponse.message || 'Lỗi không xác định'))
@@ -439,11 +596,20 @@ const ServiceBookingForm: React.FC = () => {
   }
 
   const renderCurrentStep = () => {
-    // Logic điều hướng thông minh dựa trên trạng thái đăng nhập
-    if (isGuest) {
-      // Khách vãng lai: 4 bước
+  // Logic điều hướng thông minh dựa trên trạng thái đăng nhập
+  if (isGuest) {
+      // Khách vãng lai: 4 bước (1. Thông tin liên hệ -> 2. Dịch vụ & Xe -> 3. Địa điểm & Thời gian -> 4. Xác nhận)
       switch (currentStep) {
         case 1:
+          return (
+            <CustomerInfoStep
+              data={bookingData.customerInfo}
+              onUpdate={(data) => updateBookingData('customerInfo', data)}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )
+        case 2:
           return (
             <CombinedServiceVehicleStep
               vehicleData={bookingData.vehicleInfo}
@@ -452,9 +618,11 @@ const ServiceBookingForm: React.FC = () => {
               onUpdateService={(data) => updateBookingData('serviceInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
+              customerInfo={isGuest ? bookingData.customerInfo : undefined}
+              onGuestCustomerCreated={handleGuestCustomerCreated}
             />
           )
-        case 2:
+        case 3:
           return (
             <LocationTimeStep
               data={bookingData.locationTimeInfo}
@@ -462,15 +630,6 @@ const ServiceBookingForm: React.FC = () => {
               onNext={handleNext}
               onPrev={handlePrev}
               serviceId={currentServiceId}
-            />
-          )
-        case 3:
-          return (
-            <AccountStep
-              data={bookingData.accountInfo || { username: '', password: '', confirmPassword: '' }}
-              onUpdate={(data) => updateBookingData('accountInfo', data)}
-              onNext={handleNext}
-              onPrev={handlePrev}
             />
           )
         case 4:
@@ -481,8 +640,6 @@ const ServiceBookingForm: React.FC = () => {
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
-              paymentUrl={paymentUrl || undefined}
-              showQRCode={showQRCode}
             />
           )
         default:
@@ -500,6 +657,8 @@ const ServiceBookingForm: React.FC = () => {
               onUpdateService={(data) => updateBookingData('serviceInfo', data)}
               onNext={handleNext}
               onPrev={handlePrev}
+              customerInfo={undefined} // User đã đăng nhập, không cần guest info
+              onGuestCustomerCreated={handleGuestCustomerCreated}
             />
           )
         case 2:
@@ -520,8 +679,6 @@ const ServiceBookingForm: React.FC = () => {
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
-              paymentUrl={paymentUrl || undefined}
-              showQRCode={showQRCode}
             />
           )
         default:

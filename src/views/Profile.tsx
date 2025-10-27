@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser, syncFromLocalStorage } from '@/store/authSlice'
 import { AuthService, VehicleService, BookingService } from '@/services'
@@ -34,6 +35,7 @@ import { BookingData } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
 import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
 import { feedbackService } from '@/services/feedbackService'
+import { CustomerService } from '@/services/customerService'
 
 import './profile.scss'
 
@@ -89,6 +91,7 @@ interface FormErrors {
 export default function Profile() {
   const dispatch = useAppDispatch()
   const auth = useAppSelector((s) => s.auth)
+  const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<'favorites' | 'list' | 'continue-watching' | 'notifications' | 'profile' | 'vehicles' | 'service-history' | 'promo-codes' | 'settings' | 'maintenance'>('profile')
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -117,6 +120,7 @@ export default function Profile() {
   const [isLoadingBookingHistory, setIsLoadingBookingHistory] = useState(false)
   const [bookingHistoryPage, setBookingHistoryPage] = useState(1)
   const [bookingHistoryTotalPages, setBookingHistoryTotalPages] = useState(1)
+  const [customerId, setCustomerId] = useState<number | null>(null)
 
   const [vehicleFormData, setVehicleFormData] = useState<CreateVehicleRequest>({
     customerId: 0,
@@ -161,11 +165,26 @@ export default function Profile() {
     loadProfileData()
   }, [dispatch])
 
+  // Handle tab from URL query parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'booking-history') {
+      setActiveTab('service-history')
+    }
+  }, [searchParams])
+
   useEffect(() => {
     if (activeTab === 'vehicles') {
       loadVehicles()
     }
   }, [activeTab, auth.user?.id])
+
+  // Load customerId when component mounts
+  useEffect(() => {
+    if (auth.user?.id && !customerId) {
+      loadCustomerId()
+    }
+  }, [auth.user?.id])
 
   useEffect(() => {
     console.log('🔄 useEffect triggered, activeTab:', activeTab, 'auth.user?.id:', auth.user?.id)
@@ -208,63 +227,6 @@ export default function Profile() {
     })
   }
 
-  // Handle feedback submission for booking history
-  const handleBookingFeedback = async (bookingId: number, feedback: FeedbackData) => {
-    try {
-      // Tìm booking để lấy technicianId
-      const booking = bookingHistory.find(b => b.bookingId === bookingId)
-      if (!booking || !booking.technicianId) {
-        throw new Error('Không tìm thấy thông tin kỹ thuật viên')
-      }
-
-      await feedbackService.submitFeedback(bookingId.toString(), booking.technicianId, feedback)
-      // Reload booking history to show updated feedback
-      await loadBookingHistory()
-      setSuccessMessage('Đánh giá đã được gửi thành công!')
-      
-      // Auto hide success message
-      setTimeout(() => {
-        setSuccessMessage('')
-      }, 3000)
-    } catch (err: any) {
-      setUploadError('Không thể gửi đánh giá: ' + err.message)
-      console.error('Error submitting booking feedback:', err)
-      
-      // Auto hide error message
-      setTimeout(() => {
-        setUploadError('')
-      }, 5000)
-    }
-  }
-
-  // Handle feedback update for booking history
-  const handleBookingEditFeedback = async (bookingId: number, feedback: FeedbackData) => {
-    try {
-      // Tìm booking để lấy feedbackId
-      const booking = bookingHistory.find(b => b.bookingId === bookingId)
-      if (!booking || !booking.feedbackId) {
-        throw new Error('Không tìm thấy thông tin đánh giá')
-      }
-
-      await feedbackService.updateFeedback(booking.feedbackId, feedback)
-      // Reload booking history to show updated feedback
-      await loadBookingHistory()
-      setSuccessMessage('Đánh giá đã được cập nhật thành công!')
-      
-      // Auto hide success message
-      setTimeout(() => {
-        setSuccessMessage('')
-      }, 3000)
-    } catch (err: any) {
-      setUploadError('Không thể cập nhật đánh giá: ' + err.message)
-      console.error('Error updating booking feedback:', err)
-      
-      // Auto hide error message
-      setTimeout(() => {
-        setUploadError('')
-      }, 5000)
-    }
-  }
 
   // Handle feedback submission (legacy for maintenance tab)
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
@@ -356,6 +318,31 @@ export default function Profile() {
     }
   }
 
+  // Load customerId from current user
+  const loadCustomerId = async () => {
+    if (!auth.user?.id) {
+      return null
+    }
+
+    try {
+      console.log('🔍 Loading customerId for userId:', auth.user.id)
+      const response = await CustomerService.getCurrentCustomer()
+      console.log('✅ Customer response:', response)
+      
+      if (response.success && response.data) {
+        const customerId = response.data.customerId
+        console.log('✅ Found customerId:', customerId)
+        setCustomerId(customerId)
+        return customerId
+      }
+      
+      return null
+    } catch (error) {
+      console.error('❌ Error loading customerId:', error)
+      return null
+    }
+  }
+
   const loadBookingHistory = async () => {
     if (!auth.user?.id) {
       return
@@ -363,19 +350,107 @@ export default function Profile() {
 
     setIsLoadingBookingHistory(true)
     try {
-      // Sử dụng userId làm customerId (vì trong hệ thống này userId = customerId)
-      const customerId = auth.user.id
-      console.log('🚀 Loading booking history for customerId:', customerId)
+      // First, get customerId from userId
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          throw new Error('Không thể lấy thông tin khách hàng')
+        }
+      }
       
-      const response = await BookingService.getBookingHistory(customerId, bookingHistoryPage, 10)
+      console.log('🚀 Loading booking history for customerId:', currentCustomerId)
+      
+      const response = await BookingService.getBookingHistory(currentCustomerId, bookingHistoryPage, 5)
       console.log('✅ Booking history response:', response)
       
-      if (response.bookings) {
-        setBookingHistory(response.bookings)
-        setBookingHistoryTotalPages(response.pagination.totalPages)
+      // Check both possible response structures
+      let bookings, pagination
+      
+      if (response && response.data && Array.isArray(response.data.bookings)) {
+        // Structure: response.data.bookings
+        bookings = response.data.bookings
+        pagination = response.data.pagination
+        console.log('📋 Using response.data.bookings structure')
+      } else if (response && Array.isArray(response.bookings)) {
+        // Structure: response.bookings (direct structure)
+        bookings = response.bookings
+        pagination = response.pagination
+        console.log('📋 Using response.bookings structure')
       } else {
+        console.error('❌ Invalid response structure:', response)
         setBookingHistory([])
+        return
       }
+      
+      console.log('📋 Raw bookings from API:', bookings)
+      console.log('📋 Pagination info:', pagination)
+      
+      // Load feedback for COMPLETED bookings
+      console.log('📋 All bookings statuses:', bookings.map(b => ({ id: b.bookingId, status: b.status })))
+      
+      const bookingsWithFeedback = await Promise.all(
+        bookings.map(async (booking: any) => {
+          console.log(`🔍 Processing booking ${booking.bookingId} with status: ${booking.status}`)
+          
+          if (booking.status === 'COMPLETED') {
+            try {
+              console.log('🔍 Loading feedback for COMPLETED booking:', booking.bookingId)
+              const feedback = await feedbackService.getFeedback(booking.bookingId.toString())
+              console.log('✅ Feedback loaded for booking', booking.bookingId, ':', feedback)
+              
+              return {
+                ...booking,
+                feedback: feedback,
+                hasFeedback: !!feedback,
+                feedbackId: (feedback as any)?.feedbackId || null
+              }
+            } catch (error) {
+              console.log('⚠️ No feedback found for booking:', booking.bookingId, error)
+              return {
+                ...booking,
+                feedback: null,
+                hasFeedback: false,
+                feedbackId: null
+              }
+            }
+          } else {
+            console.log(`⏭️ Skipping feedback load for booking ${booking.bookingId} with status: ${booking.status}`)
+            return {
+              ...booking,
+              feedback: null,
+              hasFeedback: false,
+              feedbackId: null
+            }
+          }
+        })
+      )
+      
+      console.log('📊 Final bookings with feedback:', bookingsWithFeedback)
+      console.log('📊 Booking history length:', bookingsWithFeedback.length)
+      
+      // Add test feedback for COMPLETED bookings (for testing)
+      const bookingsWithTestFeedback = bookingsWithFeedback.map(booking => {
+        if (booking.status === 'COMPLETED' && !booking.hasFeedback) {
+          console.log('🧪 Adding test feedback for booking:', booking.bookingId)
+          return {
+            ...booking,
+            feedback: {
+              technicianRating: 5,
+              partsRating: 4,
+              comment: 'Dịch vụ rất tốt, kỹ thuật viên chuyên nghiệp',
+              tags: ['Chuyên nghiệp', 'Nhanh chóng', 'Chất lượng cao']
+            },
+            hasFeedback: true,
+            feedbackId: `test-${booking.bookingId}`
+          }
+        }
+        return booking
+      })
+      
+      console.log('📊 Final bookings with test feedback:', bookingsWithTestFeedback)
+      setBookingHistory(bookingsWithTestFeedback)
+      setBookingHistoryTotalPages(pagination?.totalPages || 1)
     } catch (error: unknown) {
       console.error('Error loading booking history:', error)
       setBookingHistory([])
@@ -391,6 +466,92 @@ export default function Profile() {
       }, 5000)
     } finally {
       setIsLoadingBookingHistory(false)
+    }
+  }
+
+  // Xử lý gửi đánh giá
+  const handleBookingFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      console.log('📝 Submitting feedback for booking:', bookingId, feedback)
+      
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          throw new Error('Không thể lấy thông tin khách hàng')
+        }
+      }
+      
+      // Prepare feedback data for new API
+      const feedbackData = {
+        customerId: currentCustomerId,
+        rating: feedback.technicianRating, // Use technician rating as main rating
+        comment: feedback.comment,
+        isAnonymous: false, // User is logged in, so not anonymous
+        technicianId: 1, // TODO: Get actual technician ID from booking
+        partId: feedback.partsRating > 0 ? 1 : undefined // TODO: Get actual part ID if parts were used
+      }
+      
+      await feedbackService.submitBookingFeedback(bookingId.toString(), feedbackData)
+      
+      setSuccessMessage('Đánh giá đã được gửi thành công!')
+      setUploadError('')
+      
+      // Auto hide success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+      
+      // Reload booking history to show updated feedback
+      loadBookingHistory()
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      setUploadError('Có lỗi xảy ra khi gửi đánh giá')
+      setSuccessMessage('')
+    }
+  }
+
+  // Xử lý sửa đánh giá
+  const handleBookingEditFeedback = async (bookingId: number, feedback: FeedbackData) => {
+    try {
+      console.log('📝 Editing feedback for booking:', bookingId, feedback)
+      
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          throw new Error('Không thể lấy thông tin khách hàng')
+        }
+      }
+      
+      // Prepare feedback data for new API
+      const feedbackData = {
+        customerId: currentCustomerId,
+        rating: feedback.technicianRating, // Use technician rating as main rating
+        comment: feedback.comment,
+        isAnonymous: false, // User is logged in, so not anonymous
+        technicianId: 1, // TODO: Get actual technician ID from booking
+        partId: feedback.partsRating > 0 ? 1 : undefined // TODO: Get actual part ID if parts were used
+      }
+      
+      await feedbackService.submitBookingFeedback(bookingId.toString(), feedbackData)
+      
+      setSuccessMessage('Đánh giá đã được cập nhật thành công!')
+      setUploadError('')
+      
+      // Auto hide success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
+      
+      // Reload booking history to show updated feedback
+      loadBookingHistory()
+    } catch (error) {
+      console.error('Error editing feedback:', error)
+      setUploadError('Có lỗi xảy ra khi cập nhật đánh giá')
+      setSuccessMessage('')
     }
   }
 
@@ -1506,6 +1667,13 @@ export default function Profile() {
                         <p className="empty-description">
                           Bạn chưa sử dụng dịch vụ nào. Hãy đặt lịch để trải nghiệm dịch vụ của chúng tôi!
                         </p>
+                        {/* Debug info */}
+                        <div style={{marginTop: '20px', padding: '10px', background: '#f0f0f0', borderRadius: '5px'}}>
+                          <p><strong>Debug Info:</strong></p>
+                          <p>bookingHistory.length: {bookingHistory.length}</p>
+                          <p>isLoadingBookingHistory: {isLoadingBookingHistory.toString()}</p>
+                          <p>customerId: {customerId}</p>
+                        </div>
                       </div>
                     ) : (
                       <div className="booking-history-list">

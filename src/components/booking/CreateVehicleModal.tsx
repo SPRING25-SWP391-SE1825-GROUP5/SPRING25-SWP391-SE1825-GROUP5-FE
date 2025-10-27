@@ -5,10 +5,15 @@ import { VehicleService, type Vehicle } from '@/services/vehicleService'
 interface CreateVehicleModalProps {
   open: boolean
   onClose: () => void
-  onCreated: (vehicle: Vehicle) => void
+  onCreated: (vehicle: Vehicle, customerId?: number) => void
+  guestCustomerInfo?: {
+    fullName: string
+    phone: string
+    email: string
+  }
 }
 
-const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, onCreated }) => {
+const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, onCreated, guestCustomerInfo }) => {
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -20,6 +25,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState<string>('')
+  const [customerCreated, setCustomerCreated] = useState<boolean>(false)
 
   // Danh sách màu sắc phổ biến cho xe
   const colorOptions = [
@@ -43,14 +49,94 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     if (!open) return
     const load = async () => {
       try {
-        const me = await CustomerService.getCurrentCustomer()
-        setCustomerId(me?.data?.customerId || null)
-      } catch (_) {
+        // Nếu có thông tin khách vãng lai, tạo customer mới cho họ
+        if (guestCustomerInfo) {
+          console.log('Creating customer for guest:', guestCustomerInfo)
+          try {
+            const createCustomerResp = await CustomerService.quickCreateCustomer({
+              fullName: guestCustomerInfo.fullName,
+              phoneNumber: guestCustomerInfo.phone,
+              email: guestCustomerInfo.email
+            })
+            
+            if (createCustomerResp?.data?.customerId) {
+              setCustomerId(createCustomerResp.data.customerId)
+              setCustomerCreated(true)
+              console.log('Created guest customer ID:', createCustomerResp.data.customerId)
+              console.log('Customer data:', createCustomerResp.data)
+            } else {
+              console.error('Failed to create guest customer:', createCustomerResp)
+              setCustomerId(null)
+            }
+          } catch (error) {
+            console.error('Error creating guest customer:', error)
+            // Fallback: thử tạo customer đơn giản hơn
+            try {
+              const simpleCustomerResp = await CustomerService.createCustomer({
+                phoneNumber: guestCustomerInfo.phone,
+                isGuest: true
+              })
+              if (simpleCustomerResp?.data?.customerId) {
+                setCustomerId(simpleCustomerResp.data.customerId)
+                setCustomerCreated(true)
+                console.log('Created simple guest customer ID:', simpleCustomerResp.data.customerId)
+              } else {
+                setCustomerId(null)
+              }
+            } catch (fallbackError) {
+              console.error('Fallback customer creation also failed:', fallbackError)
+              setCustomerId(null)
+            }
+          }
+        } else {
+          // Nếu không có thông tin guest, lấy customer hiện tại (cho trường hợp customer đã đăng nhập)
+          console.log('Getting current customer for logged-in user...')
+          try {
+            const me = await CustomerService.getCurrentCustomer()
+            console.log('Current customer response:', me)
+            console.log('Current customer ID:', me?.data?.customerId)
+            
+            if (me?.data?.customerId) {
+              setCustomerId(me.data.customerId)
+              console.log('✅ Set customer ID for logged-in user:', me.data.customerId)
+            } else {
+              console.error('No customer ID found for logged-in user')
+              setCustomerId(null)
+            }
+          } catch (error) {
+            console.error('Error getting current customer for logged-in user:', error)
+            console.log('Customer not found, trying to create customer for logged-in user...')
+            
+            // Fallback: Tạo customer record cho user đã đăng nhập
+            try {
+              // Lấy thông tin user từ auth store hoặc API
+              const createCustomerResp = await CustomerService.createCustomer({
+                phoneNumber: '0000000000', // Placeholder phone
+                isGuest: false
+              })
+              
+              console.log('Created customer for logged-in user:', createCustomerResp)
+              if (createCustomerResp?.data?.customerId) {
+                setCustomerId(createCustomerResp.data.customerId)
+                setCustomerCreated(true)
+                console.log('✅ Created customer ID for logged-in user:', createCustomerResp.data.customerId)
+              } else {
+                console.error('Failed to create customer for logged-in user')
+                setCustomerId(null)
+              }
+            } catch (createError) {
+              console.error('Error creating customer for logged-in user:', createError)
+              setCustomerId(null)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting customer ID:', error)
         setCustomerId(null)
       }
     }
     load()
-  }, [open])
+  }, [open, guestCustomerInfo])
 
   const setField = (key: string, val: string) => setForm((p) => ({ ...p, [key]: val }))
 
@@ -86,7 +172,8 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         lastServiceDate: form.lastServiceDate || undefined
       })
       if (resp?.data) {
-        onCreated(resp.data as Vehicle)
+        console.log('Passing customerId to onCreated:', customerId)
+        onCreated(resp.data as Vehicle, customerId ?? undefined)
         onClose()
       }
     } catch (err: any) {
@@ -144,6 +231,22 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     <div className="modal-backdrop">
       <div className="modal">
         <h3>Tạo xe mới</h3>
+        {customerCreated && (
+          <div className="alert-success">
+            {guestCustomerInfo ? (
+              <>✅ Đã tạo hồ sơ khách hàng cho {guestCustomerInfo.fullName}. 
+              Khách hàng có thể đăng ký tài khoản sau này để quản lý xe.</>
+            ) : (
+              <>✅ Đã tạo hồ sơ khách hàng cho tài khoản của bạn. 
+              Bạn có thể quản lý xe và đặt lịch dịch vụ.</>
+            )}
+          </div>
+        )}
+        {!customerId && !guestCustomerInfo && (
+          <div className="alert-error">
+            Không thể xác định thông tin khách hàng. Vui lòng đăng nhập lại hoặc liên hệ hỗ trợ.
+          </div>
+        )}
         {generalError && <div className="alert-error">{generalError}</div>}
         <div className="grid">
           <label>
@@ -182,7 +285,13 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         </div>
         <div className="actions">
           <button className="btn-secondary" onClick={onClose} disabled={saving}>Huỷ</button>
-          <button className="btn-primary" onClick={handleCreate} disabled={saving}>Tạo xe</button>
+          <button 
+            className="btn-primary" 
+            onClick={handleCreate} 
+            disabled={saving || !customerId}
+          >
+            Tạo xe
+          </button>
         </div>
       </div>
       <style>{`
@@ -195,6 +304,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         select:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1); }
         .error { color: #ef4444; font-size: .75rem; }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: 0.9rem; }
         .actions { display: flex; justify-content: flex-end; gap: 8px; }
       `}</style>
     </div>

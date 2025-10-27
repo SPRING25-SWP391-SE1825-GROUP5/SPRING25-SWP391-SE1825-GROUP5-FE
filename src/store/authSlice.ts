@@ -15,6 +15,8 @@ export type User = {
   dateOfBirth?: string | null
   gender?: string | null
   isActive?: boolean
+  centerId?: number | null
+  centerName?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -114,6 +116,16 @@ const slice = createSlice({
     clearError(state) {
       state.error = null
     },
+    updateUser(state, action: PayloadAction<Partial<User>>) {
+      if (state.user && action.payload) {
+        state.user = { ...state.user, ...action.payload }
+        
+        // Update localStorage as well
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('user', JSON.stringify(state.user))
+        }
+      }
+    },
     syncFromLocalStorage(state) {
       if (typeof localStorage !== 'undefined') {
         // Try to get token from both possible keys for backward compatibility
@@ -147,6 +159,13 @@ const slice = createSlice({
         localStorage.removeItem('user')
         localStorage.removeItem('authToken')
         localStorage.removeItem('refreshToken')
+        
+        // Clear all technicianId cache to prevent stale data when switching accounts
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('technicianId_')) {
+            localStorage.removeItem(key)
+          }
+        })
       }
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem('loginToasted')
@@ -231,6 +250,6 @@ const slice = createSlice({
   },
 })
 
-export const { clearError, logout, syncFromLocalStorage } = slice.actions
+export const { clearError, logout, syncFromLocalStorage, updateUser } = slice.actions
 export default slice.reducer
 

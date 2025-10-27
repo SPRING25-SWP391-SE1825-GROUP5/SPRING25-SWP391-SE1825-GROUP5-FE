@@ -98,6 +98,9 @@ export type CreateBookingRequest = {
     specialRequests?: string
     serviceId?: number
     packageCode?: string
+    // Thêm currentMileage và licensePlate
+    currentMileage?: number
+    licensePlate?: string
 }
 
 export type CreateBookingResponse = {
@@ -120,7 +123,7 @@ export async function createBooking(payload: CreateBookingRequest): Promise<Crea
 
 // Auto-assign technician
 export async function autoAssignTechnician(bookingId: number): Promise<{ success: boolean; message: string; technicianId?: number }> {
-    const { data } = await api.post(`/api/Booking/${bookingId}/auto-assign-technician`)
+    const { data } = await api.post(`/Booking/${bookingId}/auto-assign-technician`)
     return data as { success: boolean; message: string; technicianId?: number }
 }
 

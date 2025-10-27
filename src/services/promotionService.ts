@@ -6,7 +6,7 @@ export interface BackendPromotion {
     code: string
     description: string
     discountValue: number
-    discountType: 'FIXED' | 'PERCENT'
+    discountType: 'FIXED' | 'PERCENT'  // Database format
     minOrderAmount: number
     startDate: string
     endDate: string
@@ -47,7 +47,7 @@ const mapBackendToFrontend = (backendPromotion: BackendPromotion): AdminPromotio
         code: backendPromotion.code,
         description: backendPromotion.description,
         discountValue: backendPromotion.discountValue,
-        discountType: backendPromotion.discountType === 'PERCENT' ? 'PERCENTAGE' : 'FIXED',
+        discountType: backendPromotion.discountType === 'PERCENT' ? 'PERCENT' : 'FIXED',
         minOrderAmount: backendPromotion.minOrderAmount,
         startDate: backendPromotion.startDate,
         endDate: backendPromotion.endDate,

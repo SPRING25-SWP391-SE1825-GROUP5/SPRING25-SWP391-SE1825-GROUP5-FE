@@ -307,6 +307,115 @@
   overflow: hidden;
 }
 
+// Start Conversation Screen
+.chat-widget__start-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, var(--chat-bg-card), var(--chat-bg-secondary));
+}
+
+.chat-widget__start-content {
+  text-align: center;
+  max-width: 280px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.chat-widget__start-icon {
+  margin-bottom: 24px;
+  color: var(--chat-primary);
+  display: flex;
+  justify-content: center;
+  animation: pulse 2s infinite;
+}
+
+.chat-widget__start-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--chat-text);
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.chat-widget__start-description {
+  font-size: 14px;
+  color: var(--chat-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 32px;
+}
+
+.chat-widget__start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--chat-primary), var(--chat-secondary));
+  color: var(--chat-text-light);
+  border: none;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 64, 48, 0.3);
+  font-family: inherit;
+  min-width: 140px;
+  position: relative;
+  overflow: hidden;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--chat-primary-hover), var(--chat-primary));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 64, 48, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  svg {
+    transition: transform 0.2s ease;
+  }
+
+  &:hover:not(:disabled) svg {
+    transform: scale(1.1);
+  }
+}
+
+.chat-widget__loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid var(--chat-text-light);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
 // Messages Container
 .chat-widget__messages {
   flex: 1;

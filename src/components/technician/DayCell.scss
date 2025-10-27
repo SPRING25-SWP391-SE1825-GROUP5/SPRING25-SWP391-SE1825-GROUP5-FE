@@ -40,22 +40,24 @@
     }
   }
 
-  // Inactive Days (Other Months)
+  // Inactive Days (Other Months) - Darker gray and non-interactive
   &--inactive {
-    background: #e5e7eb; // gray-200 - as requested for better contrast with gray-100 container
-    cursor: default;
+    background: #d1d5db; // gray-300 - darker gray background
+    cursor: not-allowed;
     pointer-events: none;
-    color: #6b7280; // gray-500 - text color remains the same, contrast automatically improved
-    border-color: #9CA3AF; // gray-400 - same as base, but muted
-    opacity: 0.9; // Slightly increased opacity since background is darker
+    color: #9ca3af; // gray-400 - lighter text for better contrast
+    border-color: #9ca3af; // gray-400 - muted border
+    opacity: 0.7; // More muted appearance
+    user-select: none; // Prevent text selection
 
     // No hover effects for inactive days
     &:hover {
-      background: #e5e7eb; // Keep same darker background
-      border-color: #9CA3AF; // Keep same border color
+      background: #d1d5db; // Keep same darker background
+      border-color: #9ca3af; // Keep same border color
       transform: none;
       box-shadow: none;
-      opacity: 0.9; // Maintain consistent appearance
+      opacity: 0.7; // Maintain consistent appearance
+      cursor: not-allowed;
     }
   }
 
@@ -68,45 +70,46 @@
     line-height: 1;
     text-align: center;
 
-    // Inactive days have darker gray text - good contrast with gray-200 background
+    // Inactive days have lighter gray text - good contrast with gray-300 background
     .day-cell--inactive & {
-      color: #6b7280; // gray-500 - good contrast with gray-200 background
-      font-weight: 500; // slightly lighter weight for inactive days
+      color: #9ca3af; // gray-400 - lighter text for better contrast with darker background
+      font-weight: 400; // lighter weight for inactive days
     }
   }
 
-  // Work Indicator - Green dot
-  &__indicator {
+  // Work Schedule Indicator - Darker green dot for days with work schedule
+  &__work-indicator {
     position: absolute;
     top: 8px;
     right: 8px;
     width: 8px;
     height: 8px;
-    background-color: #10B981; // emerald-500 - green
+    background-color: #047857; // emerald-700 - darker green
     border-radius: 50%;
-    z-index: 1;
+    z-index: 2;
     animation: pulse 2s infinite;
 
     // Different styling for active vs inactive days
     .day-cell--active & {
-      background-color: #10B981; // emerald-500 - bright green
+      background-color: #047857; // emerald-700 - darker green for better visibility
       opacity: 1;
     }
 
     .day-cell--inactive & {
-      background-color: #6B7280; // gray-500 - muted
-      opacity: 0.7;
+      background-color: #9ca3af; // gray-400 - lighter gray for inactive days
+      opacity: 0.5; // More muted for inactive days
     }
   }
+
 }
 
-// Pulse animation for work indicator
+// Pulse animation for work indicator - more subtle for darker green
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.7; // Less dramatic pulse for darker color
   }
 }
 
@@ -122,11 +125,12 @@
       font-size: 14px;
     }
 
-    &__indicator {
+    &__work-indicator {
       width: 6px;
       height: 6px;
       top: 6px;
       right: 6px;
     }
+
   }
 }

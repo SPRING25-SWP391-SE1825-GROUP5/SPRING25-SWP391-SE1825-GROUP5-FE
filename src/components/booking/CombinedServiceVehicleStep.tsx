@@ -29,6 +29,12 @@ interface CombinedServiceVehicleStepProps {
   onUpdateService: (data: Partial<ServiceInfo>) => void
   onNext: () => void
   onPrev: () => void
+  customerInfo?: {
+    fullName: string
+    phone: string
+    email: string
+  }
+  onGuestCustomerCreated?: (customerId: number) => void
 }
 
 interface VehicleModel {
@@ -44,7 +50,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   onUpdateVehicle,
   onUpdateService,
   onNext,
-  onPrev
+  onPrev,
+  customerInfo,
+  onGuestCustomerCreated
 }) => {
   const [services, setServices] = useState<BackendService[]>([])
   const [servicesLoading, setServicesLoading] = useState(false)
@@ -93,22 +101,52 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadVehicleModels = async () => {
       setModelsLoading(true)
       try {
-        const response = await api.get('/VehicleModel/active')
-        // Extract possible nested payloads
-        let raw = response.data
-        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-          raw = raw.data || raw.items || raw.models || raw.list || raw
+        console.log('Fetching vehicle models from /api/VehicleModel/active...')
+        const response = await api.get('/api/VehicleModel/active')
+        console.log('Vehicle models response:', response)
+
+        console.log('Response type:', typeof response.data)
+        console.log('Is array:', Array.isArray(response.data))
+        
+        // API trả về trực tiếp array của VehicleModelResponse
+        let models = response.data
+        
+        // Nếu response.data không phải array, có thể bị wrap trong object
+        if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+          models = response.data.data || response.data.models || response.data.items || response.data
+          console.log('Extracted models from nested structure:', models)
         }
-        const list = Array.isArray(raw) ? raw : []
-        // Normalize fields from various BE shapes
-        const normalized: VehicleModel[] = list.map((m: any, idx: number) => ({
-          id: m.id ?? m.modelId ?? idx,
-          modelName: m.modelName ?? m.name ?? m.vehicleModelName ?? `Model ${idx + 1}`,
-          brand: m.brand ?? m.brandName ?? m.manufacturer ?? m.make ?? ''
-        }))
-        setVehicleModels(normalized)
+        
+        console.log('Final models array:', models)
+        console.log('Models length:', models?.length)
+        
+        // Kiểm tra format của từng model
+        if (models && models.length > 0) {
+          console.log('First model structure:', models[0])
+          console.log('Model keys:', Object.keys(models[0] || {}))
+        }
+        
+        setVehicleModels(models || [])
       } catch (error: any) {
-        setVehicleModels([])
+        console.error('Error fetching vehicle models:', error)
+        console.error('Error details:', {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          data: error?.response?.data,
+          message: error?.message,
+          url: error?.config?.url
+        })
+        
+        // Fallback: thử endpoint khác nếu /api/VehicleModel/active fail
+        try {
+          console.log('Trying fallback endpoint /VehicleModel/active...')
+          const fallbackResponse = await api.get('/VehicleModel/active')
+          console.log('Fallback response:', fallbackResponse.data)
+          setVehicleModels(fallbackResponse.data || [])
+        } catch (fallbackError: any) {
+          console.error('Fallback also failed:', fallbackError)
+          setVehicleModels([])
+        }
       } finally {
         setModelsLoading(false)
       }
@@ -269,18 +307,27 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
             <label>Dòng xe *</label>
             <select
               value={vehicleData.carModel}
-              onChange={(e) => onUpdateVehicle({ carModel: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value
+                onUpdateVehicle({ carModel: value })
+              }}
               required
-              disabled={modelsLoading}
+              disabled={modelsLoading || vehicleModels.length === 0}
             >
               <option value="">
-                {modelsLoading ? 'Đang tải...' : 'Chọn dòng xe'}
+                {modelsLoading ? 'Đang tải...' : (vehicleModels.length === 0 ? 'Chưa có dữ liệu dòng xe' : 'Chọn dòng xe')}
               </option>
               {vehicleModels.map((model, index) => {
-                const displayName = model.modelName || `Model ${index + 1}`
-                const brand = model.brand || ''
+                // VehicleModelResponse có các field: ModelId, ModelName, Brand, IsActive
+                const displayName = (model as any).modelName || (model as any).ModelName || (model as any).name || `Model ${index + 1}`
+                const brand = (model as any).brand || (model as any).Brand || ''
+                const value = displayName
+                const modelId = (model as any).modelId || (model as any).ModelId || (model as any).id || `model-${index}`
+                
+                console.log(`Model ${index}:`, { modelId, displayName, brand, model })
+                
                 return (
-                  <option key={model.id || `model-${index}`} value={displayName}>
+                  <option key={modelId} value={value}>
                     {displayName}{brand ? ` (${brand})` : ''}
                   </option>
                 )
@@ -309,7 +356,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         <CreateVehicleModal
           open={openCreate}
           onClose={() => setOpenCreate(false)}
-          onCreated={(veh) => {
+          onCreated={(veh, customerId) => {
+            console.log('CombinedServiceVehicleStep received customerId:', customerId)
             setVehicles((list) => [veh, ...list])
             // Auto-fill vehicle information from the created vehicle
             // Note: Vehicle interface has: licensePlate, vin, color, currentMileage
@@ -321,8 +369,18 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               color: veh.color || ''
               // year and brand are not available in Vehicle interface
             })
+            
+            // Nếu có customerId từ guest, truyền về ServiceBookingForm
+            if (customerId && onGuestCustomerCreated) {
+              console.log('Calling onGuestCustomerCreated with customerId:', customerId)
+              onGuestCustomerCreated(customerId)
+            } else {
+              console.log('Not calling onGuestCustomerCreated:', { customerId, onGuestCustomerCreated: !!onGuestCustomerCreated })
+            }
+            
             setOpenCreate(false)
           }}
+          guestCustomerInfo={customerInfo}
         />
 
         <div className="form-actions">
@@ -357,8 +415,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           padding: 1.25rem; 
           box-shadow: var(--csv-shadow);
           box-sizing: border-box;
-          overflow: hidden;
-          transition: box-shadow .2s ease, transform .15s ease, border-color .2s ease;
+          /* Cho phép menu dropdown render ra ngoài card */
+          overflow: visible;
         }
         .card:hover { box-shadow: var(--csv-shadow-hover); transform: translateY(-1px); border-color: #dbe1e8; }
         .csv-section-title { margin: 0 0 .75rem 0; font-size: 1.1rem; font-weight: 700; color: var(--csv-text); }

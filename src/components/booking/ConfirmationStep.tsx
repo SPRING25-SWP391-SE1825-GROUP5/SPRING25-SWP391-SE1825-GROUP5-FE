@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { ServiceManagementService } from '@/services/serviceManagementService'
 import { PayOSService } from '@/services/payOSService'
+import PromotionSelector from './PromotionSelector'
+import type { Promotion } from '@/types/promotion'
 
 interface ConfirmationBookingData {
   bookingId?: string
@@ -34,6 +36,10 @@ interface ConfirmationBookingData {
     confirmPassword: string
   }
   images: File[]
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
 }
 
 interface ConfirmationStepProps {
@@ -42,8 +48,6 @@ interface ConfirmationStepProps {
   onSubmit: () => void
   onPrev: () => void
   isSubmitting?: boolean
-  paymentUrl?: string
-  showQRCode?: boolean
 }
 
 interface ServiceInfo {
@@ -52,16 +56,25 @@ interface ServiceInfo {
   price: number
 }
 
-const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false, paymentUrl, showQRCode }) => {
+const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false }) => {
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
+  const [discountAmount, setDiscountAmount] = useState(0)
+  
+  // Debug log để kiểm tra dữ liệu
+  console.log('ConfirmationStep - Full data:', data)
+  console.log('ConfirmationStep - Customer info:', data.customerInfo)
+  console.log('ConfirmationStep - Phone:', data.customerInfo.phone)
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
         setLoading(true)
         const response = await ServiceManagementService.getActiveServices({ pageSize: 100 })
-        setServices(response.services || [])
+        if (response && response.services) {
+          setServices(response.services || [])
+        }
       } catch (error) {
         console.error('Error fetching services:', error)
       } finally {
@@ -77,12 +90,15 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
     onSubmit()
   }
 
-  // Calculate total price
-  const totalPrice = data.serviceInfo.services.reduce((sum, serviceId) => {
-    const service = services.find(s => s.id === Number(serviceId))
-    console.log('Service ID:', serviceId, 'Found service:', service)
-    return sum + (service?.price || 0)
-  }, 0)
+  const handlePromotionApplied = (promotion: Promotion | null, discount: number) => {
+    setAppliedPromotion(promotion)
+    setDiscountAmount(discount)
+  }
+
+  const handlePromotionRemoved = () => {
+    setAppliedPromotion(null)
+    setDiscountAmount(0)
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -91,243 +107,166 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
     }).format(price)
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('vi-VN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+  const selectedServices = services.filter(service => 
+    data.serviceInfo.services.includes(service.id.toString())
+  )
+
+  const subtotal = selectedServices.reduce((sum, service) => sum + service.price, 0)
+  const finalAmount = subtotal - discountAmount
+
+  if (loading) {
+    return (
+      <div className="confirmation-step">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Đang tải thông tin dịch vụ...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="confirmation-step">
-      <h2>Xác nhận đặt lịch</h2>
-      
-      <div className="confirmation-grid">
-        {/* Left column - Customer & Vehicle Info */}
-        <div className="confirmation-left">
-          <div className="info-card">
-            <h3>Thông tin khách hàng</h3>
-            <div className="info-row">
+      <div className="step-header">
+        <h2>Xác nhận đặt lịch</h2>
+        <p>Vui lòng kiểm tra lại thông tin trước khi xác nhận</p>
+      </div>
+
+      <div className="confirmation-content">
+        {/* Customer Information */}
+        <div className="info-section">
+          <h3>👤 Thông tin khách hàng</h3>
+          <div className="info-grid">
+            <div className="info-item">
               <span className="label">Họ tên:</span>
               <span className="value">{data.customerInfo.fullName}</span>
             </div>
-            <div className="info-row">
+            <div className="info-item">
               <span className="label">Số điện thoại:</span>
-              <span className="value">{data.customerInfo.phone}</span>
+              <span className="value">{data.customerInfo.phone?.trim() || 'Chưa có'}</span>
             </div>
-            <div className="info-row">
+            <div className="info-item">
               <span className="label">Email:</span>
               <span className="value">{data.customerInfo.email}</span>
             </div>
           </div>
+        </div>
 
-          <div className="info-card">
-            <h3>Thông tin xe</h3>
-            <div className="info-row">
-              <span className="label">Biển số:</span>
-              <span className="value">{data.vehicleInfo.licensePlate}</span>
-            </div>
-            <div className="info-row">
+        {/* Vehicle Information */}
+        <div className="info-section">
+          <h3>🚗 Thông tin xe</h3>
+          <div className="info-grid">
+            <div className="info-item">
               <span className="label">Dòng xe:</span>
               <span className="value">{data.vehicleInfo.carModel}</span>
             </div>
-            {data.vehicleInfo.brand && (
-              <div className="info-row">
-                <span className="label">Hãng xe:</span>
-                <span className="value">{data.vehicleInfo.brand}</span>
-              </div>
-            )}
+            <div className="info-item">
+              <span className="label">Biển số:</span>
+              <span className="value">{data.vehicleInfo.licensePlate}</span>
+            </div>
+            <div className="info-item">
+              <span className="label">Số km:</span>
+              <span className="value">{data.vehicleInfo.mileage} km</span>
+            </div>
             {data.vehicleInfo.year && (
-              <div className="info-row">
+              <div className="info-item">
                 <span className="label">Năm sản xuất:</span>
                 <span className="value">{data.vehicleInfo.year}</span>
               </div>
             )}
             {data.vehicleInfo.color && (
-              <div className="info-row">
+              <div className="info-item">
                 <span className="label">Màu sắc:</span>
                 <span className="value">{data.vehicleInfo.color}</span>
               </div>
             )}
-            {data.vehicleInfo.mileage && (
-              <div className="info-row">
-                <span className="label">Số km:</span>
-                <span className="value">{data.vehicleInfo.mileage} km</span>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Right column - Service & Schedule */}
-        <div className="confirmation-right">
-          <div className="info-card">
-            <h3>Dịch vụ đã chọn</h3>
-            <div className="service-table">
-              <div className="service-header">
-                <span>Tên dịch vụ</span>
-                <span>Giá</span>
-              </div>
-              {loading ? (
-                <div className="service-row">
-                  <span className="service-name">Đang tải...</span>
-                  <span className="service-price">—</span>
+        {/* Service Information */}
+        <div className="info-section">
+          <h3>🔧 Dịch vụ đã chọn</h3>
+          <div className="services-list">
+            {selectedServices.map(service => (
+              <div key={service.id} className="service-item">
+                <div className="service-info">
+                  <span className="service-name">{service.name}</span>
+                  <span className="service-price">{formatPrice(service.price)}</span>
                 </div>
-              ) : (
-                data.serviceInfo.services.map(serviceId => {
-                  const service = services.find(s => s.id === Number(serviceId))
-                  return (
-                    <div key={serviceId} className="service-row">
-                      <span className="service-name">{service?.name || `Dịch vụ ${serviceId}`}</span>
-                      <span className="service-price">{formatPrice(service?.price || 0)}</span>
-                    </div>
-                  )
-                })
-              )}
-              <div className="service-total">
-                <span className="total-label">Tổng cộng:</span>
-                <span className="total-price">{formatPrice(totalPrice)}</span>
               </div>
-            </div>
-            {data.serviceInfo.notes && (
-              <div className="notes-section">
-                <span className="label">Ghi chú:</span>
-                <p className="notes-text">{data.serviceInfo.notes}</p>
-              </div>
-            )}
+            ))}
           </div>
-
-          <div className="info-card">
-            <h3>Lịch hẹn</h3>
-            <div className="info-row">
-              <span className="label">Ngày:</span>
-              <span className="value">{formatDate(data.locationTimeInfo.date)}</span>
+          {data.serviceInfo.notes && (
+            <div className="notes-section">
+              <h4>Ghi chú:</h4>
+              <p>{data.serviceInfo.notes}</p>
             </div>
-            <div className="info-row">
+          )}
+        </div>
+
+        {/* Location & Time Information */}
+        <div className="info-section">
+          <h3>📍 Thông tin địa điểm & thời gian</h3>
+          <div className="info-grid">
+            <div className="info-item">
+              <span className="label">Ngày:</span>
+              <span className="value">{data.locationTimeInfo.date}</span>
+            </div>
+            <div className="info-item">
               <span className="label">Giờ:</span>
               <span className="value">{data.locationTimeInfo.time}</span>
             </div>
-            {data.locationTimeInfo.address && (
-              <div className="info-row">
-                <span className="label">Địa chỉ:</span>
-                <span className="value">{data.locationTimeInfo.address}</span>
+            <div className="info-item">
+              <span className="label">Chi nhánh:</span>
+              <span className="value">Chi nhánh ID: {data.locationTimeInfo.centerId}</span>
+            </div>
+            <div className="info-item">
+              <span className="label">Kỹ thuật viên:</span>
+              <span className="value">KTV ID: {data.locationTimeInfo.technicianId}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Account Information (for guests only) */}
+        {isGuest && data.accountInfo && (
+          <div className="info-section">
+            <h3>🔐 Thông tin tài khoản</h3>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="label">Tên đăng nhập:</span>
+                <span className="value">{data.accountInfo.username}</span>
               </div>
-            )}
+            </div>
+          </div>
+        )}
+
+        {/* Promotion Selector */}
+        <PromotionSelector
+          onPromotionApplied={handlePromotionApplied}
+          onPromotionRemoved={handlePromotionRemoved}
+          orderAmount={subtotal}
+          appliedPromotion={appliedPromotion}
+          discountAmount={discountAmount}
+        />
+
+        {/* Price Summary */}
+        <div className="price-summary">
+          <div className="price-item">
+            <span className="label">Tạm tính:</span>
+            <span className="value">{formatPrice(subtotal)}</span>
+          </div>
+          {discountAmount > 0 && (
+            <div className="price-item discount">
+              <span className="label">Giảm giá:</span>
+              <span className="value">-{formatPrice(discountAmount)}</span>
+            </div>
+          )}
+          <div className="price-item total">
+            <span className="label">Tổng cộng:</span>
+            <span className="value">{formatPrice(finalAmount)}</span>
           </div>
         </div>
       </div>
-      
-      {/* Enhanced PayOS QR Code Section */}
-      {showQRCode && paymentUrl && (
-        <div className="qr-payment-section">
-          <div className="qr-payment-header">
-            <div className="qr-title-wrapper">
-              <h3>💳 Thanh toán qua QR Code</h3>
-              <div className="payos-branding">
-                <span className="brand-badge">PayOS</span>
-                <span className="brand-text">Thanh toán an toàn & nhanh chóng</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="qr-code-wrapper">
-            <div className="qr-code-container">
-              <div className="qr-code-frame">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentUrl)}`}
-                  alt="VietQR Code thanh toán" 
-                  className="qr-code-image"
-                />
-                <div className="qr-scan-indicator">
-                  <div className="scan-line"></div>
-                </div>
-              </div>
-              <div className="qr-code-info">
-                <small className="qr-type">VietQR - Quét bằng app ngân hàng</small>
-                <div className="qr-status">
-                  <span className="status-dot"></span>
-                  <span>Sẵn sàng thanh toán</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="qr-instructions">
-            <h4>📱 Hướng dẫn thanh toán:</h4>
-            <div className="instruction-steps">
-              <div className="step">
-                <div className="step-number">1</div>
-                <div className="step-content">
-                  <strong>Mở app ngân hàng</strong>
-                  <span>MB Bank, Techcombank, Vietcombank...</span>
-                </div>
-              </div>
-              <div className="step">
-                <div className="step-number">2</div>
-                <div className="step-content">
-                  <strong>Quét mã QR</strong>
-                  <span>Chọn tính năng quét QR trong app</span>
-                </div>
-              </div>
-              <div className="step">
-                <div className="step-number">3</div>
-                <div className="step-content">
-                  <strong>Xác nhận thanh toán</strong>
-                  <span>Kiểm tra thông tin và hoàn tất</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="qr-actions">
-            <button 
-              type="button" 
-              onClick={() => {
-                navigator.clipboard.writeText(paymentUrl)
-                // Add success feedback
-              }}
-              className="btn-secondary action-btn"
-            >
-              <span className="btn-icon">📋</span>
-              Sao chép link
-            </button>
-            <button 
-              type="button" 
-              onClick={() => window.open(paymentUrl, '_blank')}
-              className="btn-primary action-btn"
-            >
-              <span className="btn-icon">🚀</span>
-              Mở PayOS
-            </button>
-          </div>
-          
-          <div className="payment-info">
-            <h4>💰 Thông tin thanh toán</h4>
-            <div className="payment-details">
-              <div className="payment-row">
-                <span className="payment-label">Booking ID:</span>
-                <span className="payment-value">#{data.bookingId || 'N/A'}</span>
-              </div>
-              <div className="payment-row highlight">
-                <span className="payment-label">Số tiền:</span>
-                <span className="payment-value amount">{formatPrice(totalPrice)}</span>
-              </div>
-              <div className="payment-row">
-                <span className="payment-label">Phương thức:</span>
-                <span className="payment-value method">VietQR</span>
-              </div>
-              <div className="payment-row">
-                <span className="payment-label">Trạng thái:</span>
-                <span className="payment-value status-pending">
-                  <span className="status-indicator"></span>
-                  Chờ thanh toán
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       <form onSubmit={handleSubmit}>
         <div className="form-actions">
@@ -339,368 +278,231 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           </button>
         </div>
       </form>
-      
       <style>{`
-        .qr-payment-section {
-          margin: 2rem 0;
+        .confirmation-step {
+          max-width: 800px;
+          margin: 0 auto;
           padding: 2rem;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 20px;
-          box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
-          position: relative;
-          overflow: hidden;
         }
-        
-        .qr-payment-section::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-          pointer-events: none;
-        }
-        
-        .qr-payment-header {
+
+        .step-header {
           text-align: center;
           margin-bottom: 2rem;
-          position: relative;
-          z-index: 1;
         }
-        
-        .qr-title-wrapper h3 {
-          margin: 0 0 1rem 0;
-          color: white;
-          font-size: 1.5rem;
-          font-weight: 700;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        .payos-branding {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-        
-        .brand-badge {
-          background: rgba(255,255,255,0.2);
-          color: white;
-          padding: 0.25rem 0.75rem;
-          border-radius: 20px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          backdrop-filter: blur(10px);
-        }
-        
-        .brand-text {
-          color: rgba(255,255,255,0.9);
-          font-size: 0.875rem;
-        }
-        
-        .qr-code-wrapper {
-          display: flex;
-          justify-content: center;
-          margin: 2rem 0;
-          position: relative;
-          z-index: 1;
-        }
-        
-        .qr-code-container {
-          text-align: center;
-          position: relative;
-        }
-        
-        .qr-code-frame {
-          position: relative;
-          display: inline-block;
-          padding: 1rem;
-          background: white;
-          border-radius: 20px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-          animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.02); }
-        }
-        
-        .qr-code-image {
-          width: 200px;
-          height: 200px;
-          border-radius: 12px;
-          display: block;
-        }
-        
-        .qr-scan-indicator {
-          position: absolute;
-          top: 1rem;
-          left: 1rem;
-          right: 1rem;
-          height: 2px;
-          background: linear-gradient(90deg, transparent, #667eea, transparent);
-          animation: scan 2s infinite;
-        }
-        
-        @keyframes scan {
-          0% { transform: translateY(0); opacity: 0; }
-          50% { opacity: 1; }
-          100% { transform: translateY(200px); opacity: 0; }
-        }
-        
-        .qr-code-info {
-          margin-top: 1rem;
-          color: white;
-        }
-        
-        .qr-type {
-          display: block;
-          font-size: 0.875rem;
-          opacity: 0.9;
+
+        .step-header h2 {
+          color: #1e293b;
           margin-bottom: 0.5rem;
         }
-        
-        .qr-status {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
+
+        .step-header p {
+          color: #64748b;
           font-size: 0.875rem;
         }
-        
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          background: #10b981;
-          border-radius: 50%;
-          animation: blink 1.5s infinite;
-        }
-        
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0.3; }
-        }
-        
-        .qr-instructions {
-          margin: 2rem 0;
-          position: relative;
-          z-index: 1;
-        }
-        
-        .qr-instructions h4 {
-          margin: 0 0 1.5rem 0;
-          color: white;
-          font-size: 1.125rem;
-          text-align: center;
-        }
-        
-        .instruction-steps {
+
+        .confirmation-content {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 1.5rem;
+          margin-bottom: 2rem;
         }
-        
-        .step {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          background: rgba(255,255,255,0.1);
-          padding: 1rem;
-          border-radius: 12px;
-          backdrop-filter: blur(10px);
-          transition: transform 0.2s ease;
-        }
-        
-        .step:hover {
-          transform: translateX(5px);
-          background: rgba(255,255,255,0.15);
-        }
-        
-        .step-number {
-          width: 32px;
-          height: 32px;
-          background: white;
-          color: #667eea;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 0.875rem;
-          flex-shrink: 0;
-        }
-        
-        .step-content {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        
-        .step-content strong {
-          color: white;
-          font-size: 0.875rem;
-        }
-        
-        .step-content span {
-          color: rgba(255,255,255,0.8);
-          font-size: 0.75rem;
-        }
-        
-        .qr-actions {
-          display: flex;
-          gap: 1rem;
-          justify-content: center;
-          margin: 2rem 0;
-          position: relative;
-          z-index: 1;
-        }
-        
-        .action-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1.5rem;
-          border-radius: 12px;
-          font-weight: 600;
-          transition: all 0.3s ease;
-          border: none;
-          cursor: pointer;
-        }
-        
-        .btn-secondary {
-          background: rgba(255,255,255,0.2);
-          color: white;
-          backdrop-filter: blur(10px);
-        }
-        
-        .btn-secondary:hover {
-          background: rgba(255,255,255,0.3);
-          transform: translateY(-2px);
-        }
-        
-        .btn-primary {
-          background: white;
-          color: #667eea;
-        }
-        
-        .btn-primary:hover {
+
+        .info-section {
           background: #f8fafc;
-          transform: translateY(-2px);
-          box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .btn-icon {
-          font-size: 1rem;
-        }
-        
-        .payment-info {
-          background: rgba(255,255,255,0.1);
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           padding: 1.5rem;
-          border-radius: 16px;
-          backdrop-filter: blur(10px);
-          position: relative;
-          z-index: 1;
         }
-        
-        .payment-info h4 {
-          margin: 0 0 1.5rem 0;
-          color: white;
+
+        .info-section h3 {
+          margin: 0 0 1rem 0;
+          color: #1e293b;
           font-size: 1.125rem;
-          text-align: center;
+          font-weight: 600;
         }
-        
-        .payment-details {
+
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+        }
+
+        .info-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.5rem 0;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-item:last-child {
+          border-bottom: none;
+        }
+
+        .info-item .label {
+          color: #64748b;
+          font-weight: 500;
+        }
+
+        .info-item .value {
+          color: #1e293b;
+          font-weight: 600;
+        }
+
+        .services-list {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
         }
-        
-        .payment-row {
+
+        .service-item {
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 1rem;
+        }
+
+        .service-info {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 0.75rem;
-          background: rgba(255,255,255,0.1);
-          border-radius: 8px;
-          transition: background 0.2s ease;
         }
-        
-        .payment-row:hover {
-          background: rgba(255,255,255,0.15);
-        }
-        
-        .payment-row.highlight {
-          background: rgba(255,255,255,0.2);
-          border: 1px solid rgba(255,255,255,0.3);
-        }
-        
-        .payment-label {
-          color: rgba(255,255,255,0.9);
-          font-size: 0.875rem;
-        }
-        
-        .payment-value {
-          color: white;
+
+        .service-name {
+          color: #1e293b;
           font-weight: 600;
+        }
+
+        .service-price {
+          color: #059669;
+          font-weight: 700;
+        }
+
+        .notes-section {
+          margin-top: 1rem;
+          padding-top: 1rem;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .notes-section h4 {
+          margin: 0 0 0.5rem 0;
+          color: #374151;
           font-size: 0.875rem;
+          font-weight: 600;
         }
-        
-        .payment-value.amount {
-          font-size: 1rem;
-          color: #fbbf24;
+
+        .notes-section p {
+          margin: 0;
+          color: #6b7280;
+          font-size: 0.875rem;
+          line-height: 1.5;
         }
-        
-        .payment-value.method {
-          color: #10b981;
+
+        .price-summary {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 1.5rem;
+          border-radius: 12px;
+          margin-top: 1rem;
         }
-        
-        .status-pending {
+
+        .price-item {
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          gap: 0.5rem;
+          padding: 0.5rem 0;
+        }
+
+        .price-item.discount {
           color: #fbbf24;
         }
-        
-        .status-indicator {
-          width: 8px;
-          height: 8px;
-          background: #fbbf24;
-          border-radius: 50%;
-          animation: blink 1.5s infinite;
+
+        .price-item.total {
+          border-top: 1px solid rgba(255,255,255,0.2);
+          margin-top: 0.5rem;
+          padding-top: 0.75rem;
+          font-weight: 700;
+          font-size: 1.125rem;
         }
-        
-        /* Mobile Responsive */
+
+        .form-actions {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          margin-top: 2rem;
+        }
+
+        .btn-secondary, .btn-primary {
+          padding: 0.75rem 2rem;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: none;
+        }
+
+        .btn-secondary {
+          background: #f1f5f9;
+          color: #475569;
+          border: 1px solid #cbd5e1;
+        }
+
+        .btn-secondary:hover {
+          background: #e2e8f0;
+        }
+
+        .btn-primary {
+          background: #3b82f6;
+          color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+          background: #2563eb;
+        }
+
+        .btn-primary:disabled {
+          background: #9ca3af;
+          cursor: not-allowed;
+        }
+
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 3rem;
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #e2e8f0;
+          border-top: 4px solid #3b82f6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
-          .qr-payment-section {
-            margin: 1rem 0;
-            padding: 1.5rem;
-            border-radius: 16px;
+          .confirmation-step {
+            padding: 1rem;
           }
-          
-          .qr-code-image {
-            width: 180px;
-            height: 180px;
+
+          .info-grid {
+            grid-template-columns: 1fr;
           }
-          
-          .instruction-steps {
-            gap: 0.75rem;
-          }
-          
-          .step {
-            padding: 0.75rem;
-          }
-          
-          .qr-actions {
+
+          .form-actions {
             flex-direction: column;
-            gap: 0.75rem;
           }
-          
-          .action-btn {
+
+          .btn-secondary, .btn-primary {
             width: 100%;
-            justify-content: center;
           }
         }
       `}</style>

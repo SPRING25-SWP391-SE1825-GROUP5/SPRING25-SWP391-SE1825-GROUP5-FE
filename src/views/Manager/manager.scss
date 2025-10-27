@@ -7,6 +7,10 @@
   .manager-dashboard {
     position: relative;
     z-index: 1;
+    
+    // Override primary colors to yellow theme
+    --primary-500: #FFD875;
+    --primary-50: #FFF8E5;
   }
 }
 

@@ -20,6 +20,49 @@ export type TechnicianListResponse = {
 }
 
 export const TechnicianService = {
+    // Lấy technicianId từ userId bằng cách gọi API Technician list
+    async getTechnicianIdByUserId(userId: number) {
+        try {
+            const response = await api.get('/Technician', { 
+                params: { 
+                    pageSize: 1000,
+                } 
+            })
+            
+            if (response?.data?.success && response.data.data) {
+                const technicians = response.data.data.technicians || response.data.data
+                
+                if (Array.isArray(technicians)) {
+                    const technician = technicians.find((t: any) => {
+                        return t.userId === userId || t.user?.id === userId
+                    })
+                    
+                    if (technician && technician.technicianId) {
+                        return {
+                            success: true,
+                            data: {
+                                technicianId: Number(technician.technicianId),
+                                centerId: technician.centerId,
+                                technicianName: technician.userFullName || technician.name
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return {
+                success: false,
+                data: null,
+                message: 'Không tìm thấy technician cho userId này'
+            }
+        } catch (error) {
+            return {
+                success: false,
+                data: null,
+                message: 'Lỗi khi tìm technician: ' + (error as Error).message
+            }
+        }
+    },
     async list(params: { pageNumber?: number; pageSize?: number; searchTerm?: string; centerId?: number } = {}) {
         const { data } = await api.get('/Technician', { params })
         if (data?.success && data?.data) {
@@ -59,7 +102,6 @@ export const TechnicianService = {
                 inactiveTechnicians: 0
             }
         } catch (error) {
-            console.error('Error fetching technician stats:', error)
             return {
                 totalTechnicians: 0,
                 activeTechnicians: 0,
@@ -116,6 +158,118 @@ export const TechnicianService = {
             }
         })
         return data
+    },
+
+  // Lấy danh sách bookings của technician theo ngày
+  async getTechnicianBookings(technicianId: number, date?: string) {
+    try {
+      const params: any = {}
+      if (date) {
+        params.date = date
+      }
+      
+      const { data } = await api.get(`/Technician/${technicianId}/bookings`, { params })
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        message: 'Không thể tải danh sách booking'
+      }
+    }
+  },
+
+  // Lấy chi tiết booking của technician
+  async getBookingDetail(technicianId: number, bookingId: number) {
+    try {
+      const { data } = await api.get(`/Technician/${technicianId}/bookings/${bookingId}`)
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: 'Không thể tải chi tiết booking'
+      }
+    }
+  },
+
+  // Cập nhật maintenance checklist item
+  async updateMaintenanceChecklistItem(bookingId: number, partId: number, result: string) {
+    try {
+      const { data } = await api.put(`/maintenance-checklist/${bookingId}/parts/${partId}`, { result })
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể cập nhật trạng thái checklist'
+      }
+    }
+  },
+
+  // Cập nhật maintenance checklist (legacy - giữ để tương thích)
+  async updateMaintenanceChecklist(bookingId: number, items: Array<{ resultId: number; description: string; result: string }>) {
+    try {
+      const { data } = await api.put(`/maintenance-checklist/${bookingId}`, { items })
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể cập nhật maintenance checklist'
+      }
+    }
+  },
+
+  // Xác nhận hoàn thành maintenance checklist
+  async confirmMaintenanceChecklist(bookingId: number) {
+    try {
+      const { data } = await api.post(`/maintenance-checklist/${bookingId}/confirm`)
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể xác nhận checklist'
+      }
+    }
+  },
+
+    // Lấy thông tin kỹ thuật viên theo centerId
+    async getTechniciansByCenter(centerId: number) {
+        try {
+            const { data } = await api.get(`/Technician/by-center/${centerId}`)
+            return data
+        } catch (error) {
+            throw error
+        }
+    },
+
+    // Lấy thống kê booking theo trạng thái cho technician
+
+    // Lấy danh sách booking của technician cho calendar
+    async getTechnicianBookings(technicianId: number) {
+        try {
+            const { data } = await api.get(`/Technician/${technicianId}/bookings`)
+            return data
+        } catch (error) {
+            return {
+                success: false,
+                data: [],
+                message: 'Không thể tải lịch đặt hẹn'
+            }
+        }
+    },
+
+    // Lấy thông tin chi tiết booking
+    async getBookingDetail(technicianId: number, bookingId: number) {
+        try {
+            const { data } = await api.get(`/Technician/${technicianId}/bookings/${bookingId}`)
+            return data
+        } catch (error) {
+            return {
+                success: false,
+                data: null,
+                message: 'Không thể tải thông tin chi tiết booking'
+            }
+        }
     },
 }
 
