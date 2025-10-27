@@ -15,6 +15,8 @@ export type User = {
   dateOfBirth?: string | null
   gender?: string | null
   isActive?: boolean
+  centerId?: number | null
+  centerName?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -113,6 +115,16 @@ const slice = createSlice({
   reducers: {
     clearError(state) {
       state.error = null
+    },
+    updateUser(state, action: PayloadAction<Partial<User>>) {
+      if (state.user && action.payload) {
+        state.user = { ...state.user, ...action.payload }
+        
+        // Update localStorage as well
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('user', JSON.stringify(state.user))
+        }
+      }
     },
     syncFromLocalStorage(state) {
       if (typeof localStorage !== 'undefined') {
@@ -238,6 +250,6 @@ const slice = createSlice({
   },
 })
 
-export const { clearError, logout, syncFromLocalStorage } = slice.actions
+export const { clearError, logout, syncFromLocalStorage, updateUser } = slice.actions
 export default slice.reducer
 

@@ -52,20 +52,17 @@ class SignalRService {
 
     // Connection events
     this.connection.onclose((error) => {
-      console.log('SignalR connection closed:', error)
       this.isConnected = false
       this.onConnectionStatusChanged?.(false)
       this.attemptReconnect()
     })
 
     this.connection.onreconnecting((error) => {
-      console.log('SignalR reconnecting:', error)
       this.isConnected = false
       this.onConnectionStatusChanged?.(false)
     })
 
     this.connection.onreconnected((connectionId) => {
-      console.log('SignalR reconnected:', connectionId)
       this.isConnected = true
       this.reconnectAttempts = 0
       this.onConnectionStatusChanged?.(true)
@@ -73,27 +70,22 @@ class SignalRService {
 
     // Chat events
     this.connection.on('ReceiveMessage', (message: ChatMessage) => {
-      console.log('Received message:', message)
       this.onMessageReceived?.(message)
     })
 
     this.connection.on('UserTyping', (userId: string, conversationId: string) => {
-      console.log('User typing:', userId, conversationId)
       this.onTypingStarted?.(userId, conversationId)
     })
 
     this.connection.on('UserStoppedTyping', (userId: string, conversationId: string) => {
-      console.log('User stopped typing:', userId, conversationId)
       this.onTypingStopped?.(userId, conversationId)
     })
 
     this.connection.on('UserJoined', (userId: string, conversationId: string) => {
-      console.log('User joined:', userId, conversationId)
       this.onUserJoined?.(userId, conversationId)
     })
 
     this.connection.on('UserLeft', (userId: string, conversationId: string) => {
-      console.log('User left:', userId, conversationId)
       this.onUserLeft?.(userId, conversationId)
     })
   }
@@ -111,10 +103,8 @@ class SignalRService {
       await this.connection.start()
       this.isConnected = true
       this.reconnectAttempts = 0
-      console.log('SignalR connected successfully')
       this.onConnectionStatusChanged?.(true)
     } catch (error) {
-      console.error('SignalR connection failed:', error)
       this.isConnected = false
       this.onConnectionStatusChanged?.(false)
       throw error
@@ -126,10 +116,9 @@ class SignalRService {
       try {
         await this.connection.stop()
         this.isConnected = false
-        console.log('SignalR disconnected')
         this.onConnectionStatusChanged?.(false)
       } catch (error) {
-        console.error('SignalR disconnect error:', error)
+        // Ignore disconnect errors
       }
     }
   }
@@ -141,9 +130,7 @@ class SignalRService {
 
     try {
       await this.connection.invoke('JoinConversation', conversationId)
-      console.log('Joined conversation:', conversationId)
     } catch (error) {
-      console.error('Failed to join conversation:', error)
       throw error
     }
   }
@@ -155,9 +142,8 @@ class SignalRService {
 
     try {
       await this.connection.invoke('LeaveConversation', conversationId)
-      console.log('Left conversation:', conversationId)
     } catch (error) {
-      console.error('Failed to leave conversation:', error)
+      // Handle leave conversation error
     }
   }
 
@@ -168,9 +154,7 @@ class SignalRService {
 
     try {
       await this.connection.invoke('SendMessage', conversationId, content)
-      console.log('Message sent:', conversationId, content)
     } catch (error) {
-      console.error('Failed to send message:', error)
       throw error
     }
   }
@@ -187,25 +171,21 @@ class SignalRService {
         await this.connection.invoke('StopTyping', conversationId)
       }
     } catch (error) {
-      console.error('Failed to send typing indicator:', error)
+      // Handle typing indicator error
     }
   }
 
   private async attemptReconnect(): Promise<void> {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnection attempts reached')
       return
     }
 
     this.reconnectAttempts++
-    console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
-
     setTimeout(async () => {
       try {
         await this.connect()
       } catch (error) {
-        console.error('Reconnection failed:', error)
-        this.attemptReconnect()
+        // Handle reconnection error
       }
     }, this.reconnectInterval)
   }
