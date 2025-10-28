@@ -7,7 +7,9 @@ import {
   ShoppingCartIcon,
   HeartIcon,
   EyeIcon,
-  AdjustmentsHorizontalIcon
+  AdjustmentsHorizontalIcon,
+  PlusIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import { PartService, Part, PartFilters } from '@/services'
@@ -28,12 +30,14 @@ export default function Products() {
   
   // State cho filters
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedBrand, setSelectedBrand] = useState('Tất cả thương hiệu')
   const [priceRange, setPriceRange] = useState([0, 30000000])
   const [sortBy, setSortBy] = useState('newest')
   const [showFilters, setShowFilters] = useState(true)
-  const [visibleProducts, setVisibleProducts] = useState(12)
+  const [currentPage, setCurrentPage] = useState(1)
+  const productsPerPage = 9
 
   // Load data từ API
   useEffect(() => {
@@ -205,8 +209,38 @@ export default function Products() {
     )
   }
 
-  // Sort và filter parts
-  const sortedParts = [...parts].sort((a, b) => {
+  // Xử lý thêm vào giỏ hàng
+  const handleAddToCart = (part: Part, e: React.MouseEvent) => {
+    e.stopPropagation()
+    // TODO: Implement add to cart logic
+    toast.success(`Đã thêm ${part.partName} vào giỏ hàng`)
+  }
+
+  // Xử lý mua ngay
+  const handleBuyNow = (part: Part, e: React.MouseEvent) => {
+    e.stopPropagation()
+    // TODO: Implement buy now logic
+    toast.success(`Chuyển đến trang thanh toán cho ${part.partName}`)
+  }
+
+  // Filter và sort parts
+  const filteredParts = parts.filter(part => {
+    // Tìm kiếm theo tên sản phẩm
+    const matchesSearch = debouncedSearchTerm === '' || 
+      part.partName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      part.partNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      part.brand.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    
+    // Lọc theo thương hiệu
+    const matchesBrand = selectedBrand === 'Tất cả thương hiệu' || part.brand === selectedBrand
+    
+    // Lọc theo giá
+    const matchesPrice = part.unitPrice >= priceRange[0] && part.unitPrice <= priceRange[1]
+    
+    return matchesSearch && matchesBrand && matchesPrice
+  })
+
+  const sortedParts = [...filteredParts].sort((a, b) => {
     switch (sortBy) {
       case 'price-low':
         return a.unitPrice - b.unitPrice
@@ -222,164 +256,108 @@ export default function Products() {
     }
   })
 
-  const currentProducts = sortedParts.slice(0, visibleProducts)
+  // Tính toán phân trang
+  const totalPages = Math.ceil(sortedParts.length / productsPerPage)
+  const startIndex = (currentPage - 1) * productsPerPage
+  const endIndex = startIndex + productsPerPage
+  const currentProducts = sortedParts.slice(startIndex, endIndex)
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  // Reset về trang 1 khi filters thay đổi
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearchTerm, selectedCategory, selectedBrand, priceRange, sortBy])
 
   return (
     <div className="products-page">
-      {/* Page Header - Nike Style */}
-      <div className="page-header">
-        <div className="container">
-          <div className="header-top">
-            <h1 className="page-title">
-              {getCurrentCategoryName()} ({parts.length})
-            </h1>
-            
-            <div className="header-actions">
-              <button 
-                className={`filter-toggle ${showFilters ? 'active' : ''}`}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                Hide Filters
-                <AdjustmentsHorizontalIcon className="w-4 h-4" />
-              </button>
-              
-              <div className="sort-wrapper">
-                <span className="sort-label">Sort By</span>
-                <select 
-                  className="sort-select"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  {sortOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div className="main-content">
         <div className="container">
           <div className="content-wrapper">
-            {/* Sidebar Filters - Nike Style */}
-            {showFilters && (
-              <div className="filters-sidebar">
-                <div className="filter-group">
-                  <h3 className="filter-title">Phụ tùng EV</h3>
-                  <ul className="filter-list">
-                    <li><button className="filter-link">Pin xe điện</button></li>
-                    <li><button className="filter-link">Bộ sạc</button></li>
-                    <li><button className="filter-link">Động cơ điện</button></li>
-                    <li><button className="filter-link">Bộ điều khiển</button></li>
-                    <li><button className="filter-link">Cáp sạc</button></li>
-                  </ul>
-                </div>
-
-                <div className="filter-group">
-                  <h3 className="filter-title">Phụ kiện</h3>
-                  <ul className="filter-list">
-                    <li><button className="filter-link">Dụng cụ</button></li>
-                    <li><button className="filter-link">Thiết bị an toàn</button></li>
-                    <li><button className="filter-link">Nội thất</button></li>
-                  </ul>
-                </div>
-
-                <div className="filter-group">
-                  <h3 className="filter-title">Trang thiết bị</h3>
-                  <ul className="filter-list">
-                    <li><button className="filter-link">Thiết bị chẩn đoán</button></li>
-                    <li><button className="filter-link">Trạm sạc</button></li>
-                    <li><button className="filter-link">Thiết bị bảo dưỡng</button></li>
-                  </ul>
-                </div>
-
-                <div className="filter-divider"></div>
-
-                <div className="filter-group">
-                  <h3 className="filter-title">Thương hiệu</h3>
-                  <div className="filter-options">
-                    {brands.length > 0 ? brands.map(brand => (
-                      <label key={brand} className="filter-checkbox">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedBrand === brand}
-                          onChange={(e) => setSelectedBrand(e.target.checked ? brand : 'Tất cả thương hiệu')}
-                        />
-                        <span className="checkmark"></span>
-                        {brand}
-                      </label>
-                    )) : (
-                      <p className="loading-text">Đang tải thương hiệu...</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="filter-group">
-                  <h3 className="filter-title">Giá</h3>
-                  <div className="filter-options">
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      Dưới 5 triệu
-                    </label>
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      5 - 10 triệu
-                    </label>
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      10 - 20 triệu
-                    </label>
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      Trên 20 triệu
-                    </label>
-                  </div>
-                </div>
-
-                <div className="filter-group">
-                  <h3 className="filter-title">Tình trạng</h3>
-                  <div className="filter-options">
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      Có sẵn
-                    </label>
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      Sản phẩm mới
-                    </label>
-                    <label className="filter-checkbox">
-                      <input type="checkbox" />
-                      <span className="checkmark"></span>
-                      Giảm giá
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Products Content */}
             <div className="products-content">
-              {/* Search Bar */}
-              <div className="search-section">
-                <div className="search-input">
-                  <MagnifyingGlassIcon className="search-icon" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm sản phẩm..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+              {/* Page Title */}
+              <div className="page-title-section">
+                <h2 className="page-title">Cửa hàng phụ tùng</h2>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="filters-section">
+                <div className="filters-container">
+                  <div className="search-input">
+                    <MagnifyingGlassIcon className="search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm sản phẩm..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="filters-row">
+                    <div className="filter-group">
+                      <label className="filter-label">Thương hiệu</label>
+                      <select 
+                        className="filter-select"
+                        value={selectedBrand}
+                        onChange={(e) => setSelectedBrand(e.target.value)}
+                      >
+                        <option value="Tất cả thương hiệu">Tất cả thương hiệu</option>
+                        {brands.map(brand => (
+                          <option key={brand} value={brand}>
+                            {brand}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="filter-group">
+                      <label className="filter-label">Giá</label>
+                      <select 
+                        className="filter-select"
+                        value={priceRange[1] === 5000000 ? 'under-5m' : 
+                               priceRange[1] === 10000000 ? '5m-10m' : 
+                               priceRange[1] === 20000000 ? '10m-20m' : 'over-20m'}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          if (value === 'under-5m') setPriceRange([0, 5000000])
+                          else if (value === '5m-10m') setPriceRange([5000000, 10000000])
+                          else if (value === '10m-20m') setPriceRange([10000000, 20000000])
+                          else setPriceRange([20000000, 30000000])
+                        }}
+                      >
+                        <option value="under-5m">Dưới 5 triệu</option>
+                        <option value="5m-10m">5 - 10 triệu</option>
+                        <option value="10m-20m">10 - 20 triệu</option>
+                        <option value="over-20m">Trên 20 triệu</option>
+                      </select>
+                    </div>
+                    
+                    <div className="filter-group">
+                      <label className="filter-label">Sắp xếp</label>
+                      <select 
+                        className="filter-select"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                      >
+                        {sortOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -397,6 +375,27 @@ export default function Products() {
                     onClick={loadPartsData}
                   >
                     Thử lại
+                  </button>
+                </div>
+              ) : filteredParts.length === 0 ? (
+                <div className="no-results">
+                  <div className="no-results-icon">🔍</div>
+                  <h3>Không tìm thấy sản phẩm</h3>
+                  <p>
+                    {debouncedSearchTerm 
+                      ? `Không có sản phẩm nào phù hợp với "${debouncedSearchTerm}"`
+                      : 'Không có sản phẩm nào phù hợp với bộ lọc hiện tại'
+                    }
+                  </p>
+                  <button 
+                    className="clear-filters-btn"
+                    onClick={() => {
+                      setSearchTerm('')
+                      setSelectedBrand('Tất cả thương hiệu')
+                      setPriceRange([0, 30000000])
+                    }}
+                  >
+                    Xóa bộ lọc
                   </button>
                 </div>
               ) : (
@@ -422,21 +421,68 @@ export default function Products() {
                         <div className="product-rating">
                           {renderStars(part.rating)}
                         </div>
+                        
+                        <div className="product-actions">
+                          <button 
+                            className="action-btn add-to-cart-btn"
+                            onClick={(e) => handleAddToCart(part, e)}
+                            title="Thêm vào giỏ hàng"
+                          >
+                            <PlusIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
+                            <span>Thêm vào giỏ</span>
+                          </button>
+                          
+                          <button 
+                            className="action-btn buy-now-btn"
+                            onClick={(e) => handleBuyNow(part, e)}
+                            title="Mua ngay"
+                          >
+                            <BoltIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
+                            <span>Mua ngay</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Load More Button */}
-              {!loading && !error && visibleProducts < sortedParts.length && (
-                <div className="load-more-section">
-                  <button 
-                    className="load-more-btn"
-                    onClick={() => setVisibleProducts(prev => prev + 12)}
-                  >
-                    Load More ({sortedParts.length - visibleProducts} remaining)
-                  </button>
+              {/* Pagination */}
+              {!loading && !error && totalPages > 1 && (
+                <div className="pagination-section">
+                  <div className="pagination-info">
+                    Hiển thị {startIndex + 1}-{Math.min(endIndex, sortedParts.length)} trong {sortedParts.length} sản phẩm
+                  </div>
+                  
+                  <div className="pagination">
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Trước
+                    </button>
+                    
+                    <div className="pagination-numbers">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          className={`pagination-number ${currentPage === page ? 'active' : ''}`}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Sau
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
