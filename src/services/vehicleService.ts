@@ -25,6 +25,7 @@ export interface CreateVehicleRequest {
   currentMileage: number
   lastServiceDate?: string
   purchaseDate?: string
+  modelId?: number
 }
 
 export interface UpdateVehicleRequest {

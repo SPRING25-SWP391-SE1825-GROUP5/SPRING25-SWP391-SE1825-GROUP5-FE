@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { CustomerService } from '@/services/customerService'
 import { VehicleService, type Vehicle } from '@/services/vehicleService'
+import api from '@/services/api'
+
+interface VehicleModel {
+  id: number
+  modelName: string
+  brand?: string
+}
 
 interface CreateVehicleModalProps {
   open: boolean
@@ -21,11 +28,15 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     vin: '',
     color: '',
     currentMileage: '',
-    lastServiceDate: ''
+    modelId: ''
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState<string>('')
   const [customerCreated, setCustomerCreated] = useState<boolean>(false)
+  
+  // Vehicle models state
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
 
   // Danh sách màu sắc phổ biến cho xe
   const colorOptions = [
@@ -45,9 +56,68 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     { value: 'Khác', label: 'Khác' }
   ]
 
+  // Load vehicle models when modal opens
   useEffect(() => {
     if (!open) return
+    
+    const loadVehicleModels = async () => {
+      setModelsLoading(true)
+      try {
+        console.log('Fetching vehicle models from /api/VehicleModel/active...')
+        const response = await api.get('/api/VehicleModel/active')
+        console.log('Vehicle models response:', response)
+
+        console.log('Response type:', typeof response.data)
+        console.log('Is array:', Array.isArray(response.data))
+        
+        // API trả về trực tiếp array của VehicleModelResponse
+        let models = response.data
+        
+        // Nếu response.data không phải array, có thể bị wrap trong object
+        if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+          models = response.data.data || response.data.models || response.data.items || response.data
+          console.log('Extracted models from nested structure:', models)
+        }
+        
+        console.log('Final models array:', models)
+        console.log('Models length:', models?.length)
+        
+        // Kiểm tra format của từng model
+        if (models && models.length > 0) {
+          console.log('First model structure:', models[0])
+          console.log('Model keys:', Object.keys(models[0] || {}))
+        }
+        
+        setVehicleModels(models || [])
+      } catch (error: any) {
+        console.error('Error fetching vehicle models:', error)
+        console.error('Error details:', {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          data: error?.response?.data,
+          message: error?.message,
+          url: error?.config?.url
+        })
+        
+        // Fallback: thử endpoint khác nếu /api/VehicleModel/active fail
+        try {
+          console.log('Trying fallback endpoint /VehicleModel/active...')
+          const fallbackResponse = await api.get('/VehicleModel/active')
+          console.log('Fallback response:', fallbackResponse.data)
+          setVehicleModels(fallbackResponse.data || [])
+        } catch (fallbackError: any) {
+          console.error('Fallback also failed:', fallbackError)
+          setVehicleModels([])
+        }
+      } finally {
+        setModelsLoading(false)
+      }
+    }
+
     const load = async () => {
+      // Load vehicle models first
+      await loadVehicleModels()
+      
       try {
         // Nếu có thông tin khách vãng lai, tạo customer mới cho họ
         if (guestCustomerInfo) {
@@ -147,6 +217,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     else if (!/^[A-Z0-9\-\s]{5,20}$/i.test(license)) e.licensePlate = 'Biển số không hợp lệ'
     if (!form.vin.trim()) e.vin = 'VIN bắt buộc'
     if (!form.color.trim()) e.color = 'Màu bắt buộc'
+    if (!form.modelId.trim()) e.modelId = 'Model xe bắt buộc'
     if (!form.currentMileage.trim() || isNaN(Number(form.currentMileage)) || Number(form.currentMileage) < 0) {
       e.currentMileage = 'Số km không hợp lệ'
     }
@@ -169,7 +240,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         licensePlate: form.licensePlate.trim(),
         color: form.color.trim(),
         currentMileage: Number(form.currentMileage),
-        lastServiceDate: form.lastServiceDate || undefined
+        modelId: Number(form.modelId)
       })
       if (resp?.data) {
         console.log('Passing customerId to onCreated:', customerId)
@@ -250,6 +321,22 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         {generalError && <div className="alert-error">{generalError}</div>}
         <div className="grid">
           <label>
+            Model xe *
+            <select 
+              value={form.modelId} 
+              onChange={(e) => setField('modelId', e.target.value)}
+              disabled={modelsLoading}
+            >
+              <option value="">{modelsLoading ? 'Đang tải...' : 'Chọn model xe'}</option>
+              {vehicleModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.brand ? `${model.brand} ${model.modelName}` : model.modelName}
+                </option>
+              ))}
+            </select>
+            {errors.modelId && <span className="error">{errors.modelId}</span>}
+          </label>
+          <label>
             Biển số *
             <input value={form.licensePlate} onChange={(e) => setField('licensePlate', e.target.value)} />
             {errors.licensePlate && <span className="error">{errors.licensePlate}</span>}
@@ -277,10 +364,6 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
             Số km *
             <input type="number" value={form.currentMileage} onChange={(e) => setField('currentMileage', e.target.value)} />
             {errors.currentMileage && <span className="error">{errors.currentMileage}</span>}
-          </label>
-          <label>
-            Lần bảo dưỡng gần nhất
-            <input type="date" value={form.lastServiceDate} onChange={(e) => setField('lastServiceDate', e.target.value)} />
           </label>
         </div>
         <div className="actions">

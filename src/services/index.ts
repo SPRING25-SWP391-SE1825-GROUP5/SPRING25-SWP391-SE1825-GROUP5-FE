@@ -53,6 +53,14 @@ export type {
   ServiceListResponse
 } from './serviceManagementService'
 
+// Service Checklist Template Services
+export { ServiceChecklistTemplateService } from './serviceChecklistTemplateService'
+export type {
+  ServiceChecklistTemplate,
+  RecommendationRequest,
+  RecommendationResponse
+} from './serviceChecklistTemplateService'
+
 // Vehicle Model Management Services
 export { vehicleModelService } from './vehicleModelManagement'
 export type {

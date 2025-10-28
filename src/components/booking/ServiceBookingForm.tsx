@@ -24,16 +24,26 @@ interface CustomerInfo {
 
 interface VehicleInfo {
   carModel: string
+  modelId?: number
   mileage: string
   licensePlate: string
   year?: string
   color?: string
   brand?: string
+  // Bảo dưỡng fields
+  lastMaintenanceDate?: string
+  // Sửa chữa fields
+  vehicleCondition?: string
+  repairChecklist?: string[]
+  repairImages?: File[]
 }
 
 interface ServiceInfo {
   services: string[]
   notes: string
+  packageId?: number
+  packageCode?: string
+  categoryId?: number
 }
 
 interface LocationTimeInfo {
@@ -441,7 +451,8 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           color: 'Unknown',
           currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
           lastServiceDate: undefined,
-          purchaseDate: undefined
+          purchaseDate: undefined,
+          modelId: bookingData.vehicleInfo.modelId // Thêm modelId
         })
         console.log('Create vehicle response:', createVeh)
         vehicleId = Number(createVeh?.data?.vehicleId)
