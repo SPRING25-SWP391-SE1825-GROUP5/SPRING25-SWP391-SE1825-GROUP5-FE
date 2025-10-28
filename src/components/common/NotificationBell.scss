@@ -4,17 +4,23 @@
 
   &__trigger {
     position: relative;
-    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
     border: none;
+    background: transparent;
+    color: #1e293b;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+    border-radius: 0;
     transition: all 0.2s ease;
-    color: #6B7280;
+    font-family: 'Poppins', sans-serif;
+    flex-shrink: 0;
 
     &:hover {
-      background: #F3F4F6;
-      color: #374151;
+      background: transparent;
+      color: #10b981;
     }
 
     &:focus {
@@ -25,18 +31,16 @@
 
   &__badge {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    background: #EF4444;
+    top: -2px;
+    right: -2px;
+    background: #ef4444;
     color: white;
-    border-radius: 50%;
-    min-width: 18px;
-    height: 18px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
     border: 2px solid white;
     animation: pulse 2s infinite;
   }

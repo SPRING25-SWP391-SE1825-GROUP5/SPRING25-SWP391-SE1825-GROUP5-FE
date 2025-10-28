@@ -121,8 +121,12 @@ export type {
   ChatNotification
 } from '@/types/chat'
 
+// Part Services
+export { PartService } from './partService'
+export type {
+  Part,
+  PartAvailabilityResponse,
+  PartFilters
+} from './partService'
+
 // TODO: Add other services as they are created
-// export { ProductService } from './productService'
-// export { OrderService } from './orderService'
-// export { AppointmentService } from './appointmentService'
-// export { NotificationService } from './notificationService'

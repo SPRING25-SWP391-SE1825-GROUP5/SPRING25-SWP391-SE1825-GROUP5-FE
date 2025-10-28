@@ -25,7 +25,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
     
     if (authToken) {
       loadNotifications()
-      loadUnreadCount()
       
       // Kết nối SignalR (chỉ kết nối nếu chưa kết nối)
       signalRService.connect(authToken)
@@ -33,16 +32,14 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
       // Đăng ký callback để nhận thông báo real-time (chỉ đăng ký một lần)
       if (!callbacksRegistered.current) {
         signalRService.onNotification((notification) => {
-          setNotifications(prev => [notification, ...prev])
-          // Chỉ tăng unread count nếu notification mới
-          if (notification.status === 'NEW') {
-            setUnreadCount(prev => prev + 1)
-          }
+          setNotifications(prev => {
+            const newNotifications = [notification, ...prev]
+            // Tính lại unread count từ array mới
+            setUnreadCount(calculateUnreadCount(newNotifications))
+            return newNotifications
+          })
         })
         
-        signalRService.onUnreadCountChange((count) => {
-          setUnreadCount(prev => prev + count)
-        })
         
         callbacksRegistered.current = true
       }
@@ -74,6 +71,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
       const response = await NotificationService.getMyNotifications()
       if (response.success) {
         setNotifications(response.data)
+        
+        // Tính unread count từ notifications array
+        setUnreadCount(calculateUnreadCount(response.data))
       }
     } catch (error) {
       console.error('Error loading notifications:', error)
@@ -95,18 +95,28 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
 
   const markAsRead = async (notificationId: number) => {
     try {
+      // Tìm notification để kiểm tra trạng thái
+      const notification = notifications.find(n => n.notificationId === notificationId)
+      
+      // Chỉ gọi API nếu notification chưa đọc
+      if (!notification || notification.status !== 'NEW') {
+        return
+      }
+
       const response = await NotificationService.markAsRead(notificationId)
       if (response.success) {
+        // Cập nhật notifications và unread count
         setNotifications(prev => 
           prev.map(n => {
             if (n.notificationId === notificationId && n.status === 'NEW') {
-              // Chỉ giảm unread count nếu notification chưa đọc
-              setUnreadCount(prev => Math.max(0, prev - 1))
               return { ...n, readAt: new Date().toISOString(), status: 'READ' }
             }
             return n
           })
         )
+        
+        // Giảm unread count một cách an toàn
+        setUnreadCount(prev => Math.max(0, prev - 1))
       }
     } catch (error) {
       console.error('Error marking notification as read:', error)
@@ -132,6 +142,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
       .replace(/PENDING/g, 'Chờ xác nhận')
       .replace(/CANCELLED/g, 'Đã hủy')
       .replace(/PAID/g, 'Đã thanh toán')
+  }
+
+  const calculateUnreadCount = (notifications: Notification[]) => {
+    return notifications.filter(n => n.status === 'NEW').length
   }
 
   const toggleDropdown = () => {
@@ -186,7 +200,12 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
                     className={`notification-bell__item ${
                       notification.status === 'NEW' ? 'unread' : ''
                     }`}
-                    onClick={() => markAsRead(notification.notificationId)}
+                    onClick={() => {
+                      // Chỉ mark as read nếu notification chưa đọc
+                      if (notification.status === 'NEW') {
+                        markAsRead(notification.notificationId)
+                      }
+                    }}
                   >
                     <div className="notification-bell__item-content">
                       <div className="notification-bell__item-header">
