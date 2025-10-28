@@ -115,18 +115,7 @@ export const TechnicianTimeSlotService = {
     // Get technician schedule by technician and center
     async getTechnicianScheduleByCenter(technicianId: number, centerId: number): Promise<TechnicianTimeSlotResponse> {
         try {
-            console.log('🌐 Making API request:', {
-                url: `/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`,
-                baseURL: api.defaults.baseURL,
-                fullURL: `${api.defaults.baseURL}/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`,
-                headers: api.defaults.headers
-            })
             const { data } = await api.get<TechnicianTimeSlotResponse>(`/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`)
-            console.log('📡 API Response received:', {
-                status: 200, // Assuming success for logging
-                data: data,
-                headers: {} // Not directly available from Axios response.data
-            })
             return data
         } catch (error: any) {
             console.error('❌ API Error details:', {
@@ -148,7 +137,6 @@ export const TechnicianTimeSlotService = {
     // Get technician details by ID to get centerId
     async getTechnicianById(id: number): Promise<{ success: boolean; data: { id: number; centerId: number; name: string; [key: string]: any } }> {
         try {
-            console.log('🌐 Getting technician details for ID:', id)
             const { data } = await api.get(`/Technician/${id}`)
             console.log('👤 Technician details response:', data)
             return data

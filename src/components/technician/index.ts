@@ -4,7 +4,6 @@ export { default as WorkSchedule } from './WorkSchedule'
 export { default as LeaveRequest } from './LeaveRequest'
 
 // WorkSchedule sub-components (only used ones)
-export { default as WorkScheduleHeader } from './WorkScheduleHeader'
 export { default as WorkScheduleCalendar } from './WorkScheduleCalendar'
 export { default as DayDetailModal } from './DayDetailModal'
 export { default as DayCell } from './DayCell'

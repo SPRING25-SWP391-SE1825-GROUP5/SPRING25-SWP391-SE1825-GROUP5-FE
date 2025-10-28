@@ -58,6 +58,10 @@ const promoSlice = createSlice({
 
     setAvailablePromotions: (state, action: PayloadAction<Promotion[]>) => {
       state.availablePromotions = action.payload
+    },
+
+    clearAllSavedPromotions: (state) => {
+      state.savedPromotions = []
     }
   }
 })
@@ -67,7 +71,8 @@ export const {
   removePromotion,
   savePromotion,
   unsavePromotion,
-  setAvailablePromotions
+  setAvailablePromotions,
+  clearAllSavedPromotions
 } = promoSlice.actions
 
 export default promoSlice.reducer

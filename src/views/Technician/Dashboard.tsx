@@ -1,38 +1,32 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import toast from 'react-hot-toast'
+import { TechnicianService } from '@/services/technicianService'
 import { 
   Wrench, 
-  Clock,
   CheckCircle,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  XCircle,
   AlertCircle,
   User,
   Bell,
   Menu,
-  BarChart3,
   Calendar,
   FileText,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react'
 import {
   WorkQueue,
   WorkSchedule
 } from '@/components/technician'
-import {
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts'
+import BookingDetail from '@/components/technician/BookingDetail'
+import TechnicianProfile from '@/components/technician/TechnicianProfile'
+import NotificationBell from '@/components/common/NotificationBell'
 import './technician.scss'
 import './technician-dashboard.scss'
 
@@ -121,9 +115,9 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
       case 'Cao': return AlertCircle
-      case 'Trung bình': return Clock
+      case 'Trung bình': return CheckCircle
       case 'Thấp': return CheckCircle
-      default: return Clock
+      default: return CheckCircle
     }
   }
 
@@ -186,8 +180,8 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
           <div className="work-detail-modal__content__tabs__nav">
             {[
               { id: 'overview', label: 'Tổng quan', icon: BarChart3 },
-              { id: 'progress', label: 'Tiến độ', icon: Clock },
-              { id: 'time', label: 'Thời gian', icon: Clock },
+              { id: 'progress', label: 'Tiến độ', icon: BarChart3 },
+              { id: 'time', label: 'Thời gian', icon: BarChart3 },
               { id: 'notes', label: 'Ghi chú', icon: FileText }
             ].map(tab => (
               <button
@@ -341,10 +335,96 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
 export default function TechnicianDashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
+  const { user } = useAppSelector((s) => s.auth)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState('work-queue')
   const [selectedWork, setSelectedWork] = useState<any>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null)
+  
+  // State cho thông tin kỹ thuật viên và trung tâm
+  const [technicianInfo, setTechnicianInfo] = useState<any>(null)
+  const [centerInfo, setCenterInfo] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [hasCenter, setHasCenter] = useState(false)
+
+  // Load thông tin kỹ thuật viên khi component mount
+  useEffect(() => {
+    const loadTechnicianInfo = async () => {
+      if (!user?.id) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        
+        // Lấy technicianId từ userId
+        const techInfo = await TechnicianService.getTechnicianIdByUserId(user.id)
+        
+        if (techInfo.success && techInfo.data) {
+          setTechnicianInfo(techInfo.data)
+          
+          
+          // Kiểm tra xem technician có centerId không
+          if (techInfo.data.centerId) {
+            setHasCenter(true)
+            
+            // Lấy thông tin chi tiết về trung tâm từ danh sách technicians của center
+            try {
+              const centerTechnicians = await TechnicianService.getTechniciansByCenter(techInfo.data.centerId)
+              
+              if (centerTechnicians?.success && centerTechnicians?.data?.technicians) {
+                // Tìm technician hiện tại trong danh sách để lấy thông tin center
+                const currentTech = centerTechnicians.data.technicians.find((t: any) => 
+                  t.technicianId === techInfo.data.technicianId || t.userId === user.id
+                )
+                
+                if (currentTech) {
+                  setCenterInfo({
+                    centerId: currentTech.centerId,
+                    centerName: currentTech.centerName || 'Trung tâm chưa có tên'
+                  })
+                } else {
+                  // Fallback: sử dụng thông tin từ techInfo
+                  setCenterInfo({
+                    centerId: techInfo.data.centerId,
+                    centerName: `Trung tâm ${techInfo.data.centerId}`
+                  })
+                }
+              } else {
+                // Fallback: sử dụng thông tin từ techInfo
+                setCenterInfo({
+                  centerId: techInfo.data.centerId,
+                  centerName: `Trung tâm ${techInfo.data.centerId}`
+                })
+              }
+            } catch (centerError) {
+              // Fallback: sử dụng thông tin từ techInfo
+              setCenterInfo({
+                centerId: techInfo.data.centerId,
+                centerName: `Trung tâm ${techInfo.data.centerId}`
+              })
+            }
+          } else {
+            setHasCenter(false)
+            setCenterInfo(null)
+          }
+        } else {
+          setHasCenter(false)
+          setCenterInfo(null)
+        }
+        
+      } catch (error) {
+        toast.error('Không thể tải thông tin kỹ thuật viên')
+        setHasCenter(false)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTechnicianInfo()
+  }, [user?.id])
 
   const handleLogout = () => {
     dispatch(logout())
@@ -352,40 +432,7 @@ export default function TechnicianDashboard() {
     navigate('/auth/login')
   }
 
-  // Dashboard overview data
-  const dashboardData = {
-    workCompleted: [
-      { name: 'T2', value: 4 },
-      { name: 'T3', value: 6 },
-      { name: 'T4', value: 3 },
-      { name: 'T5', value: 8 },
-      { name: 'T6', value: 5 },
-      { name: 'T7', value: 7 },
-      { name: 'CN', value: 2 }
-    ],
-    workTypes: [
-      { name: 'Bảo dưỡng', value: 45, color: '#0088FE' },
-      { name: 'Sửa chữa', value: 30, color: '#00C49F' },
-      { name: 'Thay thế', value: 25, color: '#FFBB28' }
-    ]
-  }
 
-  const stats = [
-    {
-      title: 'Tổng đơn công việc đã nhận',
-      value: 156,
-      change: '+12%',
-      icon: CheckCircle,
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Đánh giá trung bình',
-      value: 4.8,
-      change: '+0.2',
-      icon: User,
-      color: 'var(--primary-500)'
-    }
-  ]
 
 
   // Page components
@@ -395,131 +442,41 @@ export default function TechnicianDashboard() {
         return <WorkQueue onViewDetails={(work) => {
           setSelectedWork(work)
           setIsDetailModalOpen(true)
-        }} />
+        }} onViewBookingDetail={handleViewBookingDetail} />
       case 'work-schedule':
         return <WorkSchedule />
+      case 'booking-detail':
+        return selectedBookingId ? (
+          <BookingDetail 
+            bookingId={selectedBookingId}
+            onBack={handleBackFromBookingDetail}
+          />
+        ) : null
+      case 'profile':
+        return <TechnicianProfile />
       default:
-        return <DashboardOverview />
+        return <WorkQueue onViewDetails={(work) => {
+          setSelectedWork(work)
+          setIsDetailModalOpen(true)
+        }} onViewBookingDetail={handleViewBookingDetail} />
     }
   }
 
-  function DashboardOverview() {
-    return (
-      <div className="dashboard-overview">
-        {/* Welcome Section */}
-        <div className="dashboard-overview__welcome">
-          <div className="dashboard-overview__welcome__decoration dashboard-overview__welcome__decoration--top" />
-          <div className="dashboard-overview__welcome__decoration dashboard-overview__welcome__decoration--bottom" />
-          
-          <div className="dashboard-overview__welcome__content">
-            <h1 className="dashboard-overview__welcome__content__title">
-              Chào mừng trở lại! 👋
-        </h1>
-            <p className="dashboard-overview__welcome__content__subtitle">
-              Hôm nay bạn có 8 công việc đang chờ xử lý
-            </p>
-            <div className="dashboard-overview__welcome__content__meta">
-              <div className="dashboard-overview__welcome__content__meta__item">
-                <Calendar size={16} />
-                <span>{new Date().toLocaleDateString('vi-VN')}</span>
-              </div>
-              <div className="dashboard-overview__welcome__content__meta__item">
-                <Clock size={16} />
-                <span>Ca sáng: 8:00 - 17:00</span>
-              </div>
-            </div>
-          </div>
-      </div>
-
-        {/* Stats Cards */}
-        <div className="dashboard-overview__stats">
-        {stats.map((stat, index) => (
-            <div key={index} className="dashboard-overview__stats__card">
-              <div className="dashboard-overview__stats__card__header">
-                <div 
-                  className="dashboard-overview__stats__card__header__icon"
-                  style={{ background: stat.color + '15' }}
-                >
-                  <stat.icon size={24} style={{ color: stat.color }} />
-              </div>
-                <span className={`dashboard-overview__stats__card__header__change ${
-                  stat.change.startsWith('+') ? 'dashboard-overview__stats__card__header__change--positive' : 'dashboard-overview__stats__card__header__change--negative'
-                }`}>
-                {stat.change}
-                </span>
-              </div>
-              <div className="dashboard-overview__stats__card__value">
-                {stat.value}
-            </div>
-              <div className="dashboard-overview__stats__card__label">
-              {stat.title}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Section */}
-        <div className="dashboard-overview__charts">
-          {/* Work Completed Chart */}
-          <div className="dashboard-overview__charts__card">
-            <h3 className="dashboard-overview__charts__card__title">
-              Công việc hoàn thành tuần này
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={dashboardData.workCompleted}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-              <Area
-                type="monotone"
-                  dataKey="value" 
-                  stroke="var(--primary-500)" 
-                  fill="var(--primary-100)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-          {/* Work Types Pie Chart */}
-          <div className="dashboard-overview__charts__card">
-            <h3 className="dashboard-overview__charts__card__title">
-              Loại công việc
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={dashboardData.workTypes}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {dashboardData.workTypes.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-        </div>
-      </div>
-
-                </div>
-    )
-  }
 
   const getPageTitle = () => {
-    switch (activePage) {
-      case 'dashboard': return 'Dashboard'
-      case 'work-queue': return 'Hàng đợi công việc'
-      case 'work-schedule': return 'Lịch làm việc'
-      default: return 'Dashboard'
-    }
+    return centerInfo?.centerName || 'Dashboard'
   }
+
+  const handleViewBookingDetail = (bookingId: number) => {
+    setSelectedBookingId(bookingId)
+    setActivePage('booking-detail')
+  }
+
+  const handleBackFromBookingDetail = () => {
+    setSelectedBookingId(null)
+    setActivePage('work-queue')
+  }
+
 
   return (
     <div className="technician-dashboard">
@@ -527,30 +484,22 @@ export default function TechnicianDashboard() {
       <div className={`technician-dashboard__sidebar ${sidebarCollapsed ? 'technician-dashboard__sidebar--collapsed' : ''}`}>
           {/* Logo */}
         <div className={`technician-dashboard__sidebar__logo ${sidebarCollapsed ? 'technician-dashboard__sidebar__logo--collapsed' : ''}`}>
-          <div className="technician-dashboard__sidebar__logo__icon">
-            🔧
-            </div>
-            {!sidebarCollapsed && (
-            <div className="technician-dashboard__sidebar__logo__text">
-              <div className="technician-dashboard__sidebar__logo__text__title">
-                Technician
-              </div>
-              <div className="technician-dashboard__sidebar__logo__text__subtitle">
-                Kỹ thuật viên
-              </div>
-              </div>
-            )}
+          <div className="technician-dashboard__sidebar__logo__image">
+             <img 
+               src="/src/assets/images/10.webp" 
+               alt="Logo" 
+               style={{ width: '48px', height: '48px', objectFit: 'contain' }}
+             />
+          </div>
           </div>
 
           {/* Navigation */}
         <div className={`technician-dashboard__sidebar__nav ${sidebarCollapsed ? 'technician-dashboard__sidebar__nav--collapsed' : ''}`}>
-          {/* Main Navigation */}
           <div className="technician-dashboard__sidebar__nav__section">
-            <h3 className={`technician-dashboard__sidebar__nav__section__title ${sidebarCollapsed ? 'technician-dashboard__sidebar__nav__section__title--hidden' : ''}`}>
-                Tổng quan
-              </h3>
             {[
-              { icon: BarChart3, label: 'Dashboard', page: 'dashboard' }
+              { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
+              { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
+              { icon: Settings, label: 'Thông tin cá nhân', page: 'profile' }
             ].map((item, index) => (
               <div 
                 key={index}
@@ -566,32 +515,7 @@ export default function TechnicianDashboard() {
                 {!sidebarCollapsed && <span>{item.label}</span>}
               </div>
             ))}
-            </div>
-
-          {/* Work Navigation */}
-          <div className="technician-dashboard__sidebar__nav__section">
-            <h3 className={`technician-dashboard__sidebar__nav__section__title ${sidebarCollapsed ? 'technician-dashboard__sidebar__nav__section__title--hidden' : ''}`}>
-                Công việc
-              </h3>
-              {[
-                { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
-                { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' }
-              ].map((item, index) => (
-                <div 
-                  key={index}
-                  onClick={() => setActivePage(item.page)}
-                title={sidebarCollapsed ? item.label : ''}
-                className={`technician-dashboard__sidebar__nav__section__item ${
-                  sidebarCollapsed ? 'technician-dashboard__sidebar__nav__section__item--collapsed' : ''
-                } ${
-                  activePage === item.page ? 'technician-dashboard__sidebar__nav__section__item--active' : ''
-                }`}
-              >
-                <item.icon size={18} />
-                {!sidebarCollapsed && <span>{item.label}</span>}
-                </div>
-              ))}
-            </div>
+          </div>
         </div>
 
         {/* Sidebar Toggle */}
@@ -610,25 +534,32 @@ export default function TechnicianDashboard() {
       <div className="technician-dashboard__main">
         {/* Header */}
         <div className="technician-dashboard__main__header">
-          <h2 className="technician-dashboard__main__header__title">
-            {getPageTitle()}
-          </h2>
+          <div className="technician-dashboard__main__header__left">
+            <h2 className="technician-dashboard__main__header__title">
+              {getPageTitle()}
+            </h2>
+            {technicianInfo?.centerName && (
+              <div className="technician-dashboard__main__header__center">
+                <span className="technician-dashboard__main__header__center__name">
+                  {technicianInfo.centerName}
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="technician-dashboard__main__header__actions">
             {/* Notifications */}
-            <div className="technician-dashboard__main__header__actions__notification">
-              <Bell size={18} style={{ color: 'var(--text-secondary)' }} />
-              <div className="technician-dashboard__main__header__actions__notification__badge" />
-            </div>
+            <NotificationBell />
 
             {/* User Profile */}
             <div className="technician-dashboard__main__header__actions__profile" onClick={handleLogout} style={{ cursor: 'pointer' }}>
               <div className="technician-dashboard__main__header__actions__profile__avatar">
-                KT
+                {technicianInfo?.technicianName ? technicianInfo.technicianName.charAt(0).toUpperCase() : 
+                 user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'KT'}
               </div>
               <div className="technician-dashboard__main__header__actions__profile__info">
                 <span className="technician-dashboard__main__header__actions__profile__info__name">
-                  Kỹ thuật viên
+                  {technicianInfo?.technicianName || user?.fullName || 'Kỹ thuật viên'}
                 </span>
                 <span className="technician-dashboard__main__header__actions__profile__info__role">
                   Technician
