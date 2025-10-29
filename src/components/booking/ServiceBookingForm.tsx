@@ -53,6 +53,8 @@ interface LocationTimeInfo {
   date: string
   time: string
   technicianSlotId?: number
+  centerName?: string
+  technicianName?: string
 }
 
 interface AccountInfo {

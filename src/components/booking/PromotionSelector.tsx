@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PromotionService } from '@/services/promotionService'
+import { PromotionBookingService } from '@/services/promotionBookingService'
 import type { Promotion } from '@/types/promotion'
 
 interface PromotionSelectorProps {
@@ -45,30 +46,12 @@ const PromotionSelector: React.FC<PromotionSelectorProps> = ({
   }, [])
 
   const validatePromotion = async (code: string): Promise<PromotionValidationResponse> => {
-    try {
-      // Gọi API trực tiếp để validate promotion
-      const response = await fetch('/api/promotion/validate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: code.trim().toUpperCase(),
-          orderAmount: orderAmount,
-          orderType: 'BOOKING'
-        })
-      })
-
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Lỗi xác thực mã khuyến mãi')
-      }
-
-      return data.data
-    } catch (error: any) {
-      throw new Error(error.message || 'Lỗi xác thực mã khuyến mãi')
+    const payload = {
+      code: code.trim().toUpperCase(),
+      orderAmount: orderAmount,
+      orderType: 'BOOKING' as const,
     }
+    return await PromotionBookingService.validatePromotion(payload)
   }
 
   const handleApplyPromotion = async () => {
@@ -186,7 +169,13 @@ const PromotionSelector: React.FC<PromotionSelectorProps> = ({
         <div className="available-promotions">
           <h4>Mã khuyến mãi có sẵn:</h4>
           <div className="promotion-list">
-            {availablePromotions.slice(0, 3).map((promotion) => (
+            {availablePromotions
+              .filter((promotion) => {
+                // Chỉ hiển thị promotion đủ điều kiện: không có minOrderAmount hoặc minOrderAmount <= orderAmount
+                return !promotion.minOrderAmount || promotion.minOrderAmount <= orderAmount
+              })
+              .slice(0, 3)
+              .map((promotion) => (
               <div key={promotion.promotionId} className="promotion-item">
                 <div className="promotion-details">
                   <span className="promotion-code">{promotion.code}</span>

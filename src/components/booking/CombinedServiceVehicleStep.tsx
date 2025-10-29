@@ -271,9 +271,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       <p className="csv-subheading">Chọn dịch vụ hoặc gói dịch vụ và cung cấp thông tin xe để tiếp tục đặt lịch</p>
       <form onSubmit={handleSubmit} className="csv-grid">
         <div className="csv-section card">
-          <h3 className="csv-section-title">Chọn loại dịch vụ</h3>
           <div className="form-group">
-            <label>Loại dịch vụ *</label>
+            <label>Loại dịch vụ <span className="required-star">*</span></label>
             {categoriesLoading ? (
               <div>Đang tải...</div>
             ) : (
@@ -294,7 +293,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
           {selectedCategoryId && (
             <>
-              <h3 className="csv-section-title">Chọn dịch vụ</h3>
+          <h3 className="csv-section-title">Chọn dịch vụ</h3>
               {servicesLoading && <div>Đang tải dịch vụ...</div>}
               {!servicesLoading && (
                 <div className="service-list">
@@ -485,7 +484,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           <h3 className="csv-section-title">Thông tin xe</h3>
           {/* Select existing vehicle to autofill */}
           <div className="form-group">
-            <label>Chọn xe có sẵn</label>
+            <label>Chọn xe có sẵn<span className="required-star">*</span></label>
             <select
               value={selectedVehicleId || ''}
               onChange={(e) => {
@@ -525,7 +524,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           </div>
           {/* Model selection moved to CreateVehicleModal */}
           <div className="form-group">
-            <label>Số km đã đi</label>
+            <label>Số km đã đi<span className="required-star">*</span></label>
             <input
               type="text"
               value={vehicleData.mileage}
@@ -535,26 +534,54 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
             />
           </div>
           <div className="form-group">
-            <label>Biển số xe *</label>
+            <label>Biển số xe <span className="required-star">*</span></label>
             <input
               type="text"
               value={vehicleData.licensePlate}
               onChange={(e) => onUpdateVehicle({ licensePlate: e.target.value })}
               required
               disabled={isVehicleSelected}
-              style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white' }}
+              style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white', cursor: isVehicleSelected ? 'not-allowed' : 'auto' , pointerEvents: isVehicleSelected ? 'none' : 'auto' , opacity: isVehicleSelected ? 0.5 : 1 , borderColor: isVehicleSelected ? '#e5e7eb' : 'var(--csv-border)' , borderStyle: isVehicleSelected ? 'dashed' : 'solid' , borderWidth: isVehicleSelected ? '1px' : '1px' , borderRadius: isVehicleSelected ? '10px' : '10px' , padding: isVehicleSelected ? '0.7rem .85rem' : '0.7rem .85rem' , maxWidth: isVehicleSelected ? '100%' : '100%' , transition: 'all 0.2s ease' ,}}
             />
           </div>
 
           {/* Fields riêng cho Bảo dưỡng */}
           {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && (
             <div className="form-group">
-              <label>Ngày bảo dưỡng cuối</label>
-              <input
-                type="date"
-                value={vehicleData.lastMaintenanceDate || ''}
-                onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
-              />
+              <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
+              {(() => {
+                const todayStr = new Date().toISOString().split('T')[0]
+                const selectedDate = vehicleData.lastMaintenanceDate || ''
+                const isFuture = !!selectedDate && selectedDate > todayStr
+                return (
+                  <>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
+                      max={todayStr}
+                      required
+                      aria-invalid={isFuture}
+                      style={{
+                        width: '100%',
+                        padding: '14px 16px',
+                        border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        background: '#ffffff',
+                        color: '#111827',
+                        transition: 'all 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    {isFuture && (
+                      <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
+                        Ngày này không thể chọn trong tương lai
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
 
@@ -562,7 +589,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           {selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') && (
             <>
               <div className="form-group">
-                <label>Tình trạng xe *</label>
+                <label>Tình trạng xe <span className="required-star">*</span></label>
                 <textarea
                   value={vehicleData.vehicleCondition || ''}
                   onChange={(e) => onUpdateVehicle({ vehicleCondition: e.target.value })}
@@ -754,6 +781,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .recommendation-warnings { margin: 0.75rem 0; padding: 0.75rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; }
         .warning-item { margin: 0.25rem 0; font-size: 0.85rem; line-height: 1.4; color: #92400e; }
         .recommendation-reason { margin: 0.75rem 0; padding: 0.75rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; font-size: 0.85rem; line-height: 1.4; color: #0369a1; }
+        .required-star { color: #ef4444; margin-left: 4px; }
         
         @media (max-width: 768px) { 
           .csv-grid { grid-template-columns: 1fr; } 

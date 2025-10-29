@@ -4,7 +4,8 @@ import { VehicleService, type Vehicle } from '@/services/vehicleService'
 import api from '@/services/api'
 
 interface VehicleModel {
-  id: number
+  id?: number
+  modelId?: number
   modelName: string
   brand?: string
 }
@@ -63,8 +64,8 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     const loadVehicleModels = async () => {
       setModelsLoading(true)
       try {
-        console.log('Fetching vehicle models from /api/VehicleModel/active...')
-        const response = await api.get('/api/VehicleModel/active')
+        console.log('Fetching vehicle models from /VehicleModel/active...')
+        const response = await api.get('/VehicleModel/active')
         console.log('Vehicle models response:', response)
 
         console.log('Response type:', typeof response.data)
@@ -99,16 +100,8 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
           url: error?.config?.url
         })
         
-        // Fallback: thử endpoint khác nếu /api/VehicleModel/active fail
-        try {
-          console.log('Trying fallback endpoint /VehicleModel/active...')
-          const fallbackResponse = await api.get('/VehicleModel/active')
-          console.log('Fallback response:', fallbackResponse.data)
-          setVehicleModels(fallbackResponse.data || [])
-        } catch (fallbackError: any) {
-          console.error('Fallback also failed:', fallbackError)
-          setVehicleModels([])
-        }
+        // Fallback: không cần gọi lại cùng endpoint; giữ rỗng nếu lỗi
+        setVehicleModels([])
       } finally {
         setModelsLoading(false)
       }
@@ -321,33 +314,36 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         {generalError && <div className="alert-error">{generalError}</div>}
         <div className="grid">
           <label>
-            Model xe *
+            Model xe <span className="required-star">*</span>
             <select 
               value={form.modelId} 
               onChange={(e) => setField('modelId', e.target.value)}
               disabled={modelsLoading}
             >
               <option value="">{modelsLoading ? 'Đang tải...' : 'Chọn model xe'}</option>
-              {vehicleModels.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.brand ? `${model.brand} ${model.modelName}` : model.modelName}
-                </option>
-              ))}
+              {vehicleModels.map((model) => {
+                const optionId = (model as any).modelId ?? model.id
+                return (
+                  <option key={optionId} value={optionId}>
+                    {model.modelName}
+                  </option>
+                )
+              })}
             </select>
             {errors.modelId && <span className="error">{errors.modelId}</span>}
           </label>
           <label>
-            Biển số *
+            Biển số <span className="required-star">*</span>
             <input value={form.licensePlate} onChange={(e) => setField('licensePlate', e.target.value)} />
             {errors.licensePlate && <span className="error">{errors.licensePlate}</span>}
           </label>
           <label>
-            VIN *
+            VIN <span className="required-star">*</span>
             <input value={form.vin} onChange={(e) => setField('vin', e.target.value)} />
             {errors.vin && <span className="error">{errors.vin}</span>}
           </label>
           <label>
-            Màu *
+            Màu <span className="required-star">*</span>
             <select 
               value={form.color} 
               onChange={(e) => setField('color', e.target.value)}
@@ -361,7 +357,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
             {errors.color && <span className="error">{errors.color}</span>}
           </label>
           <label>
-            Số km *
+            Số km <span className="required-star">*</span>
             <input type="number" value={form.currentMileage} onChange={(e) => setField('currentMileage', e.target.value)} />
             {errors.currentMileage && <span className="error">{errors.currentMileage}</span>}
           </label>
@@ -386,6 +382,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         select { background-color: #fff; cursor: pointer; }
         select:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1); }
         .error { color: #ef4444; font-size: .75rem; }
+        .required-star { color: #ef4444; margin-left: 4px; }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
         .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: 0.9rem; }
         .actions { display: flex; justify-content: flex-end; gap: 8px; }
