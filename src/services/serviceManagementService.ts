@@ -211,7 +211,9 @@ export const ServiceManagementService = {
       categoryId: params.categoryId
     }
 
+    console.log('Backend params:', backendParams)
     const { data } = await api.get('/Service/active', { params: backendParams })
+    console.log('Raw API response:', data)
     const envelope = data as BackendListEnvelope<BackendServiceListData> | BackendServiceListData
     const payload: BackendServiceListData = (envelope as any)?.data
       ? (envelope as BackendListEnvelope<BackendServiceListData>).data
@@ -223,7 +225,9 @@ export const ServiceManagementService = {
         ? payload.items
         : (Array.isArray(envelope) ? (envelope as unknown as BackendService[]) : [])
 
+    console.log('Raw services list:', rawList)
     const services = (rawList || []).map(mapBackendServiceToService)
+    console.log('Mapped services with category info:', services.map(s => ({ id: s.id, name: s.name })))
 
     return {
       services,

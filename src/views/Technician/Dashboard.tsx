@@ -17,7 +17,8 @@ import {
   Menu,
   Calendar,
   FileText,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react'
 import {
   WorkQueue,

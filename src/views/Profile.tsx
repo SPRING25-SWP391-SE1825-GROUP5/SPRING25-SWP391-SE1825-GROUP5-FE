@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { getCurrentUser, syncFromLocalStorage } from '@/store/authSlice'
 import { AuthService, VehicleService, BookingService } from '@/services'
+import { PromotionBookingService } from '@/services/promotionBookingService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { 
   validateFullName, 
@@ -27,7 +28,14 @@ import {
   CogIcon,
   PlusIcon,
   PencilSquareIcon,
-  TrashIcon
+  TrashIcon,
+  TagIcon,
+  CurrencyDollarIcon,
+  CalendarDaysIcon,
+  SparklesIcon,
+  BookmarkIcon,
+  CheckBadgeIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/outline'
 import { FeedbackCard } from '@/components/feedback'
 import { mockFeedbackService } from '@/data/mockFeedbackData'
@@ -142,6 +150,16 @@ export default function Profile() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
+  // Promotions states
+  const [savedPromotions, setSavedPromotions] = useState<any[]>([])
+  const [promotionsLoading, setPromotionsLoading] = useState(false)
+  const [promotionsError, setPromotionsError] = useState<string | null>(null)
+  
+  // Pagination states for promotions
+  const [currentPromotionPage, setCurrentPromotionPage] = useState(1)
+  const [promotionsPerPage] = useState(10)
+  const [totalPromotions, setTotalPromotions] = useState(0)
+
   const [profileData, setProfileData] = useState<UserProfile>({
     fullName: '',
     email: '',
@@ -176,6 +194,12 @@ export default function Profile() {
   useEffect(() => {
     if (activeTab === 'vehicles') {
       loadVehicles()
+    }
+  }, [activeTab, auth.user?.id])
+
+  useEffect(() => {
+    if (activeTab === 'promo-codes' && auth.user?.id) {
+      loadSavedPromotions()
     }
   }, [activeTab, auth.user?.id])
 
@@ -316,6 +340,43 @@ export default function Profile() {
     } finally {
       setIsLoadingVehicles(false)
     }
+  }
+
+  // Load saved promotions for customer
+  const loadSavedPromotions = async () => {
+    if (!auth.user?.id) {
+      return
+    }
+
+    setPromotionsLoading(true)
+    setPromotionsError(null)
+    
+    try {
+      console.log('Loading saved promotions for customer:', auth.user.id)
+      const promotions = await PromotionBookingService.getCustomerPromotions(auth.user.id)
+      console.log('Saved promotions response:', promotions)
+      
+      setSavedPromotions(promotions || [])
+      setTotalPromotions(promotions?.length || 0)
+    } catch (error: any) {
+      console.error('Error loading saved promotions:', error)
+      setPromotionsError(error.message || 'Không thể tải danh sách mã khuyến mãi')
+      setSavedPromotions([])
+      setTotalPromotions(0)
+    } finally {
+      setPromotionsLoading(false)
+    }
+  }
+
+  // Calculate pagination for promotions
+  const totalPromotionPages = Math.ceil(totalPromotions / promotionsPerPage)
+  const startPromotionIndex = (currentPromotionPage - 1) * promotionsPerPage
+  const endPromotionIndex = startPromotionIndex + promotionsPerPage
+  const currentPromotions = savedPromotions.slice(startPromotionIndex, endPromotionIndex)
+
+  // Handle promotion page change
+  const handlePromotionPageChange = (page: number) => {
+    setCurrentPromotionPage(page)
   }
 
   // Load customerId from current user
@@ -1660,20 +1721,7 @@ export default function Profile() {
                       </div>
                     ) : bookingHistory.length === 0 ? (
                       <div className="empty-state">
-                        <div className="empty-illustration">
-                          <ClockIcon className="w-16 h-16 text-gray-400" />
-                        </div>
-                        <h4 className="empty-title">Chưa có lịch sử dịch vụ</h4>
-                        <p className="empty-description">
-                          Bạn chưa sử dụng dịch vụ nào. Hãy đặt lịch để trải nghiệm dịch vụ của chúng tôi!
-                        </p>
-                        {/* Debug info */}
-                        <div style={{marginTop: '20px', padding: '10px', background: '#f0f0f0', borderRadius: '5px'}}>
-                          <p><strong>Debug Info:</strong></p>
-                          <p>bookingHistory.length: {bookingHistory.length}</p>
-                          <p>isLoadingBookingHistory: {isLoadingBookingHistory.toString()}</p>
-                          <p>customerId: {customerId}</p>
-                        </div>
+                        <p className="empty-title">Chưa có lịch sử dịch vụ</p>
                       </div>
                     ) : (
                       <div className="booking-history-list">
@@ -1718,10 +1766,110 @@ export default function Profile() {
               <div className="tab-content">
                 <BaseCard>
                 <div className="card-header">
-                    <h3 className="card-title">Mã khuyến mãi</h3>
+                    <h3 className="card-title">Mã khuyến mãi đã lưu</h3>
                     </div>
                   <div className="card-body">
-                    <p>Danh sách mã khuyến mãi sẽ được hiển thị ở đây.</p>
+                    {promotionsLoading ? (
+                      <div className="loading-state">
+                        <div className="spinner"></div>
+                        <p>Đang tải danh sách mã khuyến mãi...</p>
+                      </div>
+                    ) : promotionsError ? (
+                      <div className="error-state">
+                        <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
+                        <p className="text-red-600">{promotionsError}</p>
+                        <BaseButton 
+                          onClick={loadSavedPromotions}
+                          className="mt-4"
+                        >
+                          Thử lại
+                        </BaseButton>
+                      </div>
+                    ) : savedPromotions.length === 0 ? (
+                      <div className="empty-state">
+                        <GiftIcon className="w-12 h-12 text-gray-400" />
+                        <p className="text-gray-600">Bạn chưa lưu mã khuyến mãi nào</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Hãy truy cập trang "Ưu đãi & Khuyến mãi" để lưu các mã khuyến mãi yêu thích
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="promotions-list">
+                          {currentPromotions.map((promotion, index) => (
+                          <div key={index} className="promotion-item">
+                            <div className="promotion-bookmark-icon">
+                              <BookmarkIcon className="w-6 h-6" style={{ color: '#10b981', fill: '#10b981' }} />
+                            </div>
+                            <div className="promotion-info">
+                              <div className="promotion-main">
+                                <span className="promotion-code">{promotion.code}</span>
+                                <span className={`promotion-status status-${promotion.status?.toLowerCase()}`}>
+                                  {promotion.status === 'SAVED' ? 'Đã lưu' : 
+                                   promotion.status === 'APPLIED' ? 'Đã áp dụng' :
+                                   promotion.status === 'USED' ? 'Đã sử dụng' : 
+                                   promotion.status}
+                                </span>
+                              </div>
+                              <div className="promotion-details">
+                                <span className="promotion-description">{promotion.description}</span>
+                                {promotion.discountAmount > 0 && (
+                                  <span className="promotion-discount">
+                                    Giảm {promotion.discountAmount.toLocaleString('vi-VN')} VNĐ
+                                  </span>
+                                )}
+                                {promotion.endDate && (
+                                  <span className="promotion-date">
+                                    Hết hạn: {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        </div>
+                        
+                        {/* Pagination */}
+                        {totalPromotionPages > 1 && (
+                          <div className="promotion-pagination">
+                            <div className="pagination-info">
+                              <span>
+                                Hiển thị {startPromotionIndex + 1}-{Math.min(endPromotionIndex, totalPromotions)} trong {totalPromotions} mã khuyến mãi
+                              </span>
+                            </div>
+                            <div className="pagination-controls">
+                              <button
+                                onClick={() => handlePromotionPageChange(currentPromotionPage - 1)}
+                                disabled={currentPromotionPage === 1}
+                                className="pagination-btn"
+                              >
+                                Trước
+                              </button>
+                              
+                              <div className="pagination-numbers">
+                                {Array.from({ length: totalPromotionPages }, (_, i) => i + 1).map(page => (
+                                  <button
+                                    key={page}
+                                    onClick={() => handlePromotionPageChange(page)}
+                                    className={`pagination-number ${currentPromotionPage === page ? 'active' : ''}`}
+                                  >
+                                    {page}
+                                  </button>
+                                ))}
+                              </div>
+                              
+                              <button
+                                onClick={() => handlePromotionPageChange(currentPromotionPage + 1)}
+                                disabled={currentPromotionPage === totalPromotionPages}
+                                className="pagination-btn"
+                              >
+                                Sau
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                 </div>
               </BaseCard>
               </div>

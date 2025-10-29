@@ -61,6 +61,15 @@ export default function TechnicianProfile() {
     confirmPassword?: string
   }>({})
 
+  // Helper functions for notifications
+  const setSuccess = (message: string) => {
+    setPopup({ message, type: 'success' })
+  }
+
+  const setError = (message: string) => {
+    setPopup({ message, type: 'error' })
+  }
+
   useEffect(() => {
     loadProfile()
   }, [])

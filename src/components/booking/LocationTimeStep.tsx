@@ -12,6 +12,8 @@ interface LocationTimeInfo {
   time: string
   technicianSlotId?: number
   serviceId?: number
+  centerName?: string
+  technicianName?: string
 }
 
 interface LocationTimeStepProps {
@@ -169,7 +171,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         // Tự động chọn trung tâm gần nhất
         if (centersWithDistance.length > 0) {
           const nearestCenter = centersWithDistance[0]
-          onUpdate({ centerId: nearestCenter.id })
+          onUpdate({ centerId: nearestCenter.id, centerName: nearestCenter.name })
         }
         
         // Lấy địa chỉ từ tọa độ (reverse geocoding)
@@ -218,7 +220,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             
             // Auto-select the first (closest) center
             if (fallbackCenters.length > 0) {
-              onUpdate({ centerId: fallbackCenters[0].id })
+              onUpdate({ 
+                centerId: fallbackCenters[0].id,
+                centerName: fallbackCenters[0].name
+              })
             }
             
             setLocationError(null) // Clear error since we have centers to show
@@ -279,7 +284,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         
         // Tự động chọn chi nhánh gần nhất
         if (result.selectedCenter) {
-          onUpdate({ centerId: String(result.selectedCenter.centerId) })
+              onUpdate({ 
+                centerId: String(result.selectedCenter.centerId),
+                centerName: result.selectedCenter.centerName
+              })
         }
       }
     } catch (error) {
@@ -688,7 +696,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           <label>Trung tâm gần bạn *</label>
           <select
             value={data.centerId}
-            onChange={(e) => onUpdate({ centerId: e.target.value })}
+            onChange={(e) => {
+              const selectedCenter = centers.find(c => c.id === e.target.value)
+              onUpdate({ 
+                centerId: e.target.value,
+                centerName: selectedCenter?.name
+              })
+            }}
             required
           >
             <option value="">Chọn trung tâm</option>
@@ -841,7 +855,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           </div>
         </div>
         <div className="form-group lt-calendar">
-          <label>Ngày *</label>
+          <label>Ngày <span className="required-star">*</span></label>
           <div className="calendar">
             <div className="calendar-header">
               <button type="button" className="cal-nav" onClick={() => setMonth(m => m === 0 ? (setYear(y => y - 1), 11) : m - 1)}>&lt;</button>
@@ -893,7 +907,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 key={t.technicianId}
                 type="button"
                 className={`tech-item ${data.technicianId === String(t.technicianId) ? 'selected' : ''}`}
-                onClick={() => onUpdate({ technicianId: String(t.technicianId) })}
+                onClick={() => onUpdate({ 
+                  technicianId: String(t.technicianId),
+                  technicianName: t.userFullName
+                })}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -1095,7 +1112,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                       
                       // Use the correct TechnicianSlotId from the API response
                       onUpdate({ 
-                        time: s.slotTime, 
+                        time: s.slotTime,
+                        technicianName: s.technicianName || data.technicianName, 
                         technicianSlotId: s.technicianSlotId, // Use the actual technicianSlotId from the slot
                         technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
                       })

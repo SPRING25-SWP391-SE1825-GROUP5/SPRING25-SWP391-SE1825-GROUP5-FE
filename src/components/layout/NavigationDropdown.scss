@@ -217,6 +217,25 @@
   color: #1e293b;
 }
 
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Header Icons */
 .header-icon-btn {
   position: relative;
@@ -268,6 +287,8 @@
   border-radius: 10px;
   min-width: 16px;
   text-align: center;
+  border: 2px solid white;
+  animation: pulse 2s infinite;
 }
 
 /* Buttons */

@@ -12,6 +12,8 @@ export interface InventoryPart {
   lastUpdated: string
   isLowStock: boolean
   isOutOfStock: boolean
+  imageUrl?: string
+  isActive?: boolean
 }
 
 export interface InventoryData {
@@ -59,6 +61,12 @@ export interface AddPartToInventoryRequest {
   partId: number
   currentStock: number
   minimumStock: number
+}
+
+export interface AddPartToInventoryResponse {
+  success: boolean
+  message: string
+  data?: any
 }
 
 export interface UpdatePartRequest {

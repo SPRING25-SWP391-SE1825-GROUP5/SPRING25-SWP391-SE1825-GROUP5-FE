@@ -18,6 +18,7 @@ import {
   UserCircle,
   ChevronDown
 } from 'lucide-react'
+import NotificationBell from '@/components/common/NotificationBell'
 import NavigationDropdown, { type MenuItem } from './NavigationDropdown'
 import logo from '@/assets/images/logo-black.webp'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -28,7 +29,6 @@ import toast from 'react-hot-toast'
 const NewAppHeader: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showUserDropdown, setShowUserDropdown] = useState(false)
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
@@ -52,9 +52,6 @@ const NewAppHeader: React.FC = () => {
       const target = event.target as HTMLElement
       if (!target.closest('.user-dropdown-container')) {
         setShowUserDropdown(false)
-      }
-      if (!target.closest('.notification-dropdown-container')) {
-        setShowNotificationDropdown(false)
       }
     }
 
@@ -159,62 +156,10 @@ const NewAppHeader: React.FC = () => {
     <>
       {/* Download App Section - removed as requested */}
 
-      {/* Notification Dropdown - Only show when logged in */}
+      {/* Notification Bell - Only show when logged in */}
       {user && (
-      <div className="notification-dropdown-container">
-        <button 
-          className="header-icon-btn"
-          aria-label="Notifications"
-            onMouseEnter={() => setShowNotificationDropdown(true)}
-            onMouseLeave={() => setShowNotificationDropdown(false)}
-        >
-          <Bell size={20} />
-          <span className="notification-badge">2</span>
-        </button>
-        
-          <div 
-            className={`dropdown notification-dropdown ${showNotificationDropdown ? 'active' : ''}`}
-            onMouseEnter={() => setShowNotificationDropdown(true)}
-            onMouseLeave={() => setShowNotificationDropdown(false)}
-          >
-            {/* Header với tabs */}
-            <div className="notification-header">
-              <div className="notification-tabs">
-                <button className="notification-tab active">Dịch vụ</button>
-                <button className="notification-tab">Hệ thống</button>
-              </div>
-              <button className="mark-all-read">
-                <span>✓</span> Đã đọc
-              </button>
-            </div>
-            
-            {/* Content area */}
-            <div className="notification-content">
-              <div className="notification-item">
-                <div className="notification-text">
-                  <div className="notification-title">Đặt lịch thành công</div>
-                  <div className="notification-time">2 phút trước</div>
-                </div>
-              </div>
-              
-              <div className="notification-item">
-                <div className="notification-text">
-                  <div className="notification-title">Nhắc nhở bảo dưỡng</div>
-                  <div className="notification-time">1 giờ trước</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Footer */}
-            <div className="notification-footer">
-              <button className="view-all-btn">
-                Xem toàn bộ
-                <ChevronDown size={16} />
-              </button>
-            </div>
-            </div>
-          </div>
-        )}
+        <NotificationBell />
+      )}
             
       {/* Shopping Cart - Only show when logged in */}
       {user && (
