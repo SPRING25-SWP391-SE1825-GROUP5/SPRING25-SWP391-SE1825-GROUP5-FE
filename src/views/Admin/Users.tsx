@@ -88,20 +88,40 @@ export default function Users() {
   const [openRoleMenu, setOpenRoleMenu] = useState(false);
   const [openStatusMenu, setOpenStatusMenu] = useState(false);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
+  const [openAddFilterMenu, setOpenAddFilterMenu] = useState(false);
+  type AddedFilter = { id: number; type: 'status' | 'role' | 'verified' | 'sort'; value: any; label: string };
+  const [addedFilters, setAddedFilters] = useState<AddedFilter[]>([]);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const roleRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
+  const addFilterRef = useRef<HTMLDivElement | null>(null);
+  const nextFilterId = useRef(1);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (roleRef.current && !roleRef.current.contains(e.target as Node)) setOpenRoleMenu(false);
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) setOpenStatusMenu(false);
       if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setOpenPageSizeMenu(false);
+      if (addFilterRef.current && !addFilterRef.current.contains(e.target as Node)) setOpenAddFilterMenu(false);
     };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+  const addFilterPill = (type: AddedFilter['type'], value: any, label: string) => {
+    setAddedFilters(prev => {
+      // không thêm trùng cùng type+value
+      if (prev.some(f => f.type === type && String(f.value) === String(value))) return prev;
+      let next = [...prev];
+      // Loại trừ trường hợp verified true/false cùng lúc: giữ cái mới, bỏ cái cũ
+      if (type === 'verified') {
+        next = next.filter(f => f.type !== 'verified');
+      }
+      return [...next, { id: nextFilterId.current++, type, value, label }];
+    });
+    setOpenAddFilterMenu(false);
+  };
+  const removeFilterPill = (id: number) => setAddedFilters(prev => prev.filter(f => f.id !== id));
 
   // Force page background to white while on Admin Users
   useEffect(() => {
@@ -140,9 +160,15 @@ export default function Users() {
       const params: any = {
         pageNumber,
         pageSize,
-        role: filterRole !== "all" ? filterRole : undefined,
-        isActive: filterStatus !== "all" ? filterStatus === "active" : undefined,
-        sortBy,
+        // Ưu tiên các filter pill; nếu không có, dùng state mặc định
+        role: (addedFilters.find(f=>f.type==='role')?.value || (filterRole !== 'all' ? filterRole : undefined)) as any,
+        isActive: ((): any => {
+          const st = addedFilters.find(f=>f.type==='status')?.value as string | undefined;
+          if (st) return st === 'active';
+          return filterStatus !== 'all' ? filterStatus === 'active' : undefined;
+        })(),
+        emailVerified: addedFilters.find(f=>f.type==='verified')?.value as boolean | undefined,
+        sortBy: (addedFilters.find(f=>f.type==='sort')?.value as string | undefined) || sortBy,
         sortOrder,
       };
 
@@ -203,8 +229,9 @@ export default function Users() {
       }
 
       setUsers(users as unknown as AdminUser[]);
-      setTotalPages(res.data?.totalPages || 1);
-      setTotalCount(res.data?.total || 0);
+      const count = (res.data?.total ?? users.length) as number;
+      setTotalCount(count);
+      setTotalPages(res.data?.totalPages || Math.max(1, Math.ceil(count / pageSize)));
     } catch (err: any) {
       setError(err.message || "Không thể tải danh sách người dùng");
     } finally {
@@ -525,7 +552,7 @@ export default function Users() {
           <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
           <div className="toolbar-sep" />
       </div>
-        <div className="toolbar-right" style={{ flex: 1 }}>
+          <div className="toolbar-right" style={{ flex: 1 }}>
           <div className="toolbar-search">
             <div className="search-wrap">
               <Search size={14} className="icon" />
@@ -558,7 +585,7 @@ export default function Users() {
                 </div>
               </div>
             </div>
-        <div className="toolbar-filters">
+          <div className="toolbar-filters" style={{ display:'flex', alignItems:'center', gap:8 }}>
           <div className="pill-select" ref={roleRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenRoleMenu(v=>!v); }}>
             <Shield size={14} className="icon" />
             <button type="button" className="pill-trigger">{roles.find(r=>r.value===filterRole)?.label}</button>
@@ -589,7 +616,31 @@ export default function Users() {
               </ul>
             )}
           </div>
-          <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
+            {/* Các pill filter được thêm động: đặt giữa filter mặc định và nút thêm */}
+            {addedFilters.map(f => (
+              <span key={f.id} className="toolbar-chip" style={{ display:'inline-flex', alignItems:'center' }}>
+                {f.label}
+                <button type="button" style={{ marginLeft:6, border:'none', background:'transparent', cursor:'pointer', color:'var(--text-tertiary)' }} onClick={()=>removeFilterPill(f.id)}>×</button>
+              </span>
+            ))}
+          <div ref={addFilterRef} style={{ position:'relative' }}>
+            <button type="button" className="toolbar-chip" onClick={() => setOpenAddFilterMenu(v=>!v)}><Plus size={14} /> Thêm bộ lọc</button>
+            {openAddFilterMenu && (
+              <div style={{ position:'absolute', top:'36px', left:0, width:320, background:'#fff', border:'1px solid rgba(226,232,240,.9)', borderRadius:12, boxShadow:'0 8px 16px rgba(0,0,0,.10)', zIndex:50 }}>
+                <ul style={{ listStyle:'none', margin:0, padding:'6px 0 10px' }}>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('verified',true,'Xác thực email: Đã xác thực')}>
+                    <ShieldCheckIcon width={16} height={16} /> Xác thực email: Đã xác thực
+                  </li>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('verified',false,'Xác thực email: Chưa xác thực')}>
+                    <Clock width={16} height={16} /> Xác thực email: Chưa xác thực
+                  </li>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('sort','createdAt','Sắp xếp: Ngày tạo')}>
+                    <Calendar width={16} height={16} /> Sắp xếp: Ngày tạo
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
           </div>
       </div>
 
@@ -648,7 +699,11 @@ export default function Users() {
             </p>
           </div>
         ) : (
-          <div style={{ overflow: 'auto' }}>
+          <>
+            <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
+              Tổng số người dùng: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{totalCount}</strong>
+            </div>
+            <div style={{ overflow: 'auto' }}>
             <table className="users-table" style={{
               width: '100%',
               borderCollapse: 'collapse',
@@ -749,12 +804,14 @@ export default function Users() {
                 {users.map((u, i) => (
                   <tr 
                     key={u.userId}
+                    onClick={() => handleViewUser(u)}
                     style={{
                       borderBottom: i < users.length - 1 ? '1px solid var(--border-primary)' : 'none',
                       transition: 'all 0.3s ease',
                       background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
                       transform: 'translateY(0)',
                       boxShadow: 'none',
+                      cursor: 'pointer',
                       animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards`,
                       opacity: 0
                     }}
@@ -776,7 +833,7 @@ export default function Users() {
                       fontWeight: 400
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} />
+                        <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} onClick={(e)=>e.stopPropagation()} />
                         {((u as any).avatarUrl || u.avatar) ? (
                           <img src={(u as any).avatarUrl || u.avatar || ''} alt={u.fullName || 'user'} className="users-avatar" />
                         ) : (
@@ -909,6 +966,7 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
