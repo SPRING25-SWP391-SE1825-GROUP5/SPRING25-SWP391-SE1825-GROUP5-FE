@@ -34,6 +34,8 @@ export default function TechnicianProfile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [popup, setPopup] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [success, setSuccess] = useState<string>('');
+  const [error, setError] = useState<string>('');
   
   // Edit modes
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)

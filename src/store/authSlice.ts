@@ -55,7 +55,6 @@ const loadInitialState = (): AuthState => {
     try {
       user = JSON.parse(userStr)
     } catch (error) {
-      console.error('Error parsing user from localStorage:', error)
       localStorage.removeItem('user')
       localStorage.removeItem('token')
       localStorage.removeItem('authToken')
@@ -141,7 +140,6 @@ const slice = createSlice({
               state.refreshToken = localStorage.getItem('refreshToken')
             }
           } catch (error) {
-            console.error('Error parsing user from localStorage:', error)
             localStorage.removeItem('user')
             localStorage.removeItem('token')
             localStorage.removeItem('authToken')

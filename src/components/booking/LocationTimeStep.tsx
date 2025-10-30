@@ -3,6 +3,7 @@ import { Center, CenterService } from '@/services/centerService'
 import { TechnicianService, TechnicianListItem } from '@/services/technicianService'
 import { LocationService, AddressSuggestion, LocationSearchResult } from '@/services/locationService'
 import api from '@/services/api'
+import { API, PAGINATION } from '@/constants/appConstants'
 
 interface LocationTimeInfo {
   centerId: string
@@ -120,7 +121,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           },
           {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: API.TIMEOUT,
             maximumAge: 300000 // 5 phút
           }
         )
@@ -601,7 +602,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       }
       setLoadingTechs(true)
       try {
-        const res = await TechnicianService.list({ centerId: Number(data.centerId), pageSize: 100 })
+        const res = await TechnicianService.list({ centerId: Number(data.centerId), pageSize: PAGINATION.MAX_PAGE_SIZE })
         setTechnicians(res.technicians || [])
       } catch (_e) {
         setTechnicians([])

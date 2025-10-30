@@ -9,6 +9,7 @@ import TechnicianLayout from '@/components/layout/TechnicianLayout'
 import StaffLayout from '@/components/layout/StaffLayout'
 import ManagerLayout from '@/components/layout/ManagerLayout'
 import RequireAuth from '@/components/routes/RequireAuth'
+import TimeSlotManagement from '../views/Admin/TimeSlotManagement';
 
 // Lazy pages
 const SavartHomepage = lazy(() => import('@/views/SavartHomepage'))
@@ -133,7 +134,7 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<AdminDashboard />) },
       { path: 'users', element: suspense(<Users />) },
       { path: 'reports', element: suspense(<AdminReports />) },
-
+      { path: 'time-slots', element: <RequireAuth><TimeSlotManagement /></RequireAuth> },
     ],
   },
   // Auth routes without header/footer

@@ -7,7 +7,7 @@ import './PaymentMethodSelector.scss'
 import { Service } from '@/services/serviceManagementService'
 import { Vehicle } from '@/services/vehicleService'
 import { Center } from '@/services/centerService'
-import { TimeSlotAvailability, TechnicianAvailability } from '@/services/bookingService'
+// import { TimeSlotAvailability, TechnicianAvailability } from '@/services/bookingService'
 import { PaymentService, PaymentRequest, PaymentMethod } from '@/services/paymentService'
 
 interface BookingConfirmationProps {
@@ -16,8 +16,8 @@ interface BookingConfirmationProps {
   selectedVehicle: Vehicle | null
   selectedCenter: Center | null
   selectedDate: string
-  selectedTimeSlot: TimeSlotAvailability | null
-  selectedTechnician: TechnicianAvailability | null
+  selectedTimeSlot: any | null
+  selectedTechnician: any | null
   notes: string
   onNotesChange: (notes: string) => void
   totalPrice: number

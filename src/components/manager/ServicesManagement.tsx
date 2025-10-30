@@ -1,41 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { 
   Wrench,
-  ClipboardList,
-  DollarSign,
-  CheckCircle,
   Search,
   Plus,
-  Eye,
-  Edit,
   X,
-  RotateCcw,
-  ToggleLeft,
-  ToggleRight,
-  ChevronUp,
-  ChevronDown,
-  Circle,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  RefreshCw
+  LayoutGrid,
+  List as ListIcon,
+  EyeOff,
+  SlidersHorizontal,
+  Download
 } from 'lucide-react'
-import { useAppSelector } from '@/store/hooks'
-import { ServiceManagementService, type Service, type ServiceStats } from '../../services/serviceManagementService'
+import { ServiceManagementService, type Service, type ServiceListParams } from '../../services/serviceManagementService'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import './ServicesManagement.scss'
+import ServicesListTable from './ServicesListTable'
 
-export default function ServicesManagement({ allowCreate = true }: { allowCreate?: boolean }) {
-  // User info for permissions
-  const { user } = useAppSelector((s) => s.auth)
-  const role = (user?.role || '').toLowerCase()
-  const isAdmin = role === 'admin'
-  const canCreate = allowCreate && isAdmin
+export default function ServicesManagement() {
+  // User info không cần dùng trong màn hình này
   
   // State Management
   const [apiServices, setApiServices] = useState<Service[]>([])
-  const [apiServiceStats, setApiServiceStats] = useState<ServiceStats | null>(null)
-  const [serviceCategories, setServiceCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -47,6 +35,16 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false)
+  const [openStatusMenu, setOpenStatusMenu] = useState(false)
+  const [openPriceMenu, setOpenPriceMenu] = useState(false)
+  const [priceRange, setPriceRange] = useState<'all' | 'lt10' | '10to50' | 'gt50'>('all')
+  
+  // Refs for dropdown management
+  const servicePageSizeRef = useRef<HTMLDivElement | null>(null)
+  const statusRef = useRef<HTMLDivElement | null>(null)
+  const priceRef = useRef<HTMLDivElement | null>(null)
   
   // Service detail modal
   const [serviceDetailOpen, setServiceDetailOpen] = useState(false)
@@ -75,13 +73,13 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
   })
 
   // Fetch data functions
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
       // Fetch all services first (without pagination)
-      const params: any = { 
+      const params: ServiceListParams = { 
         pageNumber: 1, 
         pageSize: 1000, // Get all services
         search: serviceSearch
@@ -97,10 +95,29 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
         allServices = allServices.filter(service => service.isActive === isActive)
       }
 
+      // Apply search by name/description (client-side to đảm bảo realtime)
+      if (serviceSearch.trim()) {
+        const term = serviceSearch.trim().toLowerCase()
+        allServices = allServices.filter(s =>
+          (s.name || '').toLowerCase().includes(term) ||
+          (s.description || '').toLowerCase().includes(term)
+        )
+      }
+
+      // Apply price filter
+      if (priceRange !== 'all') {
+        allServices = allServices.filter(s => {
+          const p = s.price || 0
+          if (priceRange === 'lt10') return p < 10000
+          if (priceRange === '10to50') return p >= 10000 && p <= 50000
+          return p > 50000
+        })
+      }
+
       // Apply sorting to all services
       if (allServices.length > 0) {
         allServices = allServices.sort((a, b) => {
-          let aValue: any, bValue: any;
+          let aValue: string | number, bValue: string | number;
           switch (sortBy) {
             case 'name':
               aValue = a.name?.toLowerCase() || '';
@@ -129,6 +146,7 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
       // Calculate total pages
       const calculatedTotalPages = Math.ceil(allServices.length / servicePageSize);
       setTotalPages(calculatedTotalPages);
+      setTotalCount(allServices.length);
       
       // Apply pagination to sorted results
       const startIndex = (servicePage - 1) * servicePageSize;
@@ -136,32 +154,15 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
       const paginatedServices = allServices.slice(startIndex, endIndex);
       
       setApiServices(paginatedServices)
-    } catch (err: any) {
-      setError('Không thể tải danh sách dịch vụ: ' + (err.message || 'Unknown error'))
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError('Không thể tải danh sách dịch vụ: ' + msg)
       console.error('Lỗi khi tải dịch vụ:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [serviceSearch, serviceStatus, sortBy, sortOrder, servicePage, servicePageSize, priceRange])
 
-  const fetchServiceStats = async () => {
-    try {
-      const stats = await ServiceManagementService.getServiceStats()
-      setApiServiceStats(stats)
-    } catch (err) {
-      console.error('Lỗi khi tải thống kê dịch vụ:', err)
-    }
-  }
-
-
-  const fetchServiceCategories = async () => {
-    try {
-      const categories = await ServiceManagementService.getServiceCategories()
-      setServiceCategories(categories)
-    } catch (err) {
-      console.error('Lỗi khi tải danh mục dịch vụ:', err)
-    }
-  }
 
   const openServiceDetail = async (id: number) => {
     try {
@@ -170,21 +171,23 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
       setServiceDetailOpen(true)
       const detail = await ServiceManagementService.getServiceById(id)
       setSelectedService(detail)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Lỗi khi tải chi tiết dịch vụ:', err)
-      setServiceDetailError('Không thể tải chi tiết dịch vụ: ' + (err.message || 'Unknown error'))
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setServiceDetailError('Không thể tải chi tiết dịch vụ: ' + msg)
     } finally {
       setServiceDetailLoading(false)
     }
   }
 
   const openCreateService = () => {
-    if (!canCreate) return
     setServiceFormMode('create')
     setServiceFormValues({ name: '', description: '', notes: '', price: 0, isActive: true })
     setServiceFormError(null)
     setServiceFormOpen(true)
   }
+
+  // create service flow is controlled elsewhere; removed unused helper
 
   const openEditService = (s: Service) => {
     setServiceFormMode('update')
@@ -244,9 +247,10 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
       
       setServiceFormOpen(false)
       await fetchServices() // Refresh the list
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Lỗi khi gửi form dịch vụ:', err)
-      setServiceFormError(`Không thể lưu dịch vụ: ${err.message || 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setServiceFormError(`Không thể lưu dịch vụ: ${msg}`)
     } finally {
       setServiceFormSubmitting(false)
     }
@@ -260,9 +264,10 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
         const updated = await ServiceManagementService.getServiceById(id)
         setSelectedService(updated)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Lỗi khi chuyển trạng thái dịch vụ:', err)
-      alert(`Không thể cập nhật trạng thái dịch vụ: ${err.message || 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      alert(`Không thể cập nhật trạng thái dịch vụ: ${msg}`)
     }
   }
 
@@ -276,27 +281,32 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
     setServicePage(1);
   };
 
-  const getSortIcon = (field: string) => {
-    if (sortBy !== field) {
-      return <ChevronUp size={14} style={{ opacity: 0.3 }} />;
-    }
-    return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
-  };
+  // icon sort chỉ dùng trong bảng mới nếu cần, hiện tại bỏ tại cột Tên dịch vụ để tránh reload
 
-  const statusOptions = [
-    { value: "all", label: "Tất cả trạng thái" },
-    { value: "active", label: "Hoạt động" },
-    { value: "inactive", label: "Không hoạt động" },
-  ];
+  // statusOptions không còn cần vì đã render trực tiếp trong dropdown
+
+  // Click outside handler for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (servicePageSizeRef.current && !servicePageSizeRef.current.contains(e.target as Node)) {
+        setOpenPageSizeMenu(false);
+      }
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setOpenStatusMenu(false);
+      }
+      if (priceRef.current && !priceRef.current.contains(e.target as Node)) {
+        setOpenPriceMenu(false);
+      }
+    };
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Load data on component mount and when filters change
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([
-          fetchServices(),
-          fetchServiceStats()
-        ])
+        await fetchServices()
       } catch (err) {
         console.error('Lỗi khi tải dữ liệu dịch vụ:', err)
         setError('Không thể tải dữ liệu dịch vụ')
@@ -304,40 +314,14 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
     }
     
     loadData()
-  }, [servicePage, servicePageSize, serviceSearch, serviceStatus, sortBy, sortOrder])
+  }, [fetchServices])
 
-  // Service stats for display
-  const serviceStatsArray = apiServiceStats ? [
-    {
-      title: 'Tổng số dịch vụ',
-      value: apiServiceStats.totalServices.toString(),
-      change: apiServiceStats.change,
-      changeType: apiServiceStats.changeType,
-      icon: Wrench,
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Đang hoạt động',
-      value: apiServiceStats.activeServices.toString(),
-      change: apiServiceStats.change,
-      changeType: apiServiceStats.changeType,
-      icon: Circle,
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Ngưng hoạt động',
-      value: apiServiceStats.inactiveServices.toString(),
-      change: apiServiceStats.change,
-      changeType: apiServiceStats.changeType,
-      icon: AlertCircle,
-      color: 'var(--error-500)'
-    }
-  ] : []
+  // Service stats (hiện chưa dùng trong toolbar)
 
   return (
-    <div style={{ 
+      <div className="services-management" style={{ 
       padding: '24px', 
-      background: 'var(--bg-secondary)', 
+      background: '#fff', 
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -385,367 +369,83 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
           </p>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={() => {
-            fetchServices();
-            fetchServiceStats();
-          }} style={{
-            padding: '12px 20px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
-            e.currentTarget.style.background = 'var(--primary-50)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-            e.currentTarget.style.background = 'var(--bg-card)'
-          }}>
-            <RefreshCw size={18} />
-            Làm mới
-          </button>
-        
-        {canCreate && (
-          <button onClick={openCreateService} style={{
-            padding: '12px 24px',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-          }}>
-            <Plus size={18} />
-            Thêm dịch vụ
-          </button>
-        )}
-        </div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} />
       </div>
 
-      {/* Filters */}
-      
-      
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        {apiServiceStats ? serviceStatsArray.map((stat, index) => (
-          <div key={index} style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-            borderRadius: '16px',
-            border: '1px solid var(--border-primary)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '12px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-        borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white'
-              }}>
-                <stat.icon size={20} />
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '14px',
-                  color: 'var(--text-secondary)',
-                  fontWeight: '500'
-                }}>
-                  {stat.title}
-                </div>
-                <div style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: 'var(--text-primary)'
-                }}>
-                  {stat.value}
-                </div>
-              </div>
-            </div>
+      {/* Users Toolbar */}
+      <div className="users-toolbar">
+        <div className="toolbar-top">
+          <div className="toolbar-left">
+            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
+            <button type="button" className="toolbar-chip is-active"><LayoutGrid size={14} /> Bảng điều khiển</button>
+            <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+            <div className="toolbar-sep" />
           </div>
-        )) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-            Đang tải thống kê dịch vụ...
-          </div>
-        )}
-      </div>
-
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-          alignItems: 'end'
-        }}>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px',
-            }}>
-              Tìm kiếm
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: 'var(--text-tertiary)' 
-              }} />
+          <div className="toolbar-right" style={{ flex: 1 }}>
+            <div className="toolbar-search">
+              <div className="search-wrap">
+                <Search size={14} className="icon" />
             <input
-              placeholder="Tìm kiếm dịch vụ..."
+                  placeholder="Tìm dịch vụ theo tên" 
               value={serviceSearch}
-              onChange={(e) => { setServicePage(1); setServiceSearch(e.target.value) }}
-              style={{
-                  width: '100%',
-                  padding: '12px 12px 12px 40px',
-                border: '2px solid var(--border-primary)',
-                  borderRadius: '10px',
-                  background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--primary-500)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--border-primary)'
-                  e.target.style.boxShadow = 'none'
-                }}
+                  onChange={(e) => setServiceSearch(e.target.value)}
               />
             </div>
+            </div>
+            <div className="toolbar-actions">
+              <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
+              <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
+              <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
+              <button type="button" className="toolbar-adduser accent-button" onClick={() => openCreateService()}>
+                <Plus size={14} /> Thêm dịch vụ
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="toolbar-filters">
+          {/* Trạng thái */}
+          <div className="pill-select" ref={statusRef} onClick={(e) => { e.stopPropagation(); setOpenStatusMenu(v => !v); setOpenPriceMenu(false); }}>
+            <button type="button" className="pill-trigger">{serviceStatus === 'all' ? 'Tất cả trạng thái' : serviceStatus === 'active' ? 'Hoạt động' : 'Không hoạt động'}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
+            {openStatusMenu && (
+              <ul className="pill-menu show">
+                {[{v:'all',t:'Tất cả trạng thái'},{v:'active',t:'Hoạt động'},{v:'inactive',t:'Không hoạt động'}].map(opt => (
+                  <li key={opt.v} className={`pill-item ${serviceStatus === opt.v ? 'active' : ''}`}
+                      onClick={() => { setServiceStatus(opt.v as 'all'|'active'|'inactive'); setServicePage(1); setOpenStatusMenu(false); }}>
+                    {opt.t}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Trạng thái
-            </label>
-            <select
-              value={serviceStatus}
-              onChange={(e) => { setServicePage(1); setServiceStatus(e.target.value) }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+          {/* Khoảng giá */}
+          <div className="pill-select" ref={priceRef} onClick={(e) => { e.stopPropagation(); setOpenPriceMenu(v => !v); setOpenStatusMenu(false); }}>
+            <button type="button" className="pill-trigger">{priceRange === 'all' ? 'Tất cả giá' : priceRange === 'lt10' ? '< 10k' : priceRange === '10to50' ? '10k – 50k' : '> 50k'}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
+            {openPriceMenu && (
+              <ul className="pill-menu show">
+                {([
+                  {v:'all',t:'Tất cả giá'},
+                  {v:'lt10',t:'< 10k'},
+                  {v:'10to50',t:'10k – 50k'},
+                  {v:'gt50',t:'> 50k'}
+                ] as {v:'all'|'lt10'|'10to50'|'gt50'; t:string}[]).map(opt => (
+                  <li key={opt.v} className={`pill-item ${priceRange === opt.v ? 'active' : ''}`}
+                      onClick={() => { setPriceRange(opt.v); setServicePage(1); setOpenPriceMenu(false); }}>
+                    {opt.t}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          <div>
-            <button 
-              onClick={() => {
-                setServicePage(1)
-                setServiceSearch('')
-                setServiceStatus('all')
-                setSortBy('name')
-                setSortOrder('asc')
-              }}
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                border: '2px solid var(--border-primary)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--primary-500)'
-                e.currentTarget.style.background = 'var(--primary-50)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.background = 'var(--bg-secondary)'
-              }}
-            >
-              <RotateCcw size={16} />
-              Đặt lại bộ lọc
-            </button>
-          </div>
+          {/* Nút thêm bộ lọc (chưa dùng) */}
+          <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
         </div>
       </div>
       
         {/* Services List */}
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '32px',
-          borderRadius: '20px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: '24px' 
-          }}>
-            <h3 style={{ 
-              fontSize: '20px', 
-              fontWeight: '700', 
-              color: 'var(--text-primary)',
-              margin: '0'
-            }}>
-              Danh sách Dịch vụ
-            </h3>
-            <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <button
-              disabled={servicePage === 1}
-              onClick={() => setServicePage((p) => p - 1)}
-              style={{ 
-                padding: "6px 10px", 
-                borderRadius: "6px",
-                border: "1px solid var(--border-primary)",
-                background: servicePage === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-                color: servicePage === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-                cursor: servicePage === 1 ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: "500",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => {
-                if (servicePage !== 1) {
-                  e.currentTarget.style.background = "var(--primary-50)"
-                  e.currentTarget.style.borderColor = "var(--primary-500)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (servicePage !== 1) {
-                  e.currentTarget.style.background = "var(--bg-card)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }
-              }}
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span style={{
-              padding: "6px 10px",
-              background: "var(--primary-50)",
-              borderRadius: "6px",
-              color: "var(--primary-700)",
-              fontSize: "12px",
-              fontWeight: "600",
-              minWidth: "60px",
-              textAlign: "center"
-            }}>
-              {servicePage} / {totalPages}
-            </span>
-            <button
-              disabled={servicePage === totalPages}
-              onClick={() => setServicePage((p) => p + 1)}
-              style={{ 
-                padding: "6px 10px", 
-                borderRadius: "6px",
-                border: "1px solid var(--border-primary)",
-                background: servicePage === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-                color: servicePage === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-                cursor: servicePage === totalPages ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: "500",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => {
-                if (servicePage !== totalPages) {
-                  e.currentTarget.style.background = "var(--primary-50)"
-                  e.currentTarget.style.borderColor = "var(--primary-500)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (servicePage !== totalPages) {
-                  e.currentTarget.style.background = "var(--bg-card)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }
-              }}
-            >
-              <ChevronRight size={14} />
-            </button>
-            </div>
-          </div>
         
             {loading ? (
               <div style={{ 
@@ -811,571 +511,111 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
                 </p>
               </div>
             ) : (
-          <div style={{ overflow: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <thead>
-                <tr style={{
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  color: 'white',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                }}>
-                  <th 
-                    onClick={() => handleSort('name')}
-                  style={{
-                      padding: '16px 20px',
-                      textAlign: 'left',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Tên dịch vụ
-                      <div style={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                        opacity: sortBy === 'name' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('name')}
-                      </div>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Mô tả
-                  </th>
-                  <th 
-                    onClick={() => handleSort('price')}
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'right',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                    cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                      Giá
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'price' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('price')}
-                      </div>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Trạng thái
-                  </th>
-                  <th 
-                    onClick={() => handleSort('createAt')}
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'center',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      Ngày tạo
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'createAt' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('createAt')}
-                      </div>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {apiServices.map((service, index) => (
-                  <tr 
-                    key={service.id}
-                    style={{
-                      borderBottom: index < apiServices.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                      transition: 'all 0.3s ease',
-                      background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
-                      transform: 'translateY(0)',
-                      boxShadow: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--primary-50)'
-                      e.currentTarget.style.transform = 'translateY(-2px)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
-                      e.currentTarget.style.transform = 'translateY(0)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                  >
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      fontWeight: '600'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
-                          width: '32px',
-                          height: '32px',
-                    background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    flexShrink: 0
-                  }}>
-                          <Wrench size={16} />
-                  </div>
-                      {service.name}
-                      </div>
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)',
-                      maxWidth: '300px'
-                    }}>
-                      <div style={{ 
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        lineHeight: '1.4'
-                    }}>
-                      {service.description}
-                      </div>
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                        fontWeight: '600',
-                      color: 'var(--success-600)',
-                      textAlign: 'right'
-                      }}>
-                        {(service.price || 0).toLocaleString()} VNĐ
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
-                    }}>
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      background: service.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                      color: service.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      border: `1px solid ${service.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
-                      whiteSpace: 'nowrap'
-                    }}>
-                        {service.isActive ? (
-                          <>
-                            <CheckCircle size={12} fill="currentColor" />
-                            Hoạt động
-                          </>
-                        ) : (
-                          <>
-                            <X size={12} fill="currentColor" />
-                            Ngừng hoạt động
-                          </>
-                        )}
-                    </div>
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center'
-                    }}>
-                      {new Date(service.createAt).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '8px', 
-                        justifyContent: 'center',
-                        alignItems: 'center'
-                      }}>
-                    <button
-                      onClick={async (e) => { e.stopPropagation(); openServiceDetail(service.id) }}
-                      style={{
-                        padding: '8px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '8px',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        width: '36px',
-                        height: '36px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--primary-500)'
-                        e.currentTarget.style.background = 'var(--primary-50)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                        e.currentTarget.style.background = 'var(--bg-card)'
-                      }}
-                      title="Xem chi tiết"
-                    >
-                      <Eye size={16} />
-                    </button>
-                        
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openEditService(service) }}
-                      style={{
-                        padding: '8px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '8px',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        width: '36px',
-                        height: '36px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--primary-500)'
-                        e.currentTarget.style.background = 'var(--primary-50)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                        e.currentTarget.style.background = 'var(--bg-card)'
-                      }}
-                      title="Sửa dịch vụ"
-                    >
-                      <Edit size={16} />
-                    </button>
-                        
-                    <button
-                      onClick={async (e) => { e.stopPropagation(); handleToggleServiceStatus(service.id) }}
-                      style={{
-                        padding: '8px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '8px',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease',
-                        width: '36px',
-                        height: '36px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = service.isActive ? 'var(--error-500)' : 'var(--success-500)'
-                        e.currentTarget.style.background = service.isActive ? 'var(--error-50)' : 'var(--success-50)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                        e.currentTarget.style.background = 'var(--bg-card)'
-                      }}
-                          title={service.isActive ? 'Vô hiệu hóa dịch vụ' : 'Kích hoạt dịch vụ'}
-                    >
-                          {service.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                    </button>
-                  </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-                </div>
+              <ServicesListTable
+                services={apiServices}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                onView={(id) => openServiceDetail(id)}
+                onEdit={(s) => openEditService(s)}
+                onToggle={(id) => handleToggleServiceStatus(id)}
+              />
             )}
-          </div>
 
       {/* Enhanced Pagination */}
-      <div style={{
-        marginTop: '24px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: 'var(--bg-card)',
-        padding: '20px 24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        {/* Pagination Controls */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
+      <div className="pagination-controls-bottom">
+        {/* Left: Rows per page + range */}
+        <div className="pagination-info">
+          <span className="pagination-label">Hàng mỗi trang</span>
+          <div className="pill-select" ref={servicePageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
+            <button type="button" className="pill-trigger">{servicePageSize}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
+            {openPageSizeMenu && (
+              <ul className="pill-menu show">
+                {[10, 15, 20, 30, 50].map(sz => (
+                  <li key={sz} className={`pill-item ${servicePageSize === sz ? 'active' : ''}`}
+                      onClick={() => { setServicePageSize(sz); setServicePage(1); setOpenPageSizeMenu(false); }}>
+                    {sz}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <span className="pagination-range">
+            {(() => {
+              const start = (servicePage - 1) * servicePageSize + 1;
+              const end = start + apiServices.length - 1;
+              return totalCount > 0 ? `${start}–${end} của ${totalCount} hàng` : `${start}–${end}`;
+            })()}
+          </span>
+          </div>
+
+        {/* Right: Pagination Controls */}
+        <div className="pagination-right-controls">
           {/* First Page */}
             <button
+            type="button"
               disabled={servicePage === 1}
             onClick={() => setServicePage(1)}
-              style={{
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: servicePage === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: servicePage === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: servicePage === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (servicePage !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (servicePage !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+            className={`pager-btn ${servicePage === 1 ? 'is-disabled' : ''}`}
           >
             <ChevronsLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Đầu</span>
+            <span>Đầu</span>
             </button>
 
           {/* Previous Page */}
             <button
+            type="button"
             disabled={servicePage === 1}
             onClick={() => setServicePage((p) => p - 1)}
-              style={{
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: servicePage === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: servicePage === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: servicePage === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (servicePage !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (servicePage !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+            className={`pager-btn ${servicePage === 1 ? 'is-disabled' : ''}`}
           >
             <ChevronLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Trước</span>
+            <span>Trước</span>
             </button>
 
           {/* Page Numbers */}
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            margin: '0 8px'
-          }}>
+        <div className="pager-pages">
             {(() => {
               const pages = [];
-              const maxVisible = 5;
-              let startPage = Math.max(1, servicePage - Math.floor(maxVisible / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-              
-              if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
 
-              // First page + ellipsis
-              if (startPage > 1) {
+              // First page + static ellipsis like Users
                 pages.push(
                   <button
                     key={1}
+                    type="button"
                     onClick={() => setServicePage(1)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
+                    className={`pager-btn ${servicePage === 1 ? 'is-active' : ''}`}
                   >
                     1
                   </button>
                 );
-                if (startPage > 2) {
-                  pages.push(
-                    <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-              }
-
-              // Visible pages
-              for (let i = startPage; i <= endPage; i++) {
+              // Always show page 2 if exists
+              if (totalPages >= 2) {
                 pages.push(
                   <button
-                    key={i}
-                    onClick={() => setServicePage(i)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: i === servicePage ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
-                      background: i === servicePage ? "var(--primary-50)" : "var(--bg-card)",
-                      color: i === servicePage ? "var(--primary-700)" : "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: i === servicePage ? "600" : "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      if (i !== servicePage) {
-                        e.currentTarget.style.background = "var(--primary-50)"
-                        e.currentTarget.style.borderColor = "var(--primary-500)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (i !== servicePage) {
-                        e.currentTarget.style.background = "var(--bg-card)"
-                        e.currentTarget.style.borderColor = "var(--border-primary)"
-                      }
-                    }}
+                    key={2}
+                    type="button"
+                    onClick={() => setServicePage(2)}
+                    className={`pager-btn ${servicePage === 2 ? 'is-active' : ''}`}
                   >
-                    {i}
-          </button>
+                    2
+                  </button>
                 );
               }
+              // Static ellipsis when more than 3 pages
+              if (totalPages > 3) {
+                pages.push(<span key="ellipsis-static" className="pager-ellipsis">…</span>);
+              }
 
-              // Last page + ellipsis
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
+              // Always show last page (5 in hình 1)
+              if (totalPages >= 3) {
                 pages.push(
                   <button
                     key={totalPages}
+                    type="button"
                     onClick={() => setServicePage(totalPages)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
+                    className={`pager-btn ${servicePage === totalPages ? 'is-active' : ''}`}
                   >
                     {totalPages}
                   </button>
@@ -1388,71 +628,23 @@ export default function ServicesManagement({ allowCreate = true }: { allowCreate
 
           {/* Next Page */}
           <button
-            disabled={servicePage === totalPages}
+            type="button"
+            disabled={servicePage === totalPages || totalPages === 0}
             onClick={() => setServicePage((p) => p + 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: servicePage === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: servicePage === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: servicePage === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (servicePage !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (servicePage !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+            className={`pager-btn ${servicePage === totalPages || totalPages === 0 ? 'is-disabled' : ''}`}
           >
-            <span style={{ marginRight: '4px' }}>Sau</span>
+            <span>Sau</span>
             <ChevronRight size={16} />
           </button>
 
           {/* Last Page */}
           <button
-            disabled={servicePage === totalPages}
+            type="button"
+            disabled={servicePage === totalPages || totalPages === 0}
             onClick={() => setServicePage(totalPages)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: servicePage === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: servicePage === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: servicePage === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (servicePage !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (servicePage !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+            className={`pager-btn ${servicePage === totalPages || totalPages === 0 ? 'is-disabled' : ''}`}
           >
-            <span style={{ marginRight: '4px' }}>Cuối</span>
+            <span>Cuối</span>
             <ChevronsRight size={16} />
           </button>
         </div>

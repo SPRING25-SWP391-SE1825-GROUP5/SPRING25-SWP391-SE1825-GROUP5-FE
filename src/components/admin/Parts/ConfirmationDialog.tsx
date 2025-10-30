@@ -1,4 +1,5 @@
 import React from 'react'
+import './ConfirmationDialog.scss'
 
 interface ConfirmationDialogProps {
   isOpen: boolean
@@ -59,87 +60,25 @@ export default function ConfirmationDialog({
   const typeStyles = getTypeStyles()
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '12px',
-        padding: '24px',
-        width: '90%',
-        maxWidth: '400px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          marginBottom: '16px'
-        }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: typeStyles.iconBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            marginRight: '12px'
-          }}>
+    <div className="confirmation-dialog">
+      <div className="confirmation-dialog__content">
+        <div className="confirmation-dialog__header">
+          <div className={`confirmation-dialog__icon-wrapper confirmation-dialog__icon-wrapper--${type}`}>
             {typeStyles.icon}
           </div>
-          <h3 style={{
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#1f2937',
-            margin: 0
-          }}>
+          <h3 className="confirmation-dialog__title">
             {title}
           </h3>
         </div>
 
-        <p style={{
-          fontSize: '14px',
-          color: '#6b7280',
-          margin: '0 0 24px 0',
-          lineHeight: '1.5'
-        }}>
+        <p className="confirmation-dialog__message">
           {message}
         </p>
 
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          justifyContent: 'flex-end'
-        }}>
+        <div className="confirmation-dialog__actions">
           <button
             onClick={onClose}
-            style={{
-              background: '#f3f4f6',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              padding: '8px 16px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#e5e7eb'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#f3f4f6'
-            }}
+            className="confirmation-dialog__button confirmation-dialog__button--cancel"
           >
             {cancelText}
           </button>
@@ -148,23 +87,7 @@ export default function ConfirmationDialog({
               onConfirm()
               onClose()
             }}
-            style={{
-              background: typeStyles.confirmBg,
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '8px 16px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = typeStyles.confirmHoverBg
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = typeStyles.confirmBg
-            }}
+            className={`confirmation-dialog__button confirmation-dialog__button--confirm confirmation-dialog__button--confirm-${type}`}
           >
             {confirmText}
           </button>

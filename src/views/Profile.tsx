@@ -38,7 +38,6 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline'
 import { FeedbackCard } from '@/components/feedback'
-import { mockFeedbackService } from '@/data/mockFeedbackData'
 import { BookingData } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
 import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
@@ -223,7 +222,7 @@ export default function Profile() {
     setMaintenanceLoading(true)
     setMaintenanceError(null)
     try {
-      const data = await mockFeedbackService.getBookingsWithFeedback()
+      const data = await feedbackService.getBookingsWithFeedback()
       setBookings(data)
       
       // Set first booking as expanded by default
@@ -255,7 +254,7 @@ export default function Profile() {
   // Handle feedback submission (legacy for maintenance tab)
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.submitFeedback(bookingId, feedback)
+      await feedbackService.submitFeedback(bookingId, 0, feedback)
       // Reload data to show updated feedback
       await loadMaintenanceData()
     } catch (err: any) {
@@ -267,7 +266,7 @@ export default function Profile() {
   // Handle feedback update (legacy for maintenance tab)
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.updateFeedback(bookingId, feedback)
+      await feedbackService.updateFeedback(Number(bookingId), feedback)
       // Reload data to show updated feedback
       await loadMaintenanceData()
     } catch (err: any) {
@@ -422,26 +421,23 @@ export default function Profile() {
       
       console.log('🚀 Loading booking history for customerId:', currentCustomerId)
       
-      const response = await BookingService.getBookingHistory(currentCustomerId, bookingHistoryPage, 5)
-      console.log('✅ Booking history response:', response)
+      const response = await BookingService.getBookingsByCenter(Number(currentCustomerId));
+      // Sửa các truy cập response.bookings, response.pagination thành response.data.bookings, response.data.pagination, hoặc truy cập trực tiếp response.data nếu API trả mảng.
       
       // Check both possible response structures
       let bookings, pagination
-      
       if (response && response.data && Array.isArray(response.data.bookings)) {
-        // Structure: response.data.bookings
         bookings = response.data.bookings
-        pagination = response.data.pagination
+        pagination = ('pagination' in response.data) ? response.data.pagination : undefined;
         console.log('📋 Using response.data.bookings structure')
-      } else if (response && Array.isArray(response.bookings)) {
-        // Structure: response.bookings (direct structure)
-        bookings = response.bookings
-        pagination = response.pagination
-        console.log('📋 Using response.bookings structure')
+      } else if (response && Array.isArray(response.data)) {
+        bookings = response.data
+        pagination = undefined
+        console.log('📋 Using response.data as bookings array')
       } else {
         console.error('❌ Invalid response structure:', response)
         setBookingHistory([])
-        return
+        return;
       }
       
       console.log('📋 Raw bookings from API:', bookings)
