@@ -128,6 +128,7 @@ export default function Profile() {
   const [bookingHistoryPage, setBookingHistoryPage] = useState(1)
   const [bookingHistoryTotalPages, setBookingHistoryTotalPages] = useState(1)
   const [customerId, setCustomerId] = useState<number | null>(null)
+  const HISTORY_PAGE_SIZE = 10
 
   const [vehicleFormData, setVehicleFormData] = useState<CreateVehicleRequest>({
     customerId: 0,
@@ -420,24 +421,20 @@ export default function Profile() {
       }
       
       console.log('🚀 Loading booking history for customerId:', currentCustomerId)
-      
-      const response = await BookingService.getBookingsByCenter(Number(currentCustomerId));
-      // Sửa các truy cập response.bookings, response.pagination thành response.data.bookings, response.data.pagination, hoặc truy cập trực tiếp response.data nếu API trả mảng.
-      
-      // Check both possible response structures
+      // Gọi API khách hàng -> bookings
+      const resp = await CustomerService.getCustomerBookings(Number(currentCustomerId), { pageNumber: bookingHistoryPage, pageSize: 10 })
+
       let bookings, pagination
-      if (response && response.data && Array.isArray(response.data.bookings)) {
-        bookings = response.data.bookings
-        pagination = ('pagination' in response.data) ? response.data.pagination : undefined;
-        console.log('📋 Using response.data.bookings structure')
-      } else if (response && Array.isArray(response.data)) {
-        bookings = response.data
+      if (resp && Array.isArray(resp.data)) {
+        bookings = resp.data
         pagination = undefined
-        console.log('📋 Using response.data as bookings array')
+      } else if (resp && resp.data && Array.isArray((resp as any).data.bookings)) {
+        bookings = (resp as any).data.bookings
+        pagination = (resp as any).data.pagination
       } else {
-        console.error('❌ Invalid response structure:', response)
+        console.error('❌ Invalid customer bookings response:', resp)
         setBookingHistory([])
-        return;
+        return
       }
       
       console.log('📋 Raw bookings from API:', bookings)
@@ -507,7 +504,7 @@ export default function Profile() {
       
       console.log('📊 Final bookings with test feedback:', bookingsWithTestFeedback)
       setBookingHistory(bookingsWithTestFeedback)
-      setBookingHistoryTotalPages(pagination?.totalPages || 1)
+      setBookingHistoryTotalPages(pagination?.totalPages || Math.max(1, Math.ceil(bookingsWithTestFeedback.length / HISTORY_PAGE_SIZE)))
     } catch (error: unknown) {
       console.error('Error loading booking history:', error)
       setBookingHistory([])
@@ -1721,16 +1718,18 @@ export default function Profile() {
                       </div>
                     ) : (
                       <div className="booking-history-list">
-                        {bookingHistory.map((booking: any) => (
-                          <BookingHistoryCard
-                            key={booking.bookingId}
-                            booking={booking}
-                            onFeedback={handleBookingFeedback}
-                            onEditFeedback={handleBookingEditFeedback}
-                          />
-                        ))}
+                        {bookingHistory
+                          .slice((bookingHistoryPage - 1) * HISTORY_PAGE_SIZE, bookingHistoryPage * HISTORY_PAGE_SIZE)
+                          .map((booking: any) => (
+                            <BookingHistoryCard
+                              key={booking.bookingId}
+                              booking={booking}
+                              onFeedback={handleBookingFeedback}
+                              onEditFeedback={handleBookingEditFeedback}
+                            />
+                          ))}
                         
-                        {bookingHistoryTotalPages > 1 && (
+                        {(bookingHistoryTotalPages > 1 || bookingHistory.length > HISTORY_PAGE_SIZE) && (
                           <div className="pagination">
                             <button 
                               className="pagination-btn"
@@ -1740,12 +1739,12 @@ export default function Profile() {
                               Trước
                             </button>
                             <span className="pagination-info">
-                              Trang {bookingHistoryPage} / {bookingHistoryTotalPages}
+                              Trang {bookingHistoryPage} / {Math.max(bookingHistoryTotalPages, Math.ceil(bookingHistory.length / HISTORY_PAGE_SIZE))}
                             </span>
                             <button 
                               className="pagination-btn"
-                              onClick={() => setBookingHistoryPage(prev => Math.min(bookingHistoryTotalPages, prev + 1))}
-                              disabled={bookingHistoryPage === bookingHistoryTotalPages}
+                              onClick={() => setBookingHistoryPage(prev => Math.min(Math.max(bookingHistoryTotalPages, Math.ceil(bookingHistory.length / HISTORY_PAGE_SIZE)), prev + 1))}
+                              disabled={bookingHistoryPage === Math.max(bookingHistoryTotalPages, Math.ceil(bookingHistory.length / HISTORY_PAGE_SIZE))}
                             >
                               Sau
                             </button>
