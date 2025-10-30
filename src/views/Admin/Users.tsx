@@ -36,10 +36,11 @@ import {
   Settings,
 } from "lucide-react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import toast from 'react-hot-toast';
 
 import type { User } from "@/store/authSlice";
 import { UserService } from "@/services";
-import type { CreateUserByAdminRequest } from "@/services/userService";
+// import type { CreateUserByAdminRequest } from "@/services/userService";
 import './Users.scss'
 
 export default function Users() {
@@ -51,21 +52,7 @@ export default function Users() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [createUserForm, setCreateUserForm] = useState<CreateUserByAdminRequest>({
-    fullName: '',
-    email: '',
-    password: '',
-    phoneNumber: '',
-    dateOfBirth: '',
-    gender: 'MALE',
-    address: '',
-    role: 'CUSTOMER',
-    isActive: true,
-    emailVerified: false
-  });
-  const [createUserLoading, setCreateUserLoading] = useState(false);
-  const [createUserError, setCreateUserError] = useState<string | null>(null);
+  // Đã loại bỏ modal tạo người dùng và state liên quan
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -355,13 +342,7 @@ export default function Users() {
   const handleToggleUserStatus = async (user: User) => {
     try {
       const newStatus = !user.isActive;
-      if (newStatus) {
-        await UserService.activateUser(user.userId.toString());
-        
-      } else {
-         await UserService.deactivateUser(user.userId.toString());
-        
-      }
+      await UserService.updateUserStatus(user.userId.toString(), newStatus);
       
       // Update local state
       setUsers(prevUsers => 
@@ -372,7 +353,7 @@ export default function Users() {
         )
       );
       
-      alert(`Trạng thái người dùng "${user.fullName}" đã được ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} thành công!`);
+      toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} người dùng "${user.fullName}"`);
       
     } catch (err: any) {
       console.error('Error toggling user status:', err);
@@ -388,121 +369,11 @@ export default function Users() {
         errorMessage = err.message;
       }
       
-      alert(`Lỗi: ${errorMessage}`);
+      toast.error(`Lỗi: ${errorMessage}`);
     }
   };
 
-  const handleCreateUser = async () => {
-    setCreateUserLoading(true);
-    setCreateUserError(null);
-    
-    try {
-      // Validate required fields
-      if (!createUserForm.fullName.trim()) {
-        setCreateUserError('Vui lòng nhập họ tên');
-        return;
-      }
-      if (!createUserForm.email.trim()) {
-        setCreateUserError('Vui lòng nhập email');
-        return;
-      }
-      if (!createUserForm.password.trim()) {
-        setCreateUserError('Vui lòng nhập mật khẩu');
-        return;
-      }
-      if (!createUserForm.phoneNumber.trim()) {
-        setCreateUserError('Vui lòng nhập số điện thoại');
-        return;
-      }
-      if (!createUserForm.dateOfBirth) {
-        setCreateUserError('Vui lòng chọn ngày sinh');
-        return;
-      }
-      if (!createUserForm.address.trim()) {
-        setCreateUserError('Vui lòng nhập địa chỉ');
-        return;
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(createUserForm.email)) {
-        setCreateUserError('Email không hợp lệ');
-        return;
-      }
-
-      // Phone validation (basic)
-      const phoneRegex = /^[0-9+\-\s()]+$/;
-      if (!phoneRegex.test(createUserForm.phoneNumber)) {
-        setCreateUserError('Số điện thoại không hợp lệ');
-        return;
-      }
-
-      // Password validation
-      if (createUserForm.password.length < 6) {
-        setCreateUserError('Mật khẩu phải có ít nhất 6 ký tự');
-        return;
-      }
-
-      const response = await UserService.createUserByAdmin(createUserForm);
-      console.log('API Response:', {response});
-      
-      // Extract user data from response
-      const newUser = response.data || response;
-      console.log('Extracted User:', {newUser});
-      
-      // Add new user to the list
-      setUsers(prevUsers => [newUser, ...prevUsers]);
-      
-      // Reset form and close modal
-      setCreateUserForm({
-        fullName: '',
-        email: '',
-        password: '',
-        phoneNumber: '',
-        dateOfBirth: '',
-        gender: 'MALE',
-        address: '',
-        role: 'CUSTOMER',
-        isActive: true,
-        emailVerified: false
-      });
-      setShowCreateUserModal(false);
-      
-      // Show success message
-      const userName = newUser?.fullName || newUser?.email || 'người dùng mới';
-      alert(`Tạo người dùng ${userName} thành công!`);
-      
-      // Refresh stats
-      fetchStats();
-      
-    } catch (err: any) {
-      console.error('Error creating user:', err);
-      
-      let errorMessage = 'Không thể tạo người dùng';
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setCreateUserError(errorMessage);
-    } finally {
-      setCreateUserLoading(false);
-    }
-  };
-
-  const handleCreateUserFormChange = (field: keyof CreateUserByAdminRequest, value: any) => {
-    setCreateUserForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user starts typing
-    if (createUserError) {
-      setCreateUserError(null);
-    }
-  };
+  // Đã xóa handleCreateUser và handleCreateUserFormChange
 
   const handleSearchTypeChange = (newSearchType: string) => {
     setSearchType(newSearchType);
@@ -655,8 +526,8 @@ export default function Users() {
             <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
             <button 
               type="button" 
-              className="accent-button toolbar-adduser" 
-              onClick={() => { setShowCreateUserModal(true); setCreateUserError(null); }}
+              className="accent-button toolbar-adduser"
+              onClick={() => { /* đã bỏ modal tạo người dùng */ }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 216, 117, 0.6), 0 0 40px rgba(255, 216, 117, 0.4)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -687,7 +558,7 @@ export default function Users() {
               </ul>
             )}
           </div>
-          <div className="pill-select" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenRoleMenu(false); setOpenStatusMenu(v=>!v); }}>
+          <div className="pill-select status-filter" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenRoleMenu(false); setOpenStatusMenu(v=>!v); }}>
             <Lock size={14} className="icon" />
             <button type="button" className="pill-trigger">{statuses.find(s=>s.value===filterStatus)?.label}</button>
             <ChevronDownIcon width={16} height={16} className="caret" />
@@ -1017,7 +888,7 @@ export default function Users() {
       <span className="pagination-label">Hàng mỗi trang</span>
       <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
         <button type="button" className="pill-trigger">{pageSize}</button>
-        <ChevronDownIcon width={16} height={16} className="caret" />
+        <ChevronDownIcon width={20} height={20} className="caret caret-lg" />
         {openPageSizeMenu && (
           <ul className="pill-menu show">
             {[10, 15, 20, 30, 50].map(sz => (
@@ -1375,255 +1246,7 @@ export default function Users() {
         </div>
       )}
 
-      {/* Create User Modal */}
-      {showCreateUserModal && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '800px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "24px",
-              paddingBottom: "16px",
-              borderBottom: "1px solid var(--border-primary)"
-            }}>
-              <h3 style={{ 
-                margin: 0,
-                fontSize: "20px",
-                fontWeight: "600",
-                color: "var(--text-primary)"
-              }}>
-                Tạo người dùng mới
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreateUserModal(false);
-                  setCreateUserError(null);
-                }}
-                style={{
-                  padding: "8px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: "var(--bg-secondary)",
-                  cursor: "pointer",
-                  color: "var(--text-secondary)",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--error-50)"
-                  e.currentTarget.style.color = "var(--error-600)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-secondary)"
-                  e.currentTarget.style.color = "var(--text-secondary)"
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Error Alert */}
-            {createUserError && (
-              <div style={{
-                background: 'var(--error-50)',
-                border: '1px solid var(--error-200)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '20px',
-                color: 'var(--error-700)',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <AlertCircle size={16} />
-                {createUserError}
-              </div>
-            )}
-
-            <div className="form-container">
-              {/* Basic Information */}
-              <div className="form-grid-half">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Họ và tên <span className="required-asterisk">*</span>
-                  </label>
-                  <UserIcon size={16} className="form-input-icon" />
-                    <input
-                      type="text"
-                      placeholder="Nhập họ và tên"
-                      value={createUserForm.fullName}
-                      onChange={(e) => handleCreateUserFormChange('fullName', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Email <span className="required-asterisk">*</span>
-                  </label>
-                  <Mail size={16} className="form-input-icon" />
-                    <input
-                      type="email"
-                      placeholder="Nhập email"
-                      value={createUserForm.email}
-                      onChange={(e) => handleCreateUserFormChange('email', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-half">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Mật khẩu <span className="required-asterisk">*</span>
-                  </label>
-                  <Lock size={16} className="form-input-icon" />
-                    <input
-                      type="password"
-                      placeholder="Nhập mật khẩu"
-                      value={createUserForm.password}
-                      onChange={(e) => handleCreateUserFormChange('password', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Số điện thoại <span className="required-asterisk">*</span>
-                  </label>
-                  <Phone size={16} className="form-input-icon" />
-                    <input
-                      type="tel"
-                      placeholder="Nhập số điện thoại"
-                      value={createUserForm.phoneNumber}
-                      onChange={(e) => handleCreateUserFormChange('phoneNumber', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-half">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Ngày sinh <span className="required-asterisk">*</span>
-                  </label>
-                  <CalendarIcon size={16} className="form-input-icon" />
-                    <input
-                      type="date"
-                      value={createUserForm.dateOfBirth}
-                      onChange={(e) => handleCreateUserFormChange('dateOfBirth', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-select-wrapper">
-                  <label className="form-label">
-                    Giới tính
-                  </label>
-                  <select
-                    value={createUserForm.gender}
-                    onChange={(e) => handleCreateUserFormChange('gender', e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="MALE">Nam</option>
-                    <option value="FEMALE">Nữ</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-grid-full">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Địa chỉ <span className="required-asterisk">*</span>
-                </label>
-                  <MapPinIcon size={16} className="form-input-icon" />
-                  <textarea
-                    placeholder="Nhập địa chỉ"
-                    value={createUserForm.address}
-                    onChange={(e) => handleCreateUserFormChange('address', e.target.value)}
-                    rows={3}
-                    className="form-textarea"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-half">
-                <div className="form-select-wrapper">
-                  <label className="form-label">
-                    Vai trò
-                  </label>
-                  <select
-                    value={createUserForm.role}
-                    onChange={(e) => handleCreateUserFormChange('role', e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="CUSTOMER">Khách hàng</option>
-                    <option value="STAFF">Nhân viên</option>
-                    <option value="MANAGER">Quản lí</option>
-                    <option value="TECHNICIAN">Kỹ thuật viên</option>
-                    {/** Bỏ quản trị viên theo yêu cầu */}
-                  </select>
-                </div>
-
-                {/** Bỏ phần trạng thái theo yêu cầu **/}
-              </div>
-            </div>
-
-            <div className="form-modal-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateUserModal(false);
-                  setCreateUserError(null);
-                }}
-                className="form-modal-cancel"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleCreateUser}
-                disabled={createUserLoading}
-                className="form-modal-submit"
-              >
-                {createUserLoading ? (
-                  <>
-                    <div className="loading-spinner" />
-                    Đang tạo...
-                  </>
-                ) : (
-                  <>
-                    <Plus size={16} />
-                    Tạo người dùng
-                  </>
-                )}
-            </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Đã xoá Create User Modal */}
     </div>
   );
 }

@@ -164,7 +164,8 @@ export const UserService = {
    * @throws {Error} When activation fails or unauthorized
    */
   async activateUser(userId: string): Promise<User> {
-    const { data } = await api.patch<User>(`/User/${userId}/activate`)
+    // Deprecated per new API contract; use updateUserStatus instead
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive: true })
     return data
   },
 
@@ -176,7 +177,17 @@ export const UserService = {
    * @throws {Error} When deactivation fails or unauthorized
    */
   async deactivateUser(userId: string): Promise<User> {
-    const { data } = await api.patch<User>(`/User/${userId}/deactivate`)
+    // Deprecated per new API contract; use updateUserStatus instead
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive: false })
+    return data
+  },
+
+  /**
+   * Cập nhật trạng thái hoạt động của người dùng theo API mới
+   * PATCH /api/User/{id}/status
+   */
+  async updateUserStatus(userId: string | number, isActive: boolean): Promise<User> {
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive })
     return data
   },
 
@@ -189,11 +200,7 @@ export const UserService = {
    * @throws {Error} When update fails or unauthorized
    */
   async toggleUserStatus(userId: string, isActive: boolean): Promise<User> {
-    if (isActive) {
-      return this.activateUser(userId)
-    } else {
-      return this.deactivateUser(userId)
-    }
+    return this.updateUserStatus(userId, isActive)
   },
 
   /**

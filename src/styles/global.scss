@@ -306,8 +306,6 @@ table th:first-child {
 .pill-select .pill-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   min-width: 84px;
   height: 36px;
   font-size: 14px;
@@ -341,11 +339,22 @@ table th:first-child {
   padding: 0 18px 0 8px;
 }
 /* Pagination pill giữ lớn như hiện tại */
+.pagination-info .pill-select {
+  width: 38px !important;
+  min-width: 0 !important;
+  max-width: 42px !important;
+}
 .pagination-info .pill-select .pill-trigger {
-  min-width: 84px;
-  height: 36px;
-  font-size: 14px;
-  padding: 0 28px 0 12px;
+  min-width: 0 !important;
+  width: 38px !important;
+  max-width: 42px !important;
+  padding: 0 2px !important;
+  font-size: 13px !important;
+  height: 26px !important;
+  text-align:center !important;
+}
+.pagination-info .pill-trigger .caret {
+  right: 2px !important;
 }
 /* Icon căn trong đúng chuẩn mũi tên cuối bên phải (auto fit) */
 .pill-trigger svg,
