@@ -35,10 +35,25 @@ import {
   AtSign,
   Settings,
 } from "lucide-react";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ShieldCheckIcon, ShieldExclamationIcon } from "@heroicons/react/24/outline";
+import { UserCreateModal } from '@/components/forms'
 import toast from 'react-hot-toast';
 
-import type { User } from "@/store/authSlice";
+// Định nghĩa kiểu người dùng dành riêng cho trang Admin (khác store auth)
+type AdminUser = {
+  userId: number;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  avatarUrl?: string | null;
+  avatar?: string | null;
+  emailVerified?: boolean;
+};
 import { UserService } from "@/services";
 // import type { CreateUserByAdminRequest } from "@/services/userService";
 import './Users.scss'
@@ -50,11 +65,11 @@ export default function Users() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortBy, setSortBy] = useState("fullName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   // Đã loại bỏ modal tạo người dùng và state liên quan
 
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -73,6 +88,7 @@ export default function Users() {
   const [openRoleMenu, setOpenRoleMenu] = useState(false);
   const [openStatusMenu, setOpenStatusMenu] = useState(false);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
   const roleRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
@@ -186,7 +202,7 @@ export default function Users() {
         });
       }
 
-      setUsers(users);
+      setUsers(users as unknown as AdminUser[]);
       setTotalPages(res.data?.totalPages || 1);
       setTotalCount(res.data?.total || 0);
     } catch (err: any) {
@@ -331,15 +347,15 @@ export default function Users() {
     },
   ];
 
-  const handleViewUser = (user: User) => {
+  const handleViewUser = (user: AdminUser) => {
     setSelectedUser(user);
     setShowUserModal(true);
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: AdminUser) => {
   };
 
-  const handleToggleUserStatus = async (user: User) => {
+  const handleToggleUserStatus = async (user: AdminUser) => {
     try {
       const newStatus = !user.isActive;
       await UserService.updateUserStatus(user.userId.toString(), newStatus);
@@ -526,8 +542,8 @@ export default function Users() {
             <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
             <button 
               type="button" 
-              className="accent-button toolbar-adduser"
-              onClick={() => { /* đã bỏ modal tạo người dùng */ }}
+              className="accent-button toolbar-adduser" 
+              onClick={() => setOpenCreateModal(true)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 216, 117, 0.6), 0 0 40px rgba(255, 216, 117, 0.4)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -687,6 +703,17 @@ export default function Users() {
                       <Shield size={16} className="th-icon" /> Vai trò
                     </div>
                   </th>
+                  {/* Email verified column */}
+                  <th
+                    style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                    }}
+                  >
+                    <span className="th-inner"><ShieldCheckIcon width={16} height={16} className="th-icon" /> Xác thực email</span>
+                  </th>
                   <th className="col-status" style={{
                     padding: '16px 20px',
                     textAlign: 'left',
@@ -750,8 +777,8 @@ export default function Users() {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} />
-                        {u.avatar ? (
-                          <img src={u.avatar} alt={u.fullName || 'user'} className="users-avatar" />
+                        {((u as any).avatarUrl || u.avatar) ? (
+                          <img src={(u as any).avatarUrl || u.avatar || ''} alt={u.fullName || 'user'} className="users-avatar" />
                         ) : (
                           <div className="users-avatar users-avatar--fallback">
                           {u.fullName ? u.fullName.charAt(0).toUpperCase() : 'U'}
@@ -779,6 +806,17 @@ export default function Users() {
                       textAlign: 'left'
                     }}>
                       <div className="role-badge">{getRoleLabel(u.role)}</div>
+                    </td>
+                    {/* Email verified cell */}
+                    <td style={{
+                      padding: '8px 12px',
+                      textAlign: 'left'
+                    }}>
+                      {u.emailVerified ? (
+                        <span className="badge badge--enabled"><ShieldCheckIcon width={14} height={14} /> Đã xác thực</span>
+                      ) : (
+                        <span className="badge badge--disabled"><ShieldExclamationIcon width={14} height={14} /> Chưa xác thực</span>
+                      )}
                     </td>
                     <td className="col-status" style={{
                       padding: '8px 12px',
@@ -976,6 +1014,13 @@ export default function Users() {
         </button>
         </div>
       </div>
+
+    {/* Modal tạo người dùng */}
+    <UserCreateModal
+      open={openCreateModal}
+      onClose={() => setOpenCreateModal(false)}
+      onCreate={() => { toast.success('Đã chuẩn bị form, sẽ hoàn thiện ở bước tiếp theo'); setOpenCreateModal(false); }}
+    />
 
       {showUserModal && selectedUser && (
         <div style={{ 

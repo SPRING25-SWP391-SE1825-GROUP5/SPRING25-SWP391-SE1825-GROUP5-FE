@@ -660,4 +660,10 @@
 }
 .users-table tbody tr:first-child::after { content: none; }
 
+/* Email verified badge */
+.badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; font-size:12px; line-height:1; border:1px solid var(--border-primary); }
+.badge svg { width:14px; height:14px; color: var(--text-secondary); }
+.badge--enabled { background:#FFF6D1; border-color:#FFD875; color:var(--text-secondary); }
+.badge--disabled { background:#F3F4F6; border-color:#E5E7EB; color:var(--text-tertiary); }
+
 

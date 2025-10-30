@@ -31,7 +31,19 @@ export type CreateUserRequest = {
 export type CreateUserByAdminRequest = {
   fullName: string
   email: string
-  password: string
+  phoneNumber: string
+  dateOfBirth: string
+  gender: 'MALE' | 'FEMALE'
+  address: string
+  role: 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'MANAGER' | 'TECHNICIAN'
+  isActive: boolean
+  emailVerified: boolean
+}
+
+// Yêu cầu mới: tạo người dùng không cần password, body như đặc tả
+export type CreateUserAdminRequest = {
+  fullName: string
+  email: string
   phoneNumber: string
   dateOfBirth: string
   gender: 'MALE' | 'FEMALE'
@@ -129,6 +141,14 @@ export const UserService = {
   async createUserByAdmin(userData: CreateUserByAdminRequest): Promise<any> {
     const response = await api.post('/User', userData)
     // API returns { data: User, message: string, success: boolean }
+    return response.data
+  },
+
+  /**
+   * API mới: POST /api/User theo body không có password
+   */
+  async createUserAdmin(userData: CreateUserAdminRequest): Promise<any> {
+    const response = await api.post('/User', userData)
     return response.data
   },
 
