@@ -354,14 +354,35 @@ export default function CenterManagement() {
       setDetailModalOpen(true)
       setLoadingDetails(true)
       
-      // Fetch staff and technicians for this center
-      const [staffResponse, technicianResponse] = await Promise.all([
-        StaffService.getStaffList({ centerId: center.centerId, pageSize: 1000 }),
-        TechnicianService.list({ centerId: center.centerId, pageSize: 1000 })
-      ])
-      
-      setCenterStaff(staffResponse.data.staff || [])
-      setCenterTechnicians(technicianResponse.technicians || [])
+      // Dùng API hợp nhất để lấy toàn bộ nhân sự theo center và tách theo role
+      const employeesResp = await StaffService.getCenterEmployees({ centerId: center.centerId, pageSize: 1000 })
+      const employees = (employeesResp as any)?.employees || []
+
+      const staff = employees
+        .filter((e: any) => (e.role || '').toUpperCase() === 'STAFF')
+        .map((e: any) => ({
+          staffId: e.id,
+          userId: e.userId,
+          userFullName: e.fullName,
+          isActive: e.isActive,
+          centerId: e.centerId,
+          centerName: e.centerName,
+        }))
+
+      const technicians = employees
+        .filter((e: any) => (e.role || '').toUpperCase() === 'TECHNICIAN')
+        .map((e: any) => ({
+          technicianId: e.id,
+          userId: e.userId,
+          userFullName: e.fullName,
+          isActive: e.isActive,
+          centerId: e.centerId,
+          centerName: e.centerName,
+          position: e.position,
+        }))
+
+      setCenterStaff(staff)
+      setCenterTechnicians(technicians)
     } catch (err: any) {
       console.error('Error fetching center details:', err)
       alert(`Lỗi khi tải chi tiết trung tâm: ${err.message || 'Unknown error'}`)
