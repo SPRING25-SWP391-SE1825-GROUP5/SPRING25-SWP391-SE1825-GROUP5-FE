@@ -24,11 +24,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
 
     const token = (localStorage.getItem('token')) || ''
     
-    if (authToken) {
+    if (token) {
       loadNotifications()
       
       // Kết nối SignalR (chỉ kết nối nếu chưa kết nối)
-      signalRService.connect(authToken)
+      signalRService.connect(token)
       
       // Đăng ký callback để nhận thông báo real-time (chỉ đăng ký một lần)
       if (!callbacksRegistered.current) {
