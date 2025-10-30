@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { savePromotion, unsavePromotion } from '@/store/promoSlice'
+import { savePromotion, clearAllSavedPromotions } from '@/store/promoSlice'
 import { PromotionService, type Promotion } from '@/services/promotionService'
+import { PromotionBookingService } from '@/services/promotionBookingService'
 import { handleApiError } from '@/utils/errorHandler'
 import toast from 'react-hot-toast'
 import { 
@@ -18,17 +19,20 @@ import {
   Tag,
   ShoppingCart,
   Heart,
-  Star
+  Star,
+  Calendar
 } from 'lucide-react'
 
 export default function Promotions() {
   const dispatch = useAppDispatch()
   const promo = useAppSelector((state) => state.promo)
+  const auth = useAppSelector((state) => state.auth)
   const [searchParams] = useSearchParams()
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [savingPromotion, setSavingPromotion] = useState<string | null>(null)
 
   // Get URL parameters
   const categoryParam = searchParams.get('category')
@@ -60,6 +64,62 @@ export default function Promotions() {
     loadPromotions()
   }, [])
 
+  // Load saved promotions from API when user is logged in
+  useEffect(() => {
+    const loadSavedPromotions = async () => {
+      if (!auth.user?.id) {
+        // Clear saved promotions if user is not logged in
+        return
+      }
+
+      try {
+        console.log('Loading saved promotions for customer:', auth.user.id)
+        const savedPromotions = await PromotionBookingService.getCustomerPromotions(auth.user.id)
+        console.log('API response:', savedPromotions)
+        
+        // Clear existing saved promotions first
+        dispatch(clearAllSavedPromotions())
+        
+        // Convert API response to Redux format and dispatch
+        if (Array.isArray(savedPromotions) && savedPromotions.length > 0) {
+          console.log('Processing', savedPromotions.length, 'saved promotions')
+          savedPromotions.forEach((promo, index) => {
+            console.log(`Processing promotion ${index + 1}:`, promo)
+            
+            // Validate promotion data
+            if (!promo.code || !promo.description) {
+              console.warn('Invalid promotion data:', promo)
+              return
+            }
+            
+            const promotionData = {
+              id: String(promo.code), // Use code as id for consistency with API
+              code: promo.code,
+              title: promo.description,
+              description: promo.description,
+              type: 'percentage' as const, // Default type, could be enhanced
+              value: promo.discountAmount || 0,
+              validFrom: new Date().toISOString(),
+              validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+              isActive: true,
+              usageLimit: 1,
+              usedCount: 0
+            }
+            dispatch(savePromotion(promotionData))
+          })
+        } else {
+          console.log('No saved promotions found or empty response')
+        }
+      } catch (error) {
+        console.error('Error loading saved promotions:', error)
+        // Clear saved promotions on error
+        dispatch(clearAllSavedPromotions())
+      }
+    }
+
+    loadSavedPromotions()
+  }, [auth.user?.id, dispatch])
+
   // Update filter based on URL params
   useEffect(() => {
     if (categoryParam && typeParam) {
@@ -75,16 +135,136 @@ export default function Promotions() {
     }).format(price)
   }
 
-  const handleSavePromotion = (promotion: any) => {
-    dispatch(savePromotion(promotion))
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Không xác định'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
   }
 
-  const handleUnsavePromotion = (promotionId: string) => {
-    dispatch(unsavePromotion(promotionId))
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'Không xác định'
+    const date = new Date(dateString)
+    return date.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const handleSavePromotion = async (promotion: any) => {
+    console.log('handleSavePromotion called with:', promotion)
+    
+    if (!auth.user?.id) {
+      toast.error('Vui lòng đăng nhập để lưu khuyến mãi')
+      return
+    }
+
+    if (isPromotionSaved(promotion.code)) {
+      toast.error('Khuyến mãi này đã được lưu')
+      return
+    }
+
+    // Validate promotion before saving
+    const validationError = validatePromotionForSaving(promotion)
+    if (validationError) {
+      console.log('Validation failed:', validationError)
+      toast.error(validationError)
+      return
+    }
+
+    setSavingPromotion(promotion.code)
+    
+    try {
+      console.log('Calling API to save promotion:', promotion.code)
+      // Call API to save promotion
+      await PromotionBookingService.saveCustomerPromotion(auth.user.id, promotion.code)
+      
+      // Convert promotion to Redux format
+      const promotionData = {
+        id: String(promotion.code), // Use code as id for consistency with API
+        code: promotion.code,
+        title: promotion.description,
+        description: promotion.description,
+        type: promotion.discountType === 'PERCENT' ? 'percentage' as const : 
+              promotion.discountType === 'FIXED' ? 'fixed' as const : 'shipping' as const,
+        value: promotion.discountValue || promotion.discountAmount || 0,
+        minOrder: promotion.minOrderAmount,
+        validFrom: promotion.startDate || new Date().toISOString(),
+        validTo: promotion.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: promotion.isActive !== false,
+        usageLimit: promotion.usageLimit,
+        usedCount: promotion.usageCount || 0
+      }
+      
+      // Update Redux store
+      dispatch(savePromotion(promotionData))
+      
+      toast.success('Đã lưu khuyến mãi thành công!')
+    } catch (error: any) {
+      console.error('Error saving promotion:', error)
+      toast.error(error.message || 'Lỗi khi lưu khuyến mãi')
+    } finally {
+      setSavingPromotion(null)
+    }
+  }
+
+  // Validate promotion before saving
+  const validatePromotionForSaving = (promotion: any): string | null => {
+    console.log('Validating promotion:', promotion)
+    const today = new Date()
+    
+    // Check if promotion is active
+    if (promotion.isActive === false) {
+      console.log('Promotion is inactive')
+      return 'Khuyến mãi này không còn hoạt động'
+    }
+    
+    // Check if promotion has started
+    if (promotion.startDate) {
+      const startDate = new Date(promotion.startDate)
+      console.log('Start date:', startDate, 'Today:', today, 'Started?', startDate <= today)
+      if (startDate > today) {
+        return 'Khuyến mãi chưa có hiệu lực'
+      }
+    }
+    
+    // Check if promotion has expired
+    if (promotion.endDate) {
+      const endDate = new Date(promotion.endDate)
+      console.log('End date:', endDate, 'Today:', today, 'Expired?', endDate < today)
+      if (endDate < today) {
+        return 'Khuyến mãi đã hết hạn'
+      }
+    }
+    
+    // Check if usage limit exceeded
+    if (promotion.usageLimit && promotion.usageCount >= promotion.usageLimit) {
+      console.log('Usage limit exceeded:', promotion.usageCount, '/', promotion.usageLimit)
+      return 'Khuyến mãi đã hết lượt sử dụng'
+    }
+    
+    console.log('Promotion validation passed')
+    return null // No validation errors
+  }
+
+  // Check if promotion can be saved
+  const canPromotionBeSaved = (promotion: any): boolean => {
+    const validationError = validatePromotionForSaving(promotion)
+    return validationError === null
   }
 
   const isPromotionSaved = (promotionId: string) => {
-    return promo?.savedPromotions?.some(p => p.id === promotionId) || false
+    // Since we now use code as id consistently, check by code
+    const isSaved = promo?.savedPromotions?.some(p => p.code === promotionId) || false
+    
+    console.log(`Checking if promotion ${promotionId} is saved:`, isSaved)
+    return isSaved
   }
 
   // Filter categories based on actual data
@@ -95,6 +275,10 @@ export default function Promotions() {
     { id: 'shipping', label: 'Free ship', count: 0 },
     { id: 'saved', label: 'Đã lưu', count: promo?.savedPromotions?.length || 0 }
   ]
+
+  // Debug: Log saved promotions count
+  console.log('Current saved promotions count:', promo?.savedPromotions?.length || 0)
+  console.log('Saved promotions:', promo?.savedPromotions)
 
   // Filter promotions based on active filter
   const filteredPromotions = () => {
@@ -108,7 +292,7 @@ export default function Promotions() {
       case 'shipping':
         return promotions.filter(p => p.discountType === 'FIXED') // Fallback since SHIPPING doesn't exist
       case 'saved':
-        return promotions.filter(p => isPromotionSaved(String(p.promotionId)))
+        return promotions.filter(p => isPromotionSaved(p.code))
       default:
         return promotions
     }
@@ -426,7 +610,7 @@ export default function Promotions() {
             return (
             <div key={promotion.promotionId} style={{
               background: '#ffffff',
-              border: '1px solid #e2e8f0',
+              border: '2px solid #cbd5e1',
               borderRadius: '16px',
               overflow: 'hidden',
               transition: 'all 0.3s ease',
@@ -445,12 +629,12 @@ export default function Promotions() {
               <div style={{
                 width: '100%',
                 height: '120px',
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.1))',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.2))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
-                borderBottom: '1px solid #e2e8f0'
+                borderBottom: '2px solid #cbd5e1'
               }}>
                 {/* Large promotion icon */}
                 <div style={{
@@ -485,7 +669,7 @@ export default function Promotions() {
                 </div>
                 
                 {/* Saved Badge */}
-                {isPromotionSaved(String(promotion.promotionId)) && (
+                {isPromotionSaved(promotion.code) && (
                   <div style={{
                     position: 'absolute',
                     top: '12px',
@@ -539,30 +723,57 @@ export default function Promotions() {
                     </div>
                   </div>
                   
-                  <button
-                    onClick={() => isPromotionSaved(String(promotion.promotionId)) 
-                      ? handleUnsavePromotion(String(promotion.promotionId))
-                      : handleSavePromotion(promotion)
-                    }
-                    style={{
-                      background: isPromotionSaved(String(promotion.promotionId)) 
-                        ? 'linear-gradient(135deg, #10b981, #059669)' 
-                        : 'transparent',
-                      border: `2px solid ${isPromotionSaved(String(promotion.promotionId)) ? '#10b981' : '#e2e8f0'}`,
+                  {/* Save Button - Only show if not saved */}
+                  {!isPromotionSaved(promotion.code) ? (
+                    <button
+                      onClick={() => handleSavePromotion(promotion)}
+                      disabled={savingPromotion === promotion.code}
+                      style={{
+                        background: 'transparent',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '8px',
+                        width: '40px',
+                        height: '40px',
+                        cursor: savingPromotion === promotion.code ? 'not-allowed' : 'pointer',
+                        color: '#10b981',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'none',
+                        opacity: savingPromotion === promotion.code ? 0.6 : 1
+                      }}
+                      title={!canPromotionBeSaved(promotion) ? validatePromotionForSaving(promotion) || 'Không thể lưu' : 'Lưu khuyến mãi'}
+                    >
+                      {savingPromotion === promotion.code ? (
+                        <div style={{
+                          width: '18px',
+                          height: '18px',
+                          border: '2px solid currentColor',
+                          borderTop: '2px solid transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite'
+                        }} />
+                      ) : (
+                        <Bookmark size={18} />
+                      )}
+                    </button>
+                  ) : (
+                    <div style={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      border: '2px solid #10b981',
                       borderRadius: '8px',
                       width: '40px',
                       height: '40px',
-                      cursor: 'pointer',
-                      color: isPromotionSaved(String(promotion.promotionId)) ? '#ffffff' : '#10b981',
-                      transition: 'all 0.3s ease',
+                      color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: isPromotionSaved(String(promotion.promotionId)) ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
-                    }}
-                  >
-                    {isPromotionSaved(String(promotion.promotionId)) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-                  </button>
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                    }}>
+                      <BookmarkCheck size={18} />
+                    </div>
+                  )}
                 </div>
 
                 <p style={{
@@ -578,7 +789,8 @@ export default function Promotions() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '12px',
+                  marginBottom: '16px'
                 }}>
                   <div style={{
                     background: 'rgba(16, 185, 129, 0.1)',
@@ -618,6 +830,77 @@ export default function Promotions() {
                   </span>
                   </div>
                 </div>
+
+                {/* Date Range Display */}
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <Calendar size={14} color="#10b981" />
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#10b981'
+                    }}>
+                      Thời gian áp dụng
+                    </span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{
+                        fontSize: '11px',
+                        color: '#6b7280',
+                        fontWeight: '500'
+                      }}>
+                        Bắt đầu:
+                      </span>
+                      <span style={{
+                        fontSize: '11px',
+                        color: '#1f2937',
+                        fontWeight: '600'
+                      }}>
+                        {formatDate(promotion.startDate)}
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{
+                        fontSize: '11px',
+                        color: '#6b7280',
+                        fontWeight: '500'
+                      }}>
+                        Kết thúc:
+                      </span>
+                      <span style={{
+                        fontSize: '11px',
+                        color: '#1f2937',
+                        fontWeight: '600'
+                      }}>
+                        {formatDate(promotion.endDate)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             )
@@ -626,6 +909,14 @@ export default function Promotions() {
         )}
 
       </div>
+      
+      {/* CSS Animation for loading spinner */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }

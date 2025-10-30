@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { ServiceManagementService } from '@/services/serviceManagementService'
 import { PayOSService } from '@/services/payOSService'
+import { CenterService } from '@/services/centerService'
+import { TechnicianService } from '@/services/technicianService'
 import PromotionSelector from './PromotionSelector'
 import type { Promotion } from '@/types/promotion'
 import { PAGINATION } from '@/constants/appConstants'
@@ -30,6 +32,8 @@ interface ConfirmationBookingData {
     address?: string
     date: string
     time: string
+    centerName?: string
+    technicianName?: string
   }
   accountInfo?: {
     username: string
@@ -62,6 +66,8 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
   const [loading, setLoading] = useState(true)
   const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
   const [discountAmount, setDiscountAmount] = useState(0)
+  const [displayCenterName, setDisplayCenterName] = useState<string | null>(data.locationTimeInfo.centerName || null)
+  const [displayTechnicianName, setDisplayTechnicianName] = useState<string | null>(data.locationTimeInfo.technicianName || null)
   
   // Data validation
 
@@ -82,6 +88,28 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
 
     fetchServices()
   }, [])
+
+  // Resolve center and technician names if missing
+  useEffect(() => {
+    const resolveCenterAndTechnician = async () => {
+      try {
+        if (!displayCenterName && data.locationTimeInfo.centerId) {
+          try {
+            const center = await CenterService.getCenterById(Number(data.locationTimeInfo.centerId))
+            setDisplayCenterName(center.centerName)
+          } catch {}
+        }
+        if (!displayTechnicianName && data.locationTimeInfo.technicianId && data.locationTimeInfo.centerId) {
+          try {
+            const res = await TechnicianService.list({ centerId: Number(data.locationTimeInfo.centerId), pageSize: 1000 })
+            const tech = (res.technicians || []).find((t: any) => Number(t.technicianId) === Number(data.locationTimeInfo.technicianId))
+            if (tech) setDisplayTechnicianName(tech.userFullName)
+          } catch {}
+        }
+      } catch {}
+    }
+    resolveCenterAndTechnician()
+  }, [data.locationTimeInfo.centerId, data.locationTimeInfo.centerName, data.locationTimeInfo.technicianId, data.locationTimeInfo.technicianName])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,235 +158,131 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
         <p>Vui lòng kiểm tra lại thông tin trước khi xác nhận</p>
       </div>
 
-      <div className="confirmation-content">
-        {/* Customer Information */}
-        <div className="info-section">
-          <h3>👤 Thông tin khách hàng</h3>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="label">Họ tên:</span>
-              <span className="value">{data.customerInfo.fullName}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Số điện thoại:</span>
-              <span className="value">{data.customerInfo.phone?.trim() || 'Chưa có'}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Email:</span>
-              <span className="value">{data.customerInfo.email}</span>
+      <div className="confirmation-layout">
+        <div className="confirmation-left">
+          {/* Customer Information */}
+          <div className="info-section compact">
+            <h3>👤 Thông tin khách hàng</h3>
+            <div className="info-grid two-col">
+              <div className="info-item"><span className="label">Họ tên</span><span className="value">{data.customerInfo.fullName}</span></div>
+              <div className="info-item"><span className="label">Số điện thoại</span><span className="value">{data.customerInfo.phone?.trim() || 'Chưa có'}</span></div>
+              <div className="info-item"><span className="label">Email</span><span className="value">{data.customerInfo.email}</span></div>
             </div>
           </div>
-        </div>
 
-        {/* Vehicle Information */}
-        <div className="info-section">
-          <h3>🚗 Thông tin xe</h3>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="label">Dòng xe:</span>
-              <span className="value">{data.vehicleInfo.carModel}</span>
+          {/* Vehicle Information */}
+          <div className="info-section compact">
+            <h3>🚗 Thông tin xe</h3>
+            <div className="info-grid two-col">
+              <div className="info-item"><span className="label">Dòng xe</span><span className="value">{data.vehicleInfo.carModel}</span></div>
+              <div className="info-item"><span className="label">Biển số</span><span className="value">{data.vehicleInfo.licensePlate}</span></div>
+              <div className="info-item"><span className="label">Số km</span><span className="value">{data.vehicleInfo.mileage} km</span></div>
+              {data.vehicleInfo.color && (<div className="info-item"><span className="label">Màu</span><span className="value">{data.vehicleInfo.color}</span></div>)}
+              {data.vehicleInfo.year && (<div className="info-item"><span className="label">Năm SX</span><span className="value">{data.vehicleInfo.year}</span></div>)}
             </div>
-            <div className="info-item">
-              <span className="label">Biển số:</span>
-              <span className="value">{data.vehicleInfo.licensePlate}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Số km:</span>
-              <span className="value">{data.vehicleInfo.mileage} km</span>
-            </div>
-            {data.vehicleInfo.year && (
-              <div className="info-item">
-                <span className="label">Năm sản xuất:</span>
-                <span className="value">{data.vehicleInfo.year}</span>
-              </div>
-            )}
-            {data.vehicleInfo.color && (
-              <div className="info-item">
-                <span className="label">Màu sắc:</span>
-                <span className="value">{data.vehicleInfo.color}</span>
-              </div>
-            )}
           </div>
-        </div>
 
-        {/* Service Information */}
-        <div className="info-section">
-          <h3>🔧 Dịch vụ đã chọn</h3>
-          <div className="services-list">
-            {selectedServices.map(service => (
-              <div key={service.id} className="service-item">
-                <div className="service-info">
-                  <span className="service-name">{service.name}</span>
-                  <span className="service-price">{formatPrice(service.price)}</span>
+          {/* Service Information */}
+          <div className="info-section compact">
+            <h3>🔧 Dịch vụ đã chọn</h3>
+            <div className="services-list compact-list">
+              {selectedServices.map(service => (
+                <div key={service.id} className="service-item compact-item">
+                  <div className="service-info">
+                    <span className="service-name">{service.name}</span>
+                    <span className="service-price">{formatPrice(service.price)}</span>
+                  </div>
                 </div>
+              ))}
+            </div>
+            {data.serviceInfo.notes && (
+              <div className="notes-section compact-notes">
+                <h4>Ghi chú</h4>
+                <p>{data.serviceInfo.notes}</p>
               </div>
-            ))}
+            )}
           </div>
-          {data.serviceInfo.notes && (
-            <div className="notes-section">
-              <h4>Ghi chú:</h4>
-              <p>{data.serviceInfo.notes}</p>
+
+          {/* Location & Time Information */}
+          <div className="info-section compact">
+            <h3>📍 Địa điểm & thời gian</h3>
+            <div className="info-grid two-col">
+              <div className="info-item"><span className="label">Ngày</span><span className="value">{data.locationTimeInfo.date}</span></div>
+              <div className="info-item"><span className="label">Giờ</span><span className="value">{data.locationTimeInfo.time}</span></div>
+              <div className="info-item"><span className="label">Chi nhánh</span><span className="value">{displayCenterName || data.locationTimeInfo.centerName || `ID: ${data.locationTimeInfo.centerId}`}</span></div>
+              <div className="info-item"><span className="label">KTV</span><span className="value">{displayTechnicianName || data.locationTimeInfo.technicianName || `ID: ${data.locationTimeInfo.technicianId}`}</span></div>
+            </div>
+          </div>
+
+          {/* Account Information (for guests only) */}
+          {isGuest && data.accountInfo && (
+            <div className="info-section compact">
+              <h3>🔐 Tài khoản</h3>
+              <div className="info-grid two-col">
+                <div className="info-item"><span className="label">Tên đăng nhập</span><span className="value">{data.accountInfo.username}</span></div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Location & Time Information */}
-        <div className="info-section">
-          <h3>📍 Thông tin địa điểm & thời gian</h3>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="label">Ngày:</span>
-              <span className="value">{data.locationTimeInfo.date}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Giờ:</span>
-              <span className="value">{data.locationTimeInfo.time}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Chi nhánh:</span>
-              <span className="value">Chi nhánh ID: {data.locationTimeInfo.centerId}</span>
-            </div>
-            <div className="info-item">
-              <span className="label">Kỹ thuật viên:</span>
-              <span className="value">KTV ID: {data.locationTimeInfo.technicianId}</span>
-            </div>
-          </div>
-        </div>
+        <div className="confirmation-right">
+          <div className="sticky-card">
+            <PromotionSelector
+              onPromotionApplied={handlePromotionApplied}
+              onPromotionRemoved={handlePromotionRemoved}
+              orderAmount={subtotal}
+              appliedPromotion={appliedPromotion}
+              discountAmount={discountAmount}
+            />
 
-        {/* Account Information (for guests only) */}
-        {isGuest && data.accountInfo && (
-          <div className="info-section">
-            <h3>🔐 Thông tin tài khoản</h3>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="label">Tên đăng nhập:</span>
-                <span className="value">{data.accountInfo.username}</span>
-              </div>
+            <div className="price-summary compact-summary">
+              <div className="price-item"><span className="label">Tạm tính</span><span className="value">{formatPrice(subtotal)}</span></div>
+              {discountAmount > 0 && (
+                <div className="price-item discount"><span className="label">Giảm giá</span><span className="value">-{formatPrice(discountAmount)}</span></div>
+              )}
+              <div className="price-item total"><span className="label">Tổng cộng</span><span className="value">{formatPrice(finalAmount)}</span></div>
+              <form onSubmit={handleSubmit}>
+                <div className="form-actions column">
+                  <button type="button" onClick={onPrev} className="btn-secondary">Quay lại</button>
+                  <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý...' : 'Xác nhận và thanh toán'}</button>
+                </div>
+              </form>
             </div>
-          </div>
-        )}
-
-        {/* Promotion Selector */}
-        <PromotionSelector
-          onPromotionApplied={handlePromotionApplied}
-          onPromotionRemoved={handlePromotionRemoved}
-          orderAmount={subtotal}
-          appliedPromotion={appliedPromotion}
-          discountAmount={discountAmount}
-        />
-
-        {/* Price Summary */}
-        <div className="price-summary">
-          <div className="price-item">
-            <span className="label">Tạm tính:</span>
-            <span className="value">{formatPrice(subtotal)}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="price-item discount">
-              <span className="label">Giảm giá:</span>
-              <span className="value">-{formatPrice(discountAmount)}</span>
-            </div>
-          )}
-          <div className="price-item total">
-            <span className="label">Tổng cộng:</span>
-            <span className="value">{formatPrice(finalAmount)}</span>
           </div>
         </div>
       </div>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-actions">
-          <button type="button" onClick={onPrev} className="btn-secondary">
-            Quay lại
-          </button>
-          <button type="submit" className="btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Đang xử lý...' : 'Xác nhận và thanh toán'}
-          </button>
-        </div>
-      </form>
+
       <style>{`
-        .confirmation-step {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 2rem;
-        }
+        .confirmation-step { max-width: 1100px; margin: 0 auto; padding: 1rem 1.25rem; }
 
-        .step-header {
-          text-align: center;
-          margin-bottom: 2rem;
-        }
+        .step-header { text-align: center; margin-bottom: 1rem; }
 
-        .step-header h2 {
-          color: #1e293b;
-          margin-bottom: 0.5rem;
-        }
+        .step-header h2 { color: #1e293b; margin-bottom: 0.25rem; font-size: 1.35rem; }
 
-        .step-header p {
-          color: #64748b;
-          font-size: 0.875rem;
-        }
+        .step-header p { color: #64748b; font-size: 0.85rem; }
 
-        .confirmation-content {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-        }
+        .confirmation-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; align-items: start; }
+        .confirmation-left { display: flex; flex-direction: column; gap: 0.75rem; }
+        .confirmation-right { position: relative; }
+        .sticky-card { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 0.75rem; }
 
-        .info-section {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 1.5rem;
-        }
+        .info-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.9rem 1rem; }
+        .info-section.compact h3 { margin: 0 0 0.6rem 0; font-size: 1rem; }
 
-        .info-section h3 {
-          margin: 0 0 1rem 0;
-          color: #1e293b;
-          font-size: 1.125rem;
-          font-weight: 600;
-        }
+        .info-section h3 { color: #1e293b; font-weight: 600; }
 
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-        }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem 0.75rem; }
+        .info-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-        .info-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem 0;
-          border-bottom: 1px solid #e2e8f0;
-        }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; }
 
-        .info-item:last-child {
-          border-bottom: none;
-        }
+        .info-item .label { color: #64748b; font-weight: 500; font-size: 0.9rem; }
+        .info-item .value { color: #1e293b; font-weight: 600; font-size: 0.95rem; }
 
-        .info-item .label {
-          color: #64748b;
-          font-weight: 500;
-        }
+        .services-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .services-list.compact-list .service-item { padding: 0.6rem 0.75rem; }
 
-        .info-item .value {
-          color: #1e293b;
-          font-weight: 600;
-        }
-
-        .services-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .service-item {
-          background: white;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          padding: 1rem;
-        }
+        .service-item { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; }
 
         .service-info {
           display: flex;
@@ -366,43 +290,16 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           align-items: center;
         }
 
-        .service-name {
-          color: #1e293b;
-          font-weight: 600;
-        }
+        .service-name { color: #1e293b; font-weight: 600; font-size: 0.95rem; }
 
-        .service-price {
-          color: #059669;
-          font-weight: 700;
-        }
+        .service-price { color: #059669; font-weight: 700; }
 
-        .notes-section {
-          margin-top: 1rem;
-          padding-top: 1rem;
-          border-top: 1px solid #e2e8f0;
-        }
+        .notes-section { margin-top: 0.5rem; }
+        .compact-notes h4 { margin: 0 0 0.25rem 0; font-size: 0.85rem; }
+        .compact-notes p { margin: 0; font-size: 0.85rem; color: #475569; }
 
-        .notes-section h4 {
-          margin: 0 0 0.5rem 0;
-          color: #374151;
-          font-size: 0.875rem;
-          font-weight: 600;
-        }
-
-        .notes-section p {
-          margin: 0;
-          color: #6b7280;
-          font-size: 0.875rem;
-          line-height: 1.5;
-        }
-
-        .price-summary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 1.5rem;
-          border-radius: 12px;
-          margin-top: 1rem;
-        }
+        .price-summary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 12px; }
+        .compact-summary .price-item { padding: 0.4rem 0; }
 
         .price-item {
           display: flex;
@@ -423,15 +320,11 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           font-size: 1.125rem;
         }
 
-        .form-actions {
-          display: flex;
-          gap: 1rem;
-          justify-content: center;
-          margin-top: 2rem;
-        }
+        .form-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.75rem; }
+        .form-actions.column { flex-direction: column; }
 
         .btn-secondary, .btn-primary {
-          padding: 0.75rem 2rem;
+          padding: 0.65rem 1rem;
           border-radius: 8px;
           font-weight: 600;
           cursor: pointer;
@@ -486,23 +379,8 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           100% { transform: rotate(360deg); }
         }
 
-        @media (max-width: 768px) {
-          .confirmation-step {
-            padding: 1rem;
-          }
-
-          .info-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .form-actions {
-            flex-direction: column;
-          }
-
-          .btn-secondary, .btn-primary {
-            width: 100%;
-          }
-        }
+        @media (max-width: 1024px) { .confirmation-layout { grid-template-columns: 1fr; } .sticky-card { position: static; } }
+        @media (max-width: 768px) { .confirmation-step { padding: 0.75rem; } .info-grid { grid-template-columns: 1fr; } .btn-secondary, .btn-primary { width: 100%; } }
       `}</style>
     </div>
   )

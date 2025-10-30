@@ -31,6 +31,8 @@ export interface BookingPromotionInfo {
     discountAmount: number
     usedAt: string
     status: string
+    endDate?: string
+    startDate?: string
 }
 
 /**

@@ -47,6 +47,14 @@ export type {
   ServiceListResponse
 } from './serviceManagementService'
 
+// Service Checklist Template Services
+export { ServiceChecklistTemplateService } from './serviceChecklistTemplateService'
+export type {
+  ServiceChecklistTemplate,
+  RecommendationRequest,
+  RecommendationResponse
+} from './serviceChecklistTemplateService'
+
 // Vehicle Model Management Services
 export { vehicleModelService } from './vehicleModelManagement'
 export type {
@@ -103,8 +111,12 @@ export type {
   ChatNotification
 } from '@/types/chat'
 
+// Part Services
+export { PartService } from './partService'
+export type {
+  Part,
+  PartAvailabilityResponse,
+  PartFilters
+} from './partService'
+
 // TODO: Add other services as they are created
-// export { ProductService } from './productService'
-// export { OrderService } from './orderService'
-// export { AppointmentService } from './appointmentService'
-// export { NotificationService } from './notificationService'
