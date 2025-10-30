@@ -86,7 +86,7 @@ export const InventoryService = {
     return response.data
   },
 
-  async addPartToInventory(inventoryId: number, partData: AddPartToInventoryRequest): Promise<AddPartToInventoryResponse> {
+  async addPartToInventory(inventoryId: number, partData: AddPartToInventoryRequest): Promise<any> {
     const response = await api.post(`/Inventory/${inventoryId}/parts`, partData)
     return response.data
   },

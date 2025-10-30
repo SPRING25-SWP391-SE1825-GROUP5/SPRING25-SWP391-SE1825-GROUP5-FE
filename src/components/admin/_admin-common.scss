@@ -1,0 +1,461 @@
+// ===========================================
+// ADMIN COMMON STYLES
+// ===========================================
+
+// Common Variables
+$admin-border-radius: 12px;
+$admin-border-radius-lg: 16px;
+$admin-border-radius-xl: 20px;
+$admin-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+$admin-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+$admin-shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.15);
+$admin-transition: all 0.2s ease;
+$admin-transition-slow: all 0.3s ease;
+
+// Common Mixins
+@mixin admin-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: $admin-border-radius-lg;
+  box-shadow: $admin-shadow-sm;
+  transition: $admin-transition;
+}
+
+@mixin admin-card-hover {
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $admin-shadow-md;
+  }
+}
+
+@mixin admin-button {
+  padding: 12px 20px;
+  border: 2px solid var(--border-primary);
+  border-radius: $admin-border-radius;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: $admin-transition;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+  }
+
+  &:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+@mixin admin-button-primary {
+  @include admin-button;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+  }
+}
+
+@mixin admin-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border-primary);
+  border-radius: $admin-border-radius;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: $admin-transition;
+  outline: none;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+}
+
+@mixin admin-select {
+  @include admin-input;
+  cursor: pointer;
+  background: var(--bg-secondary);
+}
+
+@mixin admin-stats-card {
+  @include admin-card;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $admin-shadow-lg;
+  }
+}
+
+@mixin admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: $admin-border-radius-lg;
+  overflow: hidden;
+  box-shadow: $admin-shadow-md;
+  // Đã xoá border ngoài!
+  // border: 1px solid var(--border-primary);
+  thead {
+    tr {
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      color: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  th {
+    padding: 16px 20px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    transition: $admin-transition;
+    position: relative;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &--center {
+      text-align: center;
+    }
+
+    &--sortable {
+      .sort-icon {
+        display: flex;
+        align-items: center;
+        opacity: 0.4;
+        transition: opacity 0.2s ease;
+
+        &.active {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid var(--border-primary);
+      transition: $admin-transition-slow;
+      background: var(--bg-card);
+      transform: translateY(0);
+      box-shadow: none;
+
+      &:nth-child(even) {
+        background: var(--bg-secondary);
+      }
+
+      &:hover {
+        background: var(--primary-50);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+
+  td {
+    padding: 16px 20px;
+    font-size: 14px;
+    color: var(--text-primary);
+
+    &--center {
+      text-align: center;
+    }
+
+    &--secondary {
+      color: var(--text-secondary);
+    }
+  }
+}
+
+@mixin admin-pagination {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  @include admin-card;
+  padding: 20px 24px;
+
+  &-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &-button {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: $admin-transition;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    &:disabled {
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      cursor: not-allowed;
+    }
+
+    &:not(:disabled):hover {
+      background: var(--primary-50);
+      border-color: var(--primary-500);
+    }
+  }
+
+  &-pages {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 8px;
+  }
+
+  &-page {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: $admin-transition;
+
+    &:hover {
+      background: var(--primary-50);
+      border-color: var(--primary-500);
+    }
+
+    &--active {
+      border-color: var(--primary-500);
+      background: var(--primary-50);
+      color: var(--primary-700);
+      font-weight: 600;
+    }
+  }
+
+  &-ellipsis {
+    padding: 8px 4px;
+    color: var(--text-tertiary);
+  }
+}
+
+@mixin admin-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+
+  &-content {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: $admin-border-radius-xl;
+    border: 1px solid var(--border-primary);
+    width: 600px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 32px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    animation: modalSlideIn 0.3s ease-out;
+  }
+
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border-primary);
+  }
+
+  &-title {
+    margin: 0 0 4px 0;
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  &-subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  &-close {
+    border: none;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 12px;
+    border-radius: $admin-border-radius;
+    transition: $admin-transition;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: var(--error-50);
+      color: var(--error-600);
+    }
+  }
+}
+
+@mixin admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+  white-space: nowrap;
+
+  &--active {
+    background: var(--success-50);
+    color: var(--success-700);
+    border-color: var(--success-200);
+  }
+
+  &--inactive {
+    background: var(--error-50);
+    color: var(--error-700);
+    border-color: var(--error-200);
+  }
+}
+
+@mixin admin-loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+
+  &-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-primary);
+    border-top: 3px solid var(--primary-500);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  &-text {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+@mixin admin-error {
+  text-align: center;
+  padding: 60px;
+  color: var(--error-500);
+
+  &-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--error-50);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+
+  &-text {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+@mixin admin-empty {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+
+  &-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--bg-secondary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    color: var(--text-tertiary);
+  }
+
+  &-title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  &-text {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+// Common Animations
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

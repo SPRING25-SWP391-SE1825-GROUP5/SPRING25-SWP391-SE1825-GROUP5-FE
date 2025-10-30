@@ -49,7 +49,6 @@ export default function WorkScheduleCalendarNew({
       const response = await TechnicianService.getBookingDetail(technicianId, bookingId)
       setBookingDetail(response)
     } catch (error: any) {
-      console.error('Error fetching booking detail:', error)
       setError(error.message || 'Không thể tải thông tin chi tiết')
     } finally {
       setLoadingDetail(false)

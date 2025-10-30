@@ -17,7 +17,8 @@ import {
   Menu,
   Calendar,
   FileText,
-  Settings
+  Settings,
+  Activity
 } from 'lucide-react'
 import {
   WorkQueue,
@@ -178,9 +179,9 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
         <div className="work-detail-modal__content__tabs">
           <div className="work-detail-modal__content__tabs__nav">
             {[
-              { id: 'overview', label: 'Tổng quan', icon: BarChart3 },
-              { id: 'progress', label: 'Tiến độ', icon: BarChart3 },
-              { id: 'time', label: 'Thời gian', icon: BarChart3 },
+              { id: 'overview', label: 'Tổng quan', icon: Activity },
+              { id: 'progress', label: 'Tiến độ', icon: Activity },
+              { id: 'time', label: 'Thời gian', icon: Activity },
               { id: 'notes', label: 'Ghi chú', icon: FileText }
             ].map(tab => (
               <button

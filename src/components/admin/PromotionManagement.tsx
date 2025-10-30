@@ -181,11 +181,8 @@ function PromotionForm({ promotion, isOpen, onClose, onSave, isLoading }: Promot
           usageLimit: formData.usageLimit && formData.usageLimit > 0 ? Number(formData.usageLimit) : null
         }
 
-        console.log({payload});
-        
         await onSave(payload)
       } catch (error) {
-        console.error('Error saving promotion:', error)
         // Extract server message if available
         // @ts-ignore
         const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
@@ -1712,16 +1709,13 @@ export default function PromotionManagement() {
     return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
   };
 
-  // Load promotions with fallback to mock data
+  // Load promotions from API
   const loadPromotions = async () => {
     try {
       setIsLoading(true)
       setError(null)
-      console.log('🔄 Loading promotions with filters:', filters)
-
       // Use the main getPromotions method for real API calls
       const response = await promotionService.getPromotions(filters)
-      console.log('✅ API Response:', response)
 
       let promotionsData = response.data as Promotion[] || []
       const responseTotalCount = response.totalCount || 0
@@ -1765,13 +1759,7 @@ export default function PromotionManagement() {
         });
       }
 
-      console.log('📊 Processed promotions data:', {
-        count: promotionsData.length,
-        totalCount: responseTotalCount,
-        pageNumber: responsePageNumber,
-        totalPages: responseTotalPages
-      })
-
+      // Processed promotions data
       setPromotions(promotionsData)
       setTotalCount(responseTotalCount)
       setCurrentPage(responsePageNumber)
@@ -1793,17 +1781,14 @@ export default function PromotionManagement() {
       })
 
       // Show success message if data loaded
-      // if (promotionsData.length > 0) {
-      //   console.log(`✅ Loaded ${promotionsData.length} promotions successfully`)
-      //   setSuccessMessage(`Đã tải ${promotionsData.length} khuyến mãi`)
-      //   setTimeout(() => setSuccessMessage(null), 3000)
-      // } else {
-      //   console.log('⚠️ No promotions found')
-      //   setSuccessMessage('Không tìm thấy khuyến mãi nào')
-      //   setTimeout(() => setSuccessMessage(null), 3000)
-      // }
+      if (promotionsData.length > 0) {
+        setSuccessMessage(`Đã tải ${promotionsData.length} khuyến mãi`)
+        setTimeout(() => setSuccessMessage(null), 3000)
+      } else {
+        setSuccessMessage('Không tìm thấy khuyến mãi nào')
+        setTimeout(() => setSuccessMessage(null), 3000)
+      }
     } catch (error) {
-      console.error('❌ Error loading promotions:', error)
 
       // Set error message
       const errorMessage = error instanceof Error
@@ -1845,15 +1830,11 @@ export default function PromotionManagement() {
     try {
       setIsLoading(true)
       setError(null)
-      console.log('Saving promotion:', data)
-
       if (editingPromotion) {
-        console.log('Updating promotion with ID:', editingPromotion.promotionId)
         await promotionService.updatePromotion(editingPromotion.promotionId, data)
         setSuccessMessage('Cập nhật khuyến mãi thành công!')
         setTimeout(() => setSuccessMessage(null), 3000)
       } else {
-        console.log('Creating new promotion')
         await promotionService.createPromotion(data as CreatePromotionRequest)
         setSuccessMessage('Tạo khuyến mãi mới thành công!')
         setTimeout(() => setSuccessMessage(null), 3000)
@@ -1863,7 +1844,6 @@ export default function PromotionManagement() {
       setEditingPromotion(undefined)
       await loadPromotions()
     } catch (error) {
-      console.error('Error saving promotion:', error)
       // Re-throw error to be handled in form
       throw error
     } finally {
@@ -1879,7 +1859,6 @@ export default function PromotionManagement() {
     try {
       setIsLoading(true)
       setError(null)
-      console.log('Activating promotion with ID:', id)
       await promotionService.activatePromotion(id)
       setSuccessMessage('Kích hoạt khuyến mãi thành công!')
       setTimeout(() => setSuccessMessage(null), 3000)
@@ -1887,7 +1866,6 @@ export default function PromotionManagement() {
     } catch (error) {
       // rollback on error
       setPromotions(prev)
-      console.error('Error activating promotion:', error)
       // Extract server message if available
       // @ts-ignore
       const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
@@ -1908,7 +1886,6 @@ export default function PromotionManagement() {
     try {
       setIsLoading(true)
       setError(null)
-      console.log('Deactivating promotion with ID:', id)
       await promotionService.deactivatePromotion(id)
       setSuccessMessage('Vô hiệu hóa khuyến mãi thành công!')
       setTimeout(() => setSuccessMessage(null), 3000)
@@ -1918,7 +1895,6 @@ export default function PromotionManagement() {
       // Extract server message if available
       // @ts-ignore
       const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message
-      console.error('Error deactivating promotion:', error)
       const errorMessage = serverMsg
         ? `Không thể vô hiệu hóa: ${serverMsg}`
         : 'Có lỗi xảy ra khi vô hiệu hóa khuyến mãi. Vui lòng thử lại.'
@@ -1932,12 +1908,9 @@ export default function PromotionManagement() {
   // Handle view details
   const handleViewDetails = async (promotion: Promotion) => {
     try {
-      console.log('Loading promotion details for ID:', promotion.promotionId)
       const promotionDetailsResp = await promotionService.getPromotionById(String(promotion.promotionId))
       setSelectedPromotion(promotionDetailsResp.data?.[0] || promotion)
-      console.log('Promotion details loaded:', promotionDetailsResp)
     } catch (error) {
-      console.error('Error loading promotion details:', error)
       const errorMessage = error instanceof Error
         ? `Không thể tải chi tiết khuyến mãi: ${error.message}`
         : 'Không thể tải chi tiết khuyến mãi. Vui lòng thử lại.'
@@ -1948,19 +1921,16 @@ export default function PromotionManagement() {
 
   // Handle search
   const handleSearch = () => {
-    console.log('Searching with filters:', filters)
     setFilters(prev => ({ ...prev, pageNumber: 1 }))
   }
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    console.log('Changing to page:', page)
     setFilters(prev => ({ ...prev, pageNumber: page }))
   }
 
   // Handle refresh data
   const handleRefresh = () => {
-    console.log('🔄 Refreshing promotions data')
     loadPromotions()
   }
 

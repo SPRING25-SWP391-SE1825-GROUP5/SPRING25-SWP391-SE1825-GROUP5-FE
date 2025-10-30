@@ -4,7 +4,6 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { syncFromLocalStorage } from "@/store/authSlice";
 import { AuthService, googleAuthService } from "@/services/authService";
-import { validateLoginFormV2 } from "@/utils/validation";
 import { LOADING_MESSAGES } from "@/config/ui";
 import { handleApiError, showSuccessToast } from "@/utils/errorHandler";
 import toast from "react-hot-toast";
@@ -145,10 +144,10 @@ export default function LoginPage() {
     setFormError({});
     setFieldErrors({});
 
-    const validation = validateLoginFormV2({ emailOrPhone, password });
-    if (!validation.isValid) {
-      setFormError(validation.errors);
-      setFieldErrors(validation.errors);
+    // Bỏ validation client-side, để server validate
+    // Chỉ validate email/phone cơ bản
+    if (!emailOrPhone.trim()) {
+      toast.error('Vui lòng nhập email hoặc số điện thoại');
       return;
     }
 
@@ -484,7 +483,7 @@ export default function LoginPage() {
             <label style={{
               display: 'block',
               fontSize: '16px',
-              color: fieldErrors.password ? '#f87171' : '#2d3748',
+              color: '#2d3748',
               marginBottom: '8px',
               fontWeight: '500',
               transition: 'color 0.3s ease'
@@ -501,7 +500,7 @@ export default function LoginPage() {
                 style={{
                   width: '100%',
                   padding: '16px 50px 16px 20px',
-                  border: `1.5px solid ${fieldErrors.password ? '#f87171' : '#e2e8f0'}`,
+                  border: '1.5px solid #e2e8f0',
                   borderRadius: '12px',
                   background: 'white',
                   color: '#2d3748',
@@ -517,7 +516,7 @@ export default function LoginPage() {
                   e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = fieldErrors.password ? '#f87171' : '#e2e8f0'
+                  e.currentTarget.style.borderColor = '#e2e8f0'
                   e.currentTarget.style.background = 'white'
                   e.currentTarget.style.boxShadow = 'none'
                 }}
@@ -571,12 +570,14 @@ export default function LoginPage() {
             >
               Quên mật khẩu?
             </Link>
+            {/* Đã bỏ hiển thị error message dưới ô password */}
             {fieldErrors.password && (
               <div style={{
                 color: '#f87171',
                 fontSize: '12px',
                 marginTop: '8px',
-                animation: 'slideDown 0.3s ease-out'
+                animation: 'slideDown 0.3s ease-out',
+                display: 'none'
               }}>
                 {fieldErrors.password}
               </div>

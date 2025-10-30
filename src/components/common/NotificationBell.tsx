@@ -21,7 +21,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
 
   useEffect(() => {
     // Lấy token từ Redux hoặc localStorage
-    const token = user?.token || localStorage.getItem('token')
+    const token = (localStorage.getItem('token')) || ''
     
     if (token) {
       loadNotifications()
@@ -33,9 +33,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
       // Đăng ký callback để nhận thông báo real-time (chỉ đăng ký một lần)
       if (!callbacksRegistered.current) {
         signalRService.onNotification((notification) => {
-          setNotifications(prev => [notification, ...prev])
+          setNotifications(prev => [notification as unknown as Notification, ...prev])
           // Chỉ tăng unread count nếu notification mới
-          if (notification.status === 'NEW') {
+          if ((notification as any).status === 'NEW') {
             setUnreadCount(prev => prev + 1)
           }
         })

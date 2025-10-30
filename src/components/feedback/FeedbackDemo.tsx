@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { FeedbackCard, FeedbackModal, FeedbackData } from './index'
-import { BookingData } from '@/services/feedbackService'
-import { mockFeedbackService } from '@/data/mockFeedbackData'
+import { BookingData, feedbackService } from '@/services/feedbackService'
 
 // Demo component để test tính năng feedback
 export default function FeedbackDemo() {
@@ -12,7 +11,7 @@ export default function FeedbackDemo() {
   const loadDemoData = async () => {
     setLoading(true)
     try {
-      const data = await mockFeedbackService.getBookingsWithFeedback()
+      const data = await feedbackService.getBookingsWithFeedback()
       setBookings(data)
     } catch (error) {
       console.error('Error loading demo data:', error)
@@ -24,7 +23,7 @@ export default function FeedbackDemo() {
   // Handle feedback submission
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.submitFeedback(bookingId, feedback)
+      await feedbackService.submitFeedback(bookingId, 0, feedback)
       // Reload data
       await loadDemoData()
       alert('Đánh giá đã được gửi thành công!')
@@ -37,7 +36,7 @@ export default function FeedbackDemo() {
   // Handle feedback update
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.updateFeedback(bookingId, feedback)
+      await feedbackService.updateFeedback(Number(bookingId), feedback)
       // Reload data
       await loadDemoData()
       alert('Đánh giá đã được cập nhật thành công!')

@@ -1,4 +1,5 @@
 import api from './api'
+import { PAGINATION } from '../constants/appConstants'
 
 // Service Management Types
 export type Service = {
@@ -173,14 +174,13 @@ export const ServiceManagementService = {
     }
 
     const { data } = await api.get('/Service/active', { params: backendParams })
-    console.log('Raw API response:', data)
 
     const envelope = data as BackendListEnvelope<BackendServiceListData> | BackendServiceListData
     const payload: BackendServiceListData = (envelope as any)?.data
       ? (envelope as BackendListEnvelope<BackendServiceListData>).data
       : (envelope as BackendServiceListData)
 
-    console.log('Extracted payload:', payload)
+    // Payload extracted
 
     const rawList: BackendService[] | undefined = (payload.services && Array.isArray(payload.services))
       ? payload.services
@@ -188,10 +188,7 @@ export const ServiceManagementService = {
         ? payload.items
         : (Array.isArray(envelope) ? (envelope as unknown as BackendService[]) : [])
 
-    console.log('Raw services list:', rawList)
-
     const services = (rawList || []).map(mapBackendServiceToService)
-    console.log('Mapped services:', services)
 
     return {
       services,
@@ -237,7 +234,7 @@ export const ServiceManagementService = {
   // Get service statistics
   async getServiceStats(): Promise<ServiceStats> {
     try {
-      const response = await this.getServices({ pageSize: 1000 })
+      const response = await this.getServices({ pageSize: PAGINATION.MAX_PAGE_SIZE })
       const services = response.services
 
       const totalServices = services.length
@@ -291,12 +288,10 @@ export const ServiceManagementService = {
 
   // Create new service
   async createService(service: Omit<Service, 'id' | 'createAt'> & { notes?: string }): Promise<Service> {
-    console.log('Creating service with data:', service)
 
     const backendService = mapServiceToBackendService(service)
 
     const { data } = await api.post('/service', backendService)
-    console.log('Create service response:', data)
 
     const maybeService: BackendService | undefined = (data as any)?.data?.service ?? (data as any)?.data ?? data
     return mapBackendServiceToService(maybeService as BackendService)
@@ -394,9 +389,9 @@ export const ServiceManagementService = {
       return {
         packages,
         totalCount: packages.length,
-        pageNumber: params.pageNumber || 1,
-        pageSize: params.pageSize || 10,
-        totalPages: Math.ceil(packages.length / (params.pageSize || 10))
+        pageNumber: params.pageNumber || PAGINATION.DEFAULT_PAGE,
+        pageSize: params.pageSize || PAGINATION.DEFAULT_PAGE_SIZE,
+        totalPages: Math.ceil(packages.length / (params.pageSize || PAGINATION.DEFAULT_PAGE_SIZE))
       }
     } catch (error: any) {
       console.error('Error fetching service packages:', error)
@@ -635,7 +630,7 @@ export const ServiceManagementService = {
     totalRevenue: number
   }> {
     try {
-      const response = await this.getServicePackages({ pageSize: 1000 })
+      const response = await this.getServicePackages({ pageSize: PAGINATION.MAX_PAGE_SIZE })
       const packages = response.packages
 
       const totalPackages = packages.length

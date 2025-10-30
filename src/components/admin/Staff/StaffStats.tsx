@@ -1,4 +1,5 @@
 import { User, Users, UserMinus, Clock, Building2, Star } from 'lucide-react'
+import './StaffStats.scss'
 
 interface StaffStatsProps {
   totalStaff: number
@@ -27,59 +28,21 @@ export default function StaffStats({
   ]
 
   return (
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-      gap: '24px', 
-      marginBottom: '32px' 
-    }}>
+    <div className="staff-stats">
       {stats.map((stat, index) => (
-        <div 
-          key={index}
-          style={{
-            background: 'var(--bg-card)',
-            padding: '24px',
-            borderRadius: '12px',
-            border: '1px solid var(--border-primary)',
-            boxShadow: 'var(--shadow-sm)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: stat.color,
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
+        <div key={index} className="staff-stats__card">
+          <div className="staff-stats__header">
+            <div 
+              className="staff-stats__icon"
+              style={{ background: stat.color }}
+            >
               <stat.icon size={20} />
             </div>
-            <h3 style={{ 
-              fontSize: '14px', 
-              color: 'var(--text-secondary)',
-              margin: '0',
-              fontWeight: '500'
-            }}>
+            <h3 className="staff-stats__title">
               {stat.title}
             </h3>
           </div>
-          <div style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)'
-          }}>
+          <div className="staff-stats__value">
             {stat.value}
           </div>
         </div>
