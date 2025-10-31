@@ -12,6 +12,8 @@ interface VehicleInfo {
   carModel: string
   modelId?: number // Thêm model ID để track model đã chọn
   mileage: string
+  // Km gần đây người dùng nhập khi mang xe đến (tùy chọn)
+  recentMileage?: string
   licensePlate: string
   year?: string
   color?: string
@@ -78,6 +80,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [recommendedServices, setRecommendedServices] = useState<ServiceChecklistTemplate[]>([])
   const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
+  // Ràng buộc nhập liệu cho Km gần đây
+  const [recentMileageError, setRecentMileageError] = useState<string | null>(null)
   
   // Get selected category name
   const selectedCategory = categories.find(c => c.categoryId === selectedCategoryId)
@@ -253,6 +257,11 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   }
 
   const canProceed = () => {
+    // Không cho tiếp tục nếu nhập Km gần đây < Km hiện tại
+    const baseKm = Number(vehicleData.mileage || 0)
+    const recentKm = Number(vehicleData.recentMileage || '')
+    const invalidRecent = isVehicleSelected && !!vehicleData.recentMileage && !isNaN(recentKm) && recentKm < baseKm
+    if (invalidRecent) return false
     return (
       (serviceData.services.length > 0 || serviceData.packageId) &&
       !!vehicleData.carModel &&
@@ -471,7 +480,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
             </div>
           )}
           <div className="form-group">
-            <label>Ghi chú thêm</label>
+            <label>{selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') ? 'Tình trạng xe / ghi chú' : 'Ghi chú thêm'}</label>
             <textarea
               value={serviceData.notes}
               onChange={(e) => onUpdateService({ notes: e.target.value })}
@@ -533,6 +542,44 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white' }}
             />
           </div>
+          {/* Km gần đây: chỉ hiển thị khi chọn xe có sẵn, dùng để cập nhật km hiện tại */}
+          {isVehicleSelected && (
+            <div className="form-group">
+              <label>Km gần đây (tùy chọn)</label>
+              <input
+                type="number"
+                value={vehicleData.recentMileage || ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  onUpdateVehicle({ recentMileage: val })
+                  const base = Number(vehicleData.mileage || 0)
+                  const num = Number(val)
+                  if (val && !isNaN(num) && num < base) {
+                    setRecentMileageError(`Km gần đây không được nhỏ hơn km hiện tại (${base.toLocaleString()} km).`)
+                  } else {
+                    setRecentMileageError(null)
+                  }
+                }}
+                min={Number(vehicleData.mileage || 0)}
+                aria-invalid={!!recentMileageError}
+                placeholder="Nhập km khi mang xe đến"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  background: '#ffffff',
+                  color: '#111827',
+                  transition: 'all 0.2s ease',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {recentMileageError && (
+                <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>{recentMileageError}</div>
+              )}
+            </div>
+          )}
           <div className="form-group">
             <label>Biển số xe <span className="required-star">*</span></label>
             <input
@@ -588,16 +635,6 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           {/* Fields riêng cho Sửa chữa */}
           {selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') && (
             <>
-              <div className="form-group">
-                <label>Tình trạng xe <span className="required-star">*</span></label>
-                <textarea
-                  value={vehicleData.vehicleCondition || ''}
-                  onChange={(e) => onUpdateVehicle({ vehicleCondition: e.target.value })}
-                  rows={3}
-                  placeholder="Mô tả tình trạng xe, các vấn đề gặp phải..."
-                  required
-                />
-              </div>
               <div className="form-group">
                 <label>Checklist sửa chữa (mỗi mục một dòng)</label>
                 <textarea
