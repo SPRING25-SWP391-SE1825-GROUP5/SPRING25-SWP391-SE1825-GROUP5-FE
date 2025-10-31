@@ -43,7 +43,45 @@ export default function Cart() {
   const shipping = cart.total >= 10000000 ? 0 : 200000 // Free shipping over 10M
   const finalTotal = cart.total + shipping
 
-  if (cart.items.length === 0) {
+  const mockItems = [
+    {
+      id: '1',
+      name: 'Pin Lithium 72V-40Ah',
+      price: 9200000,
+      originalPrice: 10600000,
+      image: '',
+      brand: 'Panasonic',
+      quantity: 2,
+      category: 'Phụ tùng EV',
+      inStock: true
+    },
+    {
+      id: '2',
+      name: 'Lốp Yokohama City 12", Tubeless (Chính hãng)',
+      price: 520000,
+      image: '',
+      brand: 'Yokohama',
+      quantity: 1,
+      category: 'Phụ tùng EV',
+      inStock: true
+    },
+    {
+      id: '3',
+      name: 'Sên dẫn động DID 10mm',
+      price: 370000,
+      image: '',
+      brand: 'DID (Japan)',
+      quantity: 4,
+      category: 'Phụ kiện',
+      inStock: true
+    }
+  ]
+
+  const displayedItems = cart.items.length === 0 ? mockItems : cart.items
+  const displayedCount = displayedItems.reduce((sum, it) => sum + it.quantity, 0)
+  const displayedTotal = displayedItems.reduce((sum, it) => sum + (it.price * it.quantity), 0)
+
+  if (displayedItems.length === 0) {
     return (
       <div className="cart-page">
         <div className="container">
@@ -51,8 +89,7 @@ export default function Cart() {
             <div className="empty-cart-icon">
               <ShoppingBagIcon className="w-24 h-24" />
             </div>
-            <h1>Giỏ hàng trống</h1>
-            <p>Bạn chưa có sản phẩm nào trong giỏ hàng</p>
+            <h1>Giỏ hàng của bạn hiện đang trống</h1>
             <button 
               className="continue-shopping-btn"
               onClick={() => navigate('/products')}
@@ -77,14 +114,14 @@ export default function Cart() {
             <ArrowLeftIcon className="w-5 h-5" />
             Quay lại
           </button>
-          <h1 className="page-title">Giỏ hàng ({cart.itemCount} sản phẩm)</h1>
+          <h1 className="page-title">Giỏ hàng ({displayedCount} sản phẩm)</h1>
         </div>
 
         <div className="cart-content">
           {/* Cart Items */}
           <div className="cart-items">
             <div className="cart-header">
-              <h2>Sản phẩm đã chọn</h2>
+              <h2>Giỏ hàng của bạn</h2>
               <button 
                 className="clear-cart-btn"
                 onClick={handleClearCart}
@@ -94,8 +131,8 @@ export default function Cart() {
             </div>
 
             <div className="items-list">
-              {cart.items.map(item => (
-                <div key={item.id} className="cart-item">
+              {displayedItems.map(item => (
+                <div key={item.id} className="cart-card">
                   <div className="item-image">
                     <img 
                       src={item.image} 
@@ -106,7 +143,7 @@ export default function Cart() {
                     />
                   </div>
 
-                  <div className="item-details">
+                  <div className="item-content">
                     <div className="item-info">
                       <h3 className="item-name">{item.name}</h3>
                       <div className="item-brand">{item.brand}</div>
@@ -123,14 +160,14 @@ export default function Cart() {
                     <div className="quantity-controls">
                       <button 
                         className="quantity-btn"
-                        onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                        onClick={() => handleQuantityChange(String(item.id), item.quantity - 1)}
                       >
                         -
                       </button>
                       <span className="quantity">{item.quantity}</span>
                       <button 
                         className="quantity-btn"
-                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                        onClick={() => handleQuantityChange(String(item.id), item.quantity + 1)}
                       >
                         +
                       </button>
@@ -142,7 +179,7 @@ export default function Cart() {
 
                     <button 
                       className="remove-btn"
-                      onClick={() => handleRemoveItem(item.id)}
+                      onClick={() => handleRemoveItem(String(item.id))}
                       title="Xóa sản phẩm"
                     >
                       <XMarkIcon className="w-5 h-5" />
@@ -159,8 +196,8 @@ export default function Cart() {
               <h3>Tóm tắt đơn hàng</h3>
               
               <div className="summary-row">
-                <span>Tạm tính ({cart.itemCount} sản phẩm)</span>
-                <span>{formatPrice(cart.total)}</span>
+                <span>Tạm tính ({displayedCount} sản phẩm)</span>
+                <span>{formatPrice(displayedTotal)}</span>
               </div>
               
               <div className="summary-row">
@@ -209,24 +246,6 @@ export default function Cart() {
                 >
                   Tiếp tục mua sắm
                 </button>
-              </div>
-            </div>
-
-            {/* Additional Info */}
-            <div className="additional-info">
-              <div className="info-item">
-                <TruckIcon className="w-6 h-6" />
-                <div>
-                  <strong>Miễn phí vận chuyển</strong>
-                  <span>Cho đơn hàng từ 10 triệu VNĐ</span>
-                </div>
-              </div>
-              <div className="info-item">
-                <TagIcon className="w-6 h-6" />
-                <div>
-                  <strong>Đổi trả 30 ngày</strong>
-                  <span>Hoàn tiền 100% nếu không hài lòng</span>
-                </div>
               </div>
             </div>
           </div>

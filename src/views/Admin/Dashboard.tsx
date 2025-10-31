@@ -72,6 +72,7 @@ import PromotionManagement from '../../components/admin/PromotionManagement'
 import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import PartManagement from '../../components/admin/PartManagement'
 import { useAppSelector } from '@/store/hooks'
+import TimeSlotManagement from './TimeSlotManagement';
 
 // System Settings Component
 
@@ -841,7 +842,7 @@ export default function AdminDashboard() {
       case 'services':
         return isAdmin
           ? <ServicesManagementAdmin />
-          : <ServicesManagement allowCreate={false} />
+          : <ServicesManagement />
       case 'service-centers':
         return <CenterManagement />
       case 'settings':
@@ -866,6 +867,8 @@ export default function AdminDashboard() {
             </div>
           </div>
         )
+      case 'time-slots':
+        return <TimeSlotManagement />;
       default:
         return renderDashboardContent()
     }
@@ -1532,9 +1535,6 @@ export default function AdminDashboard() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={20} style={{ color: 'var(--text-tertiary)' }} />
-          </div>
-          <div style={{ position: 'relative' }}>
             <Bell size={20} style={{ color: 'var(--text-tertiary)' }} />
             <div style={{
               position: 'absolute',
@@ -1551,7 +1551,7 @@ export default function AdminDashboard() {
             alignItems: 'center',
             gap: '8px',
             padding: '8px 12px',
-            background: 'var(--primary-50)',
+            background: '#FFF6D1',
             borderRadius: '8px',
             cursor: 'pointer'
           }}
@@ -1560,12 +1560,12 @@ export default function AdminDashboard() {
             <div style={{
               width: '32px',
               height: '32px',
-              background: 'var(--primary-500)',
+              background: '#FFD875',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'white',
+              color: '#000',
               fontSize: '14px',
               fontWeight: '600'
             }}>
@@ -1605,21 +1605,7 @@ export default function AdminDashboard() {
             marginBottom: '32px',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'var(--primary-500)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              marginRight: sidebarCollapsed ? '0' : '12px'
-            }}>
-              A
-            </div>
+            <img src="/email/10.webp" alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: sidebarCollapsed ? '0' : '12px', boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)' }} />
             {!sidebarCollapsed && (
               <div>
                 <h1 style={{
@@ -1683,7 +1669,7 @@ export default function AdminDashboard() {
                 }}
               >
                 <BarChart3 size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
-                {!sidebarCollapsed && 'Dashboard'}
+                {!sidebarCollapsed && 'Bảng điều khiển'}
               </div>
             </div>
 
@@ -1703,11 +1689,13 @@ export default function AdminDashboard() {
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
-                { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff-management' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
+                { icon: Calendar, label: 'Khung giờ làm việc', page: 'time-slots', route: '/admin/time-slots' },
+                { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
+                { icon: Settings, label: 'Cài đặt tài khoản', page: 'account-settings', route: '/admin/account-settings' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                { icon: Settings, label: 'Cài đặt', page: 'settings', route: '/admin/settings' },
+                { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' },
                 { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
               ].map((item, index) => (
                 <div
@@ -1774,9 +1762,9 @@ export default function AdminDashboard() {
         className="admin-main-content"
         style={{
           marginLeft: sidebarCollapsed ? '80px' : '280px',
-          padding: '32px',
-          paddingTop: '96px', // Add space for header
-          background: 'var(--bg-secondary)',
+          padding: '0px',
+          paddingTop: '96px', // giữ khoảng trống cho header fixed
+          background: '#fff',
           minHeight: '100vh',
           transition: 'margin-left 0.3s ease',
           width: sidebarCollapsed ? 'calc(100% - 80px)' : 'calc(100% - 280px)',

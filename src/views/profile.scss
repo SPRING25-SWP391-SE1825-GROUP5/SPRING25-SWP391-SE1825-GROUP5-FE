@@ -18,6 +18,7 @@
   grid-template-columns: 300px 1fr;
   gap: 2rem;
   min-height: 80vh;
+  padding-top: 64px; /* đẩy toàn bộ hai cột xuống dưới header (64px) */
 }
 
 /* Modern Sidebar with Gradient */
@@ -992,6 +993,7 @@
   .profile-content {
     grid-template-columns: 1fr;
     gap: 1rem;
+    padding-top: 64px; /* vẫn giữ offset dưới header trên mobile/tablet */
   }
   
   .profile-sidebar {

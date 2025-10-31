@@ -1,0 +1,43 @@
+@import '../admin-common';
+
+.staff-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+
+  &__card {
+    @include admin-stats-card;
+    padding: 24px;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  &__title {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+    font-weight: 500;
+  }
+
+  &__value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+}

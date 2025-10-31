@@ -226,6 +226,30 @@ export default function Register() {
     
     if (!basicValidation.isValid) {
       setErrors(basicValidation.errors)
+      
+      // Hiển thị toast cho từng lỗi
+      if (basicValidation.errors.password) {
+        toast.error(basicValidation.errors.password)
+      }
+      if (basicValidation.errors.confirmPassword) {
+        toast.error(basicValidation.errors.confirmPassword)
+      }
+      if (basicValidation.errors.email) {
+        toast.error(basicValidation.errors.email)
+      }
+      if (basicValidation.errors.phoneNumber) {
+        toast.error(basicValidation.errors.phoneNumber)
+      }
+      if (basicValidation.errors.fullName) {
+        toast.error(basicValidation.errors.fullName)
+      }
+      if (basicValidation.errors.dateOfBirth) {
+        toast.error(basicValidation.errors.dateOfBirth)
+      }
+      if (basicValidation.errors.gender) {
+        toast.error(basicValidation.errors.gender)
+      }
+      
       return
     }
 
@@ -247,6 +271,15 @@ export default function Register() {
        
        if (!asyncValidation.isValid) {
          setErrors(asyncValidation.errors)
+         
+         // Hiển thị toast cho từng lỗi
+         if (asyncValidation.errors.email) {
+           toast.error(asyncValidation.errors.email)
+         }
+         if (asyncValidation.errors.phoneNumber) {
+           toast.error(asyncValidation.errors.phoneNumber)
+         }
+         
          setSubmitting(false)
          return
        }
@@ -515,7 +548,8 @@ export default function Register() {
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  {errors.password && <p className="register__error">{errors.password}</p>}
+                  {/* Đã bỏ hiển thị error message dưới ô password */}
+                  {errors.password && <p className="register__error" style={{ display: 'none' }}>{errors.password}</p>}
 
                   {showPasswordPopup && (
                     <div className="password-popup password-popup-below">
@@ -600,7 +634,8 @@ export default function Register() {
                       {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  {errors.confirmPassword && <div className="password-error">{errors.confirmPassword}</div>}
+                  {/* Đã bỏ hiển thị error message dưới ô confirm password */}
+                  {errors.confirmPassword && <div className="password-error" style={{ display: 'none' }}>{errors.confirmPassword}</div>}
                 </div>
               </div>
 

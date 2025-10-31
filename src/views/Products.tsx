@@ -15,8 +15,11 @@ import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import { PartService, Part, PartFilters } from '@/services'
 import toast from 'react-hot-toast'
 import './products.scss'
+import { addToCart } from '@/store/cartSlice'
+import { useAppDispatch } from '@/store/hooks'
 
 export default function Products() {
+  const dispatch = useAppDispatch()
   const { category, subcategory } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -212,7 +215,15 @@ export default function Products() {
   // Xử lý thêm vào giỏ hàng
   const handleAddToCart = (part: Part, e: React.MouseEvent) => {
     e.stopPropagation()
-    // TODO: Implement add to cart logic
+    dispatch(addToCart({
+      id: String(part.partId),
+      name: part.partName,
+      price: part.unitPrice,
+      image: '', // Có thể lấy ảnh từ API nếu có, nếu không để rỗng.
+      brand: part.brand,
+      category: '', // Nếu part có category, gán vào đây.
+      inStock: !part.isOutOfStock
+    }))
     toast.success(`Đã thêm ${part.partName} vào giỏ hàng`)
   }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { PAGINATION } from '../../constants/appConstants'
 import {
     Users,
     Plus,
@@ -59,14 +60,14 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
     const [technicianUsers, setTechnicianUsers] = useState<any[]>([])
 
     const [staffPagination, setStaffPagination] = useState({
-        pageNumber: 1,
-        pageSize: 10,
+        pageNumber: PAGINATION.DEFAULT_PAGE,
+        pageSize: PAGINATION.DEFAULT_PAGE_SIZE,
         totalCount: 0,
         totalPages: 0
     })
     const [technicianPagination, setTechnicianPagination] = useState({
-        pageNumber: 1,
-        pageSize: 10,
+        pageNumber: PAGINATION.DEFAULT_PAGE,
+        pageSize: PAGINATION.DEFAULT_PAGE_SIZE,
         totalCount: 0,
         totalPages: 0
     })
@@ -149,9 +150,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 inactiveTechnicians: technicianStatsData.inactiveTechnicians
             })
 
-            console.log('Staff users data:', staffUsersData.data.users)
-            console.log('Technician users data:', technicianUsersData.data.users)
-            console.log('Centers data:', centersData.centers)
+            // Data loaded successfully
 
         } catch (err: any) {
             setError('Không thể tải dữ liệu: ' + (err.message || 'Unknown error'))
@@ -254,9 +253,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 centerId: Number(staffForm.centerId)
             }
 
-            console.log('Creating staff with data:', formData)
-            console.log('Available users:', users)
-            console.log('Available centers:', centers)
+            // Creating staff
 
             // Create staff
             const result = await StaffService.createStaffFromUser(formData)
@@ -299,7 +296,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 position: technicianForm.position as 'GENERAL' | 'SENIOR' | 'LEAD'
             }
 
-            console.log('Creating technician with data:', formData)
+            // Creating technician
 
 
             const result = await StaffService.createTechnicianFromUser(formData)
@@ -1596,9 +1593,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                     value={activeTab === 'staff' ? staffForm.userId : technicianForm.userId}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        console.log('Selected user ID:', value);
-                                        console.log('Users data structure:', users);
-                                        console.log('Selected user object:', users.find(u => u.id?.toString() === value || u.userId?.toString() === value));
+                                        // User selected
                                         if (activeTab === 'staff') {
                                             setStaffForm(prev => ({
                                                 ...prev,
@@ -1661,7 +1656,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                     value={activeTab === 'staff' ? staffForm.centerId : technicianForm.centerId}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        console.log('Selected center ID:', value);
+                                        // Center selected
                                         if (activeTab === 'staff') {
                                             setStaffForm(prev => ({
                                                 ...prev,

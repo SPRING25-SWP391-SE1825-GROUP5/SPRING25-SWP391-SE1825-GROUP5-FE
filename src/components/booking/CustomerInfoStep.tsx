@@ -40,7 +40,6 @@ const CustomerInfoStep: React.FC<CustomerInfoStepProps> = ({ data, onUpdate, onN
             type="tel"
             value={data.phone}
             onChange={(e) => {
-              console.log('Phone input changed:', e.target.value)
               onUpdate({ phone: e.target.value })
             }}
             required

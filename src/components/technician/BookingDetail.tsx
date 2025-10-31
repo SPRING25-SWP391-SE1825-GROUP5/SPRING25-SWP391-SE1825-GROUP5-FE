@@ -91,7 +91,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
       }
       
     } catch (error) {
-      console.error('Error fetching booking detail:', error)
+      // Error handled by state
     } finally {
       setLoading(false)
     }

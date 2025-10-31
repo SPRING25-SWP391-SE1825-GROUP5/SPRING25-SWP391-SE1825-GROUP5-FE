@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Calendar, Clock, MapPin, User } from 'lucide-react'
 import { Center } from '@/services/centerService'
-import { AvailabilityResponse, TimeSlotAvailability, TechnicianAvailability } from '@/services/bookingService'
+// import { AvailabilityResponse, TimeSlotAvailability, TechnicianAvailability } from '@/services/bookingService'
 import api from '@/services/api'
 
 interface TimeSelectionProps {
@@ -10,10 +10,10 @@ interface TimeSelectionProps {
   onSelectCenter: (center: Center) => void
   selectedDate: string
   onSelectDate: (date: string) => void
-  selectedTimeSlot: TimeSlotAvailability | null
-  onSelectTimeSlot: (timeSlot: TimeSlotAvailability) => void
-  selectedTechnician: TechnicianAvailability | null
-  onSelectTechnician: (technician: TechnicianAvailability) => void
+  selectedTimeSlot: any | null
+  onSelectTimeSlot: (timeSlot: any) => void
+  selectedTechnician: any | null
+  onSelectTechnician: (technician: any) => void
   onNext: () => void
   onPrev: () => void
   loading: boolean
@@ -35,7 +35,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
   loading,
   error
 }) => {
-  const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
+  const [availability, setAvailability] = useState<any | null>(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
 
   // Generate available dates (from today onwards)

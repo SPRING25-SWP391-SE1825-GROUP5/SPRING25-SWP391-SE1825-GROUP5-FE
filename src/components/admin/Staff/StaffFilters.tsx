@@ -1,4 +1,5 @@
 import { Search, Plus } from 'lucide-react'
+import './StaffFilters.scss'
 
 interface StaffFiltersProps {
   searchTerm: string
@@ -36,37 +37,17 @@ export default function StaffFilters({
   ]
 
   return (
-    <div style={{
-      background: 'var(--bg-card)',
-      padding: '24px',
-      borderRadius: '12px',
-      border: '1px solid var(--border-primary)',
-      marginBottom: '24px'
-    }}>
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="staff-filters">
+      <div className="staff-filters__container">
         {/* Search */}
-        <div style={{ position: 'relative', flex: '1', minWidth: '300px' }}>
-          <Search size={20} style={{ 
-            position: 'absolute', 
-            left: '12px', 
-            top: '50%', 
-            transform: 'translateY(-50%)',
-            color: 'var(--text-tertiary)'
-          }} />
+        <div className="staff-filters__search">
+          <Search size={20} className="staff-filters__search-icon" />
           <input
             type="text"
             placeholder="Tìm kiếm theo tên, email, số điện thoại hoặc vị trí..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 12px 12px 44px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              background: 'var(--bg-input)',
-              color: 'var(--text-primary)'
-            }}
+            className="staff-filters__search-input"
           />
         </div>
 
@@ -74,15 +55,7 @@ export default function StaffFilters({
         <select
           value={filterDepartment}
           onChange={(e) => onDepartmentChange(e.target.value)}
-          style={{
-            padding: '12px 16px',
-            border: '1px solid var(--border-primary)',
-            borderRadius: '8px',
-            fontSize: '14px',
-            background: 'var(--bg-input)',
-            color: 'var(--text-primary)',
-            minWidth: '150px'
-          }}
+          className="staff-filters__select"
         >
           {departments.map(dept => (
             <option key={dept.value} value={dept.value}>{dept.label}</option>
@@ -93,15 +66,7 @@ export default function StaffFilters({
         <select
           value={filterStatus}
           onChange={(e) => onStatusChange(e.target.value)}
-          style={{
-            padding: '12px 16px',
-            border: '1px solid var(--border-primary)',
-            borderRadius: '8px',
-            fontSize: '14px',
-            background: 'var(--bg-input)',
-            color: 'var(--text-primary)',
-            minWidth: '150px'
-          }}
+          className="staff-filters__select"
         >
           {statuses.map(status => (
             <option key={status.value} value={status.value}>{status.label}</option>
@@ -111,22 +76,7 @@ export default function StaffFilters({
         {/* Add Staff Button */}
         <button
           onClick={onAddStaff}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 20px',
-            background: 'var(--primary-500)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'background 0.2s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--primary-600)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary-500)'}
+          className="staff-filters__add-button"
         >
           <Plus size={16} />
           Thêm nhân viên

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search, Filter, Star, MessageSquare, Calendar, User, Wrench, Package, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { FeedbackCard } from '@/components/feedback'
-import { mockFeedbackService } from '@/data/mockFeedbackData'
-import { BookingData } from '@/services/feedbackService'
+import { BookingData, feedbackService } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
 import './customer.scss'
 import './MaintenanceHistory.scss'
@@ -20,7 +19,7 @@ export default function MaintenanceHistory() {
     setLoading(true)
     setError(null)
     try {
-      const data = await mockFeedbackService.getBookingsWithFeedback()
+      const data = await feedbackService.getBookingsWithFeedback()
       setBookings(data)
     } catch (err: any) {
       setError('Không thể tải dữ liệu lịch sử bảo dưỡng')
@@ -37,7 +36,7 @@ export default function MaintenanceHistory() {
   // Handle feedback submission
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.submitFeedback(bookingId, feedback)
+      await feedbackService.submitFeedback(bookingId, 0, feedback)
       // Reload data to show updated feedback
       await loadBookings()
     } catch (err: any) {
@@ -49,7 +48,7 @@ export default function MaintenanceHistory() {
   // Handle feedback update
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.updateFeedback(bookingId, feedback)
+      await feedbackService.updateFeedback(Number(bookingId), feedback)
       // Reload data to show updated feedback
       await loadBookings()
     } catch (err: any) {

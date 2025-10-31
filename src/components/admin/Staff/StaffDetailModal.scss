@@ -1,0 +1,231 @@
+.staff-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  &__overlay {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: auto;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  &__close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  &__profile {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  &__avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+  }
+
+  &__profile-info {
+    h4 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 4px 0;
+    }
+
+    p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+  }
+
+  &__details {
+    display: grid;
+    gap: 16px;
+  }
+
+  &__detail-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    svg {
+      color: var(--text-secondary);
+    }
+
+    &-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    &-value {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    &-badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+
+      &--department {
+        background: var(--primary-50);
+        color: var(--primary-500);
+      }
+
+      &--status {
+        &-active {
+          background: var(--success-50);
+          color: var(--success-500);
+        }
+
+        &-inactive {
+          background: var(--error-50);
+          color: var(--error-500);
+        }
+
+        &-on-leave {
+          background: var(--warning-50);
+          color: var(--warning-500);
+        }
+      }
+    }
+  }
+
+  &__performance {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &-value {
+      font-size: 14px;
+      font-weight: 600;
+
+      &--excellent {
+        color: var(--success-500);
+      }
+
+      &--good {
+        color: var(--warning-500);
+      }
+
+      &--poor {
+        color: var(--error-500);
+      }
+    }
+
+    &-stars {
+      display: flex;
+      gap: 2px;
+
+      svg {
+        color: var(--text-tertiary);
+
+        &.filled {
+          color: var(--success-500);
+          fill: var(--success-500);
+        }
+
+        &.warning {
+          color: var(--warning-500);
+          fill: var(--warning-500);
+        }
+
+        &.error {
+          color: var(--error-500);
+          fill: var(--error-500);
+        }
+      }
+    }
+  }
+
+  &__skills {
+    &-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    &-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    &-tag {
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--primary-50);
+      color: var(--primary-500);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  &__button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &--primary {
+      background: var(--primary-500);
+      color: white;
+      border: none;
+    }
+
+    &--secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-primary);
+    }
+  }
+}
