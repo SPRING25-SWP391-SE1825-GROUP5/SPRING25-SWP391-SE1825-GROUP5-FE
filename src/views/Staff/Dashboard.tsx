@@ -20,6 +20,7 @@ import {
 import CustomersPage from '@/components/staff/CustomersPage'
 import InventoryPage from '@/components/staff/InventoryPage'
 import AppointmentsPage from '@/components/staff/AppointmentsPage'
+import AppointmentManagement from '@/components/staff/AppointmentManagement'
 import ServiceOrdersPage from '@/components/staff/ServiceOrdersPage'
 import SettingsPage from '@/components/staff/SettingsPage'
 import DashboardContent from '@/components/staff/DashboardContent'
@@ -47,7 +48,7 @@ export default function StaffDashboard() {
       case 'customers':
         return <CustomersPage />
       case 'appointments':
-        return <AppointmentsPage />
+        return <AppointmentManagement />
       case 'service-orders':
         return <ServiceOrdersPage />
       case 'inventory':
@@ -284,7 +285,6 @@ export default function StaffDashboard() {
               {[
                 { icon: Users, label: 'Khách hàng', page: 'customers' },
                 { icon: Calendar, label: 'Lịch hẹn', page: 'appointments' },
-                { icon: ClipboardList, label: 'Đơn hàng dịch vụ', page: 'service-orders' },
                 { icon: MessageCircle, label: 'Chat hỗ trợ', page: 'chat' },
                 { icon: PlusCircle, label: 'Tạo Booking', page: 'create-booking' },
                 { icon: Package, label: 'Quản lý kho', page: 'inventory' },
