@@ -12,14 +12,15 @@ import {
   BoltIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { PartService, Part, PartFilters } from '@/services'
+import { PartService, Part, PartFilters, OrderService, CustomerService } from '@/services'
 import toast from 'react-hot-toast'
 import './products.scss'
 import { addToCart } from '@/store/cartSlice'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 
 export default function Products() {
   const dispatch = useAppDispatch()
+  const user = useAppSelector((s) => s.auth.user)
   const { category, subcategory } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -41,6 +42,7 @@ export default function Products() {
   const [showFilters, setShowFilters] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 9
+  const [buyingId, setBuyingId] = useState<number | null>(null)
 
   // Load data từ API
   useEffect(() => {
@@ -228,10 +230,45 @@ export default function Products() {
   }
 
   // Xử lý mua ngay
-  const handleBuyNow = (part: Part, e: React.MouseEvent) => {
+  const handleBuyNow = async (part: Part, e: React.MouseEvent) => {
     e.stopPropagation()
-    // TODO: Implement buy now logic
-    toast.success(`Chuyển đến trang thanh toán cho ${part.partName}`)
+    try {
+      if (!user?.id) {
+        toast.error('Vui lòng đăng nhập để mua ngay')
+        navigate('/auth/login')
+        return
+      }
+
+      setBuyingId(part.partId)
+
+      // Lấy đúng customerId từ BE (map từ User)
+      const me = await CustomerService.getCurrentCustomer()
+      const customerId = me?.data?.customerId
+      if (!customerId) {
+        toast.error('Không tìm thấy hồ sơ khách hàng')
+        return
+      }
+
+      const resp = await OrderService.createQuickOrder(Number(customerId), {
+        items: [
+          { partId: part.partId, quantity: 1 },
+        ],
+      })
+
+      const orderId = (resp?.data as any)?.orderId ?? (resp?.data as any)?.OrderId ?? (resp?.data as any)?.id
+      if (resp?.success && orderId) {
+        toast.success('Tạo đơn hàng tạm thành công')
+        sessionStorage.setItem('currentOrderId', String(orderId))
+        navigate(`/confirm-order`, { state: { orderId } })
+      } else {
+        toast.error(resp?.message || 'Không thể tạo đơn hàng')
+      }
+    } catch (err: any) {
+      toast.error(err?.userMessage || err?.message || 'Có lỗi khi tạo đơn hàng')
+    }
+    finally {
+      setBuyingId(null)
+    }
   }
 
   // Filter và sort parts
@@ -446,10 +483,11 @@ export default function Products() {
                           <button 
                             className="action-btn buy-now-btn"
                             onClick={(e) => handleBuyNow(part, e)}
+                            disabled={buyingId === part.partId}
                             title="Mua ngay"
                           >
                             <BoltIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
-                            <span>Mua ngay</span>
+                            <span>{buyingId === part.partId ? 'Đang tạo...' : 'Mua ngay'}</span>
                           </button>
                         </div>
                       </div>
