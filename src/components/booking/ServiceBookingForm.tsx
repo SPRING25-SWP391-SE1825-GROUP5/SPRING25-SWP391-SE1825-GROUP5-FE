@@ -317,9 +317,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       if (!bookingData.vehicleInfo.carModel?.trim()) {
         validationErrors.push('Thiếu dòng xe')
       }
-      if (!bookingData.serviceInfo.services?.length) {
-        validationErrors.push('Chưa chọn dịch vụ')
-      }
+      // Cho phép bỏ chọn dịch vụ khi là nhóm Sửa chữa (serviceId optional)
       if (!bookingData.locationTimeInfo.centerId) {
         validationErrors.push('Chưa chọn trung tâm')
       }

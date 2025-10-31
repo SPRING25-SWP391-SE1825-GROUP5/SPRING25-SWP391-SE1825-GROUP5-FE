@@ -253,8 +253,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   }
 
   const canProceed = () => {
+    const isRepair = selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa')
     return (
-      (serviceData.services.length > 0 || serviceData.packageId) &&
+      (isRepair || serviceData.services.length > 0 || serviceData.packageId) &&
       !!vehicleData.carModel &&
       !!vehicleData.licensePlate
     )
