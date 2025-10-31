@@ -25,6 +25,7 @@ export interface CreateVehicleRequest {
   currentMileage: number
   lastServiceDate?: string
   purchaseDate?: string
+  modelId?: number
 }
 
 export interface UpdateVehicleRequest {
@@ -113,6 +114,7 @@ export const VehicleService = {
    * @throws {Error} When creation fails
    */
   async createVehicle(vehicleData: CreateVehicleRequest): Promise<VehicleResponse> {
+    // Backend expects a flat DTO matching CreateVehicleRequest
     const { data } = await api.post<VehicleResponse>('/Vehicle', vehicleData)
     return data
   },

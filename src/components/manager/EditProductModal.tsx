@@ -41,8 +41,8 @@ export default function EditProductModal({
         partName: part.partName,
         brand: part.brand,
         unitPrice: part.unitPrice,
-        imageUrl: part.imageUrl || '',
-        isActive: part.isActive
+        imageUrl: (part as any).imageUrl || '',
+        isActive: (part as any).isActive ?? true
       })
     }
   }, [part])

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Package,
   FileText,
@@ -22,6 +22,7 @@ import {
   Trash2
 } from 'lucide-react'
 import api from '../../services/api'
+import './PartManagement.scss'
 
 export default function PartManagement() {
   const [partsData, setPartsData] = useState<any[]>([])
@@ -34,7 +35,8 @@ export default function PartManagement() {
   const [totalPages, setTotalPages] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [filterSupplier, setFilterSupplier] = useState('all')
+  const [filterRating, setFilterRating] = useState('all')
+  const [filterPrice, setFilterPrice] = useState('all')
   const [sortBy, setSortBy] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [newPart, setNewPart] = useState({
@@ -146,12 +148,37 @@ export default function PartManagement() {
       })
     }
     
-    // Apply supplier filter
-    if (filterSupplier !== 'all') {
-      filtered = filtered.filter((part) => 
-        text(part.supplier || '').includes(text(filterSupplier))
-      )
+    // Apply rating filter
+    if (filterRating !== 'all') {
+      filtered = filtered.filter((part) => {
+        const rating = part.rating || 0
+        if (filterRating === '0') {
+          return rating === 0
+        } else {
+          return rating === parseInt(filterRating)
+        }
+      })
     }
+    
+    // Apply price filter
+    if (filterPrice !== 'all') {
+      filtered = filtered.filter((part) => {
+        const price = part.price || 0
+        switch (filterPrice) {
+          case 'lt50k':
+            return price < 50000
+          case '50k-100k':
+            return price >= 50000 && price <= 100000
+          case '100k-500k':
+            return price >= 100000 && price <= 500000
+          case 'gt500k':
+            return price > 500000
+          default:
+            return true
+        }
+      })
+    }
+    
     
     let sorted = [...filtered]
     
@@ -260,7 +287,7 @@ export default function PartManagement() {
     // Update totalCount and totalPages for pagination based on filtered results
     setTotalCount(ordered.length)
     setTotalPages(Math.max(1, Math.ceil(ordered.length / pageSize)))
-  }, [allParts, pageNumber, pageSize, searchTerm, filterStatus, filterSupplier, sortBy, sortOrder])
+  }, [allParts, pageNumber, pageSize, searchTerm, filterStatus, filterRating, filterPrice, sortBy, sortOrder])
 
   const handlePageChange = (newPage: number) => {
     setPageNumber(newPage)
@@ -282,520 +309,139 @@ export default function PartManagement() {
     { value: 'inactive', label: 'Không hoạt động' }
   ]
 
-  const supplierOptions = [
-    { value: 'all', label: 'Tất cả nhà cung cấp' },
-    ...getUniqueSuppliers().map(supplier => ({
-      value: supplier,
-      label: supplier
-    }))
+  const ratingOptions = [
+    { value: 'all', label: 'Tất cả đánh giá' },
+    { value: '5', label: '5 sao' },
+    { value: '4', label: '4 sao' },
+    { value: '3', label: '3 sao' },
+    { value: '2', label: '2 sao' },
+    { value: '1', label: '1 sao' },
+    { value: '0', label: 'Chưa đánh giá' }
   ]
+
+  const priceOptions = [
+    { value: 'all', label: 'Tất cả giá' },
+    { value: 'lt50k', label: 'Dưới 50k' },
+    { value: '50k-100k', label: '50k - 100k' },
+    { value: '100k-500k', label: '100k - 500k' },
+    { value: 'gt500k', label: 'Trên 500k' }
+  ]
+
+  // Headless dropdown states (toolbar + pagination)
+  const [openStatusMenu, setOpenStatusMenu] = useState(false)
+  const [openRatingMenu, setOpenRatingMenu] = useState(false)
+  const [openPriceMenu, setOpenPriceMenu] = useState(false)
+  const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false)
+  const statusRef = useRef<HTMLDivElement | null>(null)
+  const ratingRef = useRef<HTMLDivElement | null>(null)
+  const priceRef = useRef<HTMLDivElement | null>(null)
+  const pageSizeRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setOpenStatusMenu(false)
+      }
+      if (ratingRef.current && !ratingRef.current.contains(e.target as Node)) {
+        setOpenRatingMenu(false)
+      }
+      if (priceRef.current && !priceRef.current.contains(e.target as Node)) {
+        setOpenPriceMenu(false)
+      }
+      if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) {
+        setOpenPageSizeMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     <div style={{
-      padding: '24px',
-      background: 'var(--bg-secondary)',
-      minHeight: '100vh',
-      fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
+      padding: '16px',
+      background: '#fff',
+      minHeight: '100vh'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Quản lý Phụ tùng
-          </h2>
-          <p style={{ 
-            fontSize: '16px', 
-            color: 'var(--text-secondary)',
-            margin: '0'
-          }}>
-            Quản lý và theo dõi tất cả phụ tùng trong hệ thống
-          </p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={() => {
-            // Refresh all parts data
-            const fetchAllParts = async () => {
-              try {
-                setLoading(true)
-                setError(null)
-                const { data } = await api.get('/Part', { params: { pageNumber: 1, pageSize } })
-                const firstPage = data as {
-                  success: boolean
-                  message: string
-                  data: {
-                    parts: Array<{
-                      partId: number
-                      partNumber: string
-                      partName: string
-                      brand: string
-                      price: number
-                      imageUrl: string | null
-                      isActive: boolean
-                      createdAt: string
-                    }>
-                    pageNumber: number
-                    pageSize: number
-                    totalPages: number
-                    totalCount: number
-                    hasPreviousPage: boolean
-                    hasNextPage: boolean
-                  }
-                }
-
-                const totalPages = firstPage.data.totalPages
-                const requests = [] as Promise<any>[]
-                for (let p = 2; p <= totalPages; p++) {
-                  requests.push(api.get('/Part', { params: { pageNumber: p, pageSize } }))
-                }
-                const restPages = await Promise.all(requests)
-                const restParts = restPages.flatMap((res) => (res.data?.data?.parts || []))
-
-                const combined = [...firstPage.data.parts, ...restParts]
-                  .sort((a, b) => a.partId - b.partId)
-                  .map(mapApiPartToUi)
-
-                setAllParts(combined)
-                setTotalCount(combined.length)
-              } catch (e: any) {
-                setError(e?.message || 'Không thể tải danh sách phụ tùng')
-              } finally {
-                setLoading(false)
-              }
-            }
-            fetchAllParts()
-          }} style={{
-            padding: '12px 20px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
-            e.currentTarget.style.background = 'var(--primary-50)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-            e.currentTarget.style.background = 'var(--bg-card)'
-          }}>
-            <RefreshCw size={18} />
-            Làm mới
-          </button>
-          
-          <button onClick={() => setIsModalOpen(true)} style={{
-          padding: '12px 24px',
-          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-          color: 'white',
-          border: 'none',
-          borderRadius: '12px',
-          fontSize: '14px',
-          fontWeight: '600',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-          transition: 'all 0.2s ease',
-          transform: 'translateY(0)'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)'
-          e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-        }}>
-          <Plus size={18} />
-          Thêm phụ tùng
-        </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        {[
-          {
-            label: "Tổng phụ tùng",
-            value: totalParts,
-            color: "var(--primary-500)",
-            icon: Package,
-          },
-          {
-            label: "Hoạt động",
-            value: activeParts,
-            color: "var(--success-500)",
-            icon: Circle,
-          },
-          {
-            label: "Không hoạt động",
-            value: inactiveParts,
-            color: "var(--error-500)",
-            icon: AlertCircle,
-          },
-          {
-            label: "Tổng giá trị",
-            value: formatPrice(totalValue),
-            color: "var(--warning-500)",
-            icon: DollarSign,
-          },
-        ].map((s, i) => (
-          <div key={i} style={{
-            background: 'var(--bg-card)',
-            padding: '24px',
-            borderRadius: '16px',
-            border: '1px solid var(--border-primary)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '12px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white'
-              }}>
-                <s.icon size={20} />
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '14px',
-                  color: 'var(--text-secondary)',
-                  fontWeight: '500'
-                }}>
-                  {s.label}
-                </div>
-                <div style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: 'var(--text-primary)'
-                }}>
-                  {s.value}
-                </div>
+      {/* Toolbar giống Users */}
+      <div className="users-toolbar" style={{marginBottom: 16}}>
+        <div className="toolbar-top">
+          <div className="toolbar-left">
+            <button type="button" className="toolbar-chip">Bảng</button>
+            <button type="button" className="toolbar-chip is-active">Bảng điều khiển</button>
+            <button type="button" className="toolbar-chip">Danh sách</button>
+            <div className="toolbar-sep"/>
+          </div>
+          <div className="toolbar-right" style={{flex:1}}>
+            <div className="toolbar-search">
+              <div className="search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
+                <input placeholder="Tìm kiếm phụ tùng" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        <form onSubmit={(e) => e.preventDefault()} style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '16px',
-          alignItems: 'end'
-        }}>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px',
-            }}>
-              Tìm kiếm
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: 'var(--text-tertiary)' 
-              }} />
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo tên, mã sản phẩm..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 12px 12px 40px',
-                  border: '2px solid var(--border-primary)',
-                  borderRadius: '10px',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--primary-500)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--border-primary)'
-                  e.target.style.boxShadow = 'none'
-                }}
-              />
+            <div className="toolbar-actions">
+              <button type="button" className="toolbar-chip">Ẩn</button>
+              <button type="button" className="toolbar-chip">Tùy chỉnh</button>
+              <button type="button" className="toolbar-btn" onClick={()=>{ /* xuất dữ liệu tạm thời chưa triển khai */ }}>Xuất</button>
             </div>
           </div>
-          
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Trạng thái
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setPageNumber(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+        </div>
+        <div className="toolbar-filters">
+          {/* Trạng thái */}
+          <div className="pill-select" ref={statusRef}>
+            <button type="button" className="pill-trigger" onClick={()=>{ setOpenStatusMenu(!openStatusMenu); setOpenPriceMenu(false); }}>
+              {statusOptions.find(o=>o.value===filterStatus)?.label || 'Tất cả trạng thái'}
+            </button>
+            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <ul className={`pill-menu ${openStatusMenu ? 'show' : ''}`}>
+              {statusOptions.map(opt => (
+                <li key={opt.value} className={`pill-item ${filterStatus===opt.value ? 'active' : ''}`} onClick={()=>{ setFilterStatus(opt.value); setPageNumber(1); setOpenStatusMenu(false); }}>
+                  {opt.label}
+                </li>
               ))}
-            </select>
+            </ul>
           </div>
 
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Nhà cung cấp
-            </label>
-            <select
-              value={filterSupplier}
-              onChange={(e) => {
-                setFilterSupplier(e.target.value);
-                setPageNumber(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {supplierOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+          {/* Đánh giá */}
+          <div className="pill-select" ref={ratingRef}>
+            <button type="button" className="pill-trigger" onClick={()=>{ setOpenRatingMenu(!openRatingMenu); setOpenStatusMenu(false); setOpenPriceMenu(false); }}>
+              {ratingOptions.find(o=>o.value===filterRating)?.label || 'Tất cả đánh giá'}
+            </button>
+            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <ul className={`pill-menu ${openRatingMenu ? 'show' : ''}`}>
+              {ratingOptions.map(opt => (
+                <li key={opt.value} className={`pill-item ${filterRating===opt.value ? 'active' : ''}`} onClick={()=>{ setFilterRating(opt.value); setPageNumber(1); setOpenRatingMenu(false); }}>
+                  {opt.label}
+                </li>
               ))}
-            </select>
+            </ul>
           </div>
-          
-          <div>
-            <button
-              onClick={() => { 
-                setPageNumber(1)
-                setSearchTerm('')
-                setFilterStatus('all')
-                setFilterSupplier('all')
-                setSortBy('')
-                setSortOrder('asc')
-              }}
-              style={{
-                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                padding: '12px 20px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              <RefreshCw size={16} />
-              Đặt lại
-            </button>
-          </div>
-        </form>
-      </div>
 
-      {/* Parts List */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '32px',
-        borderRadius: '20px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '24px' 
-        }}>
-          <h3 style={{ 
-            fontSize: '20px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0'
-          }}>
-            Danh sách Phụ tùng
-          </h3>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <button
-              disabled={pageNumber === 1}
-              onClick={() => handlePageChange(pageNumber - 1)}
-              style={{ 
-                padding: "6px 10px", 
-                borderRadius: "6px",
-                border: "1px solid var(--border-primary)",
-                background: pageNumber === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-                color: pageNumber === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-                cursor: pageNumber === 1 ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: "500",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => {
-                if (pageNumber !== 1) {
-                  e.currentTarget.style.background = "var(--primary-50)"
-                  e.currentTarget.style.borderColor = "var(--primary-500)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (pageNumber !== 1) {
-                  e.currentTarget.style.background = "var(--bg-card)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }
-              }}
-            >
-              <ChevronLeft size={14} />
+          {/* Giá */}
+          <div className="pill-select" ref={priceRef}>
+            <button type="button" className="pill-trigger" onClick={()=>{ setOpenPriceMenu(!openPriceMenu); setOpenStatusMenu(false); setOpenRatingMenu(false); }}>
+              {priceOptions.find(o=>o.value===filterPrice)?.label || 'Tất cả giá'}
             </button>
-            <span style={{
-              padding: "6px 10px",
-              background: "var(--primary-50)",
-              borderRadius: "6px",
-              color: "var(--primary-700)",
-              fontSize: "12px",
-              fontWeight: "600",
-              minWidth: "60px",
-              textAlign: "center"
-            }}>
-              {pageNumber} / {totalPages}
-            </span>
-            <button
-              disabled={pageNumber === totalPages}
-              onClick={() => handlePageChange(pageNumber + 1)}
-              style={{ 
-                padding: "6px 10px", 
-                borderRadius: "6px",
-                border: "1px solid var(--border-primary)",
-                background: pageNumber === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-                color: pageNumber === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-                cursor: pageNumber === totalPages ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: "500",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => {
-                if (pageNumber !== totalPages) {
-                  e.currentTarget.style.background = "var(--primary-50)"
-                  e.currentTarget.style.borderColor = "var(--primary-500)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (pageNumber !== totalPages) {
-                  e.currentTarget.style.background = "var(--bg-card)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }
-              }}
-            >
-              <ChevronRight size={14} />
+            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <ul className={`pill-menu ${openPriceMenu ? 'show' : ''}`}>
+              {priceOptions.map(opt => (
+                <li key={opt.value} className={`pill-item ${filterPrice===opt.value ? 'active' : ''}`} onClick={()=>{ setFilterPrice(opt.value); setPageNumber(1); setOpenPriceMenu(false); }}>
+                  {opt.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button type="button" className="toolbar-chip">Thêm bộ lọc</button>
+          <div className="toolbar-actions" style={{marginLeft:'auto'}}>
+            <button type="button" className="toolbar-adduser accent-button" onClick={()=>setIsModalOpen(true)}>
+              <Plus size={16}/> Thêm phụ tùng
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Parts List - Bảng chuẩn Users */}
+      <div className="parts-table-wrapper">
         {loading ? (
           <div style={{ 
             textAlign: 'center', 
@@ -860,339 +506,56 @@ export default function PartManagement() {
             </p>
           </div>
         ) : (
-          <div style={{ overflow: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: '1px solid var(--border-primary)'
-            }}>
+          <table className="parts-table">
             <thead>
-              <tr style={{
-                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                color: 'white',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-              }}>
-                <th 
-                  onClick={() => handleSort('partNumber')}
-                  style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Mã SP
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      opacity: sortBy === 'partNumber' ? 1 : 0.4,
-                      transition: 'opacity 0.2s ease'
-                    }}>
-                      {getSortIcon('partNumber')}
-                    </div>
-                  </div>
+              <tr>
+                <th className="checkbox-cell">
+                  <input type="checkbox" className="table-checkbox" />
                 </th>
-                <th 
-                  onClick={() => handleSort('name')}
-                  style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Tên sản phẩm
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      opacity: sortBy === 'name' ? 1 : 0.4,
-                      transition: 'opacity 0.2s ease'
-                    }}>
-                      {getSortIcon('name')}
-                    </div>
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('supplier')}
-                  style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Nhà cung cấp
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      opacity: sortBy === 'supplier' ? 1 : 0.4,
-                      transition: 'opacity 0.2s ease'
-                    }}>
-                      {getSortIcon('supplier')}
-                    </div>
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('price')}
-                  style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    Giá
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      opacity: sortBy === 'price' ? 1 : 0.4,
-                      transition: 'opacity 0.2s ease'
-                    }}>
-                      {getSortIcon('price')}
-                    </div>
-                  </div>
-                </th>
-                <th style={{
-                  padding: '16px 20px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  border: 'none'
-                }}>
-                  Đánh giá
-                </th>
-                <th style={{
-                  padding: '16px 20px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  border: 'none'
-                }}>
-                  Trạng thái
-                </th>
-                <th style={{
-                  padding: '16px 20px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  border: 'none'
-                }}>
-                  Thao tác
-                </th>
+                <th>Mã SP</th>
+                <th>Tên sản phẩm</th>
+                <th>Nhà cung cấp</th>
+                <th>Giá</th>
+                <th>Đánh giá</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {partsData.map((part, i) => (
-                <tr 
-                  key={part.id}
-                  style={{
-                    borderBottom: i < partsData.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                    transition: 'all 0.3s ease',
-                    background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
-                    transform: 'translateY(0)',
-                    boxShadow: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--primary-50)'
-                    e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  <td style={{
-                    padding: '16px 20px',
-                    fontSize: '14px',
-                    color: 'var(--text-secondary)',
-                    fontWeight: '600',
-                  }}>
-                    {part.partNumber}
+                <tr key={part.id}>
+                  <td className="checkbox-cell">
+                    <input type="checkbox" className="table-checkbox" />
                   </td>
-                  <td style={{
-                    padding: '16px 20px',
-                    fontSize: '14px',
-                    color: 'var(--text-primary)',
-                    fontWeight: '500'
-                  }}>
-                    {part.name}
-                  </td>
-                  <td style={{
-                    padding: '16px 20px',
-                    fontSize: '13px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    {part.supplier}
-                  </td>
-                  <td style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: 'var(--text-primary)'
-                  }}>
-                    {formatPrice(part.price)}
-                  </td>
-                  <td style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '13px',
-                    color: 'var(--text-tertiary)'
-                  }}>
-                    —
-                  </td>
-                  <td style={{
-                    padding: '16px 20px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      background: part.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                      color: part.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      border: `1px solid ${part.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {part.isActive ? (
-                        <>
-                          <Circle size={12} fill="currentColor" />
-                          Hoạt động
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle size={12} fill="currentColor" />
-                          Không hoạt động
-                        </>
-                      )}
+                  <td className="cell-part-number">{part.partNumber}</td>
+                  <td className="cell-name">{part.name}</td>
+                  <td className="cell-supplier">{part.supplier}</td>
+                  <td className="cell-price">{formatPrice(part.price)}</td>
+                  <td className="cell-rating">—</td>
+                  <td className="cell-status">
+                    <div className={`status-badge ${part.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
+                      <div className="dot"></div>
+                      {part.isActive ? 'Hoạt động' : 'Không hoạt động'}
                     </div>
                   </td>
-                  <td style={{
-                    padding: '16px 20px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '8px', 
-                      justifyContent: 'center',
-                      alignItems: 'center'
-                    }}>
+                  <td className="cell-actions">
+                    <div className="action-buttons">
                       <button
+                        type="button"
+                        className="action-btn action-btn--edit"
                         onClick={() => {
                           setEditingPart(part)
                           setIsModalOpen(true)
                         }}
-                        style={{
-                          padding: '8px',
-                          border: '2px solid var(--border-primary)',
-                          borderRadius: '8px',
-                          background: 'var(--bg-card)',
-                          color: 'var(--text-primary)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s ease',
-                          width: '36px',
-                          height: '36px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--primary-50)'
-                          e.currentTarget.style.borderColor = 'var(--primary-500)'
-                          e.currentTarget.style.transform = 'translateY(-1px)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'var(--bg-card)'
-                          e.currentTarget.style.borderColor = 'var(--border-primary)'
-                          e.currentTarget.style.transform = 'translateY(0)'
-                        }}
+                        title="Chỉnh sửa"
                       >
                         <Edit size={16} />
                       </button>
                       <button
+                        type="button"
+                        className="action-btn action-btn--delete"
                         onClick={() => setDeleteConfirm({ isOpen: true, partId: part.id })}
-                        style={{
-                          padding: '8px',
-                          border: '2px solid var(--border-primary)',
-                          borderRadius: '8px',
-                          background: 'var(--bg-card)',
-                          color: 'var(--error-500)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s ease',
-                          width: '36px',
-                          height: '36px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'var(--error-50)'
-                          e.currentTarget.style.borderColor = 'var(--error-500)'
-                          e.currentTarget.style.transform = 'translateY(-1px)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'var(--bg-card)'
-                          e.currentTarget.style.borderColor = 'var(--border-primary)'
-                          e.currentTarget.style.transform = 'translateY(0)'
-                        }}
+                        title="Xóa"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1201,301 +564,72 @@ export default function PartManagement() {
                 </tr>
               ))}
             </tbody>
-            </table>
-          </div>
+          </table>
         )}
       </div>
 
 
-      {/* Enhanced Pagination */}
-      <div style={{
-        marginTop: '24px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: 'var(--bg-card)',
-        padding: '20px 24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        {/* Pagination Controls */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          {/* First Page */}
-          <button
-            disabled={pageNumber === 1}
-            onClick={() => handlePageChange(1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: pageNumber === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: pageNumber === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: pageNumber === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (pageNumber !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pageNumber !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <ChevronsLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Đầu</span>
-          </button>
-
-          {/* Previous Page */}
-          <button
-            disabled={pageNumber === 1}
-            onClick={() => handlePageChange(pageNumber - 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: pageNumber === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: pageNumber === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: pageNumber === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (pageNumber !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pageNumber !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <ChevronLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Trước</span>
-          </button>
-
-          {/* Page Numbers */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            margin: '0 8px'
-          }}>
-            {(() => {
-              const pages = [];
-              const maxVisible = 5;
-              let startPage = Math.max(1, pageNumber - Math.floor(maxVisible / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-              
-              if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
-
-              // First page + ellipsis
-              if (startPage > 1) {
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => handlePageChange(1)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    1
-                  </button>
-                );
-                if (startPage > 2) {
-                  pages.push(
-                    <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-              }
-
-              // Visible pages
-              for (let i = startPage; i <= endPage; i++) {
-                pages.push(
-                  <button
-                    key={i}
-                    onClick={() => handlePageChange(i)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: i === pageNumber ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
-                      background: i === pageNumber ? "var(--primary-50)" : "var(--bg-card)",
-                      color: i === pageNumber ? "var(--primary-700)" : "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: i === pageNumber ? "600" : "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      if (i !== pageNumber) {
-                        e.currentTarget.style.background = "var(--primary-50)"
-                        e.currentTarget.style.borderColor = "var(--primary-500)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (i !== pageNumber) {
-                        e.currentTarget.style.background = "var(--bg-card)"
-                        e.currentTarget.style.borderColor = "var(--border-primary)"
-                      }
-                    }}
-                  >
-                    {i}
-                  </button>
-                );
-              }
-
-              // Last page + ellipsis
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-                pages.push(
-                  <button
-                    key={totalPages}
-                    onClick={() => handlePageChange(totalPages)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    {totalPages}
-                  </button>
-                );
-              }
-
-              return pages;
-            })()}
+      {/* Pagination - Chuẩn Users */}
+      <div className="pagination-controls-bottom">
+        <div className="pagination-info">
+          <span className="pagination-label">Hàng mỗi trang</span>
+          <div className="pill-select" ref={pageSizeRef}>
+            <button type="button" className="pill-trigger" onClick={() => setOpenPageSizeMenu(!openPageSizeMenu)}>
+              {pageSize}
+            </button>
+            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <ul className={`pill-menu ${openPageSizeMenu ? 'show' : ''}`}>
+              {[10, 20, 50, 100].map(size => (
+                <li key={size} className={`pill-item ${pageSize === size ? 'active' : ''}`} onClick={() => { setPageSize(size); setPageNumber(1); setOpenPageSizeMenu(false); }}>
+                  {size}
+                </li>
+              ))}
+            </ul>
           </div>
-
-          {/* Next Page */}
-          <button
-            disabled={pageNumber === totalPages}
-            onClick={() => handlePageChange(pageNumber + 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: pageNumber === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: pageNumber === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: pageNumber === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (pageNumber !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pageNumber !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <span style={{ marginRight: '4px' }}>Sau</span>
-            <ChevronRight size={16} />
-          </button>
-
-          {/* Last Page */}
-          <button
-            disabled={pageNumber === totalPages}
-            onClick={() => handlePageChange(totalPages)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: pageNumber === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: pageNumber === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: pageNumber === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (pageNumber !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pageNumber !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <span style={{ marginRight: '4px' }}>Cuối</span>
-            <ChevronsRight size={16} />
-          </button>
+          <span className="pagination-range">
+            {((pageNumber - 1) * pageSize) + 1}–{Math.min(pageNumber * pageSize, totalCount)} của {totalCount} hàng
+          </span>
+        </div>
+        <div className="pagination-right-controls">
+          <div className="pager-pages">
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === 1 ? 'is-disabled' : ''}`}
+              disabled={pageNumber === 1}
+              onClick={() => handlePageChange(1)}
+              title="Đầu trang"
+            >
+              <ChevronsLeft size={16} />
+            </button>
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === 1 ? 'is-disabled' : ''}`}
+              disabled={pageNumber === 1}
+              onClick={() => handlePageChange(pageNumber - 1)}
+              title="Trang trước"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="pager-ellipsis">1, 2, ..., {totalPages}</span>
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === totalPages ? 'is-disabled' : ''}`}
+              disabled={pageNumber === totalPages}
+              onClick={() => handlePageChange(pageNumber + 1)}
+              title="Trang sau"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === totalPages ? 'is-disabled' : ''}`}
+              disabled={pageNumber === totalPages}
+              onClick={() => handlePageChange(totalPages)}
+              title="Cuối trang"
+            >
+              <ChevronsRight size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1953,8 +1087,7 @@ export default function PartManagement() {
                         setIsModalOpen(false)
                         setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
                       } catch (e) {
-                        console.error(e)
-                        alert('Tạo phụ tùng thất bại')
+                        setError('Tạo phụ tùng thất bại')
                       }
                     }}
                   >
@@ -2004,8 +1137,7 @@ export default function PartManagement() {
                         setIsModalOpen(false)
                         setEditingPart(null)
                       } catch (e) {
-                        console.error(e)
-                        alert('Cập nhật phụ tùng thất bại')
+                        setError('Cập nhật phụ tùng thất bại')
                       }
                     }}
                   >

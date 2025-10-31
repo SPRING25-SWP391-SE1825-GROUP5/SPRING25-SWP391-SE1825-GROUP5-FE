@@ -33,18 +33,8 @@ export type {
 
 // Booking Services
 export { BookingService } from './bookingService'
-export type {
-  BookingResponse,
-  BookingDetail,
-  BookingDetailResponse,
-  MaintenanceChecklist,
-  MaintenanceChecklistItem,
-  MaintenanceChecklistSummary,
-  MaintenanceChecklistStatus,
-  TimeSlotAvailability,
-  TechnicianAvailability,
-  AvailabilityResponse
-} from './bookingService'
+// Removed type re-exports that no longer exist to avoid build errors
+// export type { AvailabilityParams, AvailabilityResponse, TimeSlotAvailability, TechnicianAvailability, ReservationRequest, ReservationResponse } from './bookingService'
 
 // Service Management Services
 export { ServiceManagementService } from './serviceManagementService'
@@ -56,6 +46,14 @@ export type {
   ServiceListParams,
   ServiceListResponse
 } from './serviceManagementService'
+
+// Service Checklist Template Services
+export { ServiceChecklistTemplateService } from './serviceChecklistTemplateService'
+export type {
+  ServiceChecklistTemplate,
+  RecommendationRequest,
+  RecommendationResponse
+} from './serviceChecklistTemplateService'
 
 // Vehicle Model Management Services
 export { vehicleModelService } from './vehicleModelManagement'
@@ -113,8 +111,12 @@ export type {
   ChatNotification
 } from '@/types/chat'
 
+// Part Services
+export { PartService } from './partService'
+export type {
+  Part,
+  PartAvailabilityResponse,
+  PartFilters
+} from './partService'
+
 // TODO: Add other services as they are created
-// export { ProductService } from './productService'
-// export { OrderService } from './orderService'
-// export { AppointmentService } from './appointmentService'
-// export { NotificationService } from './notificationService'

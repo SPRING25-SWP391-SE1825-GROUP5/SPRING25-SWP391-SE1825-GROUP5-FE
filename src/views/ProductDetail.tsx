@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { addToCart } from '@/store/cartSlice'
+import { PartService, Part } from '@/services'
 import {
   ShoppingCartIcon,
   HeartIcon,
@@ -16,113 +17,49 @@ import {
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import './product-detail.scss'
 
-interface Product {
+// Sử dụng Part interface từ API thay vì Product interface
+type Product = Part & {
+  // Thêm các thuộc tính bổ sung cho UI
   id: string
   name: string
   price: number
   originalPrice?: number
-  rating: number
-  reviewCount: number
-  image: string
   category: string
-  brand: string
-  inStock: boolean
-  isNew?: boolean
-  isSale?: boolean
-  description: string
+  description?: string
   specifications?: {
     [key: string]: string
   }
   images?: string[]
   features?: string[]
+  reviewCount?: number
+  inStock?: boolean
 }
 
-// Import shared products data
-import { products } from './Products'
-
-// Function to add detailed data to products
-const getProductWithDetails = (productId: string): Product | null => {
-  const baseProduct = products.find(p => p.id === productId)
-  if (!baseProduct) return null
-
-  // Add detailed specifications, images, and features based on product type
-  const detailedProduct: Product = {
-    ...baseProduct,
+// Function to convert Part to Product with additional UI properties
+const convertPartToProduct = (part: Part): Product => {
+  return {
+    ...part,
+    // Map Part properties to Product properties
+    id: part.partId.toString(),
+    name: part.partName,
+    price: part.unitPrice,
+    originalPrice: part.unitPrice * 1.2, // Mock original price (20% higher)
+    brand: part.brand,
+    category: part.brand, // Using brand as category for now
+    rating: part.rating,
+    inStock: !part.isOutOfStock,
+    // Add UI-specific properties
+    description: `${part.partName} - ${part.brand}`,
+    reviewCount: Math.floor(Math.random() * 200) + 50, // Mock review count
+    images: [`https://picsum.photos/seed/${part.partId}/400/400`],
+    features: ['Chất lượng cao', 'Bền bỉ', 'Đáng tin cậy'],
     specifications: {
-      'Thương hiệu': baseProduct.brand,
-      'Danh mục': baseProduct.category,
-      'Tình trạng': baseProduct.inStock ? 'Còn hàng' : 'Hết hàng',
-      'Bảo hành': '12 tháng',
-    },
-    images: [
-      baseProduct.image,
-      baseProduct.image.replace('?w=400&h=400', '?w=800&h=800'),
-      baseProduct.image.replace('photo-1593941707882', 'photo-1558618047-3c8c76ca7d13'),
-    ],
-    features: [
-      'Chất lượng cao',
-      'Thiết kế hiện đại',
-      'Dễ sử dụng',
-      'Tiết kiệm năng lượng',
-      'Thân thiện môi trường'
-    ]
+      'Thương hiệu': part.brand,
+      'Danh mục': part.brand,
+      'Tình trạng': part.isOutOfStock ? 'Hết hàng' : 'Còn hàng',
+      'Bảo hành': '12 tháng'
+    }
   }
-
-  // Add specific details based on category
-  if (baseProduct.category.includes('battery')) {
-    detailedProduct.specifications = {
-      ...detailedProduct.specifications,
-      'Loại pin': 'Lithium-ion',
-      'Tuổi thọ': '2000+ chu kỳ sạc',
-      'Thời gian sạc': '4-8 giờ',
-      'Trọng lượng': '25-45kg',
-      'Kích thước': '500 x 300 x 200mm',
-      'Nhiệt độ hoạt động': '-10°C đến 60°C'
-    }
-    detailedProduct.features = [
-      'Công nghệ BMS thông minh',
-      'Sạc nhanh an toàn',
-      'Chống quá nhiệt',
-      'Thiết kế compact',
-      'Tương thích đa dạng xe điện'
-    ]
-  } else if (baseProduct.category.includes('charger')) {
-    detailedProduct.specifications = {
-      ...detailedProduct.specifications,
-      'Công suất': '7-350kW',
-      'Điện áp đầu vào': '220-480V',
-      'Chuẩn kết nối': 'CCS2, CHAdeMO, Type 2',
-      'Hiệu suất': '> 95%',
-      'Độ ẩm hoạt động': '< 95%',
-      'Cấp bảo vệ': 'IP54'
-    }
-    detailedProduct.features = [
-      'Sạc nhanh intelligent',
-      'Nhiều chuẩn kết nối',
-      'Giao diện thân thiện',
-      'Thanh toán đa dạng',
-      'Giám sát từ xa'
-    ]
-  } else if (baseProduct.category.includes('motor')) {
-    detailedProduct.specifications = {
-      ...detailedProduct.specifications,
-      'Công suất': '50-200kW',
-      'Mô-men xoắn': '200-400Nm',
-      'Tốc độ tối đa': '12000 RPM',
-      'Hiệu suất': '> 92%',
-      'Làm mát': 'Nước/Dầu',
-      'Cấp bảo vệ': 'IP67'
-    }
-    detailedProduct.features = [
-      'Hiệu suất cao',
-      'Vận hành êm ái',
-      'Bền bỉ theo thời gian',
-      'Bảo trì tối thiểu',
-      'Tích hợp dễ dàng'
-    ]
-  }
-
-  return detailedProduct
 }
 
 export default function ProductDetail() {
@@ -131,47 +68,82 @@ export default function ProductDetail() {
   const dispatch = useAppDispatch()
   
   const [product, setProduct] = useState<Product | null>(null)
+  const [allParts, setAllParts] = useState<Part[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [activeTab, setActiveTab] = useState('description')
   const [isWishlisted, setIsWishlisted] = useState(false)
 
+  // Load product details from API
   useEffect(() => {
-    if (id) {
-      const foundProduct = getProductWithDetails(id)
-      setProduct(foundProduct)
+    const loadProduct = async () => {
+      if (!id) return
+      
+      try {
+        setLoading(true)
+        setError(null)
+        
+        // Load all parts first to get related products
+        const allPartsResponse = await PartService.getPartAvailability()
+        if (allPartsResponse.success) {
+          setAllParts(allPartsResponse.data)
+        }
+        
+        // Load specific product details
+        const productId = parseInt(id)
+        const response = await PartService.getPartById(productId)
+        
+        if (response.success && response.data) {
+          const productData = convertPartToProduct(response.data)
+          setProduct(productData)
+        } else {
+          setError('Không tìm thấy sản phẩm')
+        }
+      } catch (err) {
+        console.error('Error loading product:', err)
+        setError('Có lỗi xảy ra khi tải sản phẩm')
+      } finally {
+        setLoading(false)
+      }
     }
+
+    loadProduct()
   }, [id])
 
-  // Get related products based on same category or brand
+  // Get related products based on same brand
   const getRelatedProducts = (): Product[] => {
-    if (!product) return []
+    if (!product || allParts.length === 0) return []
     
-    return products
-      .filter(p => p.id !== product.id) // Exclude current product
-      .filter(p => 
-        p.category.split('/')[0] === product.category.split('/')[0] || // Same main category
-        p.brand === product.brand // Same brand
-      )
+    return allParts
+      .filter(p => p.partId !== product.partId) // Exclude current product
+      .filter(p => p.brand === product.brand) // Same brand
       .slice(0, 8) // Limit to 8 products
+      .map(convertPartToProduct)
   }
 
-  const relatedProducts = getRelatedProducts()
-
   const handleAddToCart = () => {
-    if (product && product.inStock) {
-      dispatch(addToCart({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        brand: product.brand,
-        category: product.category,
-        inStock: product.inStock
-      }))
-      // Success - no popup needed
-    }
+    if (!product) return
+    
+    dispatch(addToCart({
+      id: product.partId.toString(),
+      name: product.partName,
+      price: product.unitPrice,
+      image: product.images?.[0] || `https://picsum.photos/seed/${product.partId}/400/400`,
+      brand: product.brand,
+      category: product.category,
+      inStock: product.inStock || true
+    }))
+  }
+
+  const handleBuyNow = () => {
+    if (!product) return
+    
+    // Add to cart first
+    handleAddToCart()
+    // Navigate to checkout
+    navigate('/checkout')
   }
 
   const formatPrice = (price: number) => {
@@ -187,42 +159,53 @@ export default function ProductDetail() {
         {[1, 2, 3, 4, 5].map((star) => (
           <div key={star} className="relative">
             {star <= Math.floor(rating) ? (
-              <StarSolid className="w-5 h-5 text-yellow-400" />
+              <StarSolid className="w-4 h-4 text-yellow-400" />
             ) : star === Math.ceil(rating) && rating % 1 !== 0 ? (
               <>
-                <StarIcon className="w-5 h-5 text-gray-300 absolute" />
-                <StarSolid 
-                  className="w-5 h-5 text-yellow-400" 
+                <StarIcon className="w-4 h-4 text-gray-300 absolute" />
+                <StarSolid
+                  className="w-4 h-4 text-yellow-400"
                   style={{ clipPath: `inset(0 ${100 - (rating % 1) * 100}% 0 0)` }}
                 />
               </>
             ) : (
-              <StarIcon className="w-5 h-5 text-gray-300" />
+              <StarIcon className="w-4 h-4 text-gray-300" />
             )}
           </div>
         ))}
-        <span className="ml-2 text-sm text-gray-600">({rating})</span>
+        <span className="ml-1 text-sm text-gray-600">{rating}</span>
+        <StarSolid className="w-3 h-3 text-yellow-400 ml-1" />
       </div>
     )
   }
 
-  if (!product) {
+  if (loading) {
     return (
-      <div className="product-detail-page">
-        <div className="container">
-          <div className="not-found">
-            <h1>Sản phẩm không tồn tại</h1>
-            <button onClick={() => navigate('/products')} className="back-btn">
-              Quay lại danh sách sản phẩm
-            </button>
-          </div>
+      <div className="product-detail-loading">
+        <div className="loading-spinner"></div>
+        <p>Đang tải sản phẩm...</p>
+      </div>
+    )
+  }
+
+  if (error || !product) {
+    return (
+      <div className="product-detail-error">
+        <div className="error-content">
+          <h1>Sản phẩm không tồn tại</h1>
+          <p>{error || 'Không thể tải thông tin sản phẩm'}</p>
+          <button onClick={() => navigate('/products')} className="back-btn">
+            Quay lại danh sách sản phẩm
+          </button>
         </div>
       </div>
     )
   }
 
+  const relatedProducts = getRelatedProducts()
+
   return (
-    <div className="product-detail-page">
+    <div className="product-detail">
       <div className="container">
         {/* Breadcrumb */}
         <div className="breadcrumb">
@@ -230,75 +213,69 @@ export default function ProductDetail() {
             Sản phẩm
           </button>
           <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-current">{product.name}</span>
+          <span className="breadcrumb-current">{product.partName}</span>
         </div>
 
-        <div className="product-detail-content">
-          {/* Product Images */}
-          <div className="product-images">
+        {/* Main Product Section */}
+        <div className="product-main">
+          <div className="product-gallery">
             <div className="main-image">
               <img 
-                src={product.images?.[selectedImage] || product.image} 
-                alt={product.name}
-                onError={(e) => {
-                  e.currentTarget.src = 'https://via.placeholder.com/800x800/f5f5f5/666?text=Sản phẩm'
-                }}
+                src={product.images?.[selectedImage] || `https://picsum.photos/seed/${product.partId}/600/600`} 
+                alt={product.partName}
               />
-              {product.isNew && <span className="product-badge new">Coming Soon</span>}
-              {product.isSale && <span className="product-badge sale">Bestseller</span>}
             </div>
             
             {product.images && product.images.length > 1 && (
-              <div className="thumbnail-images">
-                {product.images.map((img, index) => (
+              <div className="thumbnail-gallery">
+                {product.images.map((image, index) => (
                   <button
                     key={index}
                     className={`thumbnail ${selectedImage === index ? 'active' : ''}`}
                     onClick={() => setSelectedImage(index)}
                   >
-                    <img src={img} alt={`${product.name} ${index + 1}`} />
+                    <img src={image} alt={`${product.partName} ${index + 1}`} />
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Product Info */}
           <div className="product-info">
             <div className="product-header">
-              <div className="product-brand">{product.brand}</div>
-              <h1 className="product-title">{product.name}</h1>
-              
-              <div className="product-rating">
-                {renderStars(product.rating)}
-                <span className="review-count">({product.reviewCount} đánh giá)</span>
-              </div>
-
-              <div className="product-price">
-                <span className="current-price">{formatPrice(product.price)}</span>
-                {product.originalPrice && (
-                  <span className="original-price">{formatPrice(product.originalPrice)}</span>
-                )}
+              <h1 className="product-title">{product.partName}</h1>
+              <div className="product-meta">
+                <div className="product-rating">
+                  {renderStars(product.rating)}
+                  <span className="review-count">({product.reviewCount} đánh giá)</span>
+                </div>
+                <div className="product-brand">
+                  <span className="brand-label">Thương hiệu:</span>
+                  <span className="brand-name">{product.brand}</span>
+                </div>
               </div>
             </div>
 
-            <div className="product-description">
-              <p>{product.description}</p>
+            <div className="product-pricing">
+              <div className="price-current">
+                {formatPrice(product.unitPrice)}
+              </div>
+              {product.originalPrice && product.originalPrice > product.unitPrice && (
+                <div className="price-original">
+                  {formatPrice(product.originalPrice)}
+                </div>
+              )}
             </div>
 
-            {/* Features */}
-            {product.features && (
-              <div className="product-features">
-                <h3>Tính năng nổi bật</h3>
-                <ul>
-                  {product.features.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
+            <div className="product-availability">
+              <div className={`stock-status ${product.inStock ? 'in-stock' : 'out-of-stock'}`}>
+                {product.inStock ? 'Còn hàng' : 'Hết hàng'}
               </div>
-            )}
+              <div className="stock-quantity">
+                Tồn kho: {product.totalStock} sản phẩm
+              </div>
+            </div>
 
-            {/* Quantity & Add to Cart */}
             <div className="product-actions">
               <div className="quantity-selector">
                 <label>Số lượng:</label>
@@ -309,7 +286,7 @@ export default function ProductDetail() {
                   >
                     -
                   </button>
-                  <span>{quantity}</span>
+                  <span className="quantity-value">{quantity}</span>
                   <button 
                     onClick={() => setQuantity(quantity + 1)}
                     disabled={!product.inStock}
@@ -321,49 +298,47 @@ export default function ProductDetail() {
 
               <div className="action-buttons">
                 <button 
-                  className={`add-to-cart-btn ${!product.inStock ? 'disabled' : ''}`}
-                  disabled={!product.inStock}
+                  className="btn btn-primary"
                   onClick={handleAddToCart}
+                  disabled={!product.inStock}
                 >
                   <ShoppingCartIcon className="w-5 h-5" />
-                  {product.inStock ? 'Thêm vào giỏ hàng' : 'Hết hàng'}
+                  Thêm vào giỏ hàng
                 </button>
                 
                 <button 
-                  className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
-                  onClick={() => setIsWishlisted(!isWishlisted)}
+                  className="btn btn-secondary"
+                  onClick={handleBuyNow}
+                  disabled={!product.inStock}
                 >
-                  <HeartIcon className="w-5 h-5" />
+                  Mua ngay
                 </button>
                 
-                <button className="share-btn">
+                <button 
+                  className="btn btn-outline"
+                  onClick={() => setIsWishlisted(!isWishlisted)}
+                >
+                  <HeartIcon className={`w-5 h-5 ${isWishlisted ? 'filled' : ''}`} />
+                </button>
+                
+                <button className="btn btn-outline">
                   <ShareIcon className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Product Benefits */}
-            <div className="product-benefits">
-              <div className="benefit-item">
-                <TruckIcon className="w-6 h-6" />
-                <div>
-                  <strong>Miễn phí vận chuyển</strong>
-                  <span>Đơn hàng trên 10 triệu</span>
-                </div>
+            <div className="product-features">
+              <div className="feature-item">
+                <TruckIcon className="w-5 h-5" />
+                <span>Miễn phí vận chuyển</span>
               </div>
-              <div className="benefit-item">
-                <ShieldCheckIcon className="w-6 h-6" />
-                <div>
-                  <strong>Bảo hành chính hãng</strong>
-                  <span>5 năm bảo hành</span>
-                </div>
+              <div className="feature-item">
+                <ShieldCheckIcon className="w-5 h-5" />
+                <span>Bảo hành 12 tháng</span>
               </div>
-              <div className="benefit-item">
-                <ArrowPathIcon className="w-6 h-6" />
-                <div>
-                  <strong>Đổi trả 30 ngày</strong>
-                  <span>Hoàn tiền 100%</span>
-                </div>
+              <div className="feature-item">
+                <ArrowPathIcon className="w-5 h-5" />
+                <span>Đổi trả trong 30 ngày</span>
               </div>
             </div>
           </div>
@@ -376,7 +351,7 @@ export default function ProductDetail() {
               className={`tab-header ${activeTab === 'description' ? 'active' : ''}`}
               onClick={() => setActiveTab('description')}
             >
-              Mô tả chi tiết
+              Mô tả sản phẩm
             </button>
             <button 
               className={`tab-header ${activeTab === 'specifications' ? 'active' : ''}`}
@@ -385,70 +360,43 @@ export default function ProductDetail() {
               Thông số kỹ thuật
             </button>
             <button 
-              className={`tab-header ${activeTab === 'reviews' ? 'active' : ''}`}
-              onClick={() => setActiveTab('reviews')}
+              className={`tab-header ${activeTab === 'features' ? 'active' : ''}`}
+              onClick={() => setActiveTab('features')}
             >
-              Đánh giá ({product.reviewCount})
+              Tính năng
             </button>
           </div>
 
           <div className="tab-content">
             {activeTab === 'description' && (
-              <div className="description-content">
+              <div className="tab-panel">
                 <p>{product.description}</p>
-                <p>
-                  Sản phẩm được thiết kế với công nghệ tiên tiến nhất, đảm bảo chất lượng 
-                  và độ bền cao. Phù hợp cho mọi loại xe điện hiện đại.
-                </p>
               </div>
             )}
 
-            {activeTab === 'specifications' && product.specifications && (
-              <div className="specifications-content">
-                <table>
-                  <tbody>
-                    {Object.entries(product.specifications).map(([key, value]) => (
-                      <tr key={key}>
-                        <td className="spec-label">{key}</td>
-                        <td className="spec-value">{value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {activeTab === 'specifications' && (
+              <div className="tab-panel">
+                <div className="specifications-table">
+                  {product.specifications && Object.entries(product.specifications).map(([key, value]) => (
+                    <div key={key} className="spec-row">
+                      <span className="spec-label">{key}:</span>
+                      <span className="spec-value">{value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {activeTab === 'reviews' && (
-              <div className="reviews-content">
-                <div className="reviews-summary">
-                  <div className="rating-overview">
-                    <div className="overall-rating">
-                      <span className="rating-number">{product.rating}</span>
-                      {renderStars(product.rating)}
-                      <span className="total-reviews">Dựa trên {product.reviewCount} đánh giá</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="review-list">
-                  <div className="review-item">
-                    <div className="reviewer-info">
-                      <strong>Nguyễn Văn A</strong>
-                      <span className="review-date">15/03/2024</span>
-                    </div>
-                    {renderStars(5)}
-                    <p>Sản phẩm tuyệt vời, chất lượng cao, giao hàng nhanh!</p>
-                  </div>
-                  
-                  <div className="review-item">
-                    <div className="reviewer-info">
-                      <strong>Trần Thị B</strong>
-                      <span className="review-date">10/03/2024</span>
-                    </div>
-                    {renderStars(4)}
-                    <p>Pin rất tốt, sạc nhanh và bền. Recommend!</p>
-                  </div>
-                </div>
+            {activeTab === 'features' && (
+              <div className="tab-panel">
+                <ul className="features-list">
+                  {product.features?.map((feature, index) => (
+                    <li key={index} className="feature-item">
+                      <span className="feature-icon">✓</span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -459,52 +407,38 @@ export default function ProductDetail() {
           <div className="related-products">
             <div className="related-header">
               <h2>Sản phẩm liên quan</h2>
-              <p>Khám phá thêm các sản phẩm tương tự</p>
-            </div>
-            
-            <div className="related-grid">
-              {relatedProducts.map(relatedProduct => (
-                <div 
-                  key={relatedProduct.id}
-                  className="related-product-card"
-                  onClick={() => navigate(`/product/${relatedProduct.id}`)}
-                >
-                  <div className="related-product-image">
-                    <img 
-                      src={relatedProduct.image} 
-                      alt={relatedProduct.name}
-                      onError={(e) => {
-                        e.currentTarget.src = 'https://via.placeholder.com/300x300/f5f5f5/666?text=Sản phẩm'
-                      }}
-                    />
-                    {relatedProduct.isNew && <span className="product-badge new">Coming Soon</span>}
-                    {relatedProduct.isSale && <span className="product-badge sale">Bestseller</span>}
-                  </div>
-
-                  <div className="related-product-info">
-                    <div className="product-brand">{relatedProduct.brand}</div>
-                    <h3 className="product-name">{relatedProduct.name}</h3>
-                    <div className="product-rating">
-                      {renderStars(relatedProduct.rating)}
-                    </div>
-                    <div className="product-price">
-                      <span className="current-price">{formatPrice(relatedProduct.price)}</span>
-                      {relatedProduct.originalPrice && (
-                        <span className="original-price">{formatPrice(relatedProduct.originalPrice)}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="view-all-section">
               <button 
                 className="view-all-btn"
                 onClick={() => navigate('/products')}
               >
                 Xem tất cả sản phẩm
               </button>
+            </div>
+            
+            <div className="related-grid">
+              {relatedProducts.map(relatedProduct => (
+                <div 
+                  key={relatedProduct.partId}
+                  className="related-product-card"
+                  onClick={() => navigate(`/product/${relatedProduct.partId}`)}
+                >
+                  <div className="product-image">
+                    <img 
+                      src={relatedProduct.images?.[0] || `https://picsum.photos/seed/${relatedProduct.partId}/300/300`} 
+                      alt={relatedProduct.partName}
+                    />
+                  </div>
+                  <div className="product-details">
+                    <h3 className="product-name">{relatedProduct.partName}</h3>
+                    <div className="product-price">
+                      {formatPrice(relatedProduct.unitPrice)}
+                    </div>
+                    <div className="product-rating">
+                      {renderStars(relatedProduct.rating)}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

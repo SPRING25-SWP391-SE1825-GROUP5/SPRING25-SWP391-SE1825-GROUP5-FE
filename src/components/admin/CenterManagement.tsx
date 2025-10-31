@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Globe, 
   Edit, 
@@ -23,11 +23,18 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  RefreshCw
+  RefreshCw,
+  Phone,
+  Calendar,
+  Settings,
+  List,
+  BarChart2,
+  Download
 } from 'lucide-react'
 import { CenterService, type Center, type CenterListParams } from '../../services/centerService'
 import { StaffService } from '../../services/staffService'
 import { TechnicianService } from '../../services/technicianService'
+import './CenterManagement.scss'
 
 export default function CenterManagement() {
   const [centers, setCenters] = useState<Center[]>([])
@@ -76,6 +83,11 @@ export default function CenterManagement() {
     inactiveCenters: 0
   })
   const [loadingStats, setLoadingStats] = useState(false)
+
+  // Thêm khai báo pageSize và totalItems phía trên dùng useState
+  const [pageSize, setPageSize] = useState(10)
+  // totalItems lấy từ data trả về lúc fetch
+  const [totalItems, setTotalItems] = useState(0)
 
   // Real-time validation
   const validateField = (field: string, value: string) => {
@@ -133,7 +145,7 @@ export default function CenterManagement() {
         inactiveCenters
       })
     } catch (err: any) {
-      console.error('Error fetching stats:', err)
+      // Error handled by setError state
     } finally {
       setLoadingStats(false)
     }
@@ -149,13 +161,8 @@ export default function CenterManagement() {
       if (searchTerm) params.searchTerm = searchTerm
       if (city) params.city = city
       
-      console.log('Fetching centers with params:', params)
-      console.log('Center status:', centerStatus)
-      
       // Get all centers (both active and inactive)
       const response = await CenterService.getCenters(params)
-      
-      console.log('Centers response:', response)
       
       let allCenters = response?.centers || []
 
@@ -209,8 +216,8 @@ export default function CenterManagement() {
       const paginatedCenters = allCenters.slice(startIndex, endIndex);
       
       setCenters(paginatedCenters)
+      setTotalItems(allCenters.length)
     } catch (err: any) {
-      console.error('Error fetching centers:', err)
       setError('Không thể tải danh sách trung tâm: ' + (err.message || 'Unknown error'))
     } finally {
       setLoading(false)
@@ -281,27 +288,20 @@ export default function CenterManagement() {
         phoneNumber: formValues.phoneNumber.trim(),
         isActive: formValues.isActive
       }
-      
-      console.log('Submitting form with data:', cleanData)
 
       if (formMode === 'create') {
-        console.log('Creating center...')
         await CenterService.createCenter(cleanData)
-        console.log('Center created successfully')
       } else {
         if (!selectedCenter) {
           setFormError('Không tìm thấy trung tâm để cập nhật')
           return
         }
-        console.log('Updating center...')
         await CenterService.updateCenter(selectedCenter.centerId, cleanData)
-        console.log('Center updated successfully')
       }
       
       setFormOpen(false)
       await fetchCenters()
     } catch (err: any) {
-      console.error('Lỗi khi gửi form trung tâm:', err)
       
       // Extract detailed error message
       let errorMessage = 'Unknown error'
@@ -331,18 +331,14 @@ export default function CenterManagement() {
   const toggleCenterStatus = async (centerId: number) => {
     try {
       setTogglingCenterId(centerId)
-      console.log('Toggling center status for ID:', centerId)
       const updatedCenter = await CenterService.toggleCenterStatus(centerId)
-      console.log('Center status updated successfully:', updatedCenter)
       
-      // Show success message
-      alert(`Trạng thái trung tâm đã được cập nhật thành công!`)
+      // Success handled by UI state
       
       // Refresh the list
       await fetchCenters()
     } catch (err: any) {
-      console.error('Lỗi khi chuyển trạng thái trung tâm:', err)
-      alert(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
+      setError(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
     } finally {
       setTogglingCenterId(null)
     }
@@ -384,8 +380,7 @@ export default function CenterManagement() {
       setCenterStaff(staff)
       setCenterTechnicians(technicians)
     } catch (err: any) {
-      console.error('Error fetching center details:', err)
-      alert(`Lỗi khi tải chi tiết trung tâm: ${err.message || 'Unknown error'}`)
+      setError(`Lỗi khi tải chi tiết trung tâm: ${err.message || 'Unknown error'}`)
     } finally {
       setLoadingDetails(false)
     }
@@ -414,909 +409,187 @@ export default function CenterManagement() {
     { value: "inactive", label: "Không hoạt động" },
   ];
 
+  // Dropdown headless states
+  const [openStatusMenu, setOpenStatusMenu] = useState(false)
+  const [openCityMenu, setOpenCityMenu] = useState(false)
+  const statusRef = useRef<HTMLDivElement | null>(null)
+  const cityRef = useRef<HTMLDivElement | null>(null)
+
+  // Thêm state ở đầu component
+  const [isPageSizeDropdownOpen, setIsPageSizeDropdownOpen] = useState(false)
+  const pageSizeOptions = [5, 10, 20, 50]
+  const pageSizeRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (pageSizeRef.current && !pageSizeRef.current.contains(event.target as Node)) {
+        setIsPageSizeDropdownOpen(false)
+      }
+    }
+    if (isPageSizeDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isPageSizeDropdownOpen])
+
   useEffect(() => {
     fetchCenters()
     fetchStats()
   }, [page, searchTerm, city, centerStatus, sortBy, sortOrder])
 
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) setOpenStatusMenu(false)
+      if (cityRef.current && !cityRef.current.contains(e.target as Node)) setOpenCityMenu(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [])
+
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: 'var(--bg-secondary)', 
-      minHeight: '100vh',
-      animation: 'fadeIn 0.5s ease-out'
-    }}>
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes modalSlideIn {
-          from { opacity: 0; transform: scale(0.9) translateY(-20px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Quản lý Trung tâm Dịch vụ
-          </h2>
-          <p style={{ 
-            fontSize: '16px', 
-            color: 'var(--text-secondary)',
-            margin: '0'
-          }}>
-            Quản lý và theo dõi các trung tâm dịch vụ xe điện
-          </p>
+    <div className="center-management">
+      {/* Toolbar chuẩn Users */}
+      <div className="users-toolbar">
+        <div className="toolbar-top">
+          <div className="toolbar-left">
+            <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
+            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
+            <button type="button" className="toolbar-chip"><Users size={14}/> Danh sách</button>
+            <div className="toolbar-sep"></div>
         </div>
-        
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={() => {
-            fetchCenters();
-            fetchStats();
-          }} style={{
-            padding: '12px 20px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
-            e.currentTarget.style.background = 'var(--primary-50)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-            e.currentTarget.style.background = 'var(--bg-card)'
-          }}>
-            <RefreshCw size={18} />
-            Làm mới
-          </button>
-          
-          <button onClick={openCreateForm} style={{
-            padding: '12px 24px',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-          }}>
-            <Plus size={18} />
-            Thêm trung tâm
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <Building2 size={20} />
-            </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Tổng trung tâm
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : stats.totalCenters}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--success-500), var(--success-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <Circle size={20} fill="currentColor" />
-            </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Đang hoạt động
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : stats.activeCenters}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--error-500), var(--error-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <AlertCircle size={20} fill="currentColor" />
-            </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Ngừng hoạt động
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : stats.inactiveCenters}
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Filters */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '16px',
-          alignItems: 'end'
-        }}>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px',
-            }}>
-              Tìm kiếm
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: 'var(--text-tertiary)' 
-              }} />
+          <div className="toolbar-right">
+            <div className="toolbar-search">
+              <span className="icon"><Search size={16}/></span>
               <input
-                placeholder="Tìm kiếm trung tâm..."
+                placeholder="Tìm trung tâm theo tên"
                 value={searchTerm}
-                onChange={(e) => { setPage(1); setSearchTerm(e.target.value) }}
-                style={{
-                  width: '100%',
-                  padding: '12px 12px 12px 40px',
-                  border: '2px solid var(--border-primary)',
-                  borderRadius: '10px',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--primary-500)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--border-primary)'
-                  e.target.style.boxShadow = 'none'
-                }}
+                onChange={(e)=>{ setPage(1); setSearchTerm(e.target.value) }}
+                onFocus={e => e.target.classList.add('search-input-focus')}
+                onBlur={e => e.target.classList.remove('search-input-focus')}
               />
+              <span className="search-underline"></span>
+            </div>
+            <div className="toolbar-actions" style={{marginLeft:'auto'}}>
+              <button type="button" className="toolbar-btn"><Eye size={14}/> Ẩn</button>
+              <button type="button" className="toolbar-btn"><Settings size={14}/> Tuỳ chỉnh</button>
+              <button type="button" className="toolbar-btn"><Download size={14}/> Xuất</button>
+              <button type="button" className="accent-button" onClick={openCreateForm}><Plus size={16}/> Thêm trung tâm</button>
             </div>
           </div>
+        </div>
 
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Thành phố
-            </label>
-            <input
-              placeholder="Lọc theo thành phố..."
-              value={city}
-              onChange={(e) => { setPage(1); setCity(e.target.value) }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = 'var(--primary-500)'
-                e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'var(--border-primary)'
-                e.target.style.boxShadow = 'none'
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Trạng thái
-            </label>
-            <select
-              value={centerStatus}
-              onChange={(e) => { setPage(1); setCenterStatus(e.target.value) }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <button 
-              onClick={() => {
-                setPage(1)
-                setSearchTerm('')
-                setCenterStatus('all')
-                setSortBy('name')
-                setSortOrder('asc')
-              }}
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                border: '2px solid var(--border-primary)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--primary-500)'
-                e.currentTarget.style.background = 'var(--primary-50)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.background = 'var(--bg-secondary)'
-              }}
-            >
-              <RefreshCw size={16} />
-              Đặt lại bộ lọc
+        <div className="toolbar-filters">
+          {/* Trạng thái */}
+          <div className="pill-select" ref={statusRef}>
+            <button type="button" className="pill-trigger" onClick={()=>{ setOpenStatusMenu(!openStatusMenu); setOpenCityMenu(false); }}>
+              <CheckCircle size={14} style={{marginRight:6}}/>
+              {statusOptions.find(o=>o.value===centerStatus)?.label || 'Tất cả trạng thái'}
+              <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </button>
+            <ul className={`pill-menu ${openStatusMenu ? 'show' : ''}`}>
+              {statusOptions.map(opt => (
+                <li key={opt.value} className={`pill-item ${centerStatus===opt.value ? 'active' : ''}`} onClick={()=>{ setCenterStatus(opt.value); setPage(1); setOpenStatusMenu(false); }}>
+                  {opt.label}
+                </li>
+              ))}
+            </ul>
           </div>
+
+          {/* Thành phố */}
+          <div className="pill-select" ref={cityRef}>
+            <button type="button" className="pill-trigger" onClick={()=>{ setOpenCityMenu(!openCityMenu); setOpenStatusMenu(false); }}>
+              <Globe size={14} style={{marginRight:6}}/>
+              {city ? city : 'Tất cả thành phố'}
+              <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul className={`pill-menu ${openCityMenu ? 'show' : ''}`}>
+              <li className={`pill-item ${city==='' ? 'active' : ''}`} onClick={()=>{ setCity(''); setPage(1); setOpenCityMenu(false); }}>Tất cả thành phố</li>
+              {Array.from(new Set(centers.map(c=>c.city).filter(Boolean))).sort().map((c)=> (
+                <li key={String(c)} className={`pill-item ${city===c ? 'active' : ''}`} onClick={()=>{ setCity(String(c)); setPage(1); setOpenCityMenu(false); }}>{String(c)}</li>
+              ))}
+            </ul>
+          </div>
+
+          <button type="button" className="toolbar-chip"><Plus size={14}/> Thêm bộ lọc</button>
         </div>
       </div>
 
       {/* Centers List */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '32px',
-        borderRadius: '20px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
-      }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px'
-          }}>
-            <h3 style={{
-              fontSize: '20px', 
-              fontWeight: '700', 
-              color: 'var(--text-primary)',
-              margin: '0'
-            }}>
-              Danh sách Trung tâm
-            </h3>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              {/* Simple Header Pagination */}
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                style={{ 
-                  padding: "6px 10px", 
-                  borderRadius: "6px",
-                  border: "1px solid var(--border-primary)",
-                  background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-                  color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-                  cursor: page === 1 ? "not-allowed" : "pointer",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  if (page !== 1) {
-                    e.currentTarget.style.background = "var(--primary-50)"
-                    e.currentTarget.style.borderColor = "var(--primary-500)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (page !== 1) {
-                    e.currentTarget.style.background = "var(--bg-card)"
-                    e.currentTarget.style.borderColor = "var(--border-primary)"
-                  }
-                }}
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span style={{
-                padding: "6px 10px",
-                background: "var(--primary-50)",
-                borderRadius: "6px",
-                color: "var(--primary-700)",
-                fontSize: "12px",
-                fontWeight: "600",
-                minWidth: "60px",
-                textAlign: "center"
-              }}>
-                {page} / {totalPages}
-              </span>
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                style={{ 
-                  padding: "6px 10px", 
-                  borderRadius: "6px",
-                  border: "1px solid var(--border-primary)",
-                  background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-                  color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-                  cursor: page === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  if (page !== totalPages) {
-                    e.currentTarget.style.background = "var(--primary-50)"
-                    e.currentTarget.style.borderColor = "var(--primary-500)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (page !== totalPages) {
-                    e.currentTarget.style.background = "var(--bg-card)"
-                    e.currentTarget.style.borderColor = "var(--border-primary)"
-                  }
-                }}
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
+      <div className="center-management__content">
         
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              border: '3px solid var(--border-primary)',
-              borderTop: '3px solid var(--primary-500)',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 16px'
-            }} />
-            <p style={{ margin: 0, fontSize: '16px' }}>Đang tải trung tâm...</p>
+          <div className="center-management__loading">
+            <div className="center-management__loading-spinner" />
+            <p className="center-management__loading-text">Đang tải trung tâm...</p>
           </div>
         ) : error ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--error-500)' 
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: 'var(--error-50)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px'
-            }}>
-            </div>
-            <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
+          <div className="center-management__error">
+            <div className="center-management__error-icon" />
+            <p className="center-management__error-text">{error}</p>
           </div>
         ) : centers.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
-          }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              background: 'var(--bg-secondary)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px',
-              color: 'var(--text-tertiary)'
-            }}>
+          <div className="center-management__empty">
+            <div className="center-management__empty-icon">
               <Building2 size={32} />
             </div>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
+            <h4 className="center-management__empty-title">
               Không tìm thấy trung tâm nào
             </h4>
-            <p style={{ margin: 0, fontSize: '14px' }}>
+            <p className="center-management__empty-text">
               Thử thay đổi bộ lọc hoặc tạo trung tâm mới
             </p>
           </div>
         ) : (
-          <div style={{ overflow: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: '1px solid var(--border-primary)'
-            }}>
+          <div className="parts-table-wrapper" style={{ overflow: 'auto' }}>
+            <table className="parts-table center-management__table">
               <thead>
-                <tr style={{
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  color: 'white',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                }}>
-                  <th 
-                    onClick={() => handleSort('centerName')}
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'left',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Tên trung tâm
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'centerName' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('centerName')}
-                      </div>
-                    </div>
-                  </th>
-                  <th 
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'left',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Địa chỉ
-                      
-                    </div>
-                  </th>
-                  <th 
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'left',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Số điện thoại
-                      
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Trạng thái
-                  </th>
-                  <th 
-                    onClick={() => handleSort('createdAt')}
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'center',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      Ngày tạo
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'createdAt' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('createdAt')}
-                      </div>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Thao tác
-                  </th>
+                <tr>
+                  <th><Building2 size={16} style={{marginRight:4}}/>Tên trung tâm</th>
+                  <th><Globe size={15} style={{marginRight:4}}/>Địa chỉ</th>
+                  <th><Phone size={15} style={{marginRight:4}}/>Số điện thoại</th>
+                  <th><CheckCircle size={15} style={{marginRight:4}}/>Trạng thái</th>
+                  <th><Calendar size={15} style={{marginRight:4}}/>Ngày tạo</th>
+                  <th><Settings size={15} style={{marginRight:4}}/>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {centers.map((center, index) => (
-                  <tr 
-                    key={center.centerId}
-                    style={{
-                      borderBottom: index < centers.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                      transition: 'all 0.3s ease',
-                      background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
-                      transform: 'translateY(0)',
-                      boxShadow: 'none'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--primary-50)'
-                      e.currentTarget.style.transform = 'translateY(-2px)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
-                      e.currentTarget.style.transform = 'translateY(0)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                  >
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      fontWeight: '600'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          flexShrink: 0
-                        }}>
-                          <Building2 size={16} />
-                        </div>
-                        {center.centerName}
+                  <tr key={center.centerId}>
+                    <td className="center-management__table td">
+                      <div className="center-management__center-info">
+                        <span className="center-management__center-info-name" style={{ fontWeight: 400 }}>{center.centerName}</span>
                       </div>
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)',
-                      maxWidth: '300px'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '6px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
+                    <td className="center-management__table td center-management__table td--secondary">
+                      <div className="center-management__center-address">
                         {center.address}
-                      </div>
                       {center.city && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-tertiary)',
-                          marginTop: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
+                          <div className="center-management__center-address-city">
                           {center.city}
                         </div>
                       )}
+                      </div>
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <td className="center-management__table td center-management__table td--secondary">
+                      <div className="center-management__center-phone">
                          {center.phoneNumber}
                       </div>
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        background: center.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                        color: center.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        border: `1px solid ${center.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {center.isActive ? (
-                          <>
-                            <Circle size={12} fill="currentColor" />
-                            Hoạt động
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle size={12} fill="currentColor" />
-                            Ngừng hoạt động
-                          </>
-                        )}
+                    <td className="center-management__table td center-management__table td--center">
+                      <div className={`status-badge ${center.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
+                        <span className="dot" /> {center.isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
                       </div>
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: '14px',
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center'
-                    }}>
+                    <td className="center-management__table td center-management__table td--secondary">
                       {new Date(center.createdAt).toLocaleDateString('vi-VN')}
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '8px', 
-                        justifyContent: 'center',
-                        alignItems: 'center'
-                      }}>
+                    <td className="center-management__table td">
+                      <div className="center-management__actions">
                         <button
                           onClick={(e) => { e.stopPropagation(); openDetailModal(center); }}
-                          style={{
-                            padding: '8px',
-                            border: '2px solid var(--border-primary)',
-                            borderRadius: '8px',
-                            background: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            width: '36px',
-                            height: '36px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--primary-500)'
-                            e.currentTarget.style.background = 'var(--primary-50)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--border-primary)'
-                            e.currentTarget.style.background = 'var(--bg-card)'
-                          }}
+                          className="center-management__action-button"
                           title="Xem chi tiết trung tâm"
                         >
                           <Eye size={16} />
@@ -1324,28 +597,7 @@ export default function CenterManagement() {
                         
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditForm(center); }}
-                          style={{
-                            padding: '8px',
-                            border: '2px solid var(--border-primary)',
-                            borderRadius: '8px',
-                            background: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            width: '36px',
-                            height: '36px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--primary-500)'
-                            e.currentTarget.style.background = 'var(--primary-50)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--border-primary)'
-                            e.currentTarget.style.background = 'var(--bg-card)'
-                          }}
+                          className="center-management__action-button"
                           title="Sửa trung tâm"
                         >
                           <Edit size={16} />
@@ -1354,33 +606,7 @@ export default function CenterManagement() {
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleCenterStatus(center.centerId); }}
                           disabled={togglingCenterId === center.centerId}
-                          style={{
-                            padding: '8px',
-                            border: '2px solid var(--border-primary)',
-                            borderRadius: '8px',
-                            background: togglingCenterId === center.centerId ? 'var(--text-tertiary)' : 'var(--bg-card)',
-                            color: togglingCenterId === center.centerId ? 'var(--text-secondary)' : 'var(--text-primary)',
-                            cursor: togglingCenterId === center.centerId ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            opacity: togglingCenterId === center.centerId ? 0.7 : 1,
-                            width: '36px',
-                            height: '36px'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (togglingCenterId !== center.centerId) {
-                              e.currentTarget.style.borderColor = center.isActive ? 'var(--error-500)' : 'var(--success-500)'
-                              e.currentTarget.style.background = center.isActive ? 'var(--error-50)' : 'var(--success-50)'
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (togglingCenterId !== center.centerId) {
-                              e.currentTarget.style.borderColor = 'var(--border-primary)'
-                              e.currentTarget.style.background = 'var(--bg-card)'
-                            }
-                          }}
+                          className={`center-management__action-button center-management__action-button--toggle ${!center.isActive ? 'center-management__action-button--toggle--inactive' : ''}`}
                           title={center.isActive ? 'Vô hiệu hóa trung tâm' : 'Kích hoạt trung tâm'}
                         >
                           {center.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
@@ -1395,295 +621,53 @@ export default function CenterManagement() {
         )}
       </div>
 
-      {/* Enhanced Pagination */}
-      <div style={{
-        marginTop: '24px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: 'var(--bg-card)',
-        padding: '20px 24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        {/* Pagination Controls */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          {/* First Page */}
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+      {/* Pagination chuẩn Users */}
+      <div className="pagination-controls-bottom">
+        <div className="pagination-info">
+          <span className="pagination-label">Hàng mỗi trang</span>
+          <div
+            className={`pill-select custom-dropdown${isPageSizeDropdownOpen ? ' open' : ''}`}
+            ref={pageSizeRef}
+            tabIndex={0}
+            onClick={() => setIsPageSizeDropdownOpen(open => !open)}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+            onBlur={()=>setIsPageSizeDropdownOpen(false)}
           >
-            <ChevronsLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Đầu</span>
-          </button>
-
-          {/* Previous Page */}
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <ChevronLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Trước</span>
-          </button>
-
-          {/* Page Numbers */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            margin: '0 8px'
-          }}>
-            {(() => {
-              const pages = [];
-              const maxVisible = 5;
-              let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-              
-              if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
-
-              // First page + ellipsis
-              if (startPage > 1) {
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => setPage(1)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
+            <span className="pill-trigger" style={{minWidth:32, display:'flex', alignItems:'center', justifyContent:'center', height:26}}>{pageSize}</span>
+            <svg className="caret" style={{marginLeft:6}} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            {isPageSizeDropdownOpen && (
+              <ul className="dropdown-menu" style={{ position: 'absolute', zIndex: 100, left: 0, top: '100%', background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: '64px', listStyle: 'none', padding: 0, margin: '6px 0 0 0', border: '1px solid #ccc', borderRadius: 8 }}>
+                {pageSizeOptions.map(option => (
+                  <li
+                    key={option}
+                    className={option === pageSize ? 'selected-dropdown-option' : ''}
+                    style={{ padding: '8px 12px', color: option === pageSize ? '#FFA726' : '#222', background: option === pageSize ? '#FFF7D0' : 'transparent', cursor: 'pointer', borderRadius: 8, textAlign:'center' }}
+                    onMouseDown={e => { e.preventDefault(); setPageSize(option); setPage(1); setIsPageSizeDropdownOpen(false) }}
                   >
-                    1
-                  </button>
-                );
-                if (startPage > 2) {
-                  pages.push(
-                    <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-              }
-
-              // Visible pages
-              for (let i = startPage; i <= endPage; i++) {
-                pages.push(
-                  <button
-                    key={i}
-                    onClick={() => setPage(i)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: i === page ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
-                      background: i === page ? "var(--primary-50)" : "var(--bg-card)",
-                      color: i === page ? "var(--primary-700)" : "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: i === page ? "600" : "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      if (i !== page) {
-                        e.currentTarget.style.background = "var(--primary-50)"
-                        e.currentTarget.style.borderColor = "var(--primary-500)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (i !== page) {
-                        e.currentTarget.style.background = "var(--bg-card)"
-                        e.currentTarget.style.borderColor = "var(--border-primary)"
-                      }
-                    }}
-                  >
-                    {i}
-                  </button>
-                );
-              }
-
-              // Last page + ellipsis
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-                pages.push(
-                  <button
-                    key={totalPages}
-                    onClick={() => setPage(totalPages)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    {totalPages}
-                  </button>
-                );
-              }
-
-              return pages;
-            })()}
+                    {option}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-
-          {/* Next Page */}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <span style={{ marginRight: '4px' }}>Sau</span>
-            <ChevronRight size={16} />
-          </button>
-
-          {/* Last Page */}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(totalPages)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <span style={{ marginRight: '4px' }}>Cuối</span>
-            <ChevronsRight size={16} />
-          </button>
+          <span className="pagination-range">
+            {`${(page-1)*pageSize+1}–${Math.min(page*pageSize, totalItems)} của ${totalItems} hàng`}
+          </span>
+          </div>
+        <div className="pagination-right-controls">
+          <button className={`pager-btn ${page===1?'is-disabled':''}`} disabled={page===1} onClick={()=>setPage(1)}><ChevronsLeft size={16}/></button>
+          <button className={`pager-btn ${page===1?'is-disabled':''}`} disabled={page===1} onClick={()=>setPage(page-1)}><ChevronLeft size={16}/></button>
+          <div className="pager-pages">
+            {page>2 && <button className="pager-btn" onClick={()=>setPage(1)}>1</button>}
+            {page>3 && <span className="pager-ellipsis">…</span>}
+            {page>1 && <button className="pager-btn" onClick={()=>setPage(page-1)}>{page-1}</button>}
+            <button className="pager-btn is-active">{page}</button>
+            {page<totalPages && <button className="pager-btn" onClick={()=>setPage(Math.min(totalPages,page+1))}>{Math.min(totalPages,page+1)}</button>}
+            {page<totalPages-2 && <span className="pager-ellipsis">…</span>}
+            {page<totalPages-1 && <button className="pager-btn" onClick={()=>setPage(totalPages)}>{totalPages}</button>}
+          </div>
+          <button className={`pager-btn ${page===totalPages?'is-disabled':''}`} disabled={page===totalPages} onClick={()=>setPage(Math.min(totalPages,page+1))}><ChevronRight size={16}/></button>
+          <button className={`pager-btn ${page===totalPages?'is-disabled':''}`} disabled={page===totalPages} onClick={()=>setPage(totalPages)}><ChevronsRight size={16}/></button>
         </div>
       </div>
 

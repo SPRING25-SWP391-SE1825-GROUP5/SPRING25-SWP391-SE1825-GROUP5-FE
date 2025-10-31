@@ -19,9 +19,15 @@ export class PayOSService {
   /**
    * Tạo link thanh toán PayOS cho booking
    */
-  static async createPaymentLink(bookingId: number): Promise<PayOSResponse> {
+  static async createPaymentLink(bookingId: number, amount?: number, promotionCode?: string): Promise<PayOSResponse> {
     try {
-      const response = await api.post(`/payment/booking/${bookingId}/link`)
+      // Vẫn đính kèm amount trên query để tương thích cũ, đồng thời gửi trong body để chắc chắn BE nhận được
+      const rounded = amount && amount > 0 ? Math.round(amount) : undefined
+      const query = rounded ? `?amount=${encodeURIComponent(rounded)}` : ''
+      const body: any = {}
+      if (rounded !== undefined) body.amount = rounded
+      if (promotionCode) body.promotionCode = promotionCode
+      const response = await api.post(`/payment/booking/${bookingId}/link${query}`, body)
       console.log('PayOS API response:', response.data)
 
       return {

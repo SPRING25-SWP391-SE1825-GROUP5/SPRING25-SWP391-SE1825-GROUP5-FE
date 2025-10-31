@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { PAGINATION } from '../../constants/appConstants'
 import {
     Users,
     Plus,
@@ -198,8 +199,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
             setAvailableUsers(mergedUsers)
             setStats(statsData)
 
-            console.log('Available users data:', mergedUsers)
-            console.log('Centers data:', centersData.centers)
+            // Data loaded successfully
 
         } catch (err: any) {
             setError('Không thể tải dữ liệu: ' + (err.message || 'Unknown error'))
@@ -322,7 +322,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 centerId: Number(assignmentForm.centerId)
             }
 
-            console.log('Assigning employees with data:', formData)
+            // Creating staff
 
             // Assign employees
             const result = await StaffService.assignEmployeesToCenter(formData)

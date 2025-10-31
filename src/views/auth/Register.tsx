@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logo from '@/assets/images/logo-black.webp'
-import './register.scss'
+import './RegisterGlass.scss'
 import { GoogleIconWhite } from './AuthIcons'
 import { Eye, EyeOff, X } from 'lucide-react'
 import { AuthService, googleAuthService } from '@/services/authService'
@@ -226,6 +226,30 @@ export default function Register() {
     
     if (!basicValidation.isValid) {
       setErrors(basicValidation.errors)
+      
+      // Hiển thị toast cho từng lỗi
+      if (basicValidation.errors.password) {
+        toast.error(basicValidation.errors.password)
+      }
+      if (basicValidation.errors.confirmPassword) {
+        toast.error(basicValidation.errors.confirmPassword)
+      }
+      if (basicValidation.errors.email) {
+        toast.error(basicValidation.errors.email)
+      }
+      if (basicValidation.errors.phoneNumber) {
+        toast.error(basicValidation.errors.phoneNumber)
+      }
+      if (basicValidation.errors.fullName) {
+        toast.error(basicValidation.errors.fullName)
+      }
+      if (basicValidation.errors.dateOfBirth) {
+        toast.error(basicValidation.errors.dateOfBirth)
+      }
+      if (basicValidation.errors.gender) {
+        toast.error(basicValidation.errors.gender)
+      }
+      
       return
     }
 
@@ -247,6 +271,15 @@ export default function Register() {
        
        if (!asyncValidation.isValid) {
          setErrors(asyncValidation.errors)
+         
+         // Hiển thị toast cho từng lỗi
+         if (asyncValidation.errors.email) {
+           toast.error(asyncValidation.errors.email)
+         }
+         if (asyncValidation.errors.phoneNumber) {
+           toast.error(asyncValidation.errors.phoneNumber)
+         }
+         
          setSubmitting(false)
          return
        }
@@ -313,43 +346,32 @@ export default function Register() {
   }
 
   return (
-    <div className="register">
-      <div className="register__container">
-        {/* Left side - Image/Visual */}
-        <div className="register__visual">
-          <div className="register__image-container">
-            <img 
-              src="/src/assets/images/ev-charging.svg" 
-              alt="EV Service Center" 
-              className="register__hero-image"
-            />
-            <div className="register__hero-content">
-              <h2>Tham gia EV Service Center</h2>
-              <p>Tạo tài khoản và bắt đầu quản lý việc bảo dưỡng xe điện của bạn</p>
-            </div>
-          </div>
+    <div className="register-glass">
+      {/* Background với Workshop Image */}
+      <div className="register-glass__background" />
+
+      {/* Glassmorphism Card */}
+      <div className="register-glass__card">
+        {/* Header */}
+        <div className="register-glass__header">
+          <h1 className="register-glass__title">Đăng Ký</h1>
+          <p className="register-glass__subtitle">
+            Đã có tài khoản?{' '}
+            <Link to="/auth/login">Đăng Nhập</Link>
+          </p>
         </div>
 
-        {/* Right side - Register Form */}
-        <div className="register__form-container">
-        <h1 className="register__title">Đăng Ký</h1>
-        <p className="register__subtitle">
-          Đã có tài khoản?{' '}
-          <Link to="/auth/login" className="register__login-link">
-            Đăng Nhập
-          </Link>
-        </p>
-
-        <div className="register__grid">
-          <div className="register__form">
-            <form onSubmit={onSubmit}>
-              <div className="register__form-grid">
-                <div className="form-group">
-                  <label htmlFor="fullName" className="form-group__label">Họ và tên <span className="required-asterisk">*</span></label>
-                  <input
-                    type="text"
-                    id="fullName"
-                    className="form-group__input"
+        {/* Form */}
+        <form className="register-glass__form" onSubmit={onSubmit}>
+          {/* Form Grid - 2 columns */}
+          <div className="register-glass__form-grid">
+            {/* Full Name */}
+            <div className="register-glass__form-group">
+              <label htmlFor="fullName">Họ và tên <span className="required-asterisk">*</span></label>
+              <input
+                type="text"
+                id="fullName"
+                className="register-glass__input"
                     value={fullName}
                     onChange={(e) => {
                       setFullName(e.target.value)
@@ -361,19 +383,20 @@ export default function Register() {
                     placeholder=" "
                     required
                   />
-                  {errors.fullName && <p className="register__error">{errors.fullName}</p>}
-                </div>
+              {errors.fullName && <p className="register-glass__error">{errors.fullName}</p>}
+            </div>
 
-                <div className="form-group">
-                  <label htmlFor="email" className="form-group__label">
-                    Email <span className="required-asterisk">*</span>
-                    {validatingEmail && <span className="validation-loading">Đang kiểm tra...</span>}
-                  </label>
-                  <div className="input-wrapper">
-                    <input
-                      type="email"
-                      id="email"
-                      className={`form-group__input ${validatingEmail ? 'validating' : ''} ${errors.email ? 'error' : ''}`}
+            {/* Email */}
+            <div className="register-glass__form-group">
+              <label htmlFor="email">
+                Email <span className="required-asterisk">*</span>
+                {validatingEmail && <span className="validation-loading">Đang kiểm tra...</span>}
+              </label>
+              <div className="register-glass__input-wrapper">
+                <input
+                  type="email"
+                  id="email"
+                  className={`register-glass__input ${validatingEmail ? 'validating' : ''} ${errors.email ? 'error' : ''}`}
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value)
@@ -387,24 +410,24 @@ export default function Register() {
                       required
                     />
                     {validatingEmail && (
-                      <div className="validation-spinner">
+                      <div className="register-glass__validation-spinner">
                         <div className="spinner"></div>
                       </div>
                     )}
                   </div>
-                  {errors.email && <p className="register__error">{errors.email}</p>}
+                  {errors.email && <p className="register-glass__error">{errors.email}</p>}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="phoneNumber" className="form-group__label">
+                <div className="register-glass__form-group">
+                  <label htmlFor="phoneNumber" /* removed */>
                     Số điện thoại <span className="required-asterisk">*</span>
                     {validatingPhone && <span className="validation-loading">Đang kiểm tra...</span>}
                   </label>
-                  <div className="input-wrapper">
+                  <div className="register-glass__input-wrapper">
                     <input
                       type="tel"
                       id="phoneNumber"
-                      className={`form-group__input ${validatingPhone ? 'validating' : ''} ${errors.phoneNumber ? 'error' : ''}`}
+                      className={`register-glass__input ${validatingPhone ? 'validating' : ''} ${errors.phoneNumber ? 'error' : ''}`}
                       value={phoneNumber}
                       onChange={(e) => {
                         setPhoneNumber(e.target.value)
@@ -418,20 +441,20 @@ export default function Register() {
                       required
                     />
                     {validatingPhone && (
-                      <div className="validation-spinner">
+                      <div className="register-glass__validation-spinner">
                         <div className="spinner"></div>
                       </div>
                     )}
                   </div>
-                  {errors.phoneNumber && <p className="register__error">{errors.phoneNumber}</p>}
+                  {errors.phoneNumber && <p className="register-glass__error">{errors.phoneNumber}</p>}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="dateOfBirth" className="form-group__label">Ngày sinh <span className="required-asterisk">*</span></label>
+                <div className="register-glass__form-group">
+                  <label htmlFor="dateOfBirth" /* removed */>Ngày sinh <span className="required-asterisk">*</span></label>
                   <input
                     type="date"
                     id="dateOfBirth"
-                    className="form-group__input"
+                    className="register-glass__input"
                     value={dateOfBirth}
                     onChange={(e) => {
                       setDateOfBirth(e.target.value)
@@ -443,14 +466,15 @@ export default function Register() {
                     placeholder=" "
                     required
                   />
-                  {errors.dateOfBirth && <p className="register__error">{errors.dateOfBirth}</p>}
+                  {errors.dateOfBirth && <p className="register-glass__error">{errors.dateOfBirth}</p>}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="gender" className="form-group__label">Giới tính <span className="required-asterisk">*</span></label>
+                <div className="register-glass__form-group">
+                  <label htmlFor="gender" /* removed */>Giới tính <span className="required-asterisk">*</span></label>
                   <select
                     id="gender"
-                    className="form-group__input"
+                    className="register-glass__input"
+                    style={{ color: 'black' }}
                     value={gender}
                     onChange={(e) => {
                       setGender(e.target.value as any)
@@ -465,15 +489,15 @@ export default function Register() {
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
                   </select>
-                  {errors.gender && <p className="register__error">{errors.gender}</p>}
+                  {errors.gender && <p className="register-glass__error">{errors.gender}</p>}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="address" className="form-group__label">Địa chỉ (không bắt buộc)</label>
+                <div className="register-glass__form-group">
+                  <label htmlFor="address" /* removed */>Địa chỉ (không bắt buộc)</label>
                   <input
                     type="text"
                     id="address"
-                    className="form-group__input"
+                    className="register-glass__input"
                     value={address}
                     onChange={(e) => {
                       setAddress(e.target.value)
@@ -484,16 +508,17 @@ export default function Register() {
                     onBlur={(e) => validateField('address', e.target.value)}
                     placeholder=" "
                   />
-                  {errors.address && <p className="register__error">{errors.address}</p>}
+                  {errors.address && <p className="register-glass__error">{errors.address}</p>}
                 </div>
 
-                <div className="form-group password-field">
-                  <div className="password-input-wrapper">
-                    <label htmlFor="password" className="form-group__label">Mật khẩu <span className="required-asterisk">*</span></label>
+                <div className="register-glass__form-group register-glass__form-group--full">
+                  <label htmlFor="password">Mật khẩu <span className="required-asterisk">*</span></label>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
                       id="password"
-                      className="form-group__input"
+                      className="register-glass__input"
+                      style={{ paddingRight: '50px' }}
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value)
@@ -509,16 +534,17 @@ export default function Register() {
                     />
                     <button
                       type="button"
-                      className="password-toggle"
+                      className="register-glass__password-toggle"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  {errors.password && <p className="register__error">{errors.password}</p>}
+                  {/* Đã bỏ hiển thị error message dưới ô password */}
+                  {errors.password && <p className="register-glass__error" style={{ display: 'none' }}>{errors.password}</p>}
 
                   {showPasswordPopup && (
-                    <div className="password-popup password-popup-below">
+                    <div className="register-glass__password-popup">
                       <div className="password-popup-header">
                         <h4>Mật khẩu mạnh</h4>
                         <button
@@ -574,13 +600,14 @@ export default function Register() {
                   )}
                 </div>
 
-                <div className="form-group">
-                  <div className="password-input-wrapper">
-                    <label htmlFor="confirmPassword" className="form-group__label">Xác nhận mật khẩu <span className="required-asterisk">*</span></label>
+                <div className="register-glass__form-group register-glass__form-group--full">
+                  <label htmlFor="confirmPassword">Xác nhận mật khẩu <span className="required-asterisk">*</span></label>
+                  <div style={{ position: 'relative' }}>
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
                       id="confirmPassword"
-                      className="form-group__input"
+                      className="register-glass__input"
+                      style={{ paddingRight: '50px' }}
                       value={confirmPassword}
                       onChange={(e) => {
                         setConfirmPassword(e.target.value)
@@ -594,47 +621,28 @@ export default function Register() {
                     />
                     <button
                       type="button"
-                      className="password-toggle"
+                      className="register-glass__password-toggle"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  {errors.confirmPassword && <div className="password-error">{errors.confirmPassword}</div>}
+                  {/* Đã bỏ hiển thị error message dưới ô confirm password */}
+                  {errors.confirmPassword && <div className="register-glass__error" style={{ display: 'none' }}>{errors.confirmPassword}</div>}
                 </div>
               </div>
 
-              <button type="submit" className="btn btn--primary" disabled={submitting}>
-                {submitting ? 'Đang gửi...' : 'Đăng Ký'}
-              </button>
-            </form>
-          </div>
+          <button type="submit" className="register-glass__button" disabled={submitting}>
+            {submitting ? 'Đang gửi...' : 'Đăng Ký'}
+          </button>
+        </form>
 
-          {/* Divider */}
-          <div className="register__divider">
-            <div className="register__divider-line"></div>
-            <span className="register__divider-text">hoặc</span>
-          </div>
+        {/* Divider */}
+        <div className="register-glass__divider">hoặc</div>
 
-          <div className="register__social">
-            {/* Google Identity Services Button */}
-            <div ref={googleBtnRef} className="google-button-container"></div>
-
-            {/* Fallback button */}
-            <button
-              type="button"
-              className="btn btn--google btn--google-enhanced"
-              onClick={onGoogleButtonClick}
-              style={{ display: 'none' }}
-            >
-              <div className="btn__icon">
-                <GoogleIconWhite />
-              </div>
-              <span className="btn__text">Tiếp tục với Google</span>
-            </button>
-          </div>
-        </div>
-
+        {/* Google Login */}
+        <div className="register-glass__google-container">
+          <div ref={googleBtnRef}></div>
         </div>
       </div>
     </div>

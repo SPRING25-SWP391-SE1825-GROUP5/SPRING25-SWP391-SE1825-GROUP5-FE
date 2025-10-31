@@ -18,7 +18,6 @@ import ChatList from './ChatList'
 import ChatArea from './ChatArea'
 import ChatInfo from './ChatInfo'
 import { ChatService } from '@/services/chatService'
-import { mockConversations, mockMessages, mockUsers } from '@/data/mockChatData'
 import type { ChatConversation, ChatUser } from '@/types/chat'
 import './ChatInterface.scss'
 

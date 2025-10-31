@@ -14,6 +14,7 @@ import { CustomerService } from '@/services/customerService'
 import { ServiceManagementService } from '@/services/serviceManagementService'
 import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
 import { PayOSService } from '@/services/payOSService'
+import { PromotionBookingService } from '@/services/promotionBookingService'
 
 // Types
 interface CustomerInfo {
@@ -24,16 +25,28 @@ interface CustomerInfo {
 
 interface VehicleInfo {
   carModel: string
+  modelId?: number
   mileage: string
+  // Km gần đây (người dùng nhập để cập nhật km hiện tại của xe nếu có)
+  recentMileage?: string
   licensePlate: string
   year?: string
   color?: string
   brand?: string
+  // Bảo dưỡng fields
+  lastMaintenanceDate?: string
+  // Sửa chữa fields
+  vehicleCondition?: string
+  repairChecklist?: string[]
+  repairImages?: File[]
 }
 
 interface ServiceInfo {
   services: string[]
   notes: string
+  packageId?: number
+  packageCode?: string
+  categoryId?: number
 }
 
 interface LocationTimeInfo {
@@ -43,6 +56,8 @@ interface LocationTimeInfo {
   date: string
   time: string
   technicianSlotId?: number
+  centerName?: string
+  technicianName?: string
 }
 
 interface AccountInfo {
@@ -93,6 +108,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     vehicleInfo: {
       carModel: '',
       mileage: '',
+      recentMileage: '',
       licensePlate: ''
     },
     serviceInfo: {
@@ -372,7 +388,10 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       }, Promise.resolve(0))
       
       const finalTotalPrice = await totalPrice
+      // apply promotion if available from ConfirmationStep persisted into bookingData
+      const payableAmount = Math.max(0, finalTotalPrice - (bookingData.promotionInfo?.discountAmount || 0))
       console.log('Total price calculated:', finalTotalPrice)
+      console.log('Payable amount after promotion:', payableAmount)
 
       // Resolve current user -> customerId
       console.log('Getting current customer...')
@@ -432,6 +451,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       }
 
       // Nếu vẫn chưa có, tạo xe mới
+      let createdNewVehicle = false
       if (!vehicleId) {
         console.log('Creating new vehicle...')
         const createVeh = await VehicleService.createVehicle({
@@ -441,14 +461,31 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           color: 'Unknown',
           currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
           lastServiceDate: undefined,
-          purchaseDate: undefined
+          purchaseDate: undefined,
+          modelId: bookingData.vehicleInfo.modelId // Thêm modelId
         })
         console.log('Create vehicle response:', createVeh)
         vehicleId = Number(createVeh?.data?.vehicleId)
         console.log('Created vehicle ID:', vehicleId)
+        createdNewVehicle = true
       }
 
       if (!vehicleId) throw new Error('Không thể xác định VehicleID')
+
+      // Cập nhật km hiện tại nếu người dùng nhập "Km gần đây" và xe là xe đã tồn tại
+      try {
+        const recent = bookingData.vehicleInfo.recentMileage
+        if (!createdNewVehicle && recent && recent.trim() !== '') {
+          const recentNum = Number(recent)
+          const baseNum = Number(bookingData.vehicleInfo.mileage || 0)
+          if (!isNaN(recentNum) && recentNum >= 0 && recentNum >= baseNum) {
+            console.log('Updating vehicle mileage with recentMileage:', recentNum)
+            await VehicleService.updateMileage(Number(vehicleId), { currentMileage: recentNum })
+          }
+        }
+      } catch (updateErr) {
+        console.error('Failed to update recent mileage (will continue booking):', updateErr)
+      }
 
       // Choose serviceId or packageCode
       let serviceId: number | undefined = undefined
@@ -562,9 +599,23 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         bookingId: bookingId
       }))
 
+      // Apply promotion on server BEFORE creating PayOS link so BE has APPLIED record
+      try {
+        const promoCode = bookingData.promotionInfo?.promotionCode?.trim()
+        if (promoCode) {
+          console.log('Applying promotion to booking on server:', promoCode)
+          const applyRes = await PromotionBookingService.applyPromotionToBooking({ bookingId: Number(bookingId), code: promoCode })
+          console.log('Apply promotion result:', applyRes)
+        } else {
+          console.log('No promotion code to apply on server')
+        }
+      } catch (applyErr) {
+        console.warn('Apply promotion failed (continue with client-side discount + server safety-net):', applyErr)
+      }
+
       // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
       console.log('Creating PayOS payment link for booking ID:', bookingId)
-      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId))
+      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId), Math.round(payableAmount))
       
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
         console.log('PayOS payment link created successfully:', paymentResponse.data.checkoutUrl)
@@ -640,6 +691,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
+              onPromotionChange={(info) => {
+                setBookingData(prev => ({
+                  ...prev,
+                  promotionInfo: info ? { promotionCode: info.promotionCode, discountAmount: info.discountAmount } : { promotionCode: undefined, discountAmount: 0 }
+                }))
+              }}
             />
           )
         default:

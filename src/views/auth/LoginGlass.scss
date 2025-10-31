@@ -1,0 +1,454 @@
+// LoginGlass.scss - Glassmorphism Login với Workshop Background
+// Sử dụng hình workshop (Gemini_Generated_Image) làm background với hiệu ứng glass
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+// ==================== VARIABLES ====================
+$primary-gold: #C49D4B;
+$secondary-gold: #FFD875;
+$light-gold: #FFF6D1;
+$text-dark: #2d3748;
+$text-light: #ffffff;
+$glass-white: rgba(255, 255, 255, 0.15);
+$glass-border: rgba(255, 255, 255, 0.3);
+$shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1);
+$error-color: #f87171;
+
+// ==================== MAIN CONTAINER ====================
+.login-glass {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  // Background với workshop image
+  &__background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; // Ẩn phần thừa
+    
+    // Sử dụng background image với cover để giữ tỷ lệ
+    background-image: url('/src/assets/images/Gemini_Generated_Image_nn6v31nn6v31nn6v.png');
+    background-size: cover; // Cover toàn màn hình, crop nếu cần
+    background-position: center center; // Căn giữa
+    background-repeat: no-repeat;
+    
+    // Fallback cho browsers cũ
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    
+    // Overlay để tạo depth và tăng contrast
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(196, 157, 75, 0.15) 50%,
+        rgba(255, 215, 117, 0.2) 100%
+      );
+      backdrop-filter: blur(2px);
+    }
+  }
+
+  // ==================== GLASS CARD ====================
+  &__card {
+    position: absolute;
+    top: 50%;
+    right: 8%;
+    transform: translateY(-50%);
+    width: 480px;
+    max-width: 90vw;
+    padding: 48px 40px;
+    
+    // Glassmorphism effect
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    
+    animation: slideInGlass 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 10;
+    
+    @media (max-width: 768px) {
+      right: 50%;
+      transform: translate(50%, -50%);
+      width: 420px;
+      padding: 40px 32px;
+    }
+    
+    @media (max-width: 480px) {
+      width: 90vw;
+      padding: 32px 24px;
+    }
+  }
+
+  // ==================== FORM ELEMENTS ====================
+  &__header {
+    margin-bottom: 32px;
+    text-align: left;
+  }
+
+  &__title {
+    font-size: 32px;
+    font-weight: 700;
+    color: $text-light;
+    margin: 0 0 8px 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    line-height: 1.2;
+    
+    @media (max-width: 480px) {
+      font-size: 28px;
+    }
+  }
+
+  &__subtitle {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    
+    a {
+      color: $secondary-gold;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        color: $primary-gold;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // ==================== FORM ====================
+  &__form {
+    width: 100%;
+  }
+
+  &__form-group {
+    margin-bottom: 20px;
+    
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      margin-bottom: 8px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      transition: color 0.3s ease;
+      
+      &.error {
+        color: $error-color;
+      }
+    }
+    
+    &--password {
+      position: relative;
+    }
+  }
+
+  &__input {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 15px;
+    color: $text-light;
+    box-sizing: border-box; // Fix width overflow
+    
+    // Glass input effect
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.06),
+      0 1px 2px rgba(255, 255, 255, 0.1);
+    
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 14px; // Slightly smaller placeholder
+    }
+    
+    &:focus {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: $secondary-gold;
+      box-shadow: 
+        0 0 0 4px rgba(255, 215, 117, 0.15),
+        inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+    
+    &:hover:not(:focus) {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    
+    &.error {
+      border-color: $error-color;
+      
+      &:focus {
+        box-shadow: 
+          0 0 0 4px rgba(248, 113, 113, 0.2),
+          inset 0 2px 4px rgba(0, 0, 0, 0.06);
+      }
+    }
+    
+    // Password field với icon
+    &--password {
+      padding-right: 50px;
+      box-sizing: border-box; // Ensure width stays 100% with padding
+    }
+  }
+
+  // Toggle password visibility
+  &__password-toggle {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.2s ease;
+    
+    &:hover {
+      color: $secondary-gold;
+    }
+    
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  // ==================== BUTTONS ====================
+  &__button {
+    width: 100%;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-dark;
+    box-sizing: border-box; // Match input width
+    
+    background: linear-gradient(135deg, $secondary-gold 0%, $primary-gold 100%);
+    border: none;
+    border-radius: 12px;
+    
+    box-shadow: 
+      0 4px 12px rgba(196, 157, 75, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    
+    &:hover {
+      background: linear-gradient(135deg, $primary-gold 0%, #A6833F 100%);
+      box-shadow: 
+        0 6px 20px rgba(196, 157, 75, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    &:active {
+      transform: translateY(0);
+      box-shadow: 
+        0 2px 8px rgba(196, 157, 75, 0.3),
+        0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    &--submit {
+      margin-bottom: 20px;
+    }
+  }
+
+  // ==================== FORGOT PASSWORD LINK ====================
+  &__forgot-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: $secondary-gold;
+    text-decoration: none;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    
+    &:hover {
+      color: $primary-gold;
+      text-decoration: underline;
+    }
+  }
+
+  // ==================== ERROR MESSAGE ====================
+  &__error {
+    color: $error-color;
+    font-size: 13px;
+    margin-top: 6px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.3s ease-out;
+  }
+
+  &__server-error {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: rgba(248, 113, 113, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 8px;
+    color: $error-color;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  // ==================== DIVIDER ====================
+  &__divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 24px 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+      );
+    }
+    
+    &::before {
+      margin-right: 12px;
+    }
+    
+    &::after {
+      margin-left: 12px;
+    }
+  }
+
+  // ==================== GOOGLE BUTTON ====================
+  &__google-container {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+  }
+
+  // ==================== FOOTER ====================
+  &__footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    
+    a {
+      color: $secondary-gold;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        color: $primary-gold;
+        text-decoration: underline;
+      }
+    }
+    
+    span {
+      margin: 0 8px;
+      opacity: 0.5;
+    }
+  }
+}
+
+// ==================== ANIMATIONS ====================
+@keyframes slideInGlass {
+  0% {
+    opacity: 0;
+    transform: translateY(-40%) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 50px;
+  }
+}
+
+// ==================== RESPONSIVE ====================
+@media (max-width: 768px) {
+  .login-glass {
+    &__card {
+      animation: slideInGlassMobile 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+}
+
+@keyframes slideInGlassMobile {
+  0% {
+    opacity: 0;
+    transform: translate(50%, -40%) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(50%, -50%) scale(1);
+  }
+}
+
+// ==================== BROWSER FALLBACK ====================
+// Fallback cho browsers không support backdrop-filter
+@supports not (backdrop-filter: blur(20px)) {
+  .login-glass__card {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  
+  .login-glass__input {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+

@@ -43,6 +43,7 @@ html, body {
   line-height: var(--line-height-normal) !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #fff !important; /* force white globally */
 }
 
 /* Ensure main content starts right below header */
@@ -122,83 +123,50 @@ main, .main-content {
   background: #f1f1f1 !important;
 }
 
-/* Firefox scrollbar */
-* {
-  scrollbar-width: thin !important;
-  scrollbar-color: #4CAF50 #f1f1f1 !important;
+/* Firefox scrollbar - scope to admin only */
+.admin-layout *, .admin-users * {
+  scrollbar-width: none !important;
 }
 
-/* Apply to all elements */
-html, body, div, section, main, aside, article, ul, ol, li {
-  scrollbar-width: thin !important;
-  scrollbar-color: #4CAF50 #f1f1f1 !important;
+/* Apply to admin containers only (avoid overriding app-wide) */
+.admin-layout html, .admin-layout body,
+.admin-layout div, .admin-layout section, .admin-layout main,
+.admin-layout aside, .admin-layout article, .admin-layout ul,
+.admin-layout ol, .admin-layout li,
+.admin-users div, .admin-users section, .admin-users main,
+.admin-users aside, .admin-users article, .admin-users ul,
+.admin-users ol, .admin-users li {
+  scrollbar-width: none !important;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-div::-webkit-scrollbar,
-section::-webkit-scrollbar,
-main::-webkit-scrollbar,
-aside::-webkit-scrollbar,
-article::-webkit-scrollbar,
-ul::-webkit-scrollbar,
-ol::-webkit-scrollbar,
-li::-webkit-scrollbar {
-  width: 10px !important;
-  height: 10px !important;
+.admin-layout *::-webkit-scrollbar,
+.admin-users *::-webkit-scrollbar {
+  display: none !important;
 }
 
-html::-webkit-scrollbar-track,
-body::-webkit-scrollbar-track,
-div::-webkit-scrollbar-track,
-section::-webkit-scrollbar-track,
-main::-webkit-scrollbar-track,
-aside::-webkit-scrollbar-track,
-article::-webkit-scrollbar-track,
-ul::-webkit-scrollbar-track,
-ol::-webkit-scrollbar-track,
-li::-webkit-scrollbar-track {
-  background: #f1f1f1 !important;
-  border-radius: 10px !important;
+.admin-layout,
+.admin-users {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }
 
-html::-webkit-scrollbar-thumb,
-body::-webkit-scrollbar-thumb,
-div::-webkit-scrollbar-thumb,
-section::-webkit-scrollbar-thumb,
-main::-webkit-scrollbar-thumb,
-aside::-webkit-scrollbar-thumb,
-article::-webkit-scrollbar-thumb,
-ul::-webkit-scrollbar-thumb,
-ol::-webkit-scrollbar-thumb,
-li::-webkit-scrollbar-thumb {
-  background: #4CAF50 !important;
-  border-radius: 10px !important;
-  border: none !important;
-}
-
-html::-webkit-scrollbar-thumb:hover,
-body::-webkit-scrollbar-thumb:hover,
-div::-webkit-scrollbar-thumb:hover,
-section::-webkit-scrollbar-thumb:hover,
-main::-webkit-scrollbar-thumb:hover,
-aside::-webkit-scrollbar-thumb:hover,
-article::-webkit-scrollbar-thumb:hover,
-ul::-webkit-scrollbar-thumb:hover,
-ol::-webkit-scrollbar-thumb:hover,
-li::-webkit-scrollbar-thumb:hover {
-  background: #2e7d32 !important;
-}
-
-/* Loại bỏ hoàn toàn ::after trên tất cả button */
-button::after,
-.btn::after,
-button:active::after,
-.btn:active::after,
-button:hover::after,
-.btn:hover::after,
-button:focus::after,
-.btn:focus::after {
+/* Loại bỏ ::after chỉ trong admin để tránh ảnh hưởng nơi khác */
+.admin-layout button::after,
+.admin-layout .btn::after,
+.admin-layout button:active::after,
+.admin-layout .btn:active::after,
+.admin-layout button:hover::after,
+.admin-layout .btn:hover::after,
+.admin-layout button:focus::after,
+.admin-layout .btn:focus::after,
+.admin-users button::after,
+.admin-users .btn::after,
+.admin-users button:active::after,
+.admin-users .btn:active::after,
+.admin-users button:hover::after,
+.admin-users .btn:hover::after,
+.admin-users button:focus::after,
+.admin-users .btn:focus::after {
   display: none !important;
   content: none !important;
   opacity: 0 !important;
@@ -301,4 +269,94 @@ button:focus::after,
 .btn-secondary:hover { background: var(--primary-50); }
 .btn-secondary:active { transform: translateY(1px); }
 .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+
+table, th, td, thead, tbody {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+table th {
+  border-bottom: 1px solid var(--border-primary) !important;
+}
+table td {
+  border-bottom: 1px solid var(--border-primary) !important;
+}
+table tr:last-child td {
+  border-bottom: none !important;
+}
+
+table th:not(:last-child), table td:not(:last-child) {
+  border-right: 1px solid var(--border-primary) !important;
+}
+
+table thead tr:first-child th {
+  border-top: 1px solid var(--border-primary) !important;
+}
+
+table th:first-child {
+  border-right: none !important;
+}
+
+.pill-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.pill-select .pill-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 84px;
+  height: 36px;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0 28px 0 12px;
+  cursor: pointer;
+  position: relative;
+}
+.pill-select .pill-trigger svg,
+.pill-select .pill-trigger .icon {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Filter pill nhỏ gọn */
+.pill-select.filter .pill-trigger,
+.pill-select.is-filter .pill-trigger {
+  min-width: 60px;
+  height: 32px;
+  font-size: 13px;
+  padding: 0 18px 0 8px;
+}
+/* Pagination pill giữ lớn như hiện tại */
+.pagination-info .pill-select .pill-trigger {
+  min-width: 84px;
+  height: 36px;
+  font-size: 14px;
+  padding: 0 28px 0 12px;
+}
+/* Icon căn trong đúng chuẩn mũi tên cuối bên phải (auto fit) */
+.pill-trigger svg,
+.pill-trigger .icon {
+  margin-left: auto !important;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
 

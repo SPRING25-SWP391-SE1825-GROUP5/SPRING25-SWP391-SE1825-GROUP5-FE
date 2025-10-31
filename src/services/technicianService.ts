@@ -242,6 +242,13 @@ export const TechnicianService = {
         }
     },
 
+    // Lấy thống kê booking theo trạng thái cho technician
+
+    // Lấy danh sách booking của technician cho calendar
+    // Removed duplicate getTechnicianBookings (use the one defined earlier with optional date)
+
+    // Lấy thông tin chi tiết booking
+    // Removed duplicate getBookingDetail (use the one defined earlier)
 }
 
 export type TimeSlot = {
