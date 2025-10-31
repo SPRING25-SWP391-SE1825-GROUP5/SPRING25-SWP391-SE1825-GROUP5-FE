@@ -41,16 +41,68 @@ export default function PaymentSuccess() {
     const handlePaymentResult = async () => {
       try {
         const bookingId = searchParams.get('bookingId')
+        const orderId = searchParams.get('orderId')
+        const type = searchParams.get('type') || (orderId ? 'order' : 'booking')
         const status = (searchParams.get('status') || '').toLowerCase() as PaymentResult['status']
         
-        if (!bookingId) {
-          setError('Thiếu thông tin booking ID')
+        if (!bookingId && !orderId) {
+          setError('Thiếu thông tin booking ID hoặc order ID')
           return
         }
 
-        console.log('Payment result received:', { bookingId, status })
+        console.log('Payment result received:', { bookingId, orderId, type, status })
 
-        // Gọi API để lấy thông tin booking và xác nhận thanh toán
+        // Xử lý promotion khi thanh toán thành công cho ORDER
+        // CHỈ apply coupon và mark as USED khi thanh toán thành công
+        if (type === 'order' && orderId && status === 'success') {
+          const pendingCouponCode = sessionStorage.getItem('pendingCouponCode')
+          if (pendingCouponCode) {
+            try {
+              // Bước 1: Apply coupon vào order (backend tạo UserPromotion với status APPLIED)
+              const applyResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/promotion/orders/${orderId}/apply`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(auth.token ? { 'Authorization': `Bearer ${auth.token}` } : {})
+                },
+                body: JSON.stringify({ code: pendingCouponCode })
+              })
+              const applyResult = await applyResponse.json()
+              
+              if (applyResult?.success) {
+                console.log('PaymentSuccess - Applied coupon to order:', pendingCouponCode)
+                
+                // Bước 2: Ngay lập tức mark as USED (chuyển APPLIED → USED)
+                // Vì đã thanh toán thành công nên mã sẽ chuyển sang USED và ẩn đi
+                const markResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/promotion/orders/${orderId}/mark-used`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(auth.token ? { 'Authorization': `Bearer ${auth.token}` } : {})
+                  }
+                })
+                const markResult = await markResponse.json()
+                
+                if (markResult?.success) {
+                  console.log('PaymentSuccess - Promotions marked as USED successfully')
+                } else {
+                  console.warn('PaymentSuccess - Failed to mark promotions as used:', markResult)
+                }
+              } else {
+                console.warn('PaymentSuccess - Failed to apply coupon:', applyResult)
+              }
+              
+              // Xóa coupon code khỏi sessionStorage sau khi xử lý
+              sessionStorage.removeItem('pendingCouponCode')
+              sessionStorage.removeItem(`appliedCoupon_${orderId}`)
+            } catch (promoError: any) {
+              console.warn('PaymentSuccess - Error processing promotion:', promoError)
+              // Không block UI nếu xử lý promotion fail
+            }
+          }
+        }
+
+        // Gọi API để lấy thông tin booking/order và xác nhận thanh toán
         const headers: Record<string, string> = {
           'Content-Type': 'application/json'
         }
@@ -60,16 +112,18 @@ export default function PaymentSuccess() {
           headers['Authorization'] = `Bearer ${auth.token}`
         }
         
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/booking/${bookingId}`, {
-          headers
-        })
-        const bookingData = await response.json()
+        const apiUrl = type === 'order' && orderId
+          ? `${import.meta.env.VITE_API_BASE_URL || '/api'}/Order/${orderId}`
+          : `${import.meta.env.VITE_API_BASE_URL || '/api'}/booking/${bookingId}`
+        
+        const response = await fetch(apiUrl, { headers })
+        const data = await response.json()
 
-        if (bookingData.success) {
+        if (data.success) {
           setPaymentResult({
-            bookingId: parseInt(bookingId),
+            bookingId: parseInt(bookingId || orderId || '0'),
             status: status || 'success',
-            bookingInfo: bookingData.data
+            bookingInfo: data.data
           })
 
           // Hiển thị toast thành công
@@ -81,7 +135,7 @@ export default function PaymentSuccess() {
             toast.error('Thanh toán thất bại')
           }
         } else {
-          setError('Không thể lấy thông tin booking')
+          setError(`Không thể lấy thông tin ${type === 'order' ? 'đơn hàng' : 'booking'}`)
         }
       } catch (err) {
         console.error('Error handling payment result:', err)
@@ -92,7 +146,7 @@ export default function PaymentSuccess() {
     }
 
     handlePaymentResult()
-  }, [searchParams])
+  }, [searchParams, auth.token])
 
   const getStatusIcon = (status: string) => {
     switch (status) {

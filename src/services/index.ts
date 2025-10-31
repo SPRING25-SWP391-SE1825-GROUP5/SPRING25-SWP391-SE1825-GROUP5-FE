@@ -119,4 +119,11 @@ export type {
   PartFilters
 } from './partService'
 
+// Order Services
+export { OrderService } from './orderService'
+export type { QuickOrderRequest, QuickOrderResponse } from './orderService'
+
+// Promotion Services
+export { PromotionService } from './promotionService'
+
 // TODO: Add other services as they are created
