@@ -122,7 +122,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
     setDiscountAmount(discount)
     // notify parent to persist promotion info for payment amount
     if (onPromotionChange) {
-      onPromotionChange({ promotionCode: promotion?.promotionCode, discountAmount: discount })
+      onPromotionChange({ promotionCode: promotion?.code, discountAmount: discount })
     }
   }
 
