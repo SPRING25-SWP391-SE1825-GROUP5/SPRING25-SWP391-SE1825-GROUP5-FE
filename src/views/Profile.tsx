@@ -43,6 +43,7 @@ import { FeedbackData } from '@/components/feedback'
 import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
 import { feedbackService } from '@/services/feedbackService'
 import { CustomerService } from '@/services/customerService'
+import api from '@/services/api'
 
 import './profile.scss'
 
@@ -78,12 +79,19 @@ interface Vehicle {
 
 interface CreateVehicleRequest {
   customerId: number
+  modelId: number
   vin: string
   licensePlate: string
   color: string
   currentMileage: number
   lastServiceDate?: string
   purchaseDate?: string
+}
+
+interface VehicleModel {
+  modelId: number
+  modelName: string
+  brand?: string
 }
 
 interface FormErrors {
@@ -121,6 +129,8 @@ export default function Profile() {
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false)
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
+  const [isLoadingModels, setIsLoadingModels] = useState(false)
 
   // Booking history states
   const [bookingHistory, setBookingHistory] = useState<any[]>([])
@@ -132,6 +142,7 @@ export default function Profile() {
 
   const [vehicleFormData, setVehicleFormData] = useState<CreateVehicleRequest>({
     customerId: 0,
+    modelId: 0,
     vin: '',
     licensePlate: '',
     color: '',
@@ -209,6 +220,13 @@ export default function Profile() {
       loadCustomerId()
     }
   }, [auth.user?.id])
+
+  // Load vehicle models when form is opened
+  useEffect(() => {
+    if (showVehicleForm && vehicleModels.length === 0) {
+      loadVehicleModels()
+    }
+  }, [showVehicleForm])
 
   useEffect(() => {
     console.log('🔄 useEffect triggered, activeTab:', activeTab, 'auth.user?.id:', auth.user?.id)
@@ -317,7 +335,18 @@ export default function Profile() {
 
     setIsLoadingVehicles(true)
     try {
-      const response = await VehicleService.getCustomerVehicles(auth.user.id)
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          setVehicles([])
+          setIsLoadingVehicles(false)
+          return
+        }
+      }
+
+      const response = await VehicleService.getCustomerVehicles(currentCustomerId)
       
       if (response.success && response.data?.vehicles) {
         setVehicles(response.data.vehicles)
@@ -339,6 +368,27 @@ export default function Profile() {
       }, 5000)
     } finally {
       setIsLoadingVehicles(false)
+    }
+  }
+
+  // Load vehicle models
+  const loadVehicleModels = async () => {
+    setIsLoadingModels(true)
+    try {
+      const response = await api.get('/VehicleModel/active')
+      let models = response.data
+      
+      // Handle nested response structure
+      if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        models = response.data.data || response.data.models || response.data.items || response.data
+      }
+      
+      setVehicleModels(models || [])
+    } catch (error: unknown) {
+      console.error('Error loading vehicle models:', error)
+      setVehicleModels([])
+    } finally {
+      setIsLoadingModels(false)
     }
   }
 
@@ -933,9 +983,20 @@ export default function Profile() {
     const errors: Record<string, string> = {}
     
     // Basic validation
-    if (!vehicleFormData.vin.trim()) errors.vin = 'VIN không được để trống'
-    if (!vehicleFormData.licensePlate.trim()) errors.licensePlate = 'Biển số xe không được để trống'
-    if (!vehicleFormData.color.trim()) errors.color = 'Màu sắc không được để trống'
+    if (!vehicleFormData.modelId || vehicleFormData.modelId <= 0) {
+      errors.modelId = 'Model xe là bắt buộc'
+    }
+    if (!vehicleFormData.vin.trim()) {
+      errors.vin = 'VIN không được để trống'
+    } else if (vehicleFormData.vin.trim().length !== 17) {
+      errors.vin = 'VIN phải có đúng 17 ký tự'
+    }
+    if (!vehicleFormData.licensePlate.trim()) {
+      errors.licensePlate = 'Biển số xe không được để trống'
+    }
+    if (!vehicleFormData.color.trim()) {
+      errors.color = 'Màu sắc không được để trống'
+    }
     if (!vehicleFormData.currentMileage || vehicleFormData.currentMileage <= 0) {
       errors.currentMileage = 'Số km hiện tại không được để trống và phải lớn hơn 0'
     }
@@ -948,16 +1009,42 @@ export default function Profile() {
 
     setIsCreatingVehicle(true)
     try {
-      const payload = {
-        ...vehicleFormData,
-        customerId: auth.user.id
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          setVehicleFormErrors({
+            general: 'Không thể lấy thông tin khách hàng. Vui lòng thử lại.'
+          })
+          setIsCreatingVehicle(false)
+          return
+        }
       }
+
+      // Prepare payload - only include dates if they have values
+      const payload: any = {
+        customerId: currentCustomerId,
+        modelId: vehicleFormData.modelId,
+        vin: vehicleFormData.vin.trim(),
+        licensePlate: vehicleFormData.licensePlate.trim(),
+        color: vehicleFormData.color.trim(),
+        currentMileage: vehicleFormData.currentMileage
+      }
+      
+      // Only add optional dates if they have values
+      if (vehicleFormData.lastServiceDate && vehicleFormData.lastServiceDate.trim()) {
+        payload.lastServiceDate = vehicleFormData.lastServiceDate
+      }
+      
+      console.log('Creating vehicle with payload:', payload) // Debug log
       await VehicleService.createVehicle(payload)
       
       setSuccessMessage('Thêm phương tiện thành công!')
       setShowVehicleForm(false)
       setVehicleFormData({
         customerId: 0,
+        modelId: 0,
         vin: '',
         licensePlate: '',
         color: '',
@@ -965,6 +1052,7 @@ export default function Profile() {
         lastServiceDate: '',
         purchaseDate: ''
       })
+      setVehicleFormErrors({})
       
       // Reload vehicles
       loadVehicles()
@@ -1026,6 +1114,7 @@ export default function Profile() {
     setEditingVehicle(vehicle)
     setVehicleFormData({
       customerId: vehicle.customerId,
+      modelId: vehicle.modelId || 0,
       vin: vehicle.vin,
       licensePlate: vehicle.licensePlate,
       color: vehicle.color,
@@ -1033,6 +1122,7 @@ export default function Profile() {
       lastServiceDate: vehicle.lastServiceDate || '',
       purchaseDate: vehicle.purchaseDate || ''
     })
+    setVehicleFormErrors({})
     setShowVehicleForm(true)
   }
 
@@ -1071,6 +1161,7 @@ export default function Profile() {
       setEditingVehicle(null)
       setVehicleFormData({
         customerId: 0,
+        modelId: 0,
         vin: '',
         licensePlate: '',
         color: '',
@@ -1078,6 +1169,7 @@ export default function Profile() {
         lastServiceDate: '',
         purchaseDate: ''
       })
+      setVehicleFormErrors({})
       
       // Reload vehicles
       loadVehicles()
@@ -1555,6 +1647,7 @@ export default function Profile() {
                     setEditingVehicle(null)
                     setVehicleFormData({
                       customerId: 0,
+                      modelId: 0,
                       vin: '',
                       licensePlate: '',
                       color: '',
@@ -1562,6 +1655,7 @@ export default function Profile() {
                       lastServiceDate: '',
                       purchaseDate: ''
                     })
+                    setVehicleFormErrors({})
                   }
                 }}
               >
@@ -1579,6 +1673,7 @@ export default function Profile() {
                           setEditingVehicle(null)
                           setVehicleFormData({
                             customerId: 0,
+                            modelId: 0,
                             vin: '',
                             licensePlate: '',
                             color: '',
@@ -1586,6 +1681,7 @@ export default function Profile() {
                             lastServiceDate: '',
                             purchaseDate: ''
                           })
+                          setVehicleFormErrors({})
                         }}
                         className="modal-close-btn"
                       >
@@ -1629,28 +1725,54 @@ export default function Profile() {
                     
                     <div className="form-row">
                       <div className="form-group">
+                        <label className="form-label required">Model xe</label>
+                        <select
+                          className={`form-select ${vehicleFormErrors.modelId ? 'error' : ''}`}
+                          value={vehicleFormData.modelId || ''}
+                          onChange={(e) => handleVehicleInputChange('modelId', parseInt(e.target.value) || 0)}
+                          disabled={isLoadingModels}
+                        >
+                          <option value="">{isLoadingModels ? 'Đang tải...' : 'Chọn model xe'}</option>
+                          {vehicleModels.map((model) => (
+                            <option key={model.modelId} value={model.modelId}>
+                              {model.brand ? `${model.brand} - ` : ''}{model.modelName}
+                            </option>
+                          ))}
+                        </select>
+                        {vehicleFormErrors.modelId && (
+                          <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '4px' }}>
+                            {vehicleFormErrors.modelId}
+                          </div>
+                        )}
+                      </div>
+                      <div className="form-group">
                         <label className="form-label required">VIN</label>
                         <BaseInput
                           type="text"
                           value={vehicleFormData.vin}
-                          onChange={(value) => handleVehicleInputChange('vin', value)}
-                          placeholder="Nhập VIN của xe"
+                          onChange={(value) => {
+                            // Limit VIN to 17 characters
+                            if (value.length <= 17) {
+                              handleVehicleInputChange('vin', value)
+                            }
+                          }}
+                          placeholder="Nhập VIN của xe (17 ký tự)"
                           error={vehicleFormErrors.vin}
                         />
-                </div>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
                       <div className="form-group">
                         <label className="form-label required">Biển số xe</label>
                         <BaseInput
                           type="text"
                           value={vehicleFormData.licensePlate}
                           onChange={(value) => handleVehicleInputChange('licensePlate', value)}
-                          placeholder="Nhập biển số xe"
+                          placeholder="Nhập biển số xe (VD: 29-T8 2843)"
                           error={vehicleFormErrors.licensePlate}
                         />
-                    </div>
-                  </div>
-
-                    <div className="form-row">
+                      </div>
                       <div className="form-group">
                         <label className="form-label required">Màu sắc</label>
                         <BaseInput
@@ -1660,7 +1782,10 @@ export default function Profile() {
                           placeholder="Nhập màu sắc xe"
                           error={vehicleFormErrors.color}
                         />
+                      </div>
                     </div>
+
+                    <div className="form-row">
                       <div className="form-group">
                         <label className="form-label required">Số km hiện tại</label>
                         <BaseInput
@@ -1670,8 +1795,9 @@ export default function Profile() {
                           placeholder="Nhập số km hiện tại"
                           error={vehicleFormErrors.currentMileage}
                         />
+                      </div>
                     </div>
-                  </div>
+
 
                     <div className="form-row">
                       <div className="form-group">
