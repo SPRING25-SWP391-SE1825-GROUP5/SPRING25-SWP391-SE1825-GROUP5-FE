@@ -209,10 +209,10 @@ export default function Profile() {
   }, [activeTab, auth.user?.id])
 
   useEffect(() => {
-    if (activeTab === 'promo-codes' && auth.user?.id) {
+    if (activeTab === 'promo-codes' && customerId) {
       loadSavedPromotions()
     }
-  }, [activeTab, auth.user?.id])
+  }, [activeTab, customerId])
 
   // Load customerId when component mounts
   useEffect(() => {
@@ -402,8 +402,20 @@ export default function Profile() {
     setPromotionsError(null)
     
     try {
-      console.log('Loading saved promotions for customer:', auth.user.id)
-      const promotions = await PromotionBookingService.getCustomerPromotions(auth.user.id)
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          setSavedPromotions([])
+          setTotalPromotions(0)
+          setPromotionsLoading(false)
+          return
+        }
+      }
+
+      console.log('Loading saved promotions for customerId:', currentCustomerId)
+      const promotions = await PromotionBookingService.getCustomerPromotions(currentCustomerId)
       console.log('Saved promotions response:', promotions)
       
       setSavedPromotions(promotions || [])
