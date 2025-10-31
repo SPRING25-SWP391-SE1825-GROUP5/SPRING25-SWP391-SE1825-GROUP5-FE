@@ -8,6 +8,7 @@ import { LOADING_MESSAGES } from "@/config/ui";
 import { handleApiError, showSuccessToast } from "@/utils/errorHandler";
 import toast from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
+import "./LoginGlass.scss";
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
@@ -289,466 +290,98 @@ export default function LoginPage() {
   }, [handleGoogleCredential])
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    }}>
-      {/* Overlay */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'white',
-        animation: 'fadeIn 0.3s ease-out'
-      }} />
+    <div className="login-glass">
+      {/* Background với Workshop Image */}
+      <div className="login-glass__background" />
 
-      {/* Modal Container */}
-      <div className="modal-container" style={{
-        position: 'relative',
-        background: 'white',
-        borderRadius: '16px',
-        width: '1000px',
-        height: '650px',
-        maxHeight: '90vh',
-        overflow: 'hidden',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-        animation: 'slideUp 0.3s ease-out',
-        color: '#2d3748',
-        display: 'flex'
-      }}>
-        {/* Left Side - Visual Area (500px) */}
-        <div style={{
-          width: '500px',
-          background: 'linear-gradient(135deg, #10b981, #059669)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative'
-        }}>
-          {/* Visual Content */}
-          <div style={{
-            color: 'white',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '64px',
-              marginBottom: '24px'
-            }}>
-              🚗
-            </div>
-            <div style={{
-              fontSize: '32px',
-              fontWeight: '700',
-              color: 'white',
-              marginBottom: '8px'
-            }}>
-              EV Service
-            </div>
-            <div style={{
-              fontSize: '18px',
-              color: 'rgba(255, 255, 255, 0.8)',
-              marginBottom: '24px'
-            }}>
-              Center
-            </div>
-            <div style={{
-              fontSize: '16px',
-              color: 'rgba(255, 255, 255, 0.9)',
-              lineHeight: '1.6',
-              maxWidth: '300px'
-            }}>
-              Dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp cho xe điện của bạn
-            </div>
-          </div>
+      {/* Glassmorphism Card */}
+      <div className="login-glass__card">
+        {/* Header */}
+        <div className="login-glass__header">
+          <h1 className="login-glass__title">Đăng nhập</h1>
+          <p className="login-glass__subtitle">
+            Chưa có tài khoản?{" "}
+            <Link to="/auth/register">Đăng ký</Link>
+          </p>
         </div>
 
-        {/* Right Side - Form (500px) */}
-        <div style={{
-          width: '500px',
-          padding: '80px 60px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          background: 'white'
-        }}>
-          {/* Title */}
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: '700',
-            color: '#2d3748',
-            margin: '0 0 12px 0',
-            textAlign: 'left',
-            lineHeight: '1.2'
-          }}>
-            Đăng nhập
-          </h1>
-          
-          {/* Subtitle */}
-          <p style={{
-            fontSize: '16px',
-            color: '#4a5568',
-            margin: '0 0 32px 0',
-            textAlign: 'left',
-            lineHeight: '1.5'
-          }}>
-            Chưa có tài khoản?{" "}
-            <Link 
-              to="/auth/register" 
-              style={{
-                color: '#10b981',
-                textDecoration: 'none',
-                fontWeight: '500'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#059669'
-                e.currentTarget.style.textDecoration = 'underline'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#10b981'
-                e.currentTarget.style.textDecoration = 'none'
-              }}
-            >
-              Đăng ký
-            </Link>
-          </p>
-
         {/* Form */}
-        <form onSubmit={onSubmit}>
+        <form className="login-glass__form" onSubmit={onSubmit}>
+          {/* Server Error */}
+          {serverError && !formError.password && !formError.emailOrPhone && (
+            <div className="login-glass__server-error">
+              {serverError}
+            </div>
+          )}
+
           {/* Email/Phone Field */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '16px',
-              color: fieldErrors.emailOrPhone ? '#f87171' : '#2d3748',
-              marginBottom: '8px',
-              fontWeight: '500',
-              transition: 'color 0.3s ease'
-            }}>
+          <div className="login-glass__form-group">
+            <label className={fieldErrors.emailOrPhone ? 'error' : ''}>
               Email
             </label>
             <input
               type="text"
+              className={`login-glass__input ${fieldErrors.emailOrPhone ? 'error' : ''}`}
               value={emailOrPhone}
               onChange={(e) => handleEmailOrPhoneChange(e.target.value)}
-              placeholder=" "
+              placeholder="email@example.com"
               required
-              style={{
-                width: '100%',
-                padding: '16px 20px',
-                border: `1.5px solid ${fieldErrors.emailOrPhone ? '#f87171' : '#e2e8f0'}`,
-                borderRadius: '12px',
-                background: 'white',
-                color: '#2d3748',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                boxSizing: 'border-box',
-                outline: 'none',
-                height: '56px'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#10b981'
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = fieldErrors.emailOrPhone ? '#f87171' : '#e2e8f0'
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
             />
             {fieldErrors.emailOrPhone && (
-              <div style={{
-                color: '#f87171',
-                fontSize: '12px',
-                marginTop: '8px',
-                animation: 'slideDown 0.3s ease-out'
-              }}>
+              <div className="login-glass__error">
                 {fieldErrors.emailOrPhone}
               </div>
             )}
           </div>
 
           {/* Password Field */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '16px',
-              color: '#2d3748',
-              marginBottom: '8px',
-              fontWeight: '500',
-              transition: 'color 0.3s ease'
-            }}>
-              Mật khẩu
-            </label>
+          <div className="login-glass__form-group login-glass__form-group--password">
+            <label>Mật khẩu</label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? "text" : "password"}
+                className={`login-glass__input login-glass__input--password ${fieldErrors.password ? 'error' : ''}`}
                 value={password}
                 onChange={(e) => handlePasswordChange(e.target.value)}
-                placeholder=" "
+                placeholder="••••••••"
                 required
-                style={{
-                  width: '100%',
-                  padding: '16px 50px 16px 20px',
-                  border: '1.5px solid #e2e8f0',
-                  borderRadius: '12px',
-                  background: 'white',
-                  color: '#2d3748',
-                  fontSize: '16px',
-                  transition: 'all 0.3s ease',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  height: '56px'
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#10b981'
-                  e.currentTarget.style.background = 'white'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#e2e8f0'
-                  e.currentTarget.style.background = 'white'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
               />
               <button
                 type="button"
+                className="login-glass__password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#6b7280',
-                  transition: 'color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#10b981'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#6b7280'
-                }}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
-            <Link 
-              to="/auth/forgot-password" 
-              style={{
-                display: 'inline-block',
-                marginTop: '6px',
-                fontSize: '14px',
-                color: '#10b981',
-                textDecoration: 'none',
-                fontWeight: '500'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.textDecoration = 'underline'
-                e.currentTarget.style.color = '#059669'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.textDecoration = 'none'
-                e.currentTarget.style.color = '#10b981'
-              }}
-            >
+            <Link to="/auth/forgot-password" className="login-glass__forgot-link">
               Quên mật khẩu?
             </Link>
-            {/* Đã bỏ hiển thị error message dưới ô password */}
-            {fieldErrors.password && (
-              <div style={{
-                color: '#f87171',
-                fontSize: '12px',
-                marginTop: '8px',
-                animation: 'slideDown 0.3s ease-out',
-                display: 'none'
-              }}>
-                {fieldErrors.password}
-              </div>
-            )}
           </div>
 
-          {/* Server Error */}
-          {serverError && !formError.password && !formError.emailOrPhone && (
-            <div style={{
-              color: '#f87171',
-              fontSize: '14px',
-              marginBottom: '16px',
-              textAlign: 'left',
-              fontWeight: '500'
-            }}>
-              {serverError}
-            </div>
-          )}
-
           {/* Submit Button */}
-          <button 
-            type="submit" 
-            style={{
-              width: '100%',
-              padding: '18px 24px',
-              background: 'linear-gradient(90deg, #10b981, #059669)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-              marginBottom: '20px',
-              height: '56px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(90deg, #059669, #047857)'
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)'
-              e.currentTarget.style.transform = 'translateY(-1px)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(90deg, #10b981, #059669)'
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)'
-              e.currentTarget.style.transform = 'translateY(0)'
-            }}
-          >
+          <button type="submit" className="login-glass__button login-glass__button--submit">
             Tiếp tục
           </button>
         </form>
 
         {/* Divider */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'rgba(255, 255, 255, 0.6)',
-          fontSize: '14px',
-          margin: '20px 0',
-          opacity: 0.9
-        }}>
-          <div style={{
-            flex: 1,
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
-            margin: '0 12px'
-          }}></div>
-          <span>hoặc</span>
-          <div style={{
-            flex: 1,
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
-            margin: '0 12px'
-          }}></div>
-        </div>
+        <div className="login-glass__divider">hoặc</div>
 
         {/* Google Login */}
-        <div style={{ marginBottom: '20px' }}>
-          <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center' }}></div>
+        <div className="login-glass__google-container">
+          <div ref={googleBtnRef}></div>
         </div>
 
         {/* Footer */}
-        <div style={{
-          fontSize: '13px',
-          color: 'rgba(255, 255, 255, 0.6)',
-          lineHeight: '1.6',
-          textAlign: 'center'
-        }}>
-          <div style={{ marginBottom: '8px' }}>
-            <a href="/terms" style={{
-              color: '#60a5fa',
-              textDecoration: 'none',
-              fontWeight: '500'
-            }}>
-              Điều khoản sử dụng
-            </a>
-            <span style={{ margin: '0 8px' }}>•</span>
-            <a href="/privacy" style={{
-              color: '#60a5fa',
-              textDecoration: 'none',
-              fontWeight: '500'
-            }}>
-              Chính sách bảo mật
-            </a>
+        <div className="login-glass__footer">
+          <div>
+            <a href="/terms">Điều khoản sử dụng</a>
+            <span>•</span>
+            <a href="/privacy">Chính sách bảo mật</a>
           </div>
         </div>
-        </div>
       </div>
-
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-            max-height: 0;
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-            max-height: 100px;
-          }
-        }
-        
-        input::placeholder {
-          color: rgba(255, 255, 255, 0.6);
-        }
-        
-        @media (max-width: 1000px) {
-          .modal-container {
-            width: 90% !important;
-            max-width: 700px !important;
-            height: auto !important;
-            flex-direction: column !important;
-          }
-          
-          .modal-container > div:first-child {
-            width: 100% !important;
-            height: 280px !important;
-          }
-          
-          .modal-container > div:last-child {
-            width: 100% !important;
-            padding: 50px 40px !important;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .modal-container {
-            padding: 24px !important;
-            margin: 16px !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
