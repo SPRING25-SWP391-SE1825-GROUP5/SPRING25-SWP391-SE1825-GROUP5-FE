@@ -12,7 +12,7 @@
   background: #FFFFFF !important;
   border-bottom: 1px solid #e2e8f0;
   font-family: 'Poppins', sans-serif;
-  height: 64px;
+  height: 56px;
   margin: 0 !important;
   padding: 0 !important;
   width: 100%;
@@ -40,7 +40,7 @@
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
-  min-height: 64px;
+  min-height: 56px;
 }
 
 /* Logo Section - Left */
@@ -304,7 +304,6 @@
   background: white;
   font-family: 'Poppins', sans-serif;
   height: 40px;
-  padding: 6px 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -752,6 +751,175 @@
     gap: 12px;
   }
 }
+
+/* ========================================
+   MODERN GLASS HEADER VARIANT
+   - Activated via className="modern-header" on HeaderDropdown
+   ======================================== */
+.modern-header.header-dropdown {
+  background: transparent !important;
+  border-bottom: none;
+}
+
+.modern-header .header-dropdown__container {
+  /* Thu gọn bề rộng tổng thể của header modern */
+  width: 80% !important;
+  max-width: 80% !important;
+  background: rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  padding: 0 18px; /* giữ compact trong khối glass */
+  margin: 8px auto; /* tạo khoảng thở trên/dưới */
+}
+
+/* Logo tinh gọn, bo mềm mại */
+.modern-header .header-logo img {
+  height: 30px;
+}
+
+/* Nav items kiểu pill, hover glass */
+.modern-header .nav-link {
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.modern-header .nav-list {
+  gap: 20px; /* giảm spacing giữa các mục menu */
+}
+
+.modern-header .nav-link:hover,
+.modern-header .nav-item.open > .nav-link {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #10b981;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.modern-header .nav-link.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  font-weight: 600;
+}
+
+/* Icon buttons tròn mềm và glass hover */
+.modern-header .header-icon-btn {
+  border-radius: 12px;
+  transition: color .2s ease, background .2s ease, box-shadow .2s ease, transform .15s ease;
+}
+
+.modern-header .header-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #059669;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Nút Login/Booking phong cách designer (pill + shadow tinh tế) */
+.modern-header .login-btn {
+  border-radius: 9999px; /* pill */
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  height: 1.5rem;
+}
+
+.modern-header .login-btn:hover {
+  background: linear-gradient(90deg, #10b981, #059669);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(16,185,129,.26);
+}
+
+.modern-header .booking-btn {
+  border-radius: 9999px; /* pill */
+  background: linear-gradient(90deg, #10b981, #059669);
+  box-shadow: 0 8px 18px rgba(16,185,129,.28);
+  height: 1.5rem;
+}
+
+.modern-header .booking-btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+/* Dropdown glassmorphism */
+.modern-header .dropdown {
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modern-header .dropdown-link:hover {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+/* Mobile toggle glass hover */
+.modern-header .mobile-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #059669;
+}
+
+/* Mobile nav glass panel */
+.modern-header .mobile-nav {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+/* Logo combo (icon + text) khi dùng custom logo */
+.modern-header .header-logo-combo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9999px;
+  color: #0f172a;
+}
+
+.modern-header .header-logo-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+.modern-header .header-logo-text {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .3px;
+  text-decoration: none !important;
+}
+
+/* Loại bỏ underline cho link bọc logo */
+.header-logo .logo-link,
+.header-logo .logo-link:hover,
+.modern-header .header-logo .logo-link,
+.modern-header .header-logo .logo-link:hover {
+  text-decoration: none !important;
+}
+
 
 @media (max-width: 1024px) {
   .header-dropdown__container {

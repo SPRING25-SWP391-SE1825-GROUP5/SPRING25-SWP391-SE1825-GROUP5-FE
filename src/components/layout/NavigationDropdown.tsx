@@ -44,6 +44,7 @@ interface HeaderDropdownProps {
     src: string
     alt: string
     href?: string
+    custom?: React.ReactNode
   }
   rightItems?: React.ReactNode
   className?: string
@@ -260,12 +261,22 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
             {logo && (
               <>
                 <div className="header-logo">
-                  {logo.href ? (
-                    <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
-                      <img src={logo.src} alt={logo.alt} />
-                    </NavLink>
+                  {logo.custom ? (
+                    logo.href ? (
+                      <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
+                        {logo.custom}
+                      </NavLink>
+                    ) : (
+                      logo.custom
+                    )
                   ) : (
-                    <img src={logo.src} alt={logo.alt} />
+                    logo.href ? (
+                      <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
+                        <img src={logo.src} alt={logo.alt} />
+                      </NavLink>
+                    ) : (
+                      <img src={logo.src} alt={logo.alt} />
+                    )
                   )}
                 </div>
               </>
