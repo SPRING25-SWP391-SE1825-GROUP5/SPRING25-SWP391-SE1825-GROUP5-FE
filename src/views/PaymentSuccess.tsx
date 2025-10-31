@@ -41,7 +41,7 @@ export default function PaymentSuccess() {
     const handlePaymentResult = async () => {
       try {
         const bookingId = searchParams.get('bookingId')
-        const status = searchParams.get('status') as PaymentResult['status']
+        const status = (searchParams.get('status') || '').toLowerCase() as PaymentResult['status']
         
         if (!bookingId) {
           setError('Thiếu thông tin booking ID')

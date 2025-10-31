@@ -52,6 +52,7 @@ interface ConfirmationStepProps {
   onSubmit: () => void
   onPrev: () => void
   isSubmitting?: boolean
+  onPromotionChange?: (info: { promotionCode?: string; discountAmount: number } | null) => void
 }
 
 interface ServiceInfo {
@@ -60,7 +61,7 @@ interface ServiceInfo {
   price: number
 }
 
-const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false }) => {
+const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false, onPromotionChange }) => {
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
@@ -121,11 +122,18 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
   const handlePromotionApplied = (promotion: Promotion | null, discount: number) => {
     setAppliedPromotion(promotion)
     setDiscountAmount(discount)
+    // notify parent to persist promotion info for payment amount
+    if (onPromotionChange) {
+      onPromotionChange({ promotionCode: promotion?.promotionCode, discountAmount: discount })
+    }
   }
 
   const handlePromotionRemoved = () => {
     setAppliedPromotion(null)
     setDiscountAmount(0)
+    if (onPromotionChange) {
+      onPromotionChange(null)
+    }
   }
 
   const formatPrice = (price: number) => {
