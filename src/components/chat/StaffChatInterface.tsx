@@ -5,6 +5,7 @@ import type { ChatMessage, ChatConversation } from '@/types/chat'
 import ChatService from '@/services/chatService'
 import signalRService from '@/services/signalRService'
 import { NotificationService } from '@/services/notificationService'
+import { DEFAULT_VALUES } from '@/constants/appConstants'
 import './StaffChatInterface.scss'
 
 interface StaffChatInterfaceProps {
@@ -47,7 +48,6 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
   useEffect(() => {
     // Handle new messages
     signalRService.setOnMessageReceived((message: ChatMessage) => {
-      console.log('Staff received new message:', message)
       
       // If message is for current conversation, add it to messages
       if (selectedConversation && message.conversationId === selectedConversation.id) {
@@ -114,12 +114,10 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
       try {
         await ChatService.testStaffEndpoint()
       } catch (debugError) {
-        console.log('Staff endpoint debug failed:', debugError)
+        // Debug endpoint failed
       }
       
       const response = await ChatService.getConversations()
-      console.log('Loaded conversations:', response)
-      console.log('First conversation participants:', response[0]?.participants)
       setConversations(response)
       
       // Calculate unread count
@@ -295,7 +293,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
             <div className="staff-chat-interface__title">
               <span className="staff-chat-interface__title-text">Staff Chat</span>
               <span className="staff-chat-interface__subtitle">
-                {user?.fullName || 'Staff Member'}
+                {user?.fullName || DEFAULT_VALUES.STAFF_MEMBER}
               </span>
             </div>
           </div>

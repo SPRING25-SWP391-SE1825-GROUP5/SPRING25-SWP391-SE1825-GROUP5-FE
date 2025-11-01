@@ -45,6 +45,20 @@ export interface VehicleListResponse {
   }
 }
 
+export interface CustomerBookingsResponse {
+  success: boolean
+  message: string
+  data: {
+    bookings: any[]
+    pagination?: {
+      pageNumber: number
+      pageSize: number
+      totalCount: number
+      totalPages: number
+    }
+  } | any[]
+}
+
 /**
  * Customer Service
  * Handles customer management operations
@@ -116,6 +130,12 @@ export const CustomerService = {
    */
   async quickCreateCustomer(customerData: QuickCreateCustomerRequest): Promise<CustomerResponse> {
     const { data } = await api.post<CustomerResponse>('/Customer/quick-create', customerData)
+    return data
+  },
+
+  async getCustomerBookings(customerId: number, params: { pageNumber?: number; pageSize?: number } = {}): Promise<CustomerBookingsResponse> {
+    const defaultParams = { pageNumber: 1, pageSize: 10, ...params }
+    const { data } = await api.get<CustomerBookingsResponse>(`/Customer/${customerId}/bookings`, { params: defaultParams })
     return data
   }
 }

@@ -62,12 +62,12 @@ export default function TechnicianProfile() {
   }>({})
 
   // Helper functions for notifications
-  const setSuccess = (message: string) => {
-    setPopup({ message, type: 'success' })
+  const setSuccessMessage = (message: string) => {
+    setSuccess(message)
   }
 
-  const setError = (message: string) => {
-    setPopup({ message, type: 'error' })
+  const setErrorMessage = (message: string) => {
+    setError(message)
   }
 
   useEffect(() => {
@@ -137,13 +137,13 @@ export default function TechnicianProfile() {
       
       if (response.success && response.data) {
         dispatch(updateUser(response.data))
-        setPopup({ message: 'Cập nhật thông tin thành công!', type: 'success' })
+        setSuccess('Cập nhật thông tin thành công!')
         setIsEditingPersonal(false)
       } else {
-        setPopup({ message: response.message || 'Cập nhật thông tin thất bại', type: 'error' })
+        setError(response.message || 'Cập nhật thông tin thất bại')
       }
     } catch (err: unknown) {
-      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật', type: 'error' })
+      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật')
     } finally {
       setSaving(false)
     }
@@ -162,16 +162,16 @@ export default function TechnicianProfile() {
       })
       
       if (response.success) {
-        setPopup({ message: 'Đổi mật khẩu thành công!', type: 'success' })
+        setSuccess('Đổi mật khẩu thành công!')
         setShowPasswordModal(false)
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       } else {
-        setPopup({ message: response.message || 'Đổi mật khẩu thất bại', type: 'error' })
+        setError(response.message || 'Đổi mật khẩu thất bại')
       }
     } catch (err: unknown) {
-      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu', type: 'error' })
+      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu')
     } finally {
       setSaving(false)
     }
@@ -187,12 +187,12 @@ export default function TechnicianProfile() {
       
       if (response.success && response.data) {
         setAvatar(response.data.avatarUrl || response.data.avatar)
-        setSuccess('Cập nhật ảnh đại diện thành công')
+        setSuccessMessage('Cập nhật ảnh đại diện thành công')
       } else {
-        setError(response.message || 'Cập nhật ảnh đại diện thất bại')
+        setErrorMessage(response.message || 'Cập nhật ảnh đại diện thất bại')
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Có lỗi xảy ra khi cập nhật ảnh')
+      setErrorMessage(err?.response?.data?.message || 'Có lỗi xảy ra khi cập nhật ảnh')
     } finally {
       setSaving(false)
     }

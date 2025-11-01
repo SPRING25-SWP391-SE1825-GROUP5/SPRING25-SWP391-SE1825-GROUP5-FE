@@ -1,0 +1,57 @@
+@import '../admin-common';
+
+/* New unified pagination layout */
+.pagination-controls-bottom { 
+  margin-top: 16px; 
+  display: flex; 
+  justify-content: space-between;
+  align-items: center; 
+  background: transparent; 
+  padding: 8px 0; 
+  border: none; 
+  border-radius: 0; 
+  box-shadow: none; 
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pagination-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pagination-range {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pagination-right-controls { display:flex; align-items:center; gap:8px; }
+.pager-pages { display:flex; align-items:center; gap:8px; margin:0 8px; }
+.pager-ellipsis { color: var(--text-tertiary); }
+.pager-btn { 
+  padding:8px 12px; 
+  border-radius:8px; 
+  border:none; 
+  background: var(--bg-card); 
+  color: var(--text-primary); 
+  font-size:14px; 
+  font-weight:500; 
+  display:flex; align-items:center; gap:4px; 
+  cursor:pointer; transition: .2s; 
+}
+.pager-btn.is-active { background: var(--primary-50); color: var(--primary-700); font-weight:600; }
+.pager-btn.is-disabled { background: var(--bg-secondary); color: var(--text-tertiary); cursor:not-allowed; }
+
+/* pill dropdown */
+.pill-menu { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06); z-index:1000; min-width:160px; opacity:0; visibility:hidden; transform:translateY(-8px); transition:all .2s ease; pointer-events:none; margin-top:4px; list-style:none; padding:0; }
+.pill-menu.show { opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto; }
+.pill-item { padding:8px 12px; color:#374151; font-size:13px; font-weight:400; cursor:pointer; transition:all .15s ease; border-radius:4px; margin:2px 4px; list-style:none; }
+.pill-item:hover { background: var(--primary-50); color: var(--primary-700); }
+.pill-item.active { background: var(--primary-50); color: var(--primary-700); font-weight:500; }
+

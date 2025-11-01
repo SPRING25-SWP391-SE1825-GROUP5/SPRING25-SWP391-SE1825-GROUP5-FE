@@ -38,12 +38,12 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline'
 import { FeedbackCard } from '@/components/feedback'
-import { mockFeedbackService } from '@/data/mockFeedbackData'
 import { BookingData } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
 import BookingHistoryCard from '@/components/booking/BookingHistoryCard'
 import { feedbackService } from '@/services/feedbackService'
 import { CustomerService } from '@/services/customerService'
+import api from '@/services/api'
 
 import './profile.scss'
 
@@ -79,12 +79,19 @@ interface Vehicle {
 
 interface CreateVehicleRequest {
   customerId: number
+  modelId: number
   vin: string
   licensePlate: string
   color: string
   currentMileage: number
   lastServiceDate?: string
   purchaseDate?: string
+}
+
+interface VehicleModel {
+  modelId: number
+  modelName: string
+  brand?: string
 }
 
 interface FormErrors {
@@ -122,6 +129,8 @@ export default function Profile() {
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false)
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
+  const [isLoadingModels, setIsLoadingModels] = useState(false)
 
   // Booking history states
   const [bookingHistory, setBookingHistory] = useState<any[]>([])
@@ -129,9 +138,11 @@ export default function Profile() {
   const [bookingHistoryPage, setBookingHistoryPage] = useState(1)
   const [bookingHistoryTotalPages, setBookingHistoryTotalPages] = useState(1)
   const [customerId, setCustomerId] = useState<number | null>(null)
+  const HISTORY_PAGE_SIZE = 10
 
   const [vehicleFormData, setVehicleFormData] = useState<CreateVehicleRequest>({
     customerId: 0,
+    modelId: 0,
     vin: '',
     licensePlate: '',
     color: '',
@@ -198,10 +209,10 @@ export default function Profile() {
   }, [activeTab, auth.user?.id])
 
   useEffect(() => {
-    if (activeTab === 'promo-codes' && auth.user?.id) {
+    if (activeTab === 'promo-codes' && customerId) {
       loadSavedPromotions()
     }
-  }, [activeTab, auth.user?.id])
+  }, [activeTab, customerId])
 
   // Load customerId when component mounts
   useEffect(() => {
@@ -209,6 +220,13 @@ export default function Profile() {
       loadCustomerId()
     }
   }, [auth.user?.id])
+
+  // Load vehicle models when form is opened
+  useEffect(() => {
+    if (showVehicleForm && vehicleModels.length === 0) {
+      loadVehicleModels()
+    }
+  }, [showVehicleForm])
 
   useEffect(() => {
     console.log('🔄 useEffect triggered, activeTab:', activeTab, 'auth.user?.id:', auth.user?.id)
@@ -223,7 +241,7 @@ export default function Profile() {
     setMaintenanceLoading(true)
     setMaintenanceError(null)
     try {
-      const data = await mockFeedbackService.getBookingsWithFeedback()
+      const data = await feedbackService.getBookingsWithFeedback()
       setBookings(data)
       
       // Set first booking as expanded by default
@@ -255,7 +273,7 @@ export default function Profile() {
   // Handle feedback submission (legacy for maintenance tab)
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.submitFeedback(bookingId, feedback)
+      await feedbackService.submitFeedback(bookingId, 0, feedback)
       // Reload data to show updated feedback
       await loadMaintenanceData()
     } catch (err: any) {
@@ -267,7 +285,7 @@ export default function Profile() {
   // Handle feedback update (legacy for maintenance tab)
   const handleEditFeedback = async (bookingId: string, feedback: FeedbackData) => {
     try {
-      await mockFeedbackService.updateFeedback(bookingId, feedback)
+      await feedbackService.updateFeedback(Number(bookingId), feedback)
       // Reload data to show updated feedback
       await loadMaintenanceData()
     } catch (err: any) {
@@ -317,7 +335,18 @@ export default function Profile() {
 
     setIsLoadingVehicles(true)
     try {
-      const response = await VehicleService.getCustomerVehicles(auth.user.id)
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          setVehicles([])
+          setIsLoadingVehicles(false)
+          return
+        }
+      }
+
+      const response = await VehicleService.getCustomerVehicles(currentCustomerId)
       
       if (response.success && response.data?.vehicles) {
         setVehicles(response.data.vehicles)
@@ -342,6 +371,27 @@ export default function Profile() {
     }
   }
 
+  // Load vehicle models
+  const loadVehicleModels = async () => {
+    setIsLoadingModels(true)
+    try {
+      const response = await api.get('/VehicleModel/active')
+      let models = response.data
+      
+      // Handle nested response structure
+      if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        models = response.data.data || response.data.models || response.data.items || response.data
+      }
+      
+      setVehicleModels(models || [])
+    } catch (error: unknown) {
+      console.error('Error loading vehicle models:', error)
+      setVehicleModels([])
+    } finally {
+      setIsLoadingModels(false)
+    }
+  }
+
   // Load saved promotions for customer
   const loadSavedPromotions = async () => {
     if (!auth.user?.id) {
@@ -352,12 +402,32 @@ export default function Profile() {
     setPromotionsError(null)
     
     try {
-      console.log('Loading saved promotions for customer:', auth.user.id)
-      const promotions = await PromotionBookingService.getCustomerPromotions(auth.user.id)
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          setSavedPromotions([])
+          setTotalPromotions(0)
+          setPromotionsLoading(false)
+          return
+        }
+      }
+
+      console.log('Loading saved promotions for customerId:', currentCustomerId)
+      const promotions = await PromotionBookingService.getCustomerPromotions(currentCustomerId)
       console.log('Saved promotions response:', promotions)
       
-      setSavedPromotions(promotions || [])
-      setTotalPromotions(promotions?.length || 0)
+      // Hiển thị các mã khuyến mãi chưa sử dụng: SAVED và APPLIED (đã áp dụng nhưng chưa thanh toán)
+      // KHÔNG hiển thị USED (đã sử dụng = đã thanh toán thành công)
+      // Nếu đơn hàng chưa thanh toán thì mã vẫn còn nguyên (SAVED hoặc APPLIED)
+      const filteredPromotions = (promotions || []).filter((p: any) => {
+        const status = String(p.status || '').toUpperCase()
+        return status === 'SAVED' || status === 'APPLIED' // Hiển thị các mã chưa sử dụng
+      })
+      
+      setSavedPromotions(filteredPromotions)
+      setTotalPromotions(filteredPromotions.length)
     } catch (error: any) {
       console.error('Error loading saved promotions:', error)
       setPromotionsError(error.message || 'Không thể tải danh sách mã khuyến mãi')
@@ -421,25 +491,18 @@ export default function Profile() {
       }
       
       console.log('🚀 Loading booking history for customerId:', currentCustomerId)
-      
-      const response = await BookingService.getBookingHistory(currentCustomerId, bookingHistoryPage, 5)
-      console.log('✅ Booking history response:', response)
-      
-      // Check both possible response structures
+      // Gọi API khách hàng -> bookings
+      const resp = await CustomerService.getCustomerBookings(Number(currentCustomerId), { pageNumber: bookingHistoryPage, pageSize: 10 })
+
       let bookings, pagination
-      
-      if (response && response.data && Array.isArray(response.data.bookings)) {
-        // Structure: response.data.bookings
-        bookings = response.data.bookings
-        pagination = response.data.pagination
-        console.log('📋 Using response.data.bookings structure')
-      } else if (response && Array.isArray(response.bookings)) {
-        // Structure: response.bookings (direct structure)
-        bookings = response.bookings
-        pagination = response.pagination
-        console.log('📋 Using response.bookings structure')
+      if (resp && Array.isArray(resp.data)) {
+        bookings = resp.data
+        pagination = undefined
+      } else if (resp && resp.data && Array.isArray((resp as any).data.bookings)) {
+        bookings = (resp as any).data.bookings
+        pagination = (resp as any).data.pagination
       } else {
-        console.error('❌ Invalid response structure:', response)
+        console.error('❌ Invalid customer bookings response:', resp)
         setBookingHistory([])
         return
       }
@@ -511,7 +574,7 @@ export default function Profile() {
       
       console.log('📊 Final bookings with test feedback:', bookingsWithTestFeedback)
       setBookingHistory(bookingsWithTestFeedback)
-      setBookingHistoryTotalPages(pagination?.totalPages || 1)
+      setBookingHistoryTotalPages(pagination?.totalPages || Math.max(1, Math.ceil(bookingsWithTestFeedback.length / HISTORY_PAGE_SIZE)))
     } catch (error: unknown) {
       console.error('Error loading booking history:', error)
       setBookingHistory([])
@@ -940,9 +1003,20 @@ export default function Profile() {
     const errors: Record<string, string> = {}
     
     // Basic validation
-    if (!vehicleFormData.vin.trim()) errors.vin = 'VIN không được để trống'
-    if (!vehicleFormData.licensePlate.trim()) errors.licensePlate = 'Biển số xe không được để trống'
-    if (!vehicleFormData.color.trim()) errors.color = 'Màu sắc không được để trống'
+    if (!vehicleFormData.modelId || vehicleFormData.modelId <= 0) {
+      errors.modelId = 'Model xe là bắt buộc'
+    }
+    if (!vehicleFormData.vin.trim()) {
+      errors.vin = 'VIN không được để trống'
+    } else if (vehicleFormData.vin.trim().length !== 17) {
+      errors.vin = 'VIN phải có đúng 17 ký tự'
+    }
+    if (!vehicleFormData.licensePlate.trim()) {
+      errors.licensePlate = 'Biển số xe không được để trống'
+    }
+    if (!vehicleFormData.color.trim()) {
+      errors.color = 'Màu sắc không được để trống'
+    }
     if (!vehicleFormData.currentMileage || vehicleFormData.currentMileage <= 0) {
       errors.currentMileage = 'Số km hiện tại không được để trống và phải lớn hơn 0'
     }
@@ -955,16 +1029,42 @@ export default function Profile() {
 
     setIsCreatingVehicle(true)
     try {
-      const payload = {
-        ...vehicleFormData,
-        customerId: auth.user.id
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        currentCustomerId = await loadCustomerId()
+        if (!currentCustomerId) {
+          setVehicleFormErrors({
+            general: 'Không thể lấy thông tin khách hàng. Vui lòng thử lại.'
+          })
+          setIsCreatingVehicle(false)
+          return
+        }
       }
+
+      // Prepare payload - only include dates if they have values
+      const payload: any = {
+        customerId: currentCustomerId,
+        modelId: vehicleFormData.modelId,
+        vin: vehicleFormData.vin.trim(),
+        licensePlate: vehicleFormData.licensePlate.trim(),
+        color: vehicleFormData.color.trim(),
+        currentMileage: vehicleFormData.currentMileage
+      }
+      
+      // Only add optional dates if they have values
+      if (vehicleFormData.lastServiceDate && vehicleFormData.lastServiceDate.trim()) {
+        payload.lastServiceDate = vehicleFormData.lastServiceDate
+      }
+      
+      console.log('Creating vehicle with payload:', payload) // Debug log
       await VehicleService.createVehicle(payload)
       
       setSuccessMessage('Thêm phương tiện thành công!')
       setShowVehicleForm(false)
       setVehicleFormData({
         customerId: 0,
+        modelId: 0,
         vin: '',
         licensePlate: '',
         color: '',
@@ -972,6 +1072,7 @@ export default function Profile() {
         lastServiceDate: '',
         purchaseDate: ''
       })
+      setVehicleFormErrors({})
       
       // Reload vehicles
       loadVehicles()
@@ -1033,6 +1134,7 @@ export default function Profile() {
     setEditingVehicle(vehicle)
     setVehicleFormData({
       customerId: vehicle.customerId,
+      modelId: vehicle.modelId || 0,
       vin: vehicle.vin,
       licensePlate: vehicle.licensePlate,
       color: vehicle.color,
@@ -1040,6 +1142,7 @@ export default function Profile() {
       lastServiceDate: vehicle.lastServiceDate || '',
       purchaseDate: vehicle.purchaseDate || ''
     })
+    setVehicleFormErrors({})
     setShowVehicleForm(true)
   }
 
@@ -1078,6 +1181,7 @@ export default function Profile() {
       setEditingVehicle(null)
       setVehicleFormData({
         customerId: 0,
+        modelId: 0,
         vin: '',
         licensePlate: '',
         color: '',
@@ -1085,6 +1189,7 @@ export default function Profile() {
         lastServiceDate: '',
         purchaseDate: ''
       })
+      setVehicleFormErrors({})
       
       // Reload vehicles
       loadVehicles()
@@ -1562,6 +1667,7 @@ export default function Profile() {
                     setEditingVehicle(null)
                     setVehicleFormData({
                       customerId: 0,
+                      modelId: 0,
                       vin: '',
                       licensePlate: '',
                       color: '',
@@ -1569,6 +1675,7 @@ export default function Profile() {
                       lastServiceDate: '',
                       purchaseDate: ''
                     })
+                    setVehicleFormErrors({})
                   }
                 }}
               >
@@ -1586,6 +1693,7 @@ export default function Profile() {
                           setEditingVehicle(null)
                           setVehicleFormData({
                             customerId: 0,
+                            modelId: 0,
                             vin: '',
                             licensePlate: '',
                             color: '',
@@ -1593,6 +1701,7 @@ export default function Profile() {
                             lastServiceDate: '',
                             purchaseDate: ''
                           })
+                          setVehicleFormErrors({})
                         }}
                         className="modal-close-btn"
                       >
@@ -1636,28 +1745,54 @@ export default function Profile() {
                     
                     <div className="form-row">
                       <div className="form-group">
+                        <label className="form-label required">Model xe</label>
+                        <select
+                          className={`form-select ${vehicleFormErrors.modelId ? 'error' : ''}`}
+                          value={vehicleFormData.modelId || ''}
+                          onChange={(e) => handleVehicleInputChange('modelId', parseInt(e.target.value) || 0)}
+                          disabled={isLoadingModels}
+                        >
+                          <option value="">{isLoadingModels ? 'Đang tải...' : 'Chọn model xe'}</option>
+                          {vehicleModels.map((model) => (
+                            <option key={model.modelId} value={model.modelId}>
+                              {model.brand ? `${model.brand} - ` : ''}{model.modelName}
+                            </option>
+                          ))}
+                        </select>
+                        {vehicleFormErrors.modelId && (
+                          <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '4px' }}>
+                            {vehicleFormErrors.modelId}
+                          </div>
+                        )}
+                      </div>
+                      <div className="form-group">
                         <label className="form-label required">VIN</label>
                         <BaseInput
                           type="text"
                           value={vehicleFormData.vin}
-                          onChange={(value) => handleVehicleInputChange('vin', value)}
-                          placeholder="Nhập VIN của xe"
+                          onChange={(value) => {
+                            // Limit VIN to 17 characters
+                            if (value.length <= 17) {
+                              handleVehicleInputChange('vin', value)
+                            }
+                          }}
+                          placeholder="Nhập VIN của xe (17 ký tự)"
                           error={vehicleFormErrors.vin}
                         />
-                </div>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
                       <div className="form-group">
                         <label className="form-label required">Biển số xe</label>
                         <BaseInput
                           type="text"
                           value={vehicleFormData.licensePlate}
                           onChange={(value) => handleVehicleInputChange('licensePlate', value)}
-                          placeholder="Nhập biển số xe"
+                          placeholder="Nhập biển số xe (VD: 29-T8 2843)"
                           error={vehicleFormErrors.licensePlate}
                         />
-                    </div>
-                  </div>
-
-                    <div className="form-row">
+                      </div>
                       <div className="form-group">
                         <label className="form-label required">Màu sắc</label>
                         <BaseInput
@@ -1667,7 +1802,10 @@ export default function Profile() {
                           placeholder="Nhập màu sắc xe"
                           error={vehicleFormErrors.color}
                         />
+                      </div>
                     </div>
+
+                    <div className="form-row">
                       <div className="form-group">
                         <label className="form-label required">Số km hiện tại</label>
                         <BaseInput
@@ -1677,8 +1815,9 @@ export default function Profile() {
                           placeholder="Nhập số km hiện tại"
                           error={vehicleFormErrors.currentMileage}
                         />
+                      </div>
                     </div>
-                  </div>
+
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1725,16 +1864,18 @@ export default function Profile() {
                       </div>
                     ) : (
                       <div className="booking-history-list">
-                        {bookingHistory.map((booking: any) => (
-                          <BookingHistoryCard
-                            key={booking.bookingId}
-                            booking={booking}
-                            onFeedback={handleBookingFeedback}
-                            onEditFeedback={handleBookingEditFeedback}
-                          />
-                        ))}
+                        {bookingHistory
+                          .slice((bookingHistoryPage - 1) * HISTORY_PAGE_SIZE, bookingHistoryPage * HISTORY_PAGE_SIZE)
+                          .map((booking: any) => (
+                            <BookingHistoryCard
+                              key={booking.bookingId}
+                              booking={booking}
+                              onFeedback={handleBookingFeedback}
+                              onEditFeedback={handleBookingEditFeedback}
+                            />
+                          ))}
                         
-                        {bookingHistoryTotalPages > 1 && (
+                        {(bookingHistoryTotalPages > 1 || bookingHistory.length > HISTORY_PAGE_SIZE) && (
                           <div className="pagination">
                             <button 
                               className="pagination-btn"
@@ -1744,12 +1885,12 @@ export default function Profile() {
                               Trước
                             </button>
                             <span className="pagination-info">
-                              Trang {bookingHistoryPage} / {bookingHistoryTotalPages}
+                              Trang {bookingHistoryPage} / {Math.max(bookingHistoryTotalPages, Math.ceil(bookingHistory.length / HISTORY_PAGE_SIZE))}
                             </span>
                             <button 
                               className="pagination-btn"
-                              onClick={() => setBookingHistoryPage(prev => Math.min(bookingHistoryTotalPages, prev + 1))}
-                              disabled={bookingHistoryPage === bookingHistoryTotalPages}
+                              onClick={() => setBookingHistoryPage(prev => Math.min(Math.max(bookingHistoryTotalPages, Math.ceil(bookingHistory.length / HISTORY_PAGE_SIZE)), prev + 1))}
+                              disabled={bookingHistoryPage === Math.max(bookingHistoryTotalPages, Math.ceil(bookingHistory.length / HISTORY_PAGE_SIZE))}
                             >
                               Sau
                             </button>
@@ -1805,10 +1946,10 @@ export default function Profile() {
                               <div className="promotion-main">
                                 <span className="promotion-code">{promotion.code}</span>
                                 <span className={`promotion-status status-${promotion.status?.toLowerCase()}`}>
-                                  {promotion.status === 'SAVED' ? 'Đã lưu' : 
-                                   promotion.status === 'APPLIED' ? 'Đã áp dụng' :
+                                  {promotion.status === 'SAVED' ? 'Có thể sử dụng' : 
+                                   promotion.status === 'APPLIED' ? 'Có thể sử dụng' : 
                                    promotion.status === 'USED' ? 'Đã sử dụng' : 
-                                   promotion.status}
+                                   'Không xác định'}
                                 </span>
                               </div>
                               <div className="promotion-details">

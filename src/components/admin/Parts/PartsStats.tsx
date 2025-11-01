@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Part } from '../../../types/parts'
+import './PartsStats.scss'
 
 interface PartsStatsProps {
   parts: Part[]
@@ -118,14 +119,6 @@ export default function PartsStats({ parts }: PartsStatsProps) {
     })
   }, [totalParts, totalValue, lowStockParts, outOfStockParts, categories])
 
-  const getChangeColor = (type: 'positive' | 'negative' | 'neutral') => {
-    switch (type) {
-      case 'positive': return '#10b981'
-      case 'negative': return '#ef4444'
-      default: return '#6b7280'
-    }
-  }
-
   const getChangeIcon = (type: 'positive' | 'negative' | 'neutral') => {
     switch (type) {
       case 'positive': return '↗️'
@@ -134,128 +127,70 @@ export default function PartsStats({ parts }: PartsStatsProps) {
     }
   }
 
+  const getCardColorClass = (color: string) => {
+    if (color === '#3b82f6') return 'parts-stats__card--blue'
+    if (color === '#10b981') return 'parts-stats__card--green'
+    if (color === '#f59e0b') return 'parts-stats__card--orange'
+    if (color === '#ef4444') return 'parts-stats__card--red'
+    if (color === '#8b5cf6') return 'parts-stats__card--purple'
+    return ''
+  }
+
+  const getChangeTypeClass = (type: 'positive' | 'negative' | 'neutral') => {
+    return `parts-stats__change-badge--${type}`
+  }
+
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-      gap: '24px',
-      marginBottom: '32px'
-    }}>
+    <div className="parts-stats">
       {stats.map((stat, index) => (
         <div
           key={index}
-          style={{
-            background: '#ffffff',
-            padding: '24px',
-            borderRadius: '16px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            border: '1px solid #f3f4f6',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)'
-            e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-            e.currentTarget.style.borderColor = stat.color + '40'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0) scale(1)'
-            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-            e.currentTarget.style.borderColor = '#f3f4f6'
-          }}
+          className={`parts-stats__card ${getCardColorClass(stat.color)}`}
         >
           {/* Gradient overlay */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: '100px',
-            height: '100px',
-            background: stat.gradient,
-            opacity: 0.05,
-            borderRadius: '50%',
-            transform: 'translate(30px, -30px)'
-          }} />
+          <div 
+            className="parts-stats__gradient-overlay"
+            style={{ background: stat.gradient }}
+          />
           
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            marginBottom: '16px',
-            position: 'relative'
-          }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '16px',
-              background: stat.gradient,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px',
-              boxShadow: `0 8px 16px ${stat.color}30`
-            }}>
+          <div className="parts-stats__header">
+            <div 
+              className="parts-stats__icon-wrapper"
+              style={{ 
+                background: stat.gradient,
+                boxShadow: `0 8px 16px ${stat.color}30`
+              }}
+            >
               {stat.icon}
             </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '20px',
-              background: getChangeColor(stat.changeType) + '15',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: getChangeColor(stat.changeType)
-            }}>
+            <div className={`parts-stats__change-badge ${getChangeTypeClass(stat.changeType)}`}>
               <span>{getChangeIcon(stat.changeType)}</span>
               <span>{stat.change}</span>
             </div>
           </div>
           
-          <div style={{
-            marginBottom: '8px'
-          }}>
-            <div style={{
-              fontSize: '28px',
-              fontWeight: '800',
-              background: stat.gradient,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              lineHeight: '1.2',
-              fontFamily: '"Inter", system-ui, sans-serif'
-            }}>
+          <div>
+            <div 
+              className="parts-stats__value"
+              style={{ background: stat.gradient }}
+            >
               {index === 1 ? formatPrice(animatedValues[index]) : formatNumber(animatedValues[index])}
             </div>
           </div>
           
-          <div style={{
-            fontSize: '14px',
-            color: '#6b7280',
-            fontWeight: '600',
-            letterSpacing: '0.025em'
-          }}>
+          <div className="parts-stats__title">
             {stat.title}
           </div>
           
           {/* Progress bar for visual appeal */}
-          <div style={{
-            width: '100%',
-            height: '3px',
-            background: '#f3f4f6',
-            borderRadius: '2px',
-            marginTop: '16px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              height: '100%',
-              background: stat.gradient,
-              borderRadius: '2px',
-              width: `${Math.min((animatedValues[index] / Math.max(...stats.map(s => s.value))) * 100, 100)}%`,
-              transition: 'width 1s ease-out'
-            }} />
+          <div className="parts-stats__progress-bar">
+            <div 
+              className="parts-stats__progress-fill"
+              style={{
+                background: stat.gradient,
+                width: `${Math.min((animatedValues[index] / Math.max(...stats.map(s => s.value))) * 100, 100)}%`
+              }}
+            />
           </div>
         </div>
       ))}

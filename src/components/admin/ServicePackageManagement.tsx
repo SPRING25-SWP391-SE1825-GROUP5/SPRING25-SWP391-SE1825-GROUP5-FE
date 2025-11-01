@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Package, 
   Edit, 
@@ -29,8 +29,11 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Zap,
+  Settings,
   RefreshCw
 } from 'lucide-react'
+import './ServicePackageManagement.scss'
 import { 
   ServiceManagementService, 
   type ServicePackage, 
@@ -39,6 +42,7 @@ import {
   type UpdateServicePackageRequest,
   type Service
 } from '../../services/serviceManagementService'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 
 export default function ServicePackageManagement() {
   const [packages, setPackages] = useState<ServicePackage[]>([])
@@ -52,6 +56,10 @@ export default function ServicePackageManagement() {
   const [sortBy, setSortBy] = useState('packageName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+  const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false)
+  const pageSizeRef = useRef<HTMLDivElement | null>(null)
   
   // Modal states
   const [formOpen, setFormOpen] = useState(false)
@@ -59,6 +67,7 @@ export default function ServicePackageManagement() {
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [formValues, setFormValues] = useState({
     packageName: '',
     packageCode: '',
@@ -149,7 +158,7 @@ export default function ServicePackageManagement() {
       const response = await ServiceManagementService.getServices({ pageSize: 1000 })
       setServices(response.services)
     } catch (err: any) {
-      console.error('Error fetching services:', err)
+      // Error handled by state
     }
   }
 
@@ -167,7 +176,6 @@ export default function ServicePackageManagement() {
         totalRevenue: packageStats.totalRevenue
       })
     } catch (err: any) {
-      console.error('Error fetching stats:', err)
       // Fallback to manual calculation
       try {
         const allPackagesResponse = await ServiceManagementService.getServicePackages({ pageNumber: 1, pageSize: 1000 })
@@ -185,7 +193,7 @@ export default function ServicePackageManagement() {
           totalRevenue
         })
       } catch (fallbackErr: any) {
-        console.error('Error in fallback stats calculation:', fallbackErr)
+        // Fallback calculation failed
       }
     } finally {
       setLoadingStats(false)
@@ -202,13 +210,8 @@ export default function ServicePackageManagement() {
       if (searchTerm) params.searchTerm = searchTerm
       if (serviceId) params.serviceId = serviceId
       
-      console.log('Fetching packages with params:', params)
-      console.log('Package status:', packageStatus)
-      
       // Get all packages (both active and inactive)
       const response = await ServiceManagementService.getServicePackages(params)
-      
-      console.log('Packages response:', response)
       
       let allPackages = response?.packages || []
 
@@ -252,9 +255,9 @@ export default function ServicePackageManagement() {
       }
 
       // Calculate total pages
-      const pageSize = 10;
       const calculatedTotalPages = Math.ceil(allPackages.length / pageSize);
       setTotalPages(calculatedTotalPages);
+      setTotalCount(allPackages.length);
       
       // Apply pagination to sorted results
       const startIndex = (page - 1) * pageSize;
@@ -263,7 +266,6 @@ export default function ServicePackageManagement() {
       
       setPackages(paginatedPackages)
     } catch (err: any) {
-      console.error('Error fetching packages:', err)
       setError('Không thể tải danh sách gói dịch vụ: ' + (err.message || 'Unknown error'))
     } finally {
       setLoading(false)
@@ -361,28 +363,21 @@ export default function ServicePackageManagement() {
         validFrom: formValues.validFrom || undefined,
         validTo: formValues.validTo || undefined
       }
-      
-      console.log('Submitting form with data:', cleanData)
 
       if (formMode === 'create') {
-        console.log('Creating package...')
         await ServiceManagementService.createServicePackage(cleanData as CreateServicePackageRequest)
-        console.log('Package created successfully')
       } else {
         if (!selectedPackage) {
           setFormError('Không tìm thấy gói dịch vụ để cập nhật')
           return
         }
-        console.log('Updating package...')
         await ServiceManagementService.updateServicePackage(selectedPackage.packageId, cleanData as UpdateServicePackageRequest)
-        console.log('Package updated successfully')
       }
       
       setFormOpen(false)
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi gửi form gói dịch vụ:', err)
       
       // Extract detailed error message
       let errorMessage = 'Unknown error'
@@ -416,17 +411,14 @@ export default function ServicePackageManagement() {
 
     try {
       setDeletingPackageId(packageId)
-      console.log('Deleting package with ID:', packageId)
       await ServiceManagementService.deleteServicePackage(packageId)
-      console.log('Package deleted successfully')
-      alert(`Gói dịch vụ đã được xóa thành công!`)
+      // Success handled by UI state
       
       // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi xóa gói dịch vụ:', err)
-      alert(`Lỗi: ${err.message || 'Không thể xóa gói dịch vụ'}`)
+      setError(`Lỗi: ${err.message || 'Không thể xóa gói dịch vụ'}`)
     } finally {
       setDeletingPackageId(null)
     }
@@ -434,56 +426,43 @@ export default function ServicePackageManagement() {
 
   const togglePackageStatus = async (packageId: number) => {
     try {
-      console.log('Toggling package status for ID:', packageId)
       const updatedPackage = await ServiceManagementService.togglePackageStatus(packageId)
-      console.log('Package status updated successfully:', updatedPackage)
       
-      // Show success message
-      const statusText = updatedPackage.isActive ? 'kích hoạt' : 'tắt'
-      alert(`Gói dịch vụ đã được ${statusText} thành công!`)
+      // Success handled by UI state
       
       // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi chuyển trạng thái gói dịch vụ:', err)
-      alert(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
+      setError(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
     }
   }
 
   const activatePackage = async (packageId: number) => {
     try {
-      console.log('Activating package for ID:', packageId)
       const updatedPackage = await ServiceManagementService.activatePackage(packageId)
-      console.log('Package activated successfully:', updatedPackage)
       
-      // Show success message
-      alert(`Gói dịch vụ đã được kích hoạt thành công!`)
+      // Success handled by UI state
       
       // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi kích hoạt gói dịch vụ:', err)
-      alert(`Lỗi: ${err.message || 'Không thể kích hoạt gói dịch vụ'}`)
+      setError(`Lỗi: ${err.message || 'Không thể kích hoạt gói dịch vụ'}`)
     }
   }
 
   const deactivatePackage = async (packageId: number) => {
     try {
-      console.log('Deactivating package for ID:', packageId)
       const updatedPackage = await ServiceManagementService.deactivatePackage(packageId)
-      console.log('Package deactivated successfully:', updatedPackage)
       
-      // Show success message
-      alert(`Gói dịch vụ đã được tắt thành công!`)
+      // Success handled by UI state
       
       // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
-      console.error('Lỗi khi tắt gói dịch vụ:', err)
-      alert(`Lỗi: ${err.message || 'Không thể tắt gói dịch vụ'}`)
+      setError(`Lỗi: ${err.message || 'Không thể tắt gói dịch vụ'}`)
     }
   }
 
@@ -520,12 +499,23 @@ export default function ServicePackageManagement() {
     fetchPackages()
     fetchStats()
     fetchServices()
-  }, [page, searchTerm, serviceId, packageStatus, sortBy, sortOrder])
+  }, [page, pageSize, searchTerm, serviceId, packageStatus, sortBy, sortOrder])
+
+  // Handle click outside for pageSize dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pageSizeRef.current && !pageSizeRef.current.contains(event.target as Node)) {
+        setOpenPageSizeMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
-    <div style={{ 
+    <div className="service-packages" style={{ 
       padding: '24px', 
-      background: 'var(--bg-secondary)', 
+      background: '#fff', 
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -544,560 +534,61 @@ export default function ServicePackageManagement() {
         }
       `}</style>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
+      <div className="spm-header">
         <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Quản lý Gói Dịch vụ
-          </h2>
-          <p style={{ 
-            fontSize: '16px', 
-            color: 'var(--text-secondary)',
-            margin: '0'
-          }}>
-            Quản lý và theo dõi các gói dịch vụ xe điện
-          </p>
+          <h2 className="spm-title">Quản lý Gói Dịch vụ</h2>
+          <p className="spm-subtitle">Quản lý và theo dõi các gói dịch vụ xe điện</p>
         </div>
-        
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={() => {
-            fetchPackages();
-            fetchStats();
-          }} style={{
-            padding: '12px 20px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
-            e.currentTarget.style.background = 'var(--primary-50)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-            e.currentTarget.style.background = 'var(--bg-card)'
-          }}>
-            <RefreshCw size={18} />
-            Làm mới
-          </button>
-          
-          <button onClick={openCreateForm} style={{
-            padding: '12px 24px',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-          }}>
-            <Plus size={18} />
-            Thêm gói dịch vụ
-          </button>
+        <div className="spm-actions">
+          {/* Không dùng nút Làm mới theo guideline */}
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <Package size={20} />
+      {/* Toolbar chuẩn giống Users/Services */}
+      <div className="users-toolbar">
+        <div className="toolbar-top">
+          <div className="toolbar-left">
+            <button type="button" className="toolbar-chip"><Package size={14}/> Bảng</button>
+            <button type="button" className="toolbar-chip is-active"><Package size={14}/> Bảng điều khiển</button>
+            <button type="button" className="toolbar-chip"><Package size={14}/> Danh sách</button>
+            <div className="toolbar-sep"/>
             </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Tổng gói dịch vụ
+          <div className="toolbar-right" style={{flex:1}}>
+            <div className="toolbar-search">
+              <div className="search-wrap">
+                <Search size={14} className="icon"/>
+                <input placeholder="Tìm gói dịch vụ theo tên" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
               </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : stats.totalPackages}
               </div>
+            <div className="toolbar-actions">
+              <button type="button" className="toolbar-chip"><Eye size={14}/> Ẩn</button>
+              <button type="button" className="toolbar-chip"><Edit size={14}/> Tùy chỉnh</button>
+              <button type="button" className="toolbar-btn"><CreditCard size={14}/> Xuất</button>
+              <button type="button" className="toolbar-adduser accent-button" onClick={openCreateForm}>
+                <Plus size={16}/> Thêm gói dịch vụ
+              </button>
             </div>
           </div>
         </div>
-
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--success-500), var(--success-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <Circle size={20} fill="currentColor" />
-            </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Đang hoạt động
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : stats.activePackages}
-              </div>
-            </div>
+        <div className="toolbar-filters">
+          <div className="pill-select">
+            <span className="icon"><CheckCircle size={14} /></span>
+            <button type="button" className="pill-trigger">{packageStatus==='all'?'Tất cả trạng thái':packageStatus==='active'?'Hoạt động':'Không hoạt động'}</button>
+            <ChevronDownIcon className="caret" width={16} height={16} />
           </div>
+          <div className="pill-select">
+            <span className="icon"><Wrench size={14} /></span>
+            <button type="button" className="pill-trigger">{serviceId ? (services.find(s=>s.id===serviceId)?.name || 'Dịch vụ') : 'Tất cả dịch vụ'}</button>
+            <ChevronDownIcon className="caret" width={16} height={16} />
+          </div>
+          <button type="button" className="toolbar-chip"><Plus size={14}/> Thêm bộ lọc</button>
+        </div>
         </div>
 
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--error-500), var(--error-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <AlertCircle size={20} fill="currentColor" />
-            </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Ngừng hoạt động
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : stats.inactivePackages}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          background: 'var(--bg-card)',
-          padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border-primary)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-          transition: 'all 0.2s ease'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, var(--warning-500), var(--warning-600))',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <DollarSign size={20} />
-            </div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>
-                Tổng giá trị
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: 'var(--text-primary)'
-              }}>
-                {loadingStats ? '...' : new Intl.NumberFormat('vi-VN').format(stats.totalRevenue)}đ
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Filters */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '16px',
-          alignItems: 'end'
-        }}>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px',
-            }}>
-              Tìm kiếm
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: 'var(--text-tertiary)' 
-              }} />
-              <input
-                placeholder="Tìm kiếm gói dịch vụ..."
-                value={searchTerm}
-                onChange={(e) => { setPage(1); setSearchTerm(e.target.value) }}
-                style={{
-                  width: '100%',
-                  padding: '12px 12px 12px 40px',
-                  border: '2px solid var(--border-primary)',
-                  borderRadius: '10px',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--primary-500)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--border-primary)'
-                  e.target.style.boxShadow = 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Dịch vụ
-            </label>
-            <select
-              value={serviceId || ''}
-              onChange={(e) => { setPage(1); setServiceId(e.target.value ? Number(e.target.value) : null) }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="">Tất cả dịch vụ</option>
-              {services.map(service => (
-                <option key={service.id} value={service.id}>
-                  {service.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Trạng thái
-            </label>
-            <select
-              value={packageStatus}
-              onChange={(e) => { setPage(1); setPackageStatus(e.target.value) }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <button 
-              onClick={() => {
-                setPage(1)
-                setSearchTerm('')
-                setServiceId(null)
-                setPackageStatus('all')
-                setSortBy('name')
-                setSortOrder('asc')
-              }}
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                border: '2px solid var(--border-primary)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--primary-500)'
-                e.currentTarget.style.background = 'var(--primary-50)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.background = 'var(--bg-secondary)'
-              }}
-            >
-              <RefreshCw size={16} />
-              Đặt lại bộ lọc
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Stats removed */}
 
       {/* Packages List */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '32px',
-        borderRadius: '20px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
-      }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px'
-          }}>
-            <h3 style={{
-              fontSize: '20px', 
-              fontWeight: '700', 
-              color: 'var(--text-primary)',
-              margin: '0'
-            }}>
-              Danh sách Gói Dịch vụ
-            </h3>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              {/* Simple Header Pagination */}
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-                style={{ 
-                  padding: "6px 10px", 
-                  borderRadius: "6px",
-                  border: "1px solid var(--border-primary)",
-                  background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-                  color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-                  cursor: page === 1 ? "not-allowed" : "pointer",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  if (page !== 1) {
-                    e.currentTarget.style.background = "var(--primary-50)"
-                    e.currentTarget.style.borderColor = "var(--primary-500)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (page !== 1) {
-                    e.currentTarget.style.background = "var(--bg-card)"
-                    e.currentTarget.style.borderColor = "var(--border-primary)"
-                  }
-                }}
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span style={{
-                padding: "6px 10px",
-                background: "var(--primary-50)",
-                borderRadius: "6px",
-                color: "var(--primary-700)",
-                fontSize: "12px",
-                fontWeight: "600",
-                minWidth: "60px",
-                textAlign: "center"
-              }}>
-                {page} / {totalPages}
-              </span>
-              <button
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                style={{ 
-                  padding: "6px 10px", 
-                  borderRadius: "6px",
-                  border: "1px solid var(--border-primary)",
-                  background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-                  color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-                  cursor: page === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  if (page !== totalPages) {
-                    e.currentTarget.style.background = "var(--primary-50)"
-                    e.currentTarget.style.borderColor = "var(--primary-500)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (page !== totalPages) {
-                    e.currentTarget.style.background = "var(--bg-card)"
-                    e.currentTarget.style.borderColor = "var(--border-primary)"
-                  }
-                }}
-              >
-                <ChevronRight size={14} />
-              </button>
-              
-              
-            </div>
-          </div>
+      <div className="packages-table-wrapper">
         
         {loading ? (
           <div style={{ 
@@ -1179,7 +670,50 @@ export default function ServicePackageManagement() {
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 }}>
                   <th 
-                    onClick={() => handleSort('packageName')}
+                    style={{
+                      padding: '16px 20px',
+                      textAlign: 'left',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'default'
+                    }}
+                  >
+                    <div className="th-label">
+                      <input 
+                        type="checkbox" 
+                        className="table-checkbox"
+                        checked={packages.length>0 && selectedIds.length===packages.length}
+                        onChange={(e)=>{
+                          if(e.target.checked){ setSelectedIds(packages.map(p=>p.packageId)); } else { setSelectedIds([]); }
+                        }}
+                      />
+                      <span className="th-icon"><Package size={14}/></span><span className="th-text">Tên gói</span>
+                    </div>
+                  </th>
+                  <th style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    border: 'none'
+                  }}>
+                    <div className="th-label"><span className="th-icon"><Wrench size={14}/></span><span className="th-text">Dịch vụ</span></div>
+                  </th>
+                  <th 
+                    style={{
+                      padding: '16px 20px',
+                      textAlign: 'left',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      border: 'none',
+                      cursor: 'default'
+                    }}
+                  >
+                    <div className="th-label"><span className="th-icon"><Zap size={14}/></span><span className="th-text">Credits</span></div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('price')}
                     style={{
                       padding: '16px 20px',
                       textAlign: 'left',
@@ -1198,81 +732,8 @@ export default function ServicePackageManagement() {
                       e.currentTarget.style.background = 'transparent'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Tên gói
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'packageName' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('packageName')}
-                      </div>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Dịch vụ
-                  </th>
-                  <th 
-                    onClick={() => handleSort('totalCredits')}
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'center',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      Credits
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'totalCredits' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('totalCredits')}
-                      </div>
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => handleSort('price')}
-                    style={{
-                      padding: '16px 20px',
-                      textAlign: 'center',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      Giá
+                    <div className="th-label">
+                      <span className="th-icon"><DollarSign size={14}/></span><span className="th-text">Giá</span>
                       <div style={{ 
                         display: 'flex', 
                         alignItems: 'center',
@@ -1285,21 +746,21 @@ export default function ServicePackageManagement() {
                   </th>
                   <th style={{
                     padding: '16px 20px',
-                    textAlign: 'center',
+                    textAlign: 'left',
                     fontSize: '14px',
                     fontWeight: '600',
                     border: 'none'
                   }}>
-                    Trạng thái
+                    <div className="th-label"><span className="th-icon"><CheckCircle size={14}/></span><span className="th-text">Trạng thái</span></div>
                   </th>
                   <th style={{
                     padding: '16px 20px',
-                    textAlign: 'center',
+                    textAlign: 'left',
                     fontSize: '14px',
                     fontWeight: '600',
                     border: 'none'
                   }}>
-                    Thao tác
+                    <div className="th-label"><span className="th-icon"><Settings size={14}/></span><span className="th-text">Thao tác</span></div>
                   </th>
                 </tr>
               </thead>
@@ -1329,31 +790,20 @@ export default function ServicePackageManagement() {
                       padding: '16px 20px',
                       fontSize: '14px',
                       color: 'var(--text-primary)',
-                      fontWeight: '600'
+                      fontWeight: 400
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          flexShrink: 0
-                        }}>
-                          <Package size={16} />
-                        </div>
+                        <input 
+                          type="checkbox" 
+                          className="table-checkbox"
+                          checked={selectedIds.includes(pkg.packageId)}
+                          onChange={(e)=>{
+                            setSelectedIds(prev=> e.target.checked ? [...new Set([...prev, pkg.packageId])] : prev.filter(id=>id!==pkg.packageId));
+                          }}
+                        />
                         <div>
-                          <div>{pkg.packageName}</div>
-                          <div style={{ 
-                            fontSize: '12px', 
-                            color: 'var(--text-tertiary)',
-                            marginTop: '2px'
-                          }}>
-                            {pkg.packageCode}
-                          </div>
+                          <div style={{ fontWeight: 400 }}>{pkg.packageName}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{pkg.packageCode}</div>
                         </div>
                       </div>
                     </td>
@@ -1368,11 +818,11 @@ export default function ServicePackageManagement() {
                       padding: '16px 20px',
                       fontSize: '14px',
                       color: 'var(--text-primary)',
-                      textAlign: 'center',
-                      fontWeight: '600'
+                      textAlign: 'left',
+                      fontWeight: 400
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Zap size={14} />
                         {pkg.totalCredits}
                       </div>
                     </td>
@@ -1380,66 +830,26 @@ export default function ServicePackageManagement() {
                       padding: '16px 20px',
                       fontSize: '14px',
                       color: 'var(--text-primary)',
-                      textAlign: 'center',
-                      fontWeight: '600'
+                      textAlign: 'left',
+                      fontWeight: 400
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                      
-                        {new Intl.NumberFormat('vi-VN').format(pkg.price)}đ
-                      </div>
+                      <div>{new Intl.NumberFormat('vi-VN').format(pkg.price)}đ</div>
                       {pkg.discountPercent && pkg.discountPercent > 0 && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--success-600)',
-                          marginTop: '2px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '2px'
-                        }}>
-                          <Tag size={10} />
+                        <div style={{ fontSize: '12px', color: 'var(--success-600)', marginTop: '2px' }}>
                           -{pkg.discountPercent}%
                         </div>
                       )}
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        background: pkg.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                        color: pkg.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        border: `1px solid ${pkg.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {pkg.isActive ? (
-                          <>
-                            <Circle size={12} fill="currentColor" />
-                            Hoạt động
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle size={12} fill="currentColor" />
-                            Ngừng hoạt động
-                          </>
-                        )}
+                    <td style={{ padding: '16px 20px', textAlign: 'left' }}>
+                      <div className={`status-badge ${pkg.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
+                        <span className="dot" /> {pkg.isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
                       </div>
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
-                    }}>
+                    <td style={{ padding: '16px 20px', textAlign: 'left' }}>
                       <div style={{ 
                         display: 'flex', 
                         gap: '8px', 
-                        justifyContent: 'center',
+                        justifyContent: 'flex-start',
                         alignItems: 'center'
                       }}>
                         <button
@@ -1604,293 +1014,52 @@ export default function ServicePackageManagement() {
         )}
       </div>
 
-      {/* Enhanced Pagination */}
-      <div style={{
-        marginTop: '24px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: 'var(--bg-card)',
-        padding: '20px 24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        {/* Pagination Controls */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          {/* First Page */}
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <ChevronsLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Đầu</span>
-          </button>
-
-          {/* Previous Page */}
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === 1 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <ChevronLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Trước</span>
-          </button>
-
-          {/* Page Numbers */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            margin: '0 8px'
-          }}>
-            {(() => {
-              const pages = [];
-              const maxVisible = 5;
-              let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-              
-              if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
-
-              // First page + ellipsis
-              if (startPage > 1) {
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => setPage(1)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    1
-                  </button>
-                );
-                if (startPage > 2) {
-                  pages.push(
-                    <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-              }
-
-              // Visible pages
-              for (let i = startPage; i <= endPage; i++) {
-                pages.push(
-                  <button
-                    key={i}
-                    onClick={() => setPage(i)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: i === page ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
-                      background: i === page ? "var(--primary-50)" : "var(--bg-card)",
-                      color: i === page ? "var(--primary-700)" : "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: i === page ? "600" : "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      if (i !== page) {
-                        e.currentTarget.style.background = "var(--primary-50)"
-                        e.currentTarget.style.borderColor = "var(--primary-500)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (i !== page) {
-                        e.currentTarget.style.background = "var(--bg-card)"
-                        e.currentTarget.style.borderColor = "var(--border-primary)"
-                      }
-                    }}
-                  >
-                    {i}
-                  </button>
-                );
-              }
-
-              // Last page + ellipsis
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-                pages.push(
-                  <button
-                    key={totalPages}
-                    onClick={() => setPage(totalPages)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    {totalPages}
-                  </button>
-                );
-              }
-
-              return pages;
-            })()}
+      {/* Enhanced Pagination (class-based, no border/shadow) */}
+      <div className="pagination-controls-bottom">
+        {/* Left: Rows per page + range */}
+        <div className="pagination-info">
+          <span className="pagination-label">Hàng mỗi trang</span>
+          <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
+            <button type="button" className="pill-trigger">{pageSize}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
+            {openPageSizeMenu && (
+              <ul className="pill-menu show">
+                {[10, 15, 20, 30, 50].map(sz => (
+                  <li key={sz} className={`pill-item ${pageSize === sz ? 'active' : ''}`}
+                      onClick={() => { setPageSize(sz); setPage(1); setOpenPageSizeMenu(false); }}>
+                    {sz}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
+          <span className="pagination-range">
+            {(() => {
+              const start = (page - 1) * pageSize + 1;
+              const end = start + packages.length - 1;
+              return totalCount > 0 ? `${start}–${end} của ${totalCount} hàng` : `${start}–${end}`;
+            })()}
+                    </span>
+        </div>
 
-          {/* Next Page */}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <span style={{ marginRight: '4px' }}>Sau</span>
+        {/* Right: Pagination Controls */}
+        <div className="pagination-right-controls">
+          <button type="button" disabled={page === 1} onClick={() => setPage(1)} className={`pager-btn ${page === 1 ? 'is-disabled' : ''}`}>
+            <ChevronsLeft size={16} />
+                  </button>
+          <button type="button" disabled={page === 1} onClick={() => setPage((p) => p - 1)} className={`pager-btn ${page === 1 ? 'is-disabled' : ''}`}>
+            <ChevronLeft size={16} />
+                  </button>
+          <div className="pager-pages">
+            <button type="button" onClick={() => setPage(1)} className={`pager-btn ${page === 1 ? 'is-active' : ''}`}>1</button>
+            {totalPages > 2 && <button type="button" onClick={() => setPage(2)} className={`pager-btn ${page === 2 ? 'is-active' : ''}`}>2</button>}
+            {totalPages > 3 && <span className="pager-ellipsis">…</span>}
+            {totalPages >= 3 && <button type="button" onClick={() => setPage(totalPages)} className={`pager-btn ${page === totalPages ? 'is-active' : ''}`}>{totalPages}</button>}
+          </div>
+          <button type="button" disabled={page === totalPages || totalPages === 0} onClick={() => setPage((p) => p + 1)} className={`pager-btn ${page === totalPages || totalPages === 0 ? 'is-disabled' : ''}`}>
             <ChevronRight size={16} />
           </button>
-
-          {/* Last Page */}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(totalPages)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: page === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: page === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
-          >
-            <span style={{ marginRight: '4px' }}>Cuối</span>
+          <button type="button" disabled={page === totalPages || totalPages === 0} onClick={() => setPage(totalPages)} className={`pager-btn ${page === totalPages || totalPages === 0 ? 'is-disabled' : ''}`}>
             <ChevronsRight size={16} />
           </button>
         </div>

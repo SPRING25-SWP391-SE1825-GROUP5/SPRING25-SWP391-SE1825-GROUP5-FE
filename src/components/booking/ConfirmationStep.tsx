@@ -5,6 +5,7 @@ import { CenterService } from '@/services/centerService'
 import { TechnicianService } from '@/services/technicianService'
 import PromotionSelector from './PromotionSelector'
 import type { Promotion } from '@/types/promotion'
+import { PAGINATION } from '@/constants/appConstants'
 
 interface ConfirmationBookingData {
   bookingId?: string
@@ -52,6 +53,7 @@ interface ConfirmationStepProps {
   onSubmit: () => void
   onPrev: () => void
   isSubmitting?: boolean
+  onPromotionChange?: (info: { promotionCode?: string; discountAmount: number } | null) => void
 }
 
 interface ServiceInfo {
@@ -60,7 +62,7 @@ interface ServiceInfo {
   price: number
 }
 
-const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false }) => {
+const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSubmit, onPrev, isSubmitting = false, onPromotionChange }) => {
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null)
@@ -68,21 +70,18 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
   const [displayCenterName, setDisplayCenterName] = useState<string | null>(data.locationTimeInfo.centerName || null)
   const [displayTechnicianName, setDisplayTechnicianName] = useState<string | null>(data.locationTimeInfo.technicianName || null)
   
-  // Debug log để kiểm tra dữ liệu
-  console.log('ConfirmationStep - Full data:', data)
-  console.log('ConfirmationStep - Customer info:', data.customerInfo)
-  console.log('ConfirmationStep - Phone:', data.customerInfo.phone)
+  // Data validation
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
         setLoading(true)
-        const response = await ServiceManagementService.getActiveServices({ pageSize: 100 })
+        const response = await ServiceManagementService.getActiveServices({ pageSize: PAGINATION.MAX_PAGE_SIZE })
         if (response && response.services) {
           setServices(response.services || [])
         }
       } catch (error) {
-        console.error('Error fetching services:', error)
+        // Error handled by state
       } finally {
         setLoading(false)
       }
@@ -121,11 +120,18 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
   const handlePromotionApplied = (promotion: Promotion | null, discount: number) => {
     setAppliedPromotion(promotion)
     setDiscountAmount(discount)
+    // notify parent to persist promotion info for payment amount
+    if (onPromotionChange) {
+      onPromotionChange({ promotionCode: promotion?.code, discountAmount: discount })
+    }
   }
 
   const handlePromotionRemoved = () => {
     setAppliedPromotion(null)
     setDiscountAmount(0)
+    if (onPromotionChange) {
+      onPromotionChange(null)
+    }
   }
 
   const formatPrice = (price: number) => {

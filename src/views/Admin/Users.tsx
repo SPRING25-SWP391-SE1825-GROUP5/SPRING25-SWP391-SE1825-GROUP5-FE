@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Plus,
-  Edit,
   Eye,
   Mail,
   Phone,
@@ -28,67 +27,132 @@ import {
   ChevronsLeft,
   ChevronsRight,
   RefreshCw,
+  LayoutGrid,
+  List as ListIcon,
+  EyeOff,
+  SlidersHorizontal,
+  Download,
+  AtSign,
+  Settings,
 } from "lucide-react";
+import { ChevronDownIcon, ShieldCheckIcon, ShieldExclamationIcon } from "@heroicons/react/24/outline";
+import { UserCreateModal } from '@/components/forms'
+import toast from 'react-hot-toast';
 
-import type { User } from "@/store/authSlice";
+// Định nghĩa kiểu người dùng dành riêng cho trang Admin (khác store auth)
+type AdminUser = {
+  userId: number;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  avatarUrl?: string | null;
+  avatar?: string | null;
+  emailVerified?: boolean;
+};
 import { UserService } from "@/services";
-import type { CreateUserByAdminRequest } from "@/services/userService";
+// import type { CreateUserByAdminRequest } from "@/services/userService";
+import './Users.scss'
 
 export default function Users() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [searchType, setSearchType] = useState("all"); // all, email, phone
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortBy, setSortBy] = useState("fullName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [createUserForm, setCreateUserForm] = useState<CreateUserByAdminRequest>({
-    fullName: '',
-    email: '',
-    password: '',
-    phoneNumber: '',
-    dateOfBirth: '',
-    gender: 'MALE',
-    address: '',
-    role: 'CUSTOMER',
-    isActive: true,
-    emailVerified: false
-  });
-  const [createUserLoading, setCreateUserLoading] = useState(false);
-  const [createUserError, setCreateUserError] = useState<string | null>(null);
+  // Đã loại bỏ modal tạo người dùng và state liên quan
 
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [statsData, setStatsData] = useState({
     totalUsers: 0,
     active: 0,
     inactive: 0,
     admins: 0,
   });
+  // Selection state
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  // Custom dropdown state for role & status pills (headless)
+  const [openRoleMenu, setOpenRoleMenu] = useState(false);
+  const [openStatusMenu, setOpenStatusMenu] = useState(false);
+  const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
+  const [openAddFilterMenu, setOpenAddFilterMenu] = useState(false);
+  type AddedFilter = { id: number; type: 'status' | 'role' | 'verified' | 'sort'; value: any; label: string };
+  const [addedFilters, setAddedFilters] = useState<AddedFilter[]>([]);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const roleRef = useRef<HTMLDivElement | null>(null);
+  const statusRef = useRef<HTMLDivElement | null>(null);
+  const pageSizeRef = useRef<HTMLDivElement | null>(null);
+  const addFilterRef = useRef<HTMLDivElement | null>(null);
+  const nextFilterId = useRef(1);
 
-  // Debounce search term
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500); // 500ms delay
+    const handleClickOutside = (e: MouseEvent) => {
+      if (roleRef.current && !roleRef.current.contains(e.target as Node)) setOpenRoleMenu(false);
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) setOpenStatusMenu(false);
+      if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setOpenPageSizeMenu(false);
+      if (addFilterRef.current && !addFilterRef.current.contains(e.target as Node)) setOpenAddFilterMenu(false);
+    };
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+  const addFilterPill = (type: AddedFilter['type'], value: any, label: string) => {
+    setAddedFilters(prev => {
+      // không thêm trùng cùng type+value
+      if (prev.some(f => f.type === type && String(f.value) === String(value))) return prev;
+      let next = [...prev];
+      // Loại trừ trường hợp verified true/false cùng lúc: giữ cái mới, bỏ cái cũ
+      if (type === 'verified') {
+        next = next.filter(f => f.type !== 'verified');
+      }
+      return [...next, { id: nextFilterId.current++, type, value, label }];
+    });
+    setOpenAddFilterMenu(false);
+  };
+  const removeFilterPill = (id: number) => setAddedFilters(prev => prev.filter(f => f.id !== id));
 
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  // Force page background to white while on Admin Users
+  useEffect(() => {
+    const previousBg = document.body.style.background;
+    document.body.style.background = '#fff';
+    return () => { document.body.style.background = previousBg; };
+  }, []);
+
 
   useEffect(() => {
     fetchUsers();
-  }, [pageNumber, pageSize, debouncedSearchTerm, searchType, filterRole, filterStatus, sortBy, sortOrder]);
+  }, [pageNumber, pageSize, searchTerm, searchType, filterRole, filterStatus, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchStats();
   }, []); 
+
+  // Keep selections in sync with current list
+  useEffect(() => {
+    const visibleIds = users.map(u => u.userId);
+    setSelectedUserIds(prev => prev.filter(id => visibleIds.includes(id)));
+  }, [users]);
+
+  const allVisibleIds = users.map(u => u.userId);
+  const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedUserIds.includes(id));
+  const handleToggleAll = (checked: boolean) => {
+    setSelectedUserIds(checked ? allVisibleIds : []);
+  };
+  const handleToggleOne = (id: number, checked: boolean) => {
+    setSelectedUserIds(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -96,25 +160,39 @@ export default function Users() {
       const params: any = {
         pageNumber,
         pageSize,
-        role: filterRole !== "all" ? filterRole : undefined,
-        sortBy,
+        // Ưu tiên các filter pill; nếu không có, dùng state mặc định
+        role: (addedFilters.find(f=>f.type==='role')?.value || (filterRole !== 'all' ? filterRole : undefined)) as any,
+        isActive: ((): any => {
+          const st = addedFilters.find(f=>f.type==='status')?.value as string | undefined;
+          if (st) return st === 'active';
+          return filterStatus !== 'all' ? filterStatus === 'active' : undefined;
+        })(),
+        emailVerified: addedFilters.find(f=>f.type==='verified')?.value as boolean | undefined,
+        sortBy: (addedFilters.find(f=>f.type==='sort')?.value as string | undefined) || sortBy,
         sortOrder,
       };
 
       // Thêm searchTerm dựa trên searchType
-      if (debouncedSearchTerm.trim()) {
+      if (searchTerm.trim()) {
         if (searchType === "email") {
-          params.email = debouncedSearchTerm.trim();
+          params.email = searchTerm.trim();
         } else if (searchType === "phone") {
-          params.phoneNumber = debouncedSearchTerm.trim();
+          params.phoneNumber = searchTerm.trim();
         } else {
           // Tìm kiếm tất cả (tên, email, số điện thoại)
-          params.searchTerm = debouncedSearchTerm.trim();
+          params.searchTerm = searchTerm.trim();
         }
       }
 
       const res = await UserService.getUsers(params);
       let users = res.data?.users || [];
+
+      // Lọc client-side dựa trên trạng thái nếu cần
+      if (filterStatus === 'active') {
+        users = users.filter(u => u.isActive === true);
+      } else if (filterStatus === 'inactive') {
+        users = users.filter(u => u.isActive === false);
+      }
 
       if (users.length > 0) {
         users = users.sort((a, b) => {
@@ -150,8 +228,10 @@ export default function Users() {
         });
       }
 
-      setUsers(users);
-      setTotalPages(res.data?.totalPages || 1);
+      setUsers(users as unknown as AdminUser[]);
+      const count = (res.data?.total ?? users.length) as number;
+      setTotalCount(count);
+      setTotalPages(res.data?.totalPages || Math.max(1, Math.ceil(count / pageSize)));
     } catch (err: any) {
       setError(err.message || "Không thể tải danh sách người dùng");
     } finally {
@@ -294,24 +374,18 @@ export default function Users() {
     },
   ];
 
-  const handleViewUser = (user: User) => {
+  const handleViewUser = (user: AdminUser) => {
     setSelectedUser(user);
     setShowUserModal(true);
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: AdminUser) => {
   };
 
-  const handleToggleUserStatus = async (user: User) => {
+  const handleToggleUserStatus = async (user: AdminUser) => {
     try {
       const newStatus = !user.isActive;
-      if (newStatus) {
-        await UserService.activateUser(user.userId.toString());
-        
-      } else {
-         await UserService.deactivateUser(user.userId.toString());
-        
-      }
+      await UserService.updateUserStatus(user.userId.toString(), newStatus);
       
       // Update local state
       setUsers(prevUsers => 
@@ -322,7 +396,7 @@ export default function Users() {
         )
       );
       
-      alert(`Trạng thái người dùng "${user.fullName}" đã được ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} thành công!`);
+      toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} người dùng "${user.fullName}"`);
       
     } catch (err: any) {
       console.error('Error toggling user status:', err);
@@ -338,132 +412,20 @@ export default function Users() {
         errorMessage = err.message;
       }
       
-      alert(`Lỗi: ${errorMessage}`);
+      toast.error(`Lỗi: ${errorMessage}`);
     }
   };
 
-  const handleCreateUser = async () => {
-    setCreateUserLoading(true);
-    setCreateUserError(null);
-    
-    try {
-      // Validate required fields
-      if (!createUserForm.fullName.trim()) {
-        setCreateUserError('Vui lòng nhập họ tên');
-        return;
-      }
-      if (!createUserForm.email.trim()) {
-        setCreateUserError('Vui lòng nhập email');
-        return;
-      }
-      if (!createUserForm.password.trim()) {
-        setCreateUserError('Vui lòng nhập mật khẩu');
-        return;
-      }
-      if (!createUserForm.phoneNumber.trim()) {
-        setCreateUserError('Vui lòng nhập số điện thoại');
-        return;
-      }
-      if (!createUserForm.dateOfBirth) {
-        setCreateUserError('Vui lòng chọn ngày sinh');
-        return;
-      }
-      if (!createUserForm.address.trim()) {
-        setCreateUserError('Vui lòng nhập địa chỉ');
-        return;
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(createUserForm.email)) {
-        setCreateUserError('Email không hợp lệ');
-        return;
-      }
-
-      // Phone validation (basic)
-      const phoneRegex = /^[0-9+\-\s()]+$/;
-      if (!phoneRegex.test(createUserForm.phoneNumber)) {
-        setCreateUserError('Số điện thoại không hợp lệ');
-        return;
-      }
-
-      // Password validation
-      if (createUserForm.password.length < 6) {
-        setCreateUserError('Mật khẩu phải có ít nhất 6 ký tự');
-        return;
-      }
-
-      const response = await UserService.createUserByAdmin(createUserForm);
-      console.log('API Response:', {response});
-      
-      // Extract user data from response
-      const newUser = response.data || response;
-      console.log('Extracted User:', {newUser});
-      
-      // Add new user to the list
-      setUsers(prevUsers => [newUser, ...prevUsers]);
-      
-      // Reset form and close modal
-      setCreateUserForm({
-        fullName: '',
-        email: '',
-        password: '',
-        phoneNumber: '',
-        dateOfBirth: '',
-        gender: 'MALE',
-        address: '',
-        role: 'CUSTOMER',
-        isActive: true,
-        emailVerified: false
-      });
-      setShowCreateUserModal(false);
-      
-      // Show success message
-      const userName = newUser?.fullName || newUser?.email || 'người dùng mới';
-      alert(`Tạo người dùng ${userName} thành công!`);
-      
-      // Refresh stats
-      fetchStats();
-      
-    } catch (err: any) {
-      console.error('Error creating user:', err);
-      
-      let errorMessage = 'Không thể tạo người dùng';
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setCreateUserError(errorMessage);
-    } finally {
-      setCreateUserLoading(false);
-    }
-  };
-
-  const handleCreateUserFormChange = (field: keyof CreateUserByAdminRequest, value: any) => {
-    setCreateUserForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user starts typing
-    if (createUserError) {
-      setCreateUserError(null);
-    }
-  };
+  // Đã xóa handleCreateUser và handleCreateUserFormChange
 
   const handleSearchTypeChange = (newSearchType: string) => {
     setSearchType(newSearchType);
     setSearchTerm(""); // Clear search term when changing search type
-    setDebouncedSearchTerm(""); // Also clear debounced term
     setPageNumber(1);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setDebouncedSearchTerm(searchTerm); // Immediately set debounced term
     setPageNumber(1);
   };
 
@@ -491,37 +453,6 @@ export default function Users() {
     return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
   };
 
-  if (loading) return (
-    <div style={{ 
-      padding: "32px", 
-      display: "flex", 
-      justifyContent: "center", 
-      alignItems: "center",
-      minHeight: "200px",
-      background: "var(--bg-secondary)"
-    }}>
-      <div style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "16px",
-        padding: "24px",
-        background: "var(--bg-card)",
-        borderRadius: "12px",
-        border: "1px solid var(--border-primary)"
-      }}>
-        <div style={{
-          width: "40px",
-          height: "40px",
-          border: "3px solid var(--primary-200)",
-          borderTop: "3px solid var(--primary-500)",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite"
-        }} />
-        <p style={{ margin: 0, color: "var(--text-secondary)" }}>Đang tải dữ liệu...</p>
-      </div>
-    </div>
-  );
   
   if (error) return (
     <div style={{ 
@@ -550,9 +481,9 @@ export default function Users() {
   );
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: 'var(--bg-secondary)', 
+    <div className="admin-users" style={{ 
+      padding: '0px 16px 16px 16px', 
+      background: '#fff', 
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -569,6 +500,16 @@ export default function Users() {
           from { opacity: 0; transform: scale(0.9) translateY(-20px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
+        @keyframes slideInFromTop {
+          from { 
+            opacity: 0; 
+            transform: translateY(-30px) translateX(-20px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0) translateX(0); 
+          }
+        }
       `}</style>
       {/* Header */}
       <div style={{ 
@@ -582,7 +523,7 @@ export default function Users() {
         <div>
           <h2 style={{ 
             fontSize: '28px', 
-            fontWeight: '700', 
+            fontWeight: '600', 
             color: 'var(--text-primary)',
             margin: '0 0 8px 0',
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -600,429 +541,118 @@ export default function Users() {
           </p>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <button onClick={() => {
-            fetchUsers();
-            fetchStats();
-          }} style={{
-            padding: '12px 20px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '2px solid var(--border-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease',
-            transform: 'translateY(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
-            e.currentTarget.style.background = 'var(--primary-50)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-            e.currentTarget.style.background = 'var(--bg-card)'
-          }}>
-            <RefreshCw size={18} />
-            Làm mới
-          </button>
-          
-          <button onClick={() => {
-            setShowCreateUserModal(true);
-            setCreateUserError(null);
-        }} style={{
-          padding: '12px 24px',
-          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-          color: 'white',
-          border: 'none',
-          borderRadius: '12px',
-          fontSize: '14px',
-          fontWeight: '600',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-          transition: 'all 0.2s ease',
-          transform: 'translateY(0)'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)'
-          e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-        }}>
-          <Plus size={18} />
-          Thêm người dùng
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} />
         </div>
+      {/* Toolbar thay thế cards + filters */}
+      <div className="users-toolbar">
+        <div className="toolbar-top">
+          <div className="toolbar-left">
+          <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
+          <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng điều khiển</button>
+          <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+          <div className="toolbar-sep" />
       </div>
-
-      {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        {stats.map((s, i) => (
-          <div key={i} style={{
-            background: 'var(--bg-card)',
-            padding: '24px',
-            borderRadius: '16px',
-            border: '1px solid var(--border-primary)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            transition: 'all 0.2s ease'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '12px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white'
-              }}>
-                <s.icon size={20} />
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '14px',
-                  color: 'var(--text-secondary)',
-                  fontWeight: '500'
-                }}>
-                  {s.label}
-                </div>
-                <div style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: 'var(--text-primary)'
-                }}>
-                  {s.value}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        <form onSubmit={handleSearchSubmit} style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '16px',
-          alignItems: 'end'
-        }}>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px',
-            }}>
-              Tìm kiếm
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: 'var(--text-tertiary)' 
-              }} />
+          <div className="toolbar-right" style={{ flex: 1 }}>
+          <div className="toolbar-search">
+            <div className="search-wrap">
+              <Search size={14} className="icon" />
               <input
-                type="text"
-                placeholder={
-                  searchType === "email" 
-                    ? "Tìm kiếm theo email..." 
-                    : searchType === "phone"
-                    ? "Tìm kiếm theo số điện thoại..."
-                    : "Tìm kiếm theo tên, email, SĐT..."
-                }
+                placeholder="Tìm kiếm" 
                 value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 12px 12px 40px',
-                  border: '2px solid var(--border-primary)',
-                  borderRadius: '10px',
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--primary-500)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--border-primary)'
-                  e.target.style.boxShadow = 'none'
-                }}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Vai trò
-            </label>
-            <select
-              value={filterRole}
-              onChange={(e) => {
-                setFilterRole(e.target.value);
-                setPageNumber(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {roles.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
-            }}>
-              Trạng thái
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setPageNumber(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid var(--border-primary)',
-                borderRadius: '10px',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {statuses.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
+          <div className="toolbar-actions">
+            <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
+            <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
+            <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
             <button 
-              onClick={() => {
-                setPageNumber(1)
-                setSearchTerm('')
-                setDebouncedSearchTerm('')
-                setFilterRole('all')
-                setFilterStatus('all')
-                setSortBy('fullName')
-                setSortOrder('asc')
-              }}
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                border: '2px solid var(--border-primary)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
+              type="button" 
+              className="accent-button toolbar-adduser" 
+              onClick={() => setOpenCreateModal(true)}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--primary-500)'
-                e.currentTarget.style.background = 'var(--primary-50)'
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 216, 117, 0.6), 0 0 40px rgba(255, 216, 117, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.background = 'var(--bg-secondary)'
+                e.currentTarget.style.boxShadow = '';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              <RefreshCw size={16} />
-              Đặt lại bộ lọc
+              <Plus size={16} /> Thêm người dùng
             </button>
+                </div>
+              </div>
+            </div>
+          <div className="toolbar-filters" style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div className="pill-select" ref={roleRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenRoleMenu(v=>!v); }}>
+            <Shield size={14} className="icon" />
+            <button type="button" className="pill-trigger">{roles.find(r=>r.value===filterRole)?.label}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
+            {openRoleMenu && (
+              <ul className="pill-menu show">
+                {roles.map(r => (
+                  <li key={r.value} className={`pill-item ${filterRole===r.value ? 'active' : ''}`}
+                      onClick={()=>{ setFilterRole(r.value); setPageNumber(1); setOpenRoleMenu(false); }}>
+                  {r.label}
+                  </li>
+              ))}
+              </ul>
+            )}
           </div>
-          
-        </form>
+          <div className="pill-select status-filter" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenRoleMenu(false); setOpenStatusMenu(v=>!v); }}>
+            <Lock size={14} className="icon" />
+            <button type="button" className="pill-trigger">{statuses.find(s=>s.value===filterStatus)?.label}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
+            {openStatusMenu && (
+              <ul className="pill-menu show">
+                {statuses.map(s => (
+                  <li key={s.value} className={`pill-item ${filterStatus===s.value ? 'active' : ''}`}
+                      onClick={()=>{ setFilterStatus(s.value); setPageNumber(1); setOpenStatusMenu(false); }}>
+                  {s.label}
+                  </li>
+              ))}
+              </ul>
+            )}
+          </div>
+            {/* Các pill filter được thêm động: đặt giữa filter mặc định và nút thêm */}
+            {addedFilters.map(f => (
+              <span key={f.id} className="toolbar-chip" style={{ display:'inline-flex', alignItems:'center' }}>
+                {f.label}
+                <button type="button" style={{ marginLeft:6, border:'none', background:'transparent', cursor:'pointer', color:'var(--text-tertiary)' }} onClick={()=>removeFilterPill(f.id)}>×</button>
+              </span>
+            ))}
+          <div ref={addFilterRef} style={{ position:'relative' }}>
+            <button type="button" className="toolbar-chip" onClick={() => setOpenAddFilterMenu(v=>!v)}><Plus size={14} /> Thêm bộ lọc</button>
+            {openAddFilterMenu && (
+              <div style={{ position:'absolute', top:'36px', left:0, width:320, background:'#fff', border:'1px solid rgba(226,232,240,.9)', borderRadius:12, boxShadow:'0 8px 16px rgba(0,0,0,.10)', zIndex:50 }}>
+                <ul style={{ listStyle:'none', margin:0, padding:'6px 0 10px' }}>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('verified',true,'Xác thực email: Đã xác thực')}>
+                    <ShieldCheckIcon width={16} height={16} /> Xác thực email: Đã xác thực
+                  </li>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('verified',false,'Xác thực email: Chưa xác thực')}>
+                    <Clock width={16} height={16} /> Xác thực email: Chưa xác thực
+                  </li>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('sort','createdAt','Sắp xếp: Ngày tạo')}>
+                    <Calendar width={16} height={16} /> Sắp xếp: Ngày tạo
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+          </div>
       </div>
 
       {/* Users List */}
       <div style={{
         background: 'var(--bg-card)',
-        padding: '32px',
-        borderRadius: '20px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
+        padding: 0,
+        borderRadius: 0,
+        border: 'none',
+        boxShadow: 'none'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '24px' 
-        }}>
-          <h3 style={{ 
-            fontSize: '20px', 
-            fontWeight: '700', 
-            color: 'var(--text-primary)',
-            margin: '0'
-          }}>
-            Danh sách Người dùng
-          </h3>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <button
-              disabled={pageNumber === 1}
-              onClick={() => setPageNumber((p) => p - 1)}
-              style={{ 
-                padding: "6px 10px", 
-                borderRadius: "6px",
-                border: "1px solid var(--border-primary)",
-                background: pageNumber === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-                color: pageNumber === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-                cursor: pageNumber === 1 ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: "500",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => {
-                if (pageNumber !== 1) {
-                  e.currentTarget.style.background = "var(--primary-50)"
-                  e.currentTarget.style.borderColor = "var(--primary-500)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (pageNumber !== 1) {
-                  e.currentTarget.style.background = "var(--bg-card)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }
-              }}
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span style={{
-              padding: "6px 10px",
-              background: "var(--primary-50)",
-              borderRadius: "6px",
-              color: "var(--primary-700)",
-              fontSize: "12px",
-              fontWeight: "600",
-              minWidth: "60px",
-              textAlign: "center"
-            }}>
-              {pageNumber} / {totalPages}
-            </span>
-            <button
-              disabled={pageNumber === totalPages}
-              onClick={() => setPageNumber((p) => p + 1)}
-              style={{ 
-                padding: "6px 10px", 
-                borderRadius: "6px",
-                border: "1px solid var(--border-primary)",
-                background: pageNumber === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-                color: pageNumber === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-                cursor: pageNumber === totalPages ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                fontWeight: "500",
-                transition: "all 0.2s ease"
-              }}
-              onMouseEnter={(e) => {
-                if (pageNumber !== totalPages) {
-                  e.currentTarget.style.background = "var(--primary-50)"
-                  e.currentTarget.style.borderColor = "var(--primary-500)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (pageNumber !== totalPages) {
-                  e.currentTarget.style.background = "var(--bg-card)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }
-              }}
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-        {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
-          }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              border: '3px solid var(--border-primary)',
-              borderTop: '3px solid var(--primary-500)',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 16px'
-            }} />
-            <p style={{ margin: 0, fontSize: '16px' }}>Đang tải người dùng...</p>
-          </div>
-        ) : error ? (
+        {error ? (
           <div style={{ 
             textAlign: 'center', 
             padding: '60px', 
@@ -1062,168 +692,111 @@ export default function Users() {
               <UserCheck size={32} />
             </div>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
-              {debouncedSearchTerm ? 'Không tìm thấy người dùng nào' : 'Chưa có người dùng nào'}
+              {searchTerm ? 'Không tìm thấy người dùng nào' : 'Chưa có người dùng nào'}
             </h4>
             <p style={{ margin: 0, fontSize: '14px' }}>
-              {debouncedSearchTerm ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc' : 'Thêm người dùng mới để bắt đầu'}
+              {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc' : 'Thêm người dùng mới để bắt đầu'}
             </p>
           </div>
         ) : (
-          <div style={{ overflow: 'auto' }}>
-            <table style={{
+          <>
+            <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
+              Tổng số người dùng: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{totalCount}</strong>
+            </div>
+            <div style={{ overflow: 'auto' }}>
+            <table className="users-table" style={{
               width: '100%',
               borderCollapse: 'collapse',
               background: 'var(--bg-card)',
-              borderRadius: '16px',
+              borderRadius: '12px',
               overflow: 'hidden',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: '1px solid var(--border-primary)'
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
+              border: 'none'
             }}>
               <thead>
-                <tr style={{
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  color: 'white',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                }}>
+                <tr className="table-header-yellow" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
                   <th 
-                    onClick={() => handleSort('fullName')}
                     style={{
                     padding: '16px 20px',
                     textAlign: 'left',
                     fontSize: '14px',
-                    fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
+                    fontWeight: '500'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Tên
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'fullName' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('fullName')}
-                      </div>
-                    </div>
+                    <span className="th-inner"><input type="checkbox" className="users-checkbox" aria-label="Chọn tất cả" checked={isAllSelected} onChange={(e)=>handleToggleAll(e.target.checked)} /> <UserIcon size={16} className="th-icon" /> Họ tên</span>
                   </th>
                   <th 
-                    onClick={() => handleSort('email')}
                     style={{
                     padding: '16px 20px',
                     textAlign: 'left',
                     fontSize: '14px',
-                    fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
+                    fontWeight: '500'
+                    }}
+                  >
+                    <span className="th-inner"><AtSign size={16} className="th-icon" /> Email</span>
+                  </th>
+                  <th className="col-phone" style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}>
+                    <span className="th-inner"><Phone size={16} className="th-icon" /> Số điện thoại</span>
+                  </th>
+                  <th className="col-role"
+                    style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500',
                       userSelect: 'none',
                       transition: 'all 0.2s ease',
                       position: 'relative'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px' }}>
+                      <Shield size={16} className="th-icon" /> Vai trò
+                    </div>
+                  </th>
+                  {/* Email verified column */}
+                  <th
+                    style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Email
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'email' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('email')}
-                      </div>
+                    <span className="th-inner"><ShieldCheckIcon width={16} height={16} className="th-icon" /> Xác thực email</span>
+                  </th>
+                  <th className="col-status" style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}>
+                    <span className="th-inner" style={{ justifyContent:'flex-start' }}><Clock size={16} className="th-icon" /> Trạng thái</span>
+                  </th>
+                  <th 
+                    style={{
+                    padding: '14px 16px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px' }}>
+                      <Calendar size={16} className="th-icon" /> Ngày tạo
                     </div>
                   </th>
                   <th style={{
                     padding: '16px 20px',
                     textAlign: 'left',
                     fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
+                    fontWeight: '500'
                   }}>
-                    Số điện thoại
-                  </th>
-                  <th 
-                    style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                      border: 'none',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    Vai trò
-                     
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Trạng thái
-                  </th>
-                  <th 
-                    onClick={() => handleSort('createdAt')}
-                    style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                      border: 'none',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    Ngày tạo
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        opacity: sortBy === 'createdAt' ? 1 : 0.4,
-                        transition: 'opacity 0.2s ease'
-                      }}>
-                        {getSortIcon('createdAt')}
-                      </div>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '16px 20px',
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    border: 'none'
-                  }}>
-                    Thao tác
+                    <span className="th-inner" style={{ justifyContent:'flex-start' }}><Settings size={16} className="th-icon" /> Thao tác</span>
                   </th>
                 </tr>
               </thead>
@@ -1231,17 +804,21 @@ export default function Users() {
                 {users.map((u, i) => (
                   <tr 
                     key={u.userId}
+                    onClick={() => handleViewUser(u)}
                     style={{
                       borderBottom: i < users.length - 1 ? '1px solid var(--border-primary)' : 'none',
                       transition: 'all 0.3s ease',
                       background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
                       transform: 'translateY(0)',
-                      boxShadow: 'none'
+                      boxShadow: 'none',
+                      cursor: 'pointer',
+                      animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards`,
+                      opacity: 0
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--primary-50)'
+                      e.currentTarget.style.background = 'rgba(255, 216, 117, 0.15)'
                       e.currentTarget.style.transform = 'translateY(-2px)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
@@ -1250,117 +827,81 @@ export default function Users() {
                     }}
                   >
                     <td style={{
-                      padding: '16px 20px',
+                      padding: '8px 12px',
                       fontSize: '14px',
                       color: 'var(--text-primary)',
-                      fontWeight: '600'
+                      fontWeight: 400
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          flexShrink: 0,
-                          fontSize: '14px',
-                          fontWeight: '600'
-                        }}>
+                        <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} onClick={(e)=>e.stopPropagation()} />
+                        {((u as any).avatarUrl || u.avatar) ? (
+                          <img src={(u as any).avatarUrl || u.avatar || ''} alt={u.fullName || 'user'} className="users-avatar" />
+                        ) : (
+                          <div className="users-avatar users-avatar--fallback">
                           {u.fullName ? u.fullName.charAt(0).toUpperCase() : 'U'}
                         </div>
+                        )}
                         {u.fullName || 'Chưa có tên'}
                       </div>
                     </td>
                     <td style={{
-                      padding: '16px 20px',
+                      padding: '8px 12px',
                       fontSize: '14px',
                       color: 'var(--text-secondary)'
                     }}>
                       {u.email || 'Chưa có email'}
                     </td>
                     <td style={{
-                      padding: '16px 20px',
+                      padding: '8px 12px',
                       fontSize: '14px',
                       color: 'var(--text-secondary)'
                     }}>
                       {u.phoneNumber || 'Chưa có SĐT'}
                     </td>
-                    <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
+                    <td className="col-role" style={{
+                      padding: '8px 12px',
+                      textAlign: 'left'
                     }}>
-                      {(() => {
-                        const badgeStyle = getRoleBadgeStyle(u.role);
-                        return (
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                            background: badgeStyle.background,
-                            color: badgeStyle.color,
-                        fontSize: '12px',
-                        fontWeight: '600',
-                            border: badgeStyle.border,
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {getRoleLabel(u.role)}
-                      </div>
-                        );
-                      })()}
+                      <div className="role-badge">{getRoleLabel(u.role)}</div>
                     </td>
+                    {/* Email verified cell */}
                     <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
+                      padding: '8px 12px',
+                      textAlign: 'left'
                     }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        background: u.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                        color: u.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        border: `1px solid ${u.isActive ? 'var(--success-200)' : 'var(--error-200)'}`,
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {u.isActive ? (
-                          <>
-                            <UserCheck size={12} fill="currentColor" />
-                            Hoạt động
-                          </>
-                        ) : (
-                          <>
-                            <UserX size={12} fill="currentColor" />
-                            Không hoạt động
-                          </>
-                        )}
+                      {u.emailVerified ? (
+                        <span className="badge badge--enabled"><ShieldCheckIcon width={14} height={14} /> Đã xác thực</span>
+                      ) : (
+                        <span className="badge badge--disabled"><ShieldExclamationIcon width={14} height={14} /> Chưa xác thực</span>
+                      )}
+                    </td>
+                    <td className="col-status" style={{
+                      padding: '8px 12px',
+                      textAlign: 'left'
+                    }}>
+                      <div className={`status-badge ${u.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
+                        <span className="dot" /> {u.isActive ? 'Hoạt động' : 'Không hoạt động'}
                       </div>
                     </td>
                     <td style={{
-                      padding: '16px 20px',
+                      padding: '8px 12px',
                       fontSize: '14px',
                       color: 'var(--text-secondary)',
-                      textAlign: 'center'
+                      textAlign: 'left'
                     }}>
                       {new Date(u.createdAt).toLocaleDateString('vi-VN')}
                     </td>
                     <td style={{
-                      padding: '16px 20px',
-                      textAlign: 'center'
+                      padding: '8px 12px',
+                      textAlign: 'left'
                     }}>
                       <div style={{ 
                         display: 'flex', 
                         gap: '8px', 
-                        justifyContent: 'center',
+                        justifyContent: 'flex-start',
                         alignItems: 'center'
                       }}>
-                        <button
+                        <button type="button"
                           onClick={(e) => { e.stopPropagation(); handleViewUser(u); }}
                           style={{
                             padding: '8px',
@@ -1389,36 +930,8 @@ export default function Users() {
                           <Eye size={16} />
                         </button>
                         
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditUser(u); }}
-                          style={{
-                            padding: '8px',
-                            border: '2px solid var(--border-primary)',
-                            borderRadius: '8px',
-                            background: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            width: '36px',
-                            height: '36px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--primary-500)'
-                            e.currentTarget.style.background = 'var(--primary-50)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--border-primary)'
-                            e.currentTarget.style.background = 'var(--bg-card)'
-                          }}
-                          title="Sửa người dùng"
-                        >
-                          <Edit size={16} />
-                        </button>
                         
-                        <button
+                        <button type="button"
                           onClick={(e) => { e.stopPropagation(); handleToggleUserStatus(u); }}
                           style={{
                             padding: '8px',
@@ -1453,300 +966,119 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
-      {/* Enhanced Pagination */}
+  {/* Pagination bar giống hình: trái thông tin, phải điều hướng */}
       <div style={{
-        marginTop: '24px',
+    marginTop: '16px',
         display: 'flex',
-        justifyContent: 'center',
+    justifyContent: 'space-between',
         alignItems: 'center',
-        background: 'var(--bg-card)',
-        padding: '20px 24px',
-        borderRadius: '16px',
-        border: '1px solid var(--border-primary)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-      }}>
-        {/* Pagination Controls */}
+    background: 'transparent',
+    padding: '8px 0'
+  }}>
+    {/* Left: Rows per page + range */}
+    <div className="pagination-info">
+      <span className="pagination-label">Hàng mỗi trang</span>
+      <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
+        <button type="button" className="pill-trigger">{pageSize}</button>
+        <ChevronDownIcon width={20} height={20} className="caret caret-lg" />
+        {openPageSizeMenu && (
+          <ul className="pill-menu show">
+            {[10, 15, 20, 30, 50].map(sz => (
+              <li key={sz} className={`pill-item ${pageSize === sz ? 'active' : ''}`}
+                  onClick={() => { setPageSize(sz); setPageNumber(1); setOpenPageSizeMenu(false); }}>
+                {sz}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <span className="pagination-range">
+        {(() => {
+          const start = (pageNumber - 1) * pageSize + 1;
+          const end = start + users.length - 1;
+          return totalCount > 0 ? `${start}–${end} của ${totalCount} hàng` : `${start}–${end}`;
+        })()}
+      </span>
+    </div>
+
+    {/* Right: Pagination Controls */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '8px'
         }}>
           {/* First Page */}
-        <button
+        <button type="button"
           disabled={pageNumber === 1}
             onClick={() => setPageNumber(1)}
-          style={{ 
-              padding: "8px 12px", 
-            borderRadius: "8px",
-            border: "1px solid var(--border-primary)",
-            background: pageNumber === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-            color: pageNumber === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-            cursor: pageNumber === 1 ? "not-allowed" : "pointer",
-            fontSize: "14px",
-            fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-          }}
-          onMouseEnter={(e) => {
-            if (pageNumber !== 1) {
-              e.currentTarget.style.background = "var(--primary-50)"
-              e.currentTarget.style.borderColor = "var(--primary-500)"
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (pageNumber !== 1) {
-              e.currentTarget.style.background = "var(--bg-card)"
-              e.currentTarget.style.borderColor = "var(--border-primary)"
-            }
-          }}
+          className={`pager-btn ${pageNumber === 1 ? 'is-disabled' : ''}`}
         >
             <ChevronsLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Đầu</span>
         </button>
 
           {/* Previous Page */}
-          <button
+          <button type="button"
             disabled={pageNumber === 1}
             onClick={() => setPageNumber((p) => p - 1)}
-            style={{ 
-              padding: "8px 12px", 
-          borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: pageNumber === 1 ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: pageNumber === 1 ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: pageNumber === 1 ? "not-allowed" : "pointer",
-          fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (pageNumber !== 1) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pageNumber !== 1) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+            className={`pager-btn ${pageNumber === 1 ? 'is-disabled' : ''}`}
           >
             <ChevronLeft size={16} />
-            <span style={{ marginLeft: '4px' }}>Trước</span>
           </button>
 
           {/* Page Numbers */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            margin: '0 8px'
-          }}>
+          <div className="pager-pages">
             {(() => {
-              const pages = [];
-              const maxVisible = 5;
-              let startPage = Math.max(1, pageNumber - Math.floor(maxVisible / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+              const items: React.ReactElement[] = [];
+              const btn = (n: number, active = false) => (
+                  <button
+                  key={n}
+                  onClick={() => setPageNumber(n)}
+                  className={`pager-btn ${active ? 'is-active' : ''}`}
+                >
+                  {n}
+                  </button>
+                );
+
+              // Hiển thị theo pattern: 1, 2, ..., 5
+              items.push(btn(1, pageNumber === 1));
+              items.push(btn(2, pageNumber === 2));
+              items.push(<span key="ellipsis" className="pager-ellipsis">…</span>);
+              items.push(btn(5, pageNumber === 5));
               
-              if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
-
-              // First page + ellipsis
-              if (startPage > 1) {
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => setPageNumber(1)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    1
-                  </button>
-                );
-                if (startPage > 2) {
-                  pages.push(
-                    <span key="ellipsis1" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-        </span>
-                  );
-                }
-              }
-
-              // Visible pages
-              for (let i = startPage; i <= endPage; i++) {
-                pages.push(
-                  <button
-                    key={i}
-                    onClick={() => setPageNumber(i)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: i === pageNumber ? "1px solid var(--primary-500)" : "1px solid var(--border-primary)",
-                      background: i === pageNumber ? "var(--primary-50)" : "var(--bg-card)",
-                      color: i === pageNumber ? "var(--primary-700)" : "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: i === pageNumber ? "600" : "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      if (i !== pageNumber) {
-                        e.currentTarget.style.background = "var(--primary-50)"
-                        e.currentTarget.style.borderColor = "var(--primary-500)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (i !== pageNumber) {
-                        e.currentTarget.style.background = "var(--bg-card)"
-                        e.currentTarget.style.borderColor = "var(--border-primary)"
-                      }
-                    }}
-                  >
-                    {i}
-                  </button>
-                );
-              }
-
-              // Last page + ellipsis
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span key="ellipsis2" style={{ padding: "8px 4px", color: "var(--text-tertiary)" }}>
-                      ...
-                    </span>
-                  );
-                }
-                pages.push(
-                  <button
-                    key={totalPages}
-                    onClick={() => setPageNumber(totalPages)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--border-primary)",
-                      background: "var(--bg-card)",
-                      color: "var(--text-primary)",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--primary-50)"
-                      e.currentTarget.style.borderColor = "var(--primary-500)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--bg-card)"
-                      e.currentTarget.style.borderColor = "var(--border-primary)"
-                    }}
-                  >
-                    {totalPages}
-                  </button>
-                );
-              }
-
-              return pages;
+              return items;
             })()}
           </div>
 
           {/* Next Page */}
-        <button
+          <button type="button"
           disabled={pageNumber === totalPages}
           onClick={() => setPageNumber((p) => p + 1)}
-          style={{ 
-              padding: "8px 12px", 
-            borderRadius: "8px",
-            border: "1px solid var(--border-primary)",
-            background: pageNumber === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-            color: pageNumber === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-            cursor: pageNumber === totalPages ? "not-allowed" : "pointer",
-            fontSize: "14px",
-            fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-          }}
-          onMouseEnter={(e) => {
-            if (pageNumber !== totalPages) {
-              e.currentTarget.style.background = "var(--primary-50)"
-              e.currentTarget.style.borderColor = "var(--primary-500)"
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (pageNumber !== totalPages) {
-              e.currentTarget.style.background = "var(--bg-card)"
-              e.currentTarget.style.borderColor = "var(--border-primary)"
-            }
-          }}
-        >
-            <span style={{ marginRight: '4px' }}>Sau</span>
+            className={`pager-btn ${pageNumber === totalPages ? 'is-disabled' : ''}`}
+          >
             <ChevronRight size={16} />
           </button>
 
           {/* Last Page */}
-          <button
+          <button type="button"
             disabled={pageNumber === totalPages}
             onClick={() => setPageNumber(totalPages)}
-            style={{ 
-              padding: "8px 12px", 
-              borderRadius: "8px",
-              border: "1px solid var(--border-primary)",
-              background: pageNumber === totalPages ? "var(--bg-secondary)" : "var(--bg-card)",
-              color: pageNumber === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
-              cursor: pageNumber === totalPages ? "not-allowed" : "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px"
-            }}
-            onMouseEnter={(e) => {
-              if (pageNumber !== totalPages) {
-                e.currentTarget.style.background = "var(--primary-50)"
-                e.currentTarget.style.borderColor = "var(--primary-500)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pageNumber !== totalPages) {
-                e.currentTarget.style.background = "var(--bg-card)"
-                e.currentTarget.style.borderColor = "var(--border-primary)"
-              }
-            }}
+            className={`pager-btn ${pageNumber === totalPages ? 'is-disabled' : ''}`}
           >
-            <span style={{ marginRight: '4px' }}>Cuối</span>
             <ChevronsRight size={16} />
         </button>
         </div>
       </div>
+
+    {/* Modal tạo người dùng */}
+    <UserCreateModal
+      open={openCreateModal}
+      onClose={() => setOpenCreateModal(false)}
+      onCreate={() => { toast.success('Đã chuẩn bị form, sẽ hoàn thiện ở bước tiếp theo'); setOpenCreateModal(false); }}
+    />
 
       {showUserModal && selectedUser && (
         <div style={{ 
@@ -2017,551 +1349,7 @@ export default function Users() {
         </div>
       )}
 
-      {/* Create User Modal */}
-      {showCreateUserModal && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '800px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "24px",
-              paddingBottom: "16px",
-              borderBottom: "1px solid var(--border-primary)"
-            }}>
-              <h3 style={{ 
-                margin: 0,
-                fontSize: "20px",
-                fontWeight: "600",
-                color: "var(--text-primary)"
-              }}>
-                Tạo người dùng mới
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreateUserModal(false);
-                  setCreateUserError(null);
-                }}
-                style={{
-                  padding: "8px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: "var(--bg-secondary)",
-                  cursor: "pointer",
-                  color: "var(--text-secondary)",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--error-50)"
-                  e.currentTarget.style.color = "var(--error-600)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-secondary)"
-                  e.currentTarget.style.color = "var(--text-secondary)"
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Error Alert */}
-            {createUserError && (
-              <div style={{
-                background: 'var(--error-50)',
-                border: '1px solid var(--error-200)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '20px',
-                color: 'var(--error-700)',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <AlertCircle size={16} />
-                {createUserError}
-              </div>
-            )}
-
-            <div style={{ display: "grid", gap: "20px" }}>
-              {/* Basic Information */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px"
-              }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Họ và tên *
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <UserIcon size={16} style={{ 
-                      position: 'absolute', 
-                      left: '12px', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)', 
-                      color: 'var(--text-tertiary)' 
-                    }} />
-                    <input
-                      type="text"
-                      placeholder="Nhập họ và tên"
-                      value={createUserForm.fullName}
-                      onChange={(e) => handleCreateUserFormChange('fullName', e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 12px 12px 40px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '10px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '14px',
-                        transition: 'all 0.2s ease',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Email *
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={16} style={{ 
-                      position: 'absolute', 
-                      left: '12px', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)', 
-                      color: 'var(--text-tertiary)' 
-                    }} />
-                    <input
-                      type="email"
-                      placeholder="Nhập email"
-                      value={createUserForm.email}
-                      onChange={(e) => handleCreateUserFormChange('email', e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 12px 12px 40px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '10px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '14px',
-                        transition: 'all 0.2s ease',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px"
-              }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Mật khẩu *
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={16} style={{ 
-                      position: 'absolute', 
-                      left: '12px', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)', 
-                      color: 'var(--text-tertiary)' 
-                    }} />
-                    <input
-                      type="password"
-                      placeholder="Nhập mật khẩu"
-                      value={createUserForm.password}
-                      onChange={(e) => handleCreateUserFormChange('password', e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 12px 12px 40px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '10px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '14px',
-                        transition: 'all 0.2s ease',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Số điện thoại *
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Phone size={16} style={{ 
-                      position: 'absolute', 
-                      left: '12px', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)', 
-                      color: 'var(--text-tertiary)' 
-                    }} />
-                    <input
-                      type="tel"
-                      placeholder="Nhập số điện thoại"
-                      value={createUserForm.phoneNumber}
-                      onChange={(e) => handleCreateUserFormChange('phoneNumber', e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 12px 12px 40px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '10px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '14px',
-                        transition: 'all 0.2s ease',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px"
-              }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Ngày sinh *
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <CalendarIcon size={16} style={{ 
-                      position: 'absolute', 
-                      left: '12px', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)', 
-                      color: 'var(--text-tertiary)' 
-                    }} />
-                    <input
-                      type="date"
-                      value={createUserForm.dateOfBirth}
-                      onChange={(e) => handleCreateUserFormChange('dateOfBirth', e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 12px 12px 40px',
-                        border: '2px solid var(--border-primary)',
-                        borderRadius: '10px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '14px',
-                        transition: 'all 0.2s ease',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Giới tính
-                  </label>
-                  <select
-                    value={createUserForm.gender}
-                    onChange={(e) => handleCreateUserFormChange('gender', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '2px solid var(--border-primary)',
-                      borderRadius: '10px',
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--text-primary)',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      outline: 'none'
-                    }}
-                  >
-                    <option value="MALE">Nam</option>
-                    <option value="FEMALE">Nữ</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600', 
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
-                }}>
-                  Địa chỉ *
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <MapPinIcon size={16} style={{ 
-                    position: 'absolute', 
-                    left: '12px', 
-                    top: '12px', 
-                    color: 'var(--text-tertiary)' 
-                  }} />
-                  <textarea
-                    placeholder="Nhập địa chỉ"
-                    value={createUserForm.address}
-                    onChange={(e) => handleCreateUserFormChange('address', e.target.value)}
-                    rows={3}
-                    style={{
-                      width: '100%',
-                      padding: '12px 12px 12px 40px',
-                      border: '2px solid var(--border-primary)',
-                      borderRadius: '10px',
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--text-primary)',
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      resize: 'vertical',
-                      fontFamily: 'inherit'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px"
-              }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Vai trò
-                  </label>
-                  <select
-                    value={createUserForm.role}
-                    onChange={(e) => handleCreateUserFormChange('role', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '2px solid var(--border-primary)',
-                      borderRadius: '10px',
-                      background: 'var(--bg-secondary)',
-                      color: 'var(--text-primary)',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      outline: 'none'
-                    }}
-                  >
-                    <option value="CUSTOMER">Khách hàng</option>
-                    <option value="STAFF">Nhân viên</option>
-                    <option value="MANAGER">Quản lí</option>
-                    <option value="TECHNICIAN">Kỹ thuật viên</option>
-                    <option value="ADMIN">Quản trị viên</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Trạng thái
-                  </label>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <label style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={createUserForm.isActive}
-                        onChange={(e) => handleCreateUserFormChange('isActive', e.target.checked)}
-                        style={{ margin: 0 }}
-                      />
-                      Hoạt động
-                    </label>
-                    <label style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={createUserForm.emailVerified}
-                        onChange={(e) => handleCreateUserFormChange('emailVerified', e.target.checked)}
-                        style={{ margin: 0 }}
-                      />
-                      Email đã xác thực
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{
-              marginTop: "24px",
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: "12px",
-              paddingTop: "16px",
-              borderTop: "1px solid var(--border-primary)"
-            }}>
-              <button
-                onClick={() => {
-                  setShowCreateUserModal(false);
-                  setCreateUserError(null);
-                }}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "8px",
-                  background: "var(--bg-secondary)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-primary)",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--error-50)"
-                  e.currentTarget.style.borderColor = "var(--error-200)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-secondary)"
-                  e.currentTarget.style.borderColor = "var(--border-primary)"
-                }}
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleCreateUser}
-                disabled={createUserLoading}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "8px",
-                  background: createUserLoading ? "var(--bg-secondary)" : "var(--primary-500)",
-                  color: createUserLoading ? "var(--text-tertiary)" : "#fff",
-                  border: "none",
-                  cursor: createUserLoading ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  transition: "all 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
-                onMouseEnter={(e) => {
-                  if (!createUserLoading) {
-                    e.currentTarget.style.background = "var(--primary-600)"
-                    e.currentTarget.style.transform = "translateY(-1px)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!createUserLoading) {
-                    e.currentTarget.style.background = "var(--primary-500)"
-                    e.currentTarget.style.transform = "translateY(0)"
-                  }
-                }}
-              >
-                {createUserLoading ? (
-                  <>
-                    <div style={{
-                      width: '16px',
-                      height: '16px',
-                      border: '2px solid var(--border-primary)',
-                      borderTop: '2px solid var(--primary-500)',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }} />
-                    Đang tạo...
-                  </>
-                ) : (
-                  <>
-                    <Plus size={16} />
-                    Tạo người dùng
-                  </>
-                )}
-            </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Đã xoá Create User Modal */}
     </div>
   );
 }

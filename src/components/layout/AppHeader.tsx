@@ -244,8 +244,16 @@ const NewAppHeader: React.FC = () => {
         menuItems={menuItems}
         logo={{
           src: logo,
-          alt: 'EV Service Logo',
-          href: '/'
+          alt: 'EV Service Center',
+          href: '/',
+          custom: (
+            <div className="header-logo-combo">
+              <div className="header-logo-icon">
+                <Zap size={16} />
+              </div>
+              <span className="header-logo-text">EV Service Center</span>
+            </div>
+          )
         }}
         rightItems={rightItems}
         className="modern-header"
@@ -253,7 +261,7 @@ const NewAppHeader: React.FC = () => {
         mobileBreakpoint={1024}
         showMobileMenu={showMobileMenu}
         onMobileMenuToggle={setShowMobileMenu}
-      headerHeight="64px"
+      headerHeight="56px"
         dropdownShadow="0 8px 30px rgba(0, 0, 0, 0.12)"
       hoverColor="rgba(16, 185, 129, 0.1)"
       activeColor="#10b981"

@@ -44,6 +44,7 @@ interface HeaderDropdownProps {
     src: string
     alt: string
     href?: string
+    custom?: React.ReactNode
   }
   rightItems?: React.ReactNode
   className?: string
@@ -51,6 +52,7 @@ interface HeaderDropdownProps {
   mobileBreakpoint?: number
   showMobileMenu?: boolean
   onMobileMenuToggle?: (isOpen: boolean) => void
+  hasEmailBanner?: boolean
   // Styling options
   headerHeight?: string
   dropdownShadow?: string
@@ -67,6 +69,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   mobileBreakpoint = 1024,
   showMobileMenu = false,
   onMobileMenuToggle,
+  hasEmailBanner = false,
   headerHeight = '57px',
   dropdownShadow = '0 8px 30px rgba(0, 0, 0, 0.12)',
   hoverColor = '#e3f2fd',
@@ -244,7 +247,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     <>
       <header 
         ref={headerRef}
-        className={`header-dropdown ${className}`}
+        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,
@@ -260,12 +263,22 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
             {logo && (
               <>
                 <div className="header-logo">
-                  {logo.href ? (
-                    <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
-                      <img src={logo.src} alt={logo.alt} />
-                    </NavLink>
+                  {logo.custom ? (
+                    logo.href ? (
+                      <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
+                        {logo.custom}
+                      </NavLink>
+                    ) : (
+                      logo.custom
+                    )
                   ) : (
-                    <img src={logo.src} alt={logo.alt} />
+                    logo.href ? (
+                      <NavLink to={logo.href} aria-label="Go to homepage" className="logo-link">
+                        <img src={logo.src} alt={logo.alt} />
+                      </NavLink>
+                    ) : (
+                      <img src={logo.src} alt={logo.alt} />
+                    )
                   )}
                 </div>
               </>

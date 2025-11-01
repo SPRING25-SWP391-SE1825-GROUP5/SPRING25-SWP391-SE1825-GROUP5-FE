@@ -1,0 +1,610 @@
+// RegisterGlass.scss - Glassmorphism Register với Workshop Background
+// Tương tự Login nhưng được tối ưu cho form dài hơn (nhiều fields)
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+// ==================== VARIABLES ====================
+$primary-gold: #C49D4B;
+$secondary-gold: #FFD875;
+$light-gold: #FFF6D1;
+$text-dark: #2d3748;
+$text-light: #ffffff;
+$glass-white: rgba(255, 255, 255, 0.15);
+$glass-border: rgba(255, 255, 255, 0.3);
+$shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1);
+$error-color: #f87171;
+$success-color: #10b981;
+
+// ==================== MAIN CONTAINER ====================
+.register-glass {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  // Background với workshop image
+  &__background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    
+    background-image: url('/src/assets/images/Gemini_Generated_Image_nn6v31nn6v31nn6v.png');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    
+    // Overlay
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(196, 157, 75, 0.15) 50%,
+        rgba(255, 215, 117, 0.2) 100%
+      );
+      backdrop-filter: blur(2px);
+    }
+  }
+
+  // ==================== GLASS CARD (Wider for form) ====================
+  &__card {
+    position: absolute;
+    top: 50%;
+    right: 6%;
+    transform: translateY(-50%);
+    width: 600px; // Rộng hơn Login để chứa form grid
+    max-width: 92vw;
+    max-height: 90vh;
+    padding: 40px 36px;
+    overflow-y: auto; // Cho phép scroll nếu form dài
+    
+    // Glassmorphism effect
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    
+    animation: slideInGlass 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 10;
+    
+    // Custom scrollbar
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.4);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      right: 50%;
+      transform: translate(50%, -50%);
+      width: 90vw;
+      padding: 32px 24px;
+    }
+  }
+
+  // ==================== HEADER ====================
+  &__header {
+    margin-bottom: 24px;
+    text-align: left;
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 700;
+    color: $text-light;
+    margin: 0 0 8px 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    line-height: 1.2;
+    
+    @media (max-width: 480px) {
+      font-size: 24px;
+    }
+  }
+
+  &__subtitle {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    
+    a {
+      color: $secondary-gold;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        color: $primary-gold;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // ==================== FORM GRID ====================
+  &__form {
+    width: 100%;
+  }
+
+  &__form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; // 2 cột
+    gap: 16px;
+    margin-bottom: 20px;
+    
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr; // 1 cột trên mobile
+    }
+  }
+
+  // Full width fields (password, confirm password)
+  &__form-group--full {
+    grid-column: 1 / -1; // Span toàn bộ width
+  }
+
+  // ==================== FORM GROUP ====================
+  &__form-group {
+    position: relative;
+    
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      margin-bottom: 6px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      transition: color 0.3s ease;
+      
+      &.error {
+        color: $error-color;
+      }
+      
+      .required-asterisk {
+        color: $error-color;
+        margin-left: 2px;
+      }
+      
+      .validation-loading {
+        font-size: 11px;
+        color: $secondary-gold;
+        margin-left: 8px;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // ==================== INPUTS ====================
+  &__input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: $text-light;
+    box-sizing: border-box;
+    
+    // Glass effect
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.06),
+      0 1px 2px rgba(255, 255, 255, 0.1);
+    
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 13px;
+    }
+    
+    &:focus {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: $secondary-gold;
+      box-shadow: 
+        0 0 0 4px rgba(255, 215, 117, 0.15),
+        inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+    
+    &:hover:not(:focus) {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    
+    &.error {
+      border-color: $error-color;
+      
+      &:focus {
+        box-shadow: 
+          0 0 0 4px rgba(248, 113, 113, 0.2),
+          inset 0 2px 4px rgba(0, 0, 0, 0.06);
+      }
+    }
+    
+    &.validating {
+      border-color: $secondary-gold;
+    }
+  }
+
+  // Select dropdown
+  &__select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    
+    option {
+      background: #2d3748;
+      color: white;
+    }
+  }
+
+  // Input wrapper (for validation spinner)
+  &__input-wrapper {
+    position: relative;
+  }
+
+  // Password toggle
+  &__password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.2s ease;
+    z-index: 2;
+    
+    &:hover {
+      color: $secondary-gold;
+    }
+    
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  // Validation spinner
+  &__validation-spinner {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: $secondary-gold;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  }
+
+  // ==================== ERROR MESSAGE ====================
+  &__error {
+    color: $error-color;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.3s ease-out;
+  }
+
+  // ==================== PASSWORD POPUP ====================
+  &__password-popup {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    animation: fadeIn 0.3s ease-out;
+    
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: $text-light;
+      font-weight: 600;
+    }
+    
+    .password-strength-indicator {
+      margin-bottom: 12px;
+      
+      .strength-dots {
+        display: flex;
+        gap: 6px;
+        
+        .strength-dot {
+          flex: 1;
+          height: 4px;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.2);
+          transition: background 0.3s ease;
+        }
+      }
+    }
+    
+    .requirement-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      
+      .requirement-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        font-size: 10px;
+        
+        &.met {
+          background: $success-color;
+          color: white;
+        }
+      }
+      
+      span.met {
+        color: $text-light;
+        font-weight: 500;
+      }
+    }
+    
+    .popup-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      padding: 4px;
+      transition: color 0.2s ease;
+      
+      &:hover {
+        color: $text-light;
+      }
+    }
+  }
+
+  // ==================== BUTTON ====================
+  &__button {
+    width: 100%;
+    padding: 14px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    color: $text-dark;
+    box-sizing: border-box;
+    
+    background: linear-gradient(135deg, $secondary-gold 0%, $primary-gold 100%);
+    border: none;
+    border-radius: 12px;
+    
+    box-shadow: 
+      0 4px 12px rgba(196, 157, 75, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    margin-bottom: 20px;
+    
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, $primary-gold 0%, #A6833F 100%);
+      box-shadow: 
+        0 6px 20px rgba(196, 157, 75, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    &:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 
+        0 2px 8px rgba(196, 157, 75, 0.3),
+        0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  // ==================== DIVIDER ====================
+  &__divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+      );
+    }
+    
+    &::before {
+      margin-right: 12px;
+    }
+    
+    &::after {
+      margin-left: 12px;
+    }
+  }
+
+  // ==================== GOOGLE BUTTON ====================
+  &__google-container {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+  }
+
+  // ==================== FOOTER ====================
+  &__footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    
+    a {
+      color: $secondary-gold;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        color: $primary-gold;
+        text-decoration: underline;
+      }
+    }
+    
+    span {
+      margin: 0 6px;
+      opacity: 0.5;
+    }
+  }
+}
+
+// ==================== ANIMATIONS ====================
+@keyframes slideInGlass {
+  0% {
+    opacity: 0;
+    transform: translateY(-40%) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 50px;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// ==================== RESPONSIVE ====================
+@media (max-width: 768px) {
+  .register-glass {
+    &__card {
+      animation: slideInGlassMobile 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    &__form-grid {
+      gap: 14px;
+    }
+  }
+}
+
+@keyframes slideInGlassMobile {
+  0% {
+    opacity: 0;
+    transform: translate(50%, -40%) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(50%, -50%) scale(1);
+  }
+}
+
+// ==================== BROWSER FALLBACK ====================
+@supports not (backdrop-filter: blur(20px)) {
+  .register-glass__card {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  
+  .register-glass__input {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  .register-glass__password-popup {
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+

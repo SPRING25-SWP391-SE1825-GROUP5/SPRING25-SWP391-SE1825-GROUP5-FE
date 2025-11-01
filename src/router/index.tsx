@@ -9,6 +9,8 @@ import TechnicianLayout from '@/components/layout/TechnicianLayout'
 import StaffLayout from '@/components/layout/StaffLayout'
 import ManagerLayout from '@/components/layout/ManagerLayout'
 import RequireAuth from '@/components/routes/RequireAuth'
+import TimeSlotManagement from '../views/Admin/TimeSlotManagement';
+import Cart from '@/views/Cart'
 
 // Lazy pages
 const SavartHomepage = lazy(() => import('@/views/SavartHomepage'))
@@ -22,6 +24,7 @@ const BookingSuccess = lazy(() => import('@/views/BookingSuccess'))
 const PaymentSuccess = lazy(() => import('@/views/PaymentSuccess'))
 const PaymentCancel = lazy(() => import('@/views/PaymentCancel'))
 const PaymentCallback = lazy(() => import('@/views/PaymentCallback'))
+const OrderConfirmationPage = lazy(() => import('../views/OrderConfirmationPage'))
 const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
 const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
@@ -66,9 +69,12 @@ const router = createBrowserRouter([
       { path: 'about', element: suspense(<About />) },
       { path: 'services', element: suspense(<Services />) },
       { path: 'products', element: suspense(<Products />) },
+      { path: 'cart', element: suspense(<Cart />) },
       { path: 'promotions', element: suspense(<Promotions />) },
       { path: 'contact', element: suspense(<ProtectedContact />) },
       { path: 'booking', element: suspense(<ServiceBookingView />) },
+      { path: 'confirm-order', element: suspense(<OrderConfirmationPage />) },
+      { path: 'confirm-order/:orderId', element: suspense(<OrderConfirmationPage />) },
       { path: 'booking-success', element: suspense(<BookingSuccess />) },
       { path: 'payment-success', element: suspense(<PaymentSuccess />) },
       { path: 'payment-cancel', element: suspense(<PaymentCancel />) },
@@ -133,7 +139,7 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<AdminDashboard />) },
       { path: 'users', element: suspense(<Users />) },
       { path: 'reports', element: suspense(<AdminReports />) },
-
+      { path: 'time-slots', element: <RequireAuth><TimeSlotManagement /></RequireAuth> },
     ],
   },
   // Auth routes without header/footer

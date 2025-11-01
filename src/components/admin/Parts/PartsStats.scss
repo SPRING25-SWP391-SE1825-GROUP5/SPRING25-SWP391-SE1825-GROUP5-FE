@@ -1,0 +1,127 @@
+@import '../admin-common';
+
+.parts-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+
+  &__card {
+    @include admin-stats-card;
+    padding: 24px;
+
+    &:hover {
+      transform: translateY(-4px) scale(1.02);
+    }
+
+    // Color variants for border
+    &--blue:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    &--green:hover {
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    &--orange:hover {
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    &--red:hover {
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    &--purple:hover {
+      border-color: rgba(139, 92, 246, 0.4);
+    }
+  }
+
+  &__gradient-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    opacity: 0.05;
+    border-radius: 50%;
+    transform: translate(30px, -30px);
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  &__icon-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  &__change-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+
+    &--positive {
+      background: var(--success-50);
+      color: var(--success-600);
+    }
+
+    &--negative {
+      background: var(--error-50);
+      color: var(--error-600);
+    }
+
+    &--neutral {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+  }
+
+  &__value {
+    margin-bottom: 8px;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.2;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  &__title {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.025em;
+  }
+
+  &__progress-bar {
+    width: 100%;
+    height: 3px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease-out;
+  }
+}
+

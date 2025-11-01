@@ -4,6 +4,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { savePromotion, clearAllSavedPromotions } from '@/store/promoSlice'
 import { PromotionService, type Promotion } from '@/services/promotionService'
 import { PromotionBookingService } from '@/services/promotionBookingService'
+import { CustomerService } from '@/services/customerService'
 import { handleApiError } from '@/utils/errorHandler'
 import toast from 'react-hot-toast'
 import { 
@@ -33,6 +34,7 @@ export default function Promotions() {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [savingPromotion, setSavingPromotion] = useState<string | null>(null)
+  const [customerId, setCustomerId] = useState<number | null>(null)
 
   // Get URL parameters
   const categoryParam = searchParams.get('category')
@@ -64,17 +66,37 @@ export default function Promotions() {
     loadPromotions()
   }, [])
 
-  // Load saved promotions from API when user is logged in
+  // Load customerId when user is logged in
   useEffect(() => {
-    const loadSavedPromotions = async () => {
+    const loadCustomerId = async () => {
       if (!auth.user?.id) {
-        // Clear saved promotions if user is not logged in
         return
       }
 
       try {
-        console.log('Loading saved promotions for customer:', auth.user.id)
-        const savedPromotions = await PromotionBookingService.getCustomerPromotions(auth.user.id)
+        const response = await CustomerService.getCurrentCustomer()
+        if (response.success && response.data) {
+          setCustomerId(response.data.customerId)
+        }
+      } catch (error) {
+        console.error('Error loading customerId:', error)
+      }
+    }
+
+    loadCustomerId()
+  }, [auth.user?.id])
+
+  // Load saved promotions from API when user is logged in
+  useEffect(() => {
+    const loadSavedPromotions = async () => {
+      if (!customerId) {
+        // Clear saved promotions if customerId is not available
+        return
+      }
+
+      try {
+        console.log('Loading saved promotions for customer:', customerId)
+        const savedPromotions = await PromotionBookingService.getCustomerPromotions(customerId)
         console.log('API response:', savedPromotions)
         
         // Clear existing saved promotions first
@@ -118,7 +140,7 @@ export default function Promotions() {
     }
 
     loadSavedPromotions()
-  }, [auth.user?.id, dispatch])
+  }, [customerId, dispatch])
 
   // Update filter based on URL params
   useEffect(() => {
@@ -181,9 +203,29 @@ export default function Promotions() {
     setSavingPromotion(promotion.code)
     
     try {
-      console.log('Calling API to save promotion:', promotion.code)
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        const response = await CustomerService.getCurrentCustomer()
+        if (response.success && response.data) {
+          currentCustomerId = response.data.customerId
+          setCustomerId(currentCustomerId)
+        } else {
+          toast.error('Không thể xác định thông tin khách hàng')
+          setSavingPromotion(null)
+          return
+        }
+      }
+
+      if (!currentCustomerId) {
+        toast.error('Không thể xác định thông tin khách hàng')
+        setSavingPromotion(null)
+        return
+      }
+
+      console.log('Calling API to save promotion:', promotion.code, 'for customerId:', currentCustomerId)
       // Call API to save promotion
-      await PromotionBookingService.saveCustomerPromotion(auth.user.id, promotion.code)
+      await PromotionBookingService.saveCustomerPromotion(currentCustomerId, promotion.code)
       
       // Convert promotion to Redux format
       const promotionData = {

@@ -33,18 +33,8 @@ export type {
 
 // Booking Services
 export { BookingService } from './bookingService'
-export type {
-  BookingResponse,
-  BookingDetail,
-  BookingDetailResponse,
-  MaintenanceChecklist,
-  MaintenanceChecklistItem,
-  MaintenanceChecklistSummary,
-  MaintenanceChecklistStatus,
-  TimeSlotAvailability,
-  TechnicianAvailability,
-  AvailabilityResponse
-} from './bookingService'
+// Removed type re-exports that no longer exist to avoid build errors
+// export type { AvailabilityParams, AvailabilityResponse, TimeSlotAvailability, TechnicianAvailability, ReservationRequest, ReservationResponse } from './bookingService'
 
 // Service Management Services
 export { ServiceManagementService } from './serviceManagementService'
@@ -128,5 +118,12 @@ export type {
   PartAvailabilityResponse,
   PartFilters
 } from './partService'
+
+// Order Services
+export { OrderService } from './orderService'
+export type { QuickOrderRequest, QuickOrderResponse } from './orderService'
+
+// Promotion Services
+export { PromotionService } from './promotionService'
 
 // TODO: Add other services as they are created

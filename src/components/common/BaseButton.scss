@@ -44,13 +44,13 @@
 
 /* Primary */
 .btn--primary {
-  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-  color: var(--text-inverse);
+  background: var(--gradient-gold-white);
+  color: var(--text-deep);
   border: none;
 }
 
 .btn--primary:hover:not(.btn--disabled) {
-  background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+  background: var(--gradient-gold-deep);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0,0,0,0.15);
 }
@@ -75,13 +75,14 @@
 /* Outline */
 .btn--outline {
   background: transparent;
-  color: var(--primary-600);
-  border: 1.5px solid var(--primary-500);
+  color: var(--text-deep);
+  border: 1.5px solid transparent;
+  border-image: var(--gradient-gold-white) 1;
 }
 
 .btn--outline:hover:not(.btn--disabled) {
-  background: var(--primary-50);
-  border-color: var(--primary-600);
+  background: linear-gradient(135deg, rgba(255,216,117,0.12), rgba(255,255,255,0.6));
+  border-image: var(--gradient-gold-deep) 1;
 }
 
 /* Success / Warning / Error */
