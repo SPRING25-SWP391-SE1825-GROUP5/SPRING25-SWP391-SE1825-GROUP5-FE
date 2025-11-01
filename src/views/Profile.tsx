@@ -418,8 +418,16 @@ export default function Profile() {
       const promotions = await PromotionBookingService.getCustomerPromotions(currentCustomerId)
       console.log('Saved promotions response:', promotions)
       
-      setSavedPromotions(promotions || [])
-      setTotalPromotions(promotions?.length || 0)
+      // Hiển thị các mã khuyến mãi chưa sử dụng: SAVED và APPLIED (đã áp dụng nhưng chưa thanh toán)
+      // KHÔNG hiển thị USED (đã sử dụng = đã thanh toán thành công)
+      // Nếu đơn hàng chưa thanh toán thì mã vẫn còn nguyên (SAVED hoặc APPLIED)
+      const filteredPromotions = (promotions || []).filter((p: any) => {
+        const status = String(p.status || '').toUpperCase()
+        return status === 'SAVED' || status === 'APPLIED' // Hiển thị các mã chưa sử dụng
+      })
+      
+      setSavedPromotions(filteredPromotions)
+      setTotalPromotions(filteredPromotions.length)
     } catch (error: any) {
       console.error('Error loading saved promotions:', error)
       setPromotionsError(error.message || 'Không thể tải danh sách mã khuyến mãi')
@@ -1938,10 +1946,10 @@ export default function Profile() {
                               <div className="promotion-main">
                                 <span className="promotion-code">{promotion.code}</span>
                                 <span className={`promotion-status status-${promotion.status?.toLowerCase()}`}>
-                                  {promotion.status === 'SAVED' ? 'Đã lưu' : 
-                                   promotion.status === 'APPLIED' ? 'Đã áp dụng' :
+                                  {promotion.status === 'SAVED' ? 'Có thể sử dụng' : 
+                                   promotion.status === 'APPLIED' ? 'Có thể sử dụng' : 
                                    promotion.status === 'USED' ? 'Đã sử dụng' : 
-                                   promotion.status}
+                                   'Không xác định'}
                                 </span>
                               </div>
                               <div className="promotion-details">

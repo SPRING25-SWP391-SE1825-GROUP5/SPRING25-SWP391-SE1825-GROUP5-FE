@@ -96,6 +96,32 @@ export const PromotionService = {
             }
         }
     },
+  async applyCouponToOrder(orderId: number, code: string): Promise<{ success: boolean; message: string; data?: any }> {
+    try {
+      const { data } = await api.post(`/promotion/orders/${orderId}/apply`, { code })
+      return data
+    } catch (error) {
+      throw error
+    }
+  },
+  async getSavedPromotionsByCustomer(customerId: number): Promise<{ success: boolean; message?: string; data?: Array<{ code?: string; description?: string; discountAmount?: number; status?: string }> }> {
+    try {
+      const { data } = await api.get(`/promotion/customers/${customerId}/promotions`)
+      return data
+    } catch (error) {
+      throw error
+    }
+  },
+  async validatePublic(code: string, orderAmount: number, orderType: 'ORDER' | 'BOOKING' = 'ORDER'): Promise<{ success: boolean; message?: string; data?: { isValid?: boolean; message?: string; discountAmount?: number } }> {
+    try {
+      const { data } = await api.post(`/promotion/validate`, { Code: code, OrderAmount: orderAmount, OrderType: orderType })
+      return data
+    } catch (error: any) {
+      // Surface backend error shape
+      if (error?.response?.data) return error.response.data
+      throw error
+    }
+  },
     async getActivePromotions(): Promise<AdminPromotionResponse> {
         try {
             const { data } = await api.get<BackendPromotionResponse>('/promotion/active')
