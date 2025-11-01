@@ -7,6 +7,9 @@ import { useAppSelector } from '@/store/hooks'
 
 export default function SavartHomepage() {
   const [, setCurrentSlide] = useState(0)
+  const [featuredServices, setFeaturedServices] = useState<Array<{ id: number; name: string; description?: string; price?: number }>>([])
+  const [topCenters, setTopCenters] = useState<Array<{ id: number; name: string; address?: string }>>([])
+  const [loadingHomeData, setLoadingHomeData] = useState(false)
   const navigate = useNavigate()
   const { user } = useAppSelector((s) => s.auth)
 
@@ -47,6 +50,34 @@ export default function SavartHomepage() {
     }
   }, [])
 
+  // Load showcase data from API when logged in (to respect Authorization on BE)
+  useEffect(() => {
+    const token = (user as any)?.token || (localStorage.getItem('token') ?? '')
+    if (!token) {
+      setFeaturedServices([])
+      setTopCenters([])
+      return
+    }
+
+    const API_BASE = (import.meta as any)?.env?.VITE_API_BASE_URL || '/api'
+    setLoadingHomeData(true)
+    Promise.all([
+      fetch(`${API_BASE}/service?pageNumber=1&pageSize=6`, { headers: { Authorization: `Bearer ${token}` }})
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(json => Array.isArray(json?.data?.items) ? json.data.items : [] )
+        .catch(() => []),
+      fetch(`${API_BASE}/center?pageNumber=1&pageSize=3`, { headers: { Authorization: `Bearer ${token}` }})
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(json => Array.isArray(json?.data?.items) ? json.data.items : [] )
+        .catch(() => [])
+    ])
+    .then(([services, centers]) => {
+      setFeaturedServices(services)
+      setTopCenters(centers)
+    })
+    .finally(() => setLoadingHomeData(false))
+  }, [user])
+
   return (
     <div className="savart-homepage" style={{ fontFamily: 'Montserrat, sans-serif', margin: 0, padding: 0, background: '#ffffff' }}>
       <main id="main" style={{ width: '100%', overflowX: 'hidden' }}>
@@ -61,9 +92,9 @@ export default function SavartHomepage() {
               <div style={{ position: 'relative', zIndex: 2 as number, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'center', minHeight: '100vh', padding: '2rem 0', maxWidth: 1200, margin: '0 auto', paddingLeft: 20, paddingRight: 20 }}>
                 {/* Text */}
                 <div className="reveal" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                  <h1 style={{ fontSize: '4rem', fontWeight: 900, color: 'var(--primary-color)', lineHeight: 1.1, margin: 0 }}>
+                  <h1 style={{ fontSize: '4rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1, margin: 0 }}>
                     Trung Tâm Bảo Dưỡng Xe Điện
-                    <span style={{ display: 'block', background: 'linear-gradient(135deg, var(--secondary-color), var(--primary-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginTop: '0.5rem' }}>
+                    <span className="text-gold-gradient" style={{ display: 'block', marginTop: '0.5rem' }}>
                       <strong>Chuyên Nghiệp & Tin Cậy</strong>
                     </span>
                   </h1>
@@ -73,13 +104,13 @@ export default function SavartHomepage() {
                   </p>
 
                   <div className="hero-cta">
-                    <Link to="/booking" className="btn-primary-new hero-cta-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.75rem', background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))', color: 'var(--tertiary-color)', padding: '1.1rem 2rem', border: 'none', borderRadius: 12, fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: '0.5px', boxShadow: '0 8px 25px rgba(0, 64, 48, 0.3)' }}>
+                    <Link to="/booking" className="btn-primary hero-cta-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.75rem', padding: '1.1rem 2rem', borderRadius: 12, fontSize: '1.05rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>
                       <span>Đặt Lịch Ngay</span>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </Link>
-                    <Link to="/services" className="btn-secondary" style={{  textDecoration: 'none', padding: '1rem 1.5rem', borderRadius: 12, fontWeight: 600 }}>
+                    <Link to="/services" className="btn-secondary" style={{ textDecoration: 'none', padding: '1rem 1.5rem', borderRadius: 12, fontWeight: 600 }}>
                       Xem Dịch Vụ
                     </Link>
                     <Link to="/about" className="about-link" style={{ textDecoration: 'none', alignSelf: 'center', fontWeight: 600, padding: '0.5rem 0.75rem' }}>
@@ -91,17 +122,17 @@ export default function SavartHomepage() {
                 {/* Visual */}
                 <div className="reveal reveal-delay-1" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <div style={{ position: 'relative', maxWidth: 500, width: '100%' }}>
-                    <div style={{ position: 'absolute', top: -20, left: -20, right: -20, bottom: -20, background: 'linear-gradient(135deg, var(--secondary-color), var(--primary-color))', borderRadius: 24, opacity: 0.1, zIndex: 1 }} />
+                    <div style={{ position: 'absolute', top: -20, left: -20, right: -20, bottom: -20, background: 'var(--gradient-gold-deep)', borderRadius: 24, opacity: 0.1, zIndex: 1 }} />
                     <img src={logoImage} alt="Electric Vehicle Service" style={{ position: 'relative', width: '100%', height: 'auto', borderRadius: 20, boxShadow: '0 25px 50px rgba(0, 64, 48, 0.2)', zIndex: 2, transition: 'transform 0.3s ease' }} />
 
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 3 }}>
-                      <div className="floating-card card-1" style={{ position: 'absolute', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(74,151,130,0.2)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 8px 25px rgba(0,64,48,0.15)', animation: 'float 6s ease-in-out infinite', top: '10%', right: '-10%', animationDelay: '0s' as any }}>
+                      <div className="floating-card card-1" style={{ position: 'absolute', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(184,134,11,0.25)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 8px 25px rgba(0,0,0,0.12)', animation: 'float 6s ease-in-out infinite', top: '10%', right: '-10%', animationDelay: '0s' as any }}>
                         <div className="card-text">Bảo Dưỡng Chuyên Nghiệp</div>
                       </div>
-                      <div className="floating-card card-2" style={{ position: 'absolute', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(74,151,130,0.2)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 8px 25px rgba(0,64,48,0.15)', animation: 'float 6s ease-in-out infinite', bottom: '30%', left: '-15%', animationDelay: '2s' as any }}>
+                      <div className="floating-card card-2" style={{ position: 'absolute', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(184,134,11,0.25)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 8px 25px rgba(0,0,0,0.12)', animation: 'float 6s ease-in-out infinite', bottom: '30%', left: '-15%', animationDelay: '2s' as any }}>
                         <div className="card-text">Đặt Lịch Online</div>
                       </div>
-                      <div className="floating-card card-3" style={{ position: 'absolute', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(74,151,130,0.2)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 8px 25px rgba(0,64,48,0.15)', animation: 'float 6s ease-in-out infinite', top: '60%', right: '-5%', animationDelay: '4s' as any }}>
+                      <div className="floating-card card-3" style={{ position: 'absolute', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(184,134,11,0.25)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 8px 25px rgba(0,0,0,0.12)', animation: 'float 6s ease-in-out infinite', top: '60%', right: '-5%', animationDelay: '4s' as any }}>
                         <div className="card-text">Công Nghệ AI</div>
                       </div>
                     </div>
@@ -120,7 +151,7 @@ export default function SavartHomepage() {
                 <div className="hero-pattern-overlay" />
               </div>
 
-              <div className="hero-content-mobile container">
+                <div className="hero-content-mobile container">
                 <div className="hero-text-content-mobile">
                   <div className="hero-badge">
                     <span className="badge-icon">⚡</span>
@@ -129,7 +160,7 @@ export default function SavartHomepage() {
 
                   <h1 className="hero-main-title-mobile">
                     Trung Tâm Bảo Dưỡng Xe Điện
-                    <span className="title-highlight">Chuyên Nghiệp & Tin Cậy</span>
+                    <span className="title-highlight text-gold-gradient">Chuyên Nghiệp & Tin Cậy</span>
                   </h1>
 
                   <p className="hero-description-mobile">
@@ -137,13 +168,13 @@ export default function SavartHomepage() {
                   </p>
 
                   <div className="hero-cta-section" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <Link to="/booking" className="btn-primary-new hero-cta-btn">
+                    <Link to="/booking" className="btn-primary hero-cta-btn">
                       <span>Đặt Lịch Ngay</span>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </Link>
-                    <Link to="/services" className="btn-secondary" style={{ borderColor: 'var(--secondary-color)', color: 'var(--secondary-color)', padding: '0.9rem 1.25rem', borderRadius: 12, fontWeight: 600 }}>
+                    <Link to="/services" className="btn-secondary" style={{ padding: '0.9rem 1.25rem', borderRadius: 12, fontWeight: 600 }}>
                       Xem Dịch Vụ
                     </Link>
                     <Link to="/about" style={{ alignSelf: 'center', color: 'var(--text-link)', fontWeight: 600, padding: '0.5rem 0.75rem' }}>
@@ -227,6 +258,7 @@ export default function SavartHomepage() {
             </div>
           </section>
 
+
           {/* Video Section */}
           <section className="video-section" style={{ padding: '6rem 0', background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--quaternary-color) 100%)' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
@@ -253,27 +285,81 @@ export default function SavartHomepage() {
             </div>
           </section>
 
+          {/* Showcase: Featured Services (requires login due to API) */}
+          {featuredServices.length > 0 && (
+            <section style={{ padding: '5rem 0', background: '#fff' }}>
+              <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
+                <h2 className="reveal" style={{ fontSize: '2.25rem', fontWeight: 800, textAlign: 'center', color: 'var(--text-primary)', marginBottom: '2.5rem' }}>Dịch Vụ Nổi Bật</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                  {featuredServices.map(s => (
+                    <div key={s.id} className="feature-card reveal" style={{ padding: '1.5rem', borderRadius: 16 }}>
+                      <h3 style={{ margin: 0, marginBottom: '.5rem' }}>{s.name}</h3>
+                      {s.description && <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{s.description}</p>}
+                      <div style={{ marginTop: '1rem' }}>
+                        <Link to={`/services/${s.id}`} className="btn-secondary" style={{ padding: '.6rem 1rem', borderRadius: 10 }}>Xem chi tiết</Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Showcase: Centers (requires login due to API) */}
+          {topCenters.length > 0 && (
+            <section style={{ padding: '4rem 0', background: 'linear-gradient(135deg, #FFF9E5 0%, #F8F9FA 100%)' }}>
+              <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
+                <h2 className="reveal" style={{ fontSize: '2rem', fontWeight: 800, textAlign: 'center', color: 'var(--text-primary)', marginBottom: '2rem' }}>Trung Tâm Tiêu Biểu</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+                  {topCenters.map(c => (
+                    <div key={c.id} className="feature-card reveal" style={{ padding: '1.5rem', borderRadius: 16 }}>
+                      <h3 style={{ margin: 0 }}>{c.name}</h3>
+                      {c.address && <p style={{ margin: '.5rem 0 0', color: 'var(--text-secondary)' }}>{c.address}</p>}
+                      <div style={{ marginTop: '1rem' }}>
+                        <Link to={`/centers/${c.id}`} className="btn-secondary" style={{ padding: '.6rem 1rem', borderRadius: 10 }}>Xem trung tâm</Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Shape divider between Video and CTA (compact angled, flipped, to-light) */}
+          <div className="shape-divider shape-divider--flip shape-divider--angled shape-divider--to-light">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+              <polygon className="shape-fill" points="0,0 1200,28 1200,120 0,120" />
+            </svg>
+          </div>
+
           {/* CTA Section */}
-          <section className="cta-section" style={{ padding: '6rem 0', background: 'linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%)', textAlign: 'center' }}>
+          <section className="cta-section" style={{ padding: '6rem 0', background: '#ffffff', textAlign: 'center' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px' }}>
               <div className="cta-content reveal">
-                <h2 style={{ fontSize: '3rem', fontWeight: 800, color: '#fff', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '3rem', fontWeight: 800, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
                   Sẵn Sàng Trải Nghiệm Dịch Vụ EV Chuyên Nghiệp?
                 </h2>
-                <p style={{ fontSize: '1.3rem', color: 'rgba(255,255,255,0.9)', marginBottom: '3rem', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+                <p style={{ fontSize: '1.3rem', color: 'var(--text-secondary)', marginBottom: '3rem', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
                   Hệ thống quản lý bảo dưỡng xe điện toàn diện với công nghệ AI và theo dõi thời gian thực
                 </p>
                 <div className="cta-buttons" style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <Link to="/booking" className="btn-primary" style={{ textDecoration: 'none', background: 'var(--tertiary-color)', color: 'var(--primary-color)', boxShadow: '0 6px 20px rgba(255,249,229,0.3)', padding: '1.2rem 3rem', border: 'none', borderRadius: 50, fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.4s ease', textTransform: 'uppercase', letterSpacing: '1px', position: 'relative', overflow: 'hidden' }}>
+                  <Link to="/booking" className="btn-primary" style={{ textDecoration: 'none', padding: '1.2rem 3rem', borderRadius: 50, fontSize: '1.2rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', position: 'relative', overflow: 'hidden' }}>
                     Đặt Lịch Bảo Dưỡng
                   </Link>
-                  <button className="btn-secondary" style={{ background: 'transparent', color: 'var(--tertiary-color)', border: '2px solid var(--tertiary-color)', padding: '1rem 2.5rem', borderRadius: 50, fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <button className="btn-secondary" style={{ padding: '1rem 2.5rem', borderRadius: 50, fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Xem Demo
                   </button>
                 </div>
               </div>
             </div>
           </section>
+
+          {/* Shape divider after CTA (compact angled, to-dark) */}
+          <div className="shape-divider shape-divider--angled shape-divider--to-dark">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+              <polygon className="shape-fill" points="0,0 1200,0 1200,110 0,82" />
+            </svg>
+          </div>
         </div>
       </main>
     </div>

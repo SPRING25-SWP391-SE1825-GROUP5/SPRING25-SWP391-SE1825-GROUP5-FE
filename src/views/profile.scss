@@ -18,6 +18,7 @@
   grid-template-columns: 300px 1fr;
   gap: 2rem;
   min-height: 80vh;
+  padding-top: 64px; /* đẩy toàn bộ hai cột xuống dưới header (64px) */
 }
 
 /* Modern Sidebar with Gradient */
@@ -992,6 +993,7 @@
   .profile-content {
     grid-template-columns: 1fr;
     gap: 1rem;
+    padding-top: 64px; /* vẫn giữ offset dưới header trên mobile/tablet */
   }
   
   .profile-sidebar {
@@ -1341,9 +1343,9 @@
 }
 
 .status-applied {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .status-used {

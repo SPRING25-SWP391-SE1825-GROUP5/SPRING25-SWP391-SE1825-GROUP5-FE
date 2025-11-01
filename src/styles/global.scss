@@ -193,6 +193,12 @@ main, .main-content {
   --primary-700: #8B6914;
   --primary-800: #5D4A00;
   --primary-900: #2F2500;
+  /* Gold/White gradients */
+  --brand-gold: #FFD875;
+  --brand-gold-deep: #B8860B;
+  --brand-white: #FFFFFF;
+  --gradient-gold-white: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-white) 100%);
+  --gradient-gold-deep: linear-gradient(135deg, var(--brand-gold-deep) 0%, var(--brand-gold) 100%);
 
   /* Secondary */
   --secondary-50: #FFF9E5;
@@ -210,6 +216,7 @@ main, .main-content {
   --text-primary: #000000;
   --text-secondary: #6b7280;
   --text-inverse: #000000;
+  --text-deep: #1f2937; /* dark for readability on light gradients */
 
   /* Surfaces */
   --bg-primary: #FFD875;
@@ -239,16 +246,16 @@ main, .main-content {
   justify-content: center;
   gap: .5rem;
   padding: .75rem 1.25rem;
-  background: var(--primary-500);
-  color: #ffffff;
-  border: 1px solid var(--primary-500);
+  background: var(--gradient-gold-white);
+  color: var(--text-deep);
+  border: 1px solid transparent;
   border-radius: 12px;
   font-weight: 700;
   letter-spacing: .2px;
   cursor: pointer;
   transition: all .2s ease;
 }
-.btn-primary:hover { filter: brightness(1.05); box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.btn-primary:hover { background: var(--gradient-gold-deep); box-shadow: 0 6px 18px rgba(0,0,0,.12); }
 .btn-primary:active { transform: translateY(1px); }
 .btn-primary:disabled { background: #e5e7eb; border-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; box-shadow: none; }
 
@@ -259,16 +266,24 @@ main, .main-content {
   gap: .5rem;
   padding: .7rem 1.15rem;
   background: transparent;
-  color: var(--primary-500);
-  border: 2px solid var(--primary-500);
+  color: var(--text-deep);
+  border: 2px solid transparent;
+  border-image: var(--gradient-gold-white) 1;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all .2s ease;
 }
-.btn-secondary:hover { background: var(--primary-50); }
+.btn-secondary:hover { background: linear-gradient(135deg, rgba(255,216,117,0.15), rgba(255,255,255,0.5)); }
 .btn-secondary:active { transform: translateY(1px); }
 .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+/* Gold gradient text utility */
+.text-gold-gradient {
+  background: var(--gradient-gold-deep);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
 table, th, td, thead, tbody {
   border: none !important;
@@ -368,4 +383,3 @@ table th:first-child {
   justify-content: center;
   pointer-events: none;
 }
-

@@ -177,6 +177,8 @@ export interface MaintenanceChecklistStatus {
 export const BookingService = {
   async getBookingsByCenter(centerId: number): Promise<BookingResponse> {
     const response = await api.get(`/Booking/center/${centerId}`)
+
+    
     return response.data
   },
 

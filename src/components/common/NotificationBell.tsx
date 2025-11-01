@@ -23,7 +23,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
     // Lấy token từ Redux hoặc localStorage
     const authToken = token || localStorage.getItem('token') || ''
     
-    if (authToken) {
+    if (token) {
       loadNotifications()
       loadUnreadCount()
       // Kết nối SignalR (chỉ kết nối nếu chưa kết nối)

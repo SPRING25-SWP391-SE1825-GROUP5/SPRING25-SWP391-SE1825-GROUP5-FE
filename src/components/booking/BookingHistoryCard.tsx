@@ -16,21 +16,28 @@ import './BookingHistoryCard.scss'
 interface BookingHistoryCardProps {
   booking: {
     bookingId: number
-    bookingCode: string
+    bookingCode?: string
     serviceName: string
     status: string
-    bookingDate: string
+    bookingDate?: string
+    date?: string
+    slotTime?: string
+    slotLabel?: string
     centerName: string
     technicianName?: string
-    vehicleInfo: {
-      licensePlate: string
-      carModel: string
+    vehicleInfo?: {
+      licensePlate?: string
+      carModel?: string
     }
+    licensePlate?: string
+    vehiclePlate?: string
+    carModel?: string
     estimatedCost?: number
     actualCost?: number
     notes?: string
     hasFeedback?: boolean
     feedback?: any
+    createdAt?: string
   }
   onFeedback?: (bookingId: number, feedback: FeedbackData) => Promise<void> | void
   onEditFeedback?: (bookingId: number, feedback: FeedbackData) => Promise<void> | void
@@ -142,17 +149,20 @@ export default function BookingHistoryCard({
           <div className="compact-row">
             <ClockIcon className="info-icon" />
             <span className="info-value">
-              {new Date(booking.bookingDate).toLocaleDateString('vi-VN', {
+              {new Date(booking.bookingDate || booking.date || booking.createdAt || Date.now()).toLocaleDateString('vi-VN', {
                 day: 'numeric',
                 month: 'short',
                 year: 'numeric'
               })}
             </span>
+            {booking.slotTime && (
+              <>
+                <ClockIcon className="info-icon" />
+                <span className="info-value">{booking.slotTime}</span>
+              </>
+            )}
             <MapPinIcon className="info-icon" />
             <span className="info-value">{booking.centerName}</span>
-            <span className="vehicle-value">
-              {booking.vehicleInfo.licensePlate}
-            </span>
           </div>
         </div>
 
@@ -165,13 +175,20 @@ export default function BookingHistoryCard({
                 <ClockIcon className="info-icon" />
                 <span className="info-label">Ngày đặt lịch:</span>
                 <span className="info-value">
-                  {new Date(booking.bookingDate).toLocaleDateString('vi-VN', {
+                  {new Date(booking.bookingDate || booking.date || booking.createdAt || Date.now()).toLocaleDateString('vi-VN', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
                   })}
                 </span>
               </div>
+              {booking.slotTime && (
+                <div className="info-row">
+                  <ClockIcon className="info-icon" />
+                  <span className="info-label">Khung giờ:</span>
+                  <span className="info-value">{booking.slotTime}{booking.slotLabel ? ` (${booking.slotLabel})` : ''}</span>
+                </div>
+              )}
               
               <div className="info-row">
                 <MapPinIcon className="info-icon" />
@@ -193,7 +210,7 @@ export default function BookingHistoryCard({
               <div className="vehicle-info">
                 <span className="vehicle-label">Phương tiện:</span>
                 <span className="vehicle-value">
-                  {booking.vehicleInfo.licensePlate} - {booking.vehicleInfo.carModel}
+                  {(booking.vehicleInfo?.licensePlate || booking.vehiclePlate || booking.licensePlate || '---')}
                 </span>
               </div>
             </div>
