@@ -70,14 +70,6 @@ tmp/
 api-worker-windows.exe
 .vscode
 
-# Screenshots and test artifacts
-screenshots/
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-
 # Playwright test results
 test-results/
 playwright-report/
