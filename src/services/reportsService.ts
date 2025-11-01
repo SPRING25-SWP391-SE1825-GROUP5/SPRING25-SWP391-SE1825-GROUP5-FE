@@ -162,13 +162,13 @@ const convertPeriodForRevenue = (period: string): string => {
 
 export const ReportsService = {
   // Revenue Report
-  async getRevenueReport(centerId: number, request: RevenueReportRequest): Promise<RevenueReportResponse> {
+  async getRevenueReport(centerId: number, request: RevenueReportRequest, groupBy: string = 'service'): Promise<RevenueReportResponse> {
     // Backend expects: StartDate, EndDate, Period (lowercase: daily/weekly/monthly/quarterly), GroupBy
     const params = {
       startDate: request.startDate,
       endDate: request.endDate,
       period: convertPeriodForRevenue(request.reportType),
-      groupBy: 'none',
+      groupBy: groupBy, // 'service' to get revenue by service data
       compareWithPrevious: false
     }
     const response = await api.get(`/Reports/revenue/${centerId}`, { params })

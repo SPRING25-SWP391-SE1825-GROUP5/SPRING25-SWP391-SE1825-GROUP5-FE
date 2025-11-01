@@ -73,6 +73,8 @@ import ServicePackageManagement from '../../components/admin/ServicePackageManag
 import PartManagement from '../../components/admin/PartManagement'
 import { useAppSelector } from '@/store/hooks'
 import TimeSlotManagement from './TimeSlotManagement';
+import { CenterService, type Center } from '../../services/centerService'
+import { ReportsService } from '../../services/reportsService'
 
 // System Settings Component
 
@@ -824,11 +826,252 @@ export default function AdminDashboard() {
     return r.includes('admin')
   })()
 
+  // Dashboard data state
+  const [centers, setCenters] = useState<Center[]>([])
+  const [selectedCenterId, setSelectedCenterId] = useState<number | 'all'>('all')
+  const [dashboardData, setDashboardData] = useState<{
+    revenue: any
+    bookings: any
+  } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   const handleLogout = () => {
     dispatch(logout())
     toast.success('Đăng xuất thành công!')
     navigate('/auth/login')
   }
+
+  // Load centers list
+  useEffect(() => {
+    const loadCenters = async () => {
+      try {
+        const response = await CenterService.getCenters({ pageSize: 1000 })
+        setCenters(response.centers || [])
+      } catch (err) {
+        console.error('Failed to load centers:', err)
+      }
+    }
+    loadCenters()
+  }, [])
+
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const endDate = new Date().toISOString().split('T')[0]
+      const startDate = new Date(new Date().setMonth(new Date().getMonth() - 11))
+        .toISOString().split('T')[0]
+
+      if (selectedCenterId === 'all') {
+        // Load revenue for all centers and aggregate
+        if (centers.length === 0 || !centers.some(c => c.isActive)) {
+          setDashboardData({
+            revenue: {
+              summary: {
+                totalRevenue: 0,
+                totalBookings: 0,
+                averageRevenuePerBooking: 0
+              },
+              revenueByPeriod: [],
+              groupedData: {
+                byService: []
+              }
+            },
+            bookings: {
+              totalBookings: 0,
+              completedBookings: 0,
+              cancelledBookings: 0,
+              pendingBookings: 0
+            }
+          })
+          return
+        }
+        const revenuePromises = centers
+          .filter(center => center.isActive)
+          .map(center =>
+            ReportsService.getRevenueReport(center.centerId, {
+              startDate,
+              endDate,
+              reportType: 'MONTHLY'
+            }).catch(err => {
+              console.error(`Failed to load revenue for center ${center.centerId}:`, err)
+              return null
+            })
+          )
+
+        const bookingsPromises = centers
+          .filter(center => center.isActive)
+          .map(center =>
+            ReportsService.getBookingsReport(center.centerId).catch(err => {
+              console.error(`Failed to load bookings for center ${center.centerId}:`, err)
+              return null
+            })
+          )
+
+        const [revenueResponses, bookingsResponses] = await Promise.all([
+          Promise.all(revenuePromises),
+          Promise.all(bookingsPromises)
+        ])
+
+        const validRevenueResponses = revenueResponses.filter(r => r && r.success)
+        const validBookingsResponses = bookingsResponses.filter(r => r && r.success)
+
+        // Aggregate revenue data - backend returns data with Summary, RevenueByPeriod, GroupedData
+        const revenueDataArray = validRevenueResponses.map(r => r!.data)
+        console.log('Revenue data from API:', revenueDataArray)
+        const aggregatedRevenue = aggregateRevenueData(revenueDataArray)
+        console.log('Aggregated revenue:', aggregatedRevenue)
+        
+        // Aggregate bookings data from bookings report
+        const bookingsDataArray = validBookingsResponses.map(r => r!.data)
+        const aggregatedBookings = aggregateBookingsData(bookingsDataArray)
+        
+        // Use totalBookings from revenue report if available (more accurate for the time period)
+        if (aggregatedRevenue.summary.totalBookings > 0) {
+          aggregatedBookings.totalBookings = aggregatedRevenue.summary.totalBookings
+        }
+
+        setDashboardData({
+          revenue: aggregatedRevenue,
+          bookings: aggregatedBookings
+        })
+      } else {
+        // Load revenue for selected center only
+        const [revenueResponse, bookingResponse] = await Promise.all([
+          ReportsService.getRevenueReport(selectedCenterId, {
+            startDate,
+            endDate,
+            reportType: 'MONTHLY'
+          }),
+          ReportsService.getTodayBookings(selectedCenterId)
+        ])
+
+        console.log('Single center revenue response:', revenueResponse.data)
+        console.log('Single center booking response:', bookingResponse.data)
+        
+        setDashboardData({
+          revenue: revenueResponse.data,
+          bookings: bookingResponse.data
+        })
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Có lỗi xảy ra khi tải dữ liệu dashboard')
+      toast.error('Không thể tải dữ liệu doanh thu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Aggregate revenue data from multiple centers
+  const aggregateRevenueData = (revenueDataArray: any[]) => {
+    if (!revenueDataArray || revenueDataArray.length === 0) {
+      return {
+        summary: {
+          totalRevenue: 0,
+          totalBookings: 0,
+          averageRevenuePerBooking: 0
+        },
+        revenueByPeriod: [],
+        groupedData: {
+          byService: []
+        }
+      }
+    }
+
+    // Aggregate totals from Summary
+    const totalRevenue = revenueDataArray.reduce((sum, data) => sum + (data.summary?.totalRevenue || data.Summary?.TotalRevenue || 0), 0)
+    const totalBookings = revenueDataArray.reduce((sum, data) => sum + (data.summary?.totalBookings || data.Summary?.TotalBookings || 0), 0)
+    const averageRevenuePerBooking = totalBookings > 0 ? totalRevenue / totalBookings : 0
+
+    // Aggregate revenue by period
+    const periodMap = new Map<string, { revenue: number; bookings: number }>()
+    revenueDataArray.forEach(data => {
+      // Handle both camelCase and PascalCase
+      const periods = data.revenueByPeriod || data.RevenueByPeriod || []
+      periods.forEach((item: any) => {
+        const period = item.period || item.Period || ''
+        const revenue = item.revenue || item.Revenue || 0
+        const bookings = item.bookings || item.Bookings || 0
+        const existing = periodMap.get(period) || { revenue: 0, bookings: 0 }
+        periodMap.set(period, {
+          revenue: existing.revenue + revenue,
+          bookings: existing.bookings + bookings
+        })
+      })
+    })
+    const revenueByPeriod = Array.from(periodMap.entries()).map(([period, data]) => ({
+      period,
+      revenue: data.revenue,
+      bookings: data.bookings
+    })).sort((a, b) => {
+      // Sort by period (month format: yyyy-MM)
+      return a.period.localeCompare(b.period)
+    })
+
+    // Aggregate revenue by service from GroupedData
+    const serviceMap = new Map<string, { revenue: number; bookings: number }>()
+    revenueDataArray.forEach(data => {
+      // Handle both camelCase and PascalCase
+      const byService = data.groupedData?.byService || data.GroupedData?.ByService || []
+      byService.forEach((item: any) => {
+        const serviceName = item.serviceName || item.ServiceName || ''
+        const revenue = item.revenue || item.Revenue || 0
+        const bookings = item.bookings || item.Bookings || 0
+        const existing = serviceMap.get(serviceName) || { revenue: 0, bookings: 0 }
+        serviceMap.set(serviceName, {
+          revenue: existing.revenue + revenue,
+          bookings: existing.bookings + bookings
+        })
+      })
+    })
+    const byService = Array.from(serviceMap.entries()).map(([serviceName, data]) => ({
+      serviceName,
+      revenue: data.revenue,
+      bookings: data.bookings
+    })).sort((a, b) => b.revenue - a.revenue)
+
+    return {
+      summary: {
+        totalRevenue,
+        totalBookings,
+        averageRevenuePerBooking
+      },
+      revenueByPeriod,
+      groupedData: {
+        byService
+      }
+    }
+  }
+
+  // Aggregate bookings data
+  const aggregateBookingsData = (bookingsDataArray: any[]) => {
+    if (!bookingsDataArray || bookingsDataArray.length === 0) {
+      return {
+        totalBookings: 0,
+        completedBookings: 0,
+        cancelledBookings: 0,
+        pendingBookings: 0
+      }
+    }
+
+    return {
+      totalBookings: bookingsDataArray.reduce((sum, data) => sum + (data.totalBookings || 0), 0),
+      completedBookings: bookingsDataArray.reduce((sum, data) => sum + (data.completedBookings || 0), 0),
+      cancelledBookings: bookingsDataArray.reduce((sum, data) => sum + (data.cancelledBookings || 0), 0),
+      pendingBookings: bookingsDataArray.reduce((sum, data) => sum + (data.pendingBookings || 0), 0)
+    }
+  }
+
+  // Load dashboard data when center selection changes or centers are loaded
+  useEffect(() => {
+    if (centers.length > 0) {
+      loadDashboardData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCenterId, centers.length])
 
   // Page components
   const renderPageContent = () => {
@@ -874,26 +1117,295 @@ export default function AdminDashboard() {
     }
   }
 
-  const renderDashboardContent = () => (
-    <>
-      {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{
-          fontSize: '32px',
-          fontWeight: '700',
-          color: 'var(--text-primary)',
-          margin: '0 0 8px 0'
-        }}>
-          Dashboard
-        </h1>
-        <p style={{
-          fontSize: '16px',
-          color: 'var(--text-secondary)',
-          margin: '0'
-        }}>
-          Tổng quan hệ thống quản lý dịch vụ xe điện
-        </p>
-      </div>
+  const renderDashboardContent = () => {
+    // Backend returns: data.summary.totalRevenue, data.revenueByPeriod, data.groupedData.byService
+    // Handle both camelCase and PascalCase from backend
+    const revenue = dashboardData?.revenue
+    const summary = revenue?.summary || revenue?.Summary
+    const revenueByPeriod = revenue?.revenueByPeriod || revenue?.RevenueByPeriod || []
+    const groupedData = revenue?.groupedData || revenue?.GroupedData
+    const byService = groupedData?.byService || groupedData?.ByService || []
+
+    // Prepare revenue data for chart
+    const revenueData = revenueByPeriod.map((item: any) => ({
+      month: item.period || item.Period || '',
+      revenue: Number(item.revenue || item.Revenue || 0),
+      orders: item.bookings || item.Bookings || 0
+    }))
+
+    // Prepare service data for pie chart
+    const serviceData = byService.length > 0 
+      ? byService.slice(0, 4).map((item: any, index: number) => {
+          const colors = ['var(--primary-500)', 'var(--success-500)', 'var(--warning-500)', 'var(--info-500)']
+          const totalRevenue = Number(summary?.totalRevenue || summary?.TotalRevenue || 0)
+          const itemRevenue = Number(item.revenue || item.Revenue || 0)
+          return {
+            name: item.serviceName || item.ServiceName || '',
+            value: totalRevenue > 0 ? Math.round((itemRevenue / totalRevenue) * 100) : 0,
+            color: colors[index % colors.length]
+          }
+        })
+      : [
+          { name: 'Bảo trì', value: 45, color: 'var(--primary-500)' },
+          { name: 'Sửa chữa', value: 30, color: 'var(--success-500)' },
+          { name: 'Thay thế phụ tùng', value: 15, color: 'var(--warning-500)' },
+          { name: 'Kiểm tra định kỳ', value: 10, color: 'var(--info-500)' }
+        ]
+
+    // Prepare stats
+    const totalRevenue = Number(summary?.totalRevenue || summary?.TotalRevenue || 0)
+    const totalBookings = summary?.totalBookings || summary?.TotalBookings || 0
+    const completedBookings = dashboardData?.bookings?.completedBookings || dashboardData?.bookings?.totalBookings || 0
+    const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : '0'
+
+    // Chart data (for charts that don't use API yet)
+    const customerGrowthData = [
+      { month: 'T1', newCustomers: 12, returningCustomers: 8 },
+      { month: 'T2', newCustomers: 15, returningCustomers: 12 },
+      { month: 'T3', newCustomers: 18, returningCustomers: 15 },
+      { month: 'T4', newCustomers: 14, returningCustomers: 18 },
+      { month: 'T5', newCustomers: 22, returningCustomers: 20 },
+      { month: 'T6', newCustomers: 25, returningCustomers: 24 },
+      { month: 'T7', newCustomers: 20, returningCustomers: 22 },
+      { month: 'T8', newCustomers: 28, returningCustomers: 26 },
+      { month: 'T9', newCustomers: 24, returningCustomers: 28 },
+      { month: 'T10', newCustomers: 30, returningCustomers: 32 },
+      { month: 'T11', newCustomers: 32, returningCustomers: 35 },
+      { month: 'T12', newCustomers: 35, returningCustomers: 38 }
+    ]
+
+    const partsInventoryData = [
+      { name: 'Pin Lithium', stock: 45, minStock: 20, color: 'var(--success-500)' },
+      { name: 'Bộ sạc', stock: 12, minStock: 15, color: 'var(--warning-500)' },
+      { name: 'Động cơ', stock: 8, minStock: 10, color: 'var(--error-500)' },
+      { name: 'Phanh đĩa', stock: 25, minStock: 15, color: 'var(--success-500)' },
+      { name: 'Lốp xe', stock: 18, minStock: 20, color: 'var(--warning-500)' },
+      { name: 'Đèn LED', stock: 35, minStock: 25, color: 'var(--success-500)' }
+    ]
+
+    const quickActions = [
+      {
+        title: 'Quản lý nhân sự',
+        description: 'Thêm, sửa, xóa nhân viên',
+        icon: UserCheck,
+        page: 'staff',
+        color: 'var(--primary-500)'
+      },
+      {
+        title: 'Quản lý dịch vụ',
+        description: 'Thêm, sửa, xóa dịch vụ',
+        icon: Wrench,
+        page: 'services',
+        color: 'var(--success-500)'
+      },
+      {
+        title: 'Quản lý phụ tùng',
+        description: 'Kiểm tra tồn kho, nhập hàng',
+        icon: Package,
+        page: 'parts',
+        color: 'var(--success-500)'
+      },
+      {
+        title: 'Cài đặt hệ thống',
+        description: 'Cấu hình và tùy chỉnh hệ thống',
+        icon: Settings,
+        page: 'settings',
+        color: '#6366f1'
+      },
+      {
+        title: 'Báo cáo',
+        description: 'Xem báo cáo doanh thu, thống kê',
+        icon: BarChart3,
+        page: 'reports',
+        color: 'var(--info-500)'
+      },
+      {
+        title: 'Quản lý người dùng',
+        description: 'Quản lý tài khoản khách hàng',
+        icon: Users,
+        page: 'users',
+        color: 'var(--warning-500)'
+      }
+    ]
+
+    const recentActivities = [
+      {
+        id: 1,
+        action: 'Đơn hàng mới',
+        description: 'Đơn hàng #ORD-001 từ Nguyễn Văn A',
+        time: '5 phút trước',
+        type: 'order'
+      },
+      {
+        id: 2,
+        action: 'Nhập kho',
+        description: 'Nhập 50 pin lithium 48V',
+        time: '1 giờ trước',
+        type: 'inventory'
+      },
+      {
+        id: 3,
+        action: 'Bảo trì hoàn thành',
+        description: 'Xe Honda Lead đã hoàn thành bảo trì',
+        time: '2 giờ trước',
+        type: 'maintenance'
+      },
+      {
+        id: 4,
+        action: 'Khách hàng mới',
+        description: 'Đăng ký tài khoản mới',
+        time: '3 giờ trước',
+        type: 'user'
+      }
+    ]
+
+    const stats = [
+      {
+        title: 'Tổng doanh thu',
+        value: totalRevenue.toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: '+12.5%',
+        changeType: 'positive' as const,
+        icon: DollarSign,
+        color: 'var(--primary-500)'
+      },
+      {
+        title: 'Tổng đơn hàng',
+        value: totalBookings.toString(),
+        unit: 'đơn',
+        change: '+8.2%',
+        changeType: 'positive' as const,
+        icon: Package,
+        color: 'var(--success-500)'
+      },
+      {
+        title: 'Đơn hoàn thành',
+        value: completedBookings.toString(),
+        unit: 'đơn',
+        change: '+5.1%',
+        changeType: 'positive' as const,
+        icon: Users,
+        color: 'var(--info-500)'
+      },
+      {
+        title: 'Tỷ lệ hoàn thành',
+        value: completionRate,
+        unit: '%',
+        change: '+2.3%',
+        changeType: 'positive' as const,
+        icon: Activity,
+        color: 'var(--warning-500)'
+      }
+    ]
+
+    return (
+      <>
+        {/* Header */}
+        <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{
+              fontSize: '32px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              margin: '0 0 8px 0'
+            }}>
+              Dashboard
+            </h1>
+            <p style={{
+              fontSize: '16px',
+              color: 'var(--text-secondary)',
+              margin: '0'
+            }}>
+              Tổng quan hệ thống quản lý dịch vụ xe điện
+            </p>
+          </div>
+
+          {/* Center Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <label style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: 'var(--text-secondary)'
+            }}>
+              Lọc theo trung tâm:
+            </label>
+            <select
+              value={selectedCenterId}
+              onChange={(e) => setSelectedCenterId(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                minWidth: '200px',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--primary-500)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-primary)'}
+            >
+              <option value="all">Tất cả trung tâm</option>
+              {centers.filter(c => c.isActive).map(center => (
+                <option key={center.centerId} value={center.centerId}>
+                  {center.centerName}
+                </option>
+              ))}
+            </select>
+            {loading && <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-primary)',
+            borderRadius: '8px',
+            padding: '24px',
+            marginBottom: '24px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite' }} />
+            <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+              Đang tải dữ liệu doanh thu...
+            </span>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && !loading && (
+          <div style={{
+            background: '#fee2e2',
+            border: '1px solid #ef4444',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span style={{ color: '#991b1b', fontSize: '14px' }}>{error}</span>
+            <button
+              onClick={loadDashboardData}
+              style={{
+                background: 'transparent',
+                border: '1px solid #ef4444',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                color: '#991b1b',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
 
       {/* Stats Grid */}
       <div
@@ -1325,169 +1837,7 @@ export default function AdminDashboard() {
       </div>
     </>
   )
-
-  // Chart data
-  const revenueData = [
-    { month: 'T1', revenue: 2400000, orders: 45 },
-    { month: 'T2', revenue: 2800000, orders: 52 },
-    { month: 'T3', revenue: 3200000, orders: 48 },
-    { month: 'T4', revenue: 2900000, orders: 41 },
-    { month: 'T5', revenue: 3500000, orders: 58 },
-    { month: 'T6', revenue: 4200000, orders: 62 },
-    { month: 'T7', revenue: 3800000, orders: 55 },
-    { month: 'T8', revenue: 4500000, orders: 68 },
-    { month: 'T9', revenue: 4100000, orders: 59 },
-    { month: 'T10', revenue: 4800000, orders: 72 },
-    { month: 'T11', revenue: 5200000, orders: 78 },
-    { month: 'T12', revenue: 5800000, orders: 85 }
-  ]
-
-  const serviceData = [
-    { name: 'Bảo trì', value: 45, color: 'var(--primary-500)' },
-    { name: 'Sửa chữa', value: 30, color: 'var(--success-500)' },
-    { name: 'Thay thế phụ tùng', value: 15, color: 'var(--warning-500)' },
-    { name: 'Kiểm tra định kỳ', value: 10, color: 'var(--info-500)' }
-  ]
-
-  const customerGrowthData = [
-    { month: 'T1', newCustomers: 12, returningCustomers: 8 },
-    { month: 'T2', newCustomers: 15, returningCustomers: 12 },
-    { month: 'T3', newCustomers: 18, returningCustomers: 15 },
-    { month: 'T4', newCustomers: 14, returningCustomers: 18 },
-    { month: 'T5', newCustomers: 22, returningCustomers: 20 },
-    { month: 'T6', newCustomers: 25, returningCustomers: 24 },
-    { month: 'T7', newCustomers: 20, returningCustomers: 22 },
-    { month: 'T8', newCustomers: 28, returningCustomers: 26 },
-    { month: 'T9', newCustomers: 24, returningCustomers: 28 },
-    { month: 'T10', newCustomers: 30, returningCustomers: 32 },
-    { month: 'T11', newCustomers: 32, returningCustomers: 35 },
-    { month: 'T12', newCustomers: 35, returningCustomers: 38 }
-  ]
-
-  const partsInventoryData = [
-    { name: 'Pin Lithium', stock: 45, minStock: 20, color: 'var(--success-500)' },
-    { name: 'Bộ sạc', stock: 12, minStock: 15, color: 'var(--warning-500)' },
-    { name: 'Động cơ', stock: 8, minStock: 10, color: 'var(--error-500)' },
-    { name: 'Phanh đĩa', stock: 25, minStock: 15, color: 'var(--success-500)' },
-    { name: 'Lốp xe', stock: 18, minStock: 20, color: 'var(--warning-500)' },
-    { name: 'Đèn LED', stock: 35, minStock: 25, color: 'var(--success-500)' }
-  ]
-
-
-  const stats = [
-    {
-      title: 'Tổng doanh thu',
-      value: '2,450,000,000',
-      unit: 'VND',
-      change: '+12.5%',
-      changeType: 'positive',
-      icon: DollarSign,
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Đơn hàng mới',
-      value: '156',
-      unit: 'đơn',
-      change: '+8.2%',
-      changeType: 'positive',
-      icon: Package,
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Khách hàng',
-      value: '1,234',
-      unit: 'người',
-      change: '+5.1%',
-      changeType: 'positive',
-      icon: Users,
-      color: 'var(--info-500)'
-    },
-    {
-      title: 'Tỷ lệ hoàn thành',
-      value: '94.2',
-      unit: '%',
-      change: '+2.3%',
-      changeType: 'positive',
-      icon: Activity,
-      color: 'var(--warning-500)'
-    }
-  ]
-
-  const quickActions = [
-    {
-      title: 'Quản lý nhân sự',
-      description: 'Thêm, sửa, xóa nhân viên',
-      icon: UserCheck,
-      page: 'staff',
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Quản lý dịch vụ',
-      description: 'Thêm, sửa, xóa dịch vụ',
-      icon: Wrench,
-      page: 'services',
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Quản lý phụ tùng',
-      description: 'Kiểm tra tồn kho, nhập hàng',
-      icon: Package,
-      page: 'parts',
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Cài đặt hệ thống',
-      description: 'Cấu hình và tùy chỉnh hệ thống',
-      icon: Settings,
-      page: 'settings',
-      color: '#6366f1'
-    },
-    {
-      title: 'Báo cáo',
-      description: 'Xem báo cáo doanh thu, thống kê',
-      icon: BarChart3,
-      page: 'reports',
-      color: 'var(--info-500)'
-    },
-    {
-      title: 'Quản lý người dùng',
-      description: 'Quản lý tài khoản khách hàng',
-      icon: Users,
-      page: 'users',
-      color: 'var(--warning-500)'
-    }
-  ]
-
-  const recentActivities = [
-    {
-      id: 1,
-      action: 'Đơn hàng mới',
-      description: 'Đơn hàng #ORD-001 từ Nguyễn Văn A',
-      time: '5 phút trước',
-      type: 'order'
-    },
-    {
-      id: 2,
-      action: 'Nhập kho',
-      description: 'Nhập 50 pin lithium 48V',
-      time: '1 giờ trước',
-      type: 'inventory'
-    },
-    {
-      id: 3,
-      action: 'Bảo trì hoàn thành',
-      description: 'Xe Honda Lead đã hoàn thành bảo trì',
-      time: '2 giờ trước',
-      type: 'maintenance'
-    },
-    {
-      id: 4,
-      action: 'Khách hàng mới',
-      description: 'Đăng ký tài khoản mới',
-      time: '3 giờ trước',
-      type: 'user'
-    }
-  ]
+  }
 
   return (
     <div className="admin-dashboard" style={{ display: 'flex', minHeight: '100vh', fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif' }}>
