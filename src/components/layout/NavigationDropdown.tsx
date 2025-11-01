@@ -52,6 +52,7 @@ interface HeaderDropdownProps {
   mobileBreakpoint?: number
   showMobileMenu?: boolean
   onMobileMenuToggle?: (isOpen: boolean) => void
+  hasEmailBanner?: boolean
   // Styling options
   headerHeight?: string
   dropdownShadow?: string
@@ -68,6 +69,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
   mobileBreakpoint = 1024,
   showMobileMenu = false,
   onMobileMenuToggle,
+  hasEmailBanner = false,
   headerHeight = '57px',
   dropdownShadow = '0 8px 30px rgba(0, 0, 0, 0.12)',
   hoverColor = '#e3f2fd',
@@ -245,7 +247,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     <>
       <header 
         ref={headerRef}
-        className={`header-dropdown ${className}`}
+        className={`header-dropdown ${hasEmailBanner ? 'has-email-banner' : ''} ${className}`}
         style={{ 
           '--header-height': headerHeight,
           '--transition-duration': `${transitionDuration}ms`,
