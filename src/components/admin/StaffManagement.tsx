@@ -42,6 +42,7 @@ import type {
     TechnicianFormData
 } from '@/types/staff'
 import type { Center } from '@/services/centerService'
+import './StaffManagement.scss'
 
 interface StaffManagementProps {
     className?: string
@@ -713,9 +714,9 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
     )
 
     return (
-        <div style={{
-            padding: '24px',
-            background: 'var(--bg-secondary)',
+        <div className="staff-management" style={{
+            padding: '0px 16px 16px 16px',
+            background: '#fff',
             minHeight: '100vh',
             animation: 'fadeIn 0.5s ease-out'
         }}>
@@ -736,6 +737,16 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
+        @keyframes slideInFromTop {
+          from { 
+            opacity: 0; 
+            transform: translateY(-30px) translateX(-20px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0) translateX(0); 
+          }
+        }
       `}</style>
 
             {/* Header */}
@@ -750,7 +761,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                 <div>
                     <h2 style={{
                         fontSize: '28px',
-                        fontWeight: '700',
+                        fontWeight: '600',
                         color: 'var(--text-primary)',
                         margin: '0 0 8px 0',
                         background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -764,7 +775,7 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                         color: 'var(--text-secondary)',
                         margin: '0'
                     }}>
-                        Quản lý thông tin nhân viên và kỹ thuật viên
+                        Phân công nhân viên và kỹ thuật viên cho trung tâm 
                     </p>
                 </div>
 
@@ -987,90 +998,60 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                         </button>
                     </div>
 
-                    <div style={{
-                        padding: '8px 16px',
-                        background: 'var(--primary-50)',
-                        color: 'var(--primary-700)',
-                        borderRadius: '20px',
-                        fontSize: '14px',
-                        fontWeight: '600'
-                    }}>
-                        {visibleEmployees.length} {activeTab === 'staff' ? 'nhân viên' : 'kỹ thuật viên'} hiện tại
-                    </div>
+                        <div style={{
+                            padding: '8px 16px',
+                            background: '#FFF6D1',
+                            color: '#000',
+                            borderRadius: '20px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            border: '1px solid #FFD875'
+                        }}>
+                            {visibleEmployees.length} {activeTab === 'staff' ? 'nhân viên' : 'kỹ thuật viên'} hiện tại
+                        </div>
                 </div>
 
                 {/* Toolbar */}
-                <div style={{
-                    background: 'var(--bg-secondary)',
-                    padding: '24px',
-                    borderRadius: '16px',
-                    border: '1px solid var(--border-primary)',
-                    marginBottom: '24px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-                }}>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 1fr auto auto',
-                        gap: '16px',
-                        alignItems: 'end'
-                    }}>
-                        <div>
-                            <label style={{
-                                display: 'block',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: 'var(--text-primary)',
-                                marginBottom: '8px'
-                            }}>
-                                Tìm kiếm
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                                <Search size={16} style={{
-                                    position: 'absolute',
-                                    left: '12px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--text-tertiary)'
-                                }} />
-                                <input
-                                    type="text"
-                                    placeholder="Tìm kiếm theo tên, email, SĐT..."
-                                    value={filters.searchTerm}
-                                    onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                <div className="staff-toolbar">
+                    <div className="toolbar-top">
+                        <div className="toolbar-left">
+                            <div className="toolbar-sep" />
+                        </div>
+                        <div className="toolbar-right" style={{ flex: 1 }}>
+                            <div className="toolbar-search">
+                                <div className="search-wrap">
+                                    <Search size={14} className="icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm theo tên, email, SĐT..."
+                                        value={filters.searchTerm}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="toolbar-actions">
+                                <button
+                                    onClick={handleOpenAssignmentModal}
+                                    className="accent-button toolbar-adduser"
                                     style={{
-                                        width: '100%',
-                                        padding: '12px 12px 12px 40px',
-                                        border: '2px solid var(--border-primary)',
+                                        padding: '10px 16px',
+                                        border: 'none',
                                         borderRadius: '10px',
-                                        background: 'var(--bg-secondary)',
-                                        color: 'var(--text-primary)',
                                         fontSize: '14px',
-                                        transition: 'all 0.2s ease',
-                                        outline: 'none',
-                                        boxSizing: 'border-box'
+                                        fontWeight: '500',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
                                     }}
-                                    onFocus={(e) => {
-                                        e.target.style.borderColor = 'var(--primary-500)'
-                                        e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                                    }}
-                                    onBlur={(e) => {
-                                        e.target.style.borderColor = 'var(--border-primary)'
-                                        e.target.style.boxShadow = 'none'
-                                    }}
-                                />
+                                >
+                                    <Plus size={16} /> Phân công
+                                </button>
                             </div>
                         </div>
-
-                        <div>
-                            <label style={{
-                                display: 'block',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: 'var(--text-primary)',
-                                marginBottom: '8px'
-                            }}>
-                                Trung tâm
-                            </label>
+                    </div>
+                    <div className="toolbar-filters">
+                        <div className="pill-select">
+                            <Building2 size={14} className="icon" />
                             <select
                                 value={filters.centerId || ''}
                                 onChange={(e) => setFilters(prev => ({ 
@@ -1078,17 +1059,6 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                     centerId: e.target.value ? Number(e.target.value) : null,
                                     unassigned: false
                                 }))}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    border: '2px solid var(--border-primary)',
-                                    borderRadius: '10px',
-                                    background: 'var(--bg-secondary)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '14px',
-                                    cursor: 'pointer',
-                                    outline: 'none'
-                                }}
                             >
                                 <option value="">Tất cả trung tâm</option>
                                 {centers.map(center => (
@@ -1099,33 +1069,14 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                             </select>
                         </div>
 
-                        <div>
-                            <label style={{
-                                display: 'block',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: 'var(--text-primary)',
-                                marginBottom: '8px'
-                            }}>
-                                Trạng thái
-                            </label>
+                        <div className="pill-select">
+                            <Activity size={14} className="icon" />
                             <select
                                 value={filters.isActive === null ? '' : filters.isActive.toString()}
                                 onChange={(e) => setFilters(prev => ({ 
                                     ...prev, 
                                     isActive: e.target.value === '' ? null : e.target.value === 'true' 
                                 }))}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    border: '2px solid var(--border-primary)',
-                                    borderRadius: '10px',
-                                    background: 'var(--bg-secondary)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '14px',
-                                    cursor: 'pointer',
-                                    outline: 'none'
-                                }}
                             >
                                 <option value="">Tất cả trạng thái</option>
                                 <option value="true">Hoạt động</option>
@@ -1133,180 +1084,112 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                             </select>
                         </div>
 
-                        
-
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap', minWidth: 0 }}>
-                            <button
-                                onClick={() => {
-                                    setPagination(prev => ({ ...prev, pageNumber: 1 }))
-                                    setFilters({
-                                        searchTerm: '',
-                                        centerId: null,
-                                        isActive: null,
-                                        unassigned: false
-                                    })
-                                }}
-                                disabled={loading}
-                                style={{
-                                    padding: '12px 16px',
-                                    border: '2px solid var(--border-primary)',
-                                    background: 'var(--bg-secondary)',
-                                    color: 'var(--text-primary)',
-                                    borderRadius: '10px',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.2s ease',
-                                    whiteSpace: 'nowrap',
-                                    flexShrink: 0
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--primary-500)'
-                                    e.currentTarget.style.background = 'var(--primary-50)'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                                    e.currentTarget.style.background = 'var(--bg-secondary)'
-                                }}
-                            >
-                                <RefreshCw size={14} />
-                                Đặt lại bộ lọc
-                            </button>
-
-                            <button
-                                onClick={handleOpenAssignmentModal}
-                                style={{
-                                    padding: '12px 16px',
-                                    background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                                    transition: 'all 0.2s ease',
-                                    transform: 'translateY(0)',
-                                    whiteSpace: 'nowrap',
-                                    flexShrink: 0
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-2px)'
-                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)'
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-                                }}
-                            >
-                                <Plus size={16} />
-                                Phân công
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => {
+                                setPagination(prev => ({ ...prev, pageNumber: 1 }))
+                                setFilters({
+                                    searchTerm: '',
+                                    centerId: null,
+                                    isActive: null,
+                                    unassigned: false
+                                })
+                            }}
+                            disabled={loading}
+                            className="toolbar-chip"
+                        >
+                            <RefreshCw size={14} /> Đặt lại bộ lọc
+                        </button>
                     </div>
                 </div>
 
                 {/* Table */}
                 <div style={{ overflow: 'auto' }}>
-                    <table style={{
-                        width: '100%',
-                        borderCollapse: 'collapse',
-                        background: 'var(--bg-card)',
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-                    }}>
+                    <table className="staff-table">
                         <thead>
-                            <tr style={{
-                                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                                color: 'white'
-                            }}>
+                            <tr className="table-header-yellow" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
                                 <th 
                                     onClick={() => handleSort('fullName')}
                                     style={{
                                         padding: '16px 20px',
                                         textAlign: 'left',
                                         fontSize: '14px',
-                                        fontWeight: '600',
+                                        fontWeight: '500',
                                         border: 'none',
                                         cursor: 'pointer',
                                         userSelect: 'none',
                                         transition: 'all 0.2s ease'
                                     }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        Thông tin
+                                    <span className="th-inner">
+                                        <Users size={16} className="th-icon" /> Thông tin
                                         <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'fullName' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
                                             {getSortIcon('fullName')}
                                         </div>
-                                    </div>
+                                    </span>
                                 </th>
                                 <th style={{
                                     padding: '16px 20px',
                                     textAlign: 'left',
                                     fontSize: '14px',
-                                    fontWeight: '600',
+                                    fontWeight: '500',
                                     border: 'none'
                                 }}>
-                                    Trung tâm
+                                    <span className="th-inner">
+                                        <Building2 size={16} className="th-icon" /> Trung tâm
+                                    </span>
                                 </th>
                                 <th style={{
                                     padding: '16px 20px',
                                     textAlign: 'left',
                                     fontSize: '14px',
-                                    fontWeight: '600',
+                                    fontWeight: '500',
                                     border: 'none'
                                 }}>
-                                    Vai trò
+                                    <span className="th-inner">
+                                        <UserCheck size={16} className="th-icon" /> Vai trò
+                                    </span>
                                 </th>
                                 <th style={{
                                     padding: '16px 20px',
-                                    textAlign: 'center',
+                                    textAlign: 'left',
                                     fontSize: '14px',
-                                    fontWeight: '600',
+                                    fontWeight: '500',
                                     border: 'none'
                                 }}>
-                                    Trạng thái
+                                    <span className="th-inner">
+                                        <Activity size={16} className="th-icon" /> Trạng thái
+                                    </span>
                                 </th>
                                 <th 
                                     onClick={() => handleSort('createdAt')}
                                     style={{
                                         padding: '16px 20px',
-                                        textAlign: 'center',
+                                        textAlign: 'left',
                                         fontSize: '14px',
-                                        fontWeight: '600',
+                                        fontWeight: '500',
                                         border: 'none',
                                         cursor: 'pointer',
                                         userSelect: 'none',
                                         transition: 'all 0.2s ease'
                                     }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                        Ngày tạo
+                                    <span className="th-inner">
+                                        <Clock size={16} className="th-icon" /> Ngày tạo
                                         <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'createdAt' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
                                             {getSortIcon('createdAt')}
                                         </div>
-                                    </div>
+                                    </span>
                                 </th>
                                 <th style={{
                                     padding: '16px 20px',
-                                    textAlign: 'center',
+                                    textAlign: 'left',
                                     fontSize: '14px',
-                                    fontWeight: '600',
+                                    fontWeight: '500',
                                     border: 'none'
                                 }}>
-                                    Thao tác
+                                    <span className="th-inner">
+                                        <Settings size={16} className="th-icon" /> Thao tác
+                                    </span>
                                 </th>
                             </tr>
                         </thead>
@@ -1323,124 +1206,77 @@ export default function StaffManagement({ className = '' }: StaffManagementProps
                                 (sortedVisibleEmployees ?? []).map((employee: Employee, index: number) => (
                                     <tr
                                         key={employee.id}
+                                        className="table-row"
                                         style={{
-                                            borderBottom: '1px solid var(--border-primary)',
-                                            transition: 'all 0.2s ease',
-                                            background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = 'var(--primary-50)'
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                                            borderBottom: index < sortedVisibleEmployees.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                                            background: index % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                                            animation: `slideInFromTop ${0.1 * (index + 1)}s ease-out forwards`,
+                                            opacity: 0
                                         }}
                                     >
                                         <td style={{
-                                            padding: '16px 20px',
+                                            padding: '8px 12px',
                                             fontSize: '14px',
-                                            color: 'var(--text-primary)'
+                                            color: 'var(--text-primary)',
+                                            fontWeight: 400
                                         }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <div style={{
-                                                    width: '40px',
-                                                    height: '40px',
-                                                    background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                                                    borderRadius: '12px',
+                                                    width: '22px',
+                                                    height: '22px',
+                                                    background: '#FFD875',
+                                                    borderRadius: '50%',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    color: 'white',
+                                                    color: '#000',
                                                     flexShrink: 0,
-                                                    fontSize: '16px',
-                                                    fontWeight: '700'
+                                                    fontSize: '12px',
+                                                    fontWeight: '600'
                                                 }}>
                                                     {employee.fullName?.charAt(0).toUpperCase() || 'U'}
                                                 </div>
-                                                <div>
-                                                    <div style={{
-                                                        fontSize: '14px',
-                                                        fontWeight: '600',
-                                                        color: 'var(--text-primary)',
-                                                        marginBottom: '4px'
-                                                    }}>
-                                                        {employee.fullName || 'Chưa có tên'}
-                                                    </div>
-                                                    <div style={{
-                                                        fontSize: '12px',
-                                                        color: 'var(--text-secondary)',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        marginBottom: '2px'
-                                                    }}>
-                                                        <Mail size={12} />
-                                                        {employee.email || 'Chưa có email'}
-                                                    </div>
-                                                    <div style={{
-                                                        fontSize: '12px',
-                                                        color: 'var(--text-secondary)',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px'
-                                                    }}>
-                                                        <Smartphone size={12} />
-                                                        {employee.phoneNumber || 'Chưa có SĐT'}
-                                                    </div>
-                                                </div>
+                                                {employee.fullName || 'Chưa có tên'}
                                             </div>
                                         </td>
                                         <td style={{
-                                            padding: '16px 20px',
+                                            padding: '8px 12px',
                                             fontSize: '14px',
                                             color: 'var(--text-secondary)'
                                         }}>
-                                            <div style={{
-                                                display: 'inline-block',
-                                                padding: '4px 12px',
-                                                background: 'var(--bg-secondary)',
-                                                borderRadius: '8px',
-                                                fontSize: '12px',
-                                                fontWeight: '500'
-                                            }}>
-                                                {employee.centerName || 'Chưa có trung tâm'}
-                                            </div>
+                                            {employee.centerName || 'Chưa có trung tâm'}
                                         </td>
                                         <td style={{
-                                            padding: '16px 20px',
+                                            padding: '8px 12px',
                                             fontSize: '14px',
-                                            color: 'var(--text-secondary)'
+                                            color: 'var(--text-secondary)',
+                                            textAlign: 'left'
                                         }}>
-                                            <div style={{
-                                                display: 'inline-block',
-                                                padding: '4px 12px',
-                                                background: employee.role === 'STAFF' ? 'var(--primary-50)' : 'var(--success-50)',
-                                                color: employee.role === 'STAFF' ? 'var(--primary-700)' : 'var(--success-700)',
-                                                borderRadius: '8px',
-                                                fontSize: '12px',
-                                                fontWeight: '500'
-                                            }}>
+                                            <div className="role-badge">
                                                 {employee.role === 'STAFF' ? 'Nhân viên' : 'Kỹ thuật viên'}
                                             </div>
                                         </td>
                                         <td style={{
-                                            padding: '16px 20px',
-                                            textAlign: 'center'
+                                            padding: '8px 12px',
+                                            textAlign: 'left'
                                         }}>
-                                            <StatusBadge isActive={employee.isActive} />
+                                            <div className={`status-badge ${employee.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
+                                                <span className="dot" /> {employee.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                                            </div>
                                         </td>
                                         <td style={{
-                                            padding: '16px 20px',
+                                            padding: '8px 12px',
                                             fontSize: '14px',
                                             color: 'var(--text-secondary)',
-                                            textAlign: 'center'
+                                            textAlign: 'left'
                                         }}>
                                             {employee.createdAt ? new Date(employee.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                                         </td>
                                         <td style={{
-                                            padding: '16px 20px',
-                                            textAlign: 'center'
+                                            padding: '8px 12px',
+                                            textAlign: 'left'
                                         }}>
-                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-start' }}>
                                                 <ActionButton
                                                     onClick={() => handleUpdateEmployeeStatus(employee.id, !employee.isActive)}
                                                     isActive={employee.isActive}

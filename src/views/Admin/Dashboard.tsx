@@ -1687,6 +1687,7 @@ export default function AdminDashboard() {
               </h3>
               {[
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
+                { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff' },
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
