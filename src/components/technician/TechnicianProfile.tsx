@@ -34,8 +34,6 @@ export default function TechnicianProfile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [popup, setPopup] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [success, setSuccess] = useState<string>('');
-  const [error, setError] = useState<string>('');
   
   // Edit modes
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)
@@ -139,13 +137,13 @@ export default function TechnicianProfile() {
       
       if (response.success && response.data) {
         dispatch(updateUser(response.data))
-        setSuccessMessage('Cập nhật thông tin thành công!')
+        setSuccess('Cập nhật thông tin thành công!')
         setIsEditingPersonal(false)
       } else {
-        setErrorMessage(response.message || 'Cập nhật thông tin thất bại')
+        setError(response.message || 'Cập nhật thông tin thất bại')
       }
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật')
+      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật')
     } finally {
       setSaving(false)
     }
@@ -164,16 +162,16 @@ export default function TechnicianProfile() {
       })
       
       if (response.success) {
-        setSuccessMessage('Đổi mật khẩu thành công!')
+        setSuccess('Đổi mật khẩu thành công!')
         setShowPasswordModal(false)
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       } else {
-        setErrorMessage(response.message || 'Đổi mật khẩu thất bại')
+        setError(response.message || 'Đổi mật khẩu thất bại')
       }
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu')
+      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu')
     } finally {
       setSaving(false)
     }

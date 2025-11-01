@@ -31,7 +31,19 @@ export type CreateUserRequest = {
 export type CreateUserByAdminRequest = {
   fullName: string
   email: string
-  password: string
+  phoneNumber: string
+  dateOfBirth: string
+  gender: 'MALE' | 'FEMALE'
+  address: string
+  role: 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'MANAGER' | 'TECHNICIAN'
+  isActive: boolean
+  emailVerified: boolean
+}
+
+// Yêu cầu mới: tạo người dùng không cần password, body như đặc tả
+export type CreateUserAdminRequest = {
+  fullName: string
+  email: string
   phoneNumber: string
   dateOfBirth: string
   gender: 'MALE' | 'FEMALE'
@@ -140,6 +152,14 @@ export const UserService = {
   },
 
   /**
+   * API mới: POST /api/User theo body không có password
+   */
+  async createUserAdmin(userData: CreateUserAdminRequest): Promise<any> {
+    const response = await api.post('/User', userData)
+    return response.data
+  },
+
+  /**
    * Update user by ID (Admin only)
    * 
    * @param userId - User ID to update
@@ -171,7 +191,8 @@ export const UserService = {
    * @throws {Error} When activation fails or unauthorized
    */
   async activateUser(userId: string): Promise<User> {
-    const { data } = await api.patch<User>(`/User/${userId}/activate`)
+    // Deprecated per new API contract; use updateUserStatus instead
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive: true })
     return data
   },
 
@@ -183,7 +204,17 @@ export const UserService = {
    * @throws {Error} When deactivation fails or unauthorized
    */
   async deactivateUser(userId: string): Promise<User> {
-    const { data } = await api.patch<User>(`/User/${userId}/deactivate`)
+    // Deprecated per new API contract; use updateUserStatus instead
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive: false })
+    return data
+  },
+
+  /**
+   * Cập nhật trạng thái hoạt động của người dùng theo API mới
+   * PATCH /api/User/{id}/status
+   */
+  async updateUserStatus(userId: string | number, isActive: boolean): Promise<User> {
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive })
     return data
   },
 
@@ -196,11 +227,7 @@ export const UserService = {
    * @throws {Error} When update fails or unauthorized
    */
   async toggleUserStatus(userId: string, isActive: boolean): Promise<User> {
-    if (isActive) {
-      return this.activateUser(userId)
-    } else {
-      return this.deactivateUser(userId)
-    }
+    return this.updateUserStatus(userId, isActive)
   },
 
   /**

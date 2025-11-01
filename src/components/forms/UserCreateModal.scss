@@ -1,0 +1,189 @@
+.ucm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.ucm-overlay--min {
+  background: transparent;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 12px;
+  pointer-events: none; /* cho phép click bên ngoài */
+  backdrop-filter: none; /* bỏ mờ khi thu nhỏ */
+}
+
+.ucm-container {
+  width: 900px;
+  max-width: 94vw;
+  max-height: 92vh;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid rgba(226, 232, 240, 0.9); /* mỏng & nhẹ hơn */
+  border-radius: 8px; /* bo góc nhẹ */
+  box-shadow: 0 24px 48px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+}
+
+.ucm-container--min {
+  width: 450px;
+  max-height: 70vh;
+  pointer-events: all; /* bật lại tương tác */
+}
+
+.ucm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 12px 20px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+.ucm-title { margin: 0; font-size: 18px; font-weight: 600; }
+.ucm-actions { display: flex; align-items: center; gap: 4px; }
+.ucm-icon {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; border: 1px solid transparent; background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+}
+.ucm-icon:hover { background: var(--bg-secondary); border-color: transparent; }
+.ucm-close { color: var(--error-600); }
+
+.ucm-body {
+  padding: 20px;
+  overflow: auto;
+}
+.ucm-placeholder { color: var(--text-secondary); font-size: 14px; }
+
+/* Form layout 2 cột */
+.ucm-form { width: 100%; }
+.ucm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 16px; }
+.ucm-col { display: flex; flex-direction: column; gap: 12px; }
+
+.ucm-field { display: flex; flex-direction: column; gap: 6px; }
+.ucm-field-inline { display:flex; align-items:center; gap:16px; margin-top: 6px; }
+.ucm-label { font-size: 13px; color: var(--text-secondary); }
+.req { color: #E11D48; margin-left: 2px; }
+.ucm-inputwrap { position: relative; display:flex; align-items:center; }
+.ucm-inputwrap input, .ucm-inputwrap select { width: 100%; height: 40px; padding: 0 12px 0 32px; border: 1px solid rgba(226,232,240,.9); border-radius: 6px; background:#fff; color: var(--text-primary); }
+.ucm-inputwrap.is-date input { padding-right: 36px; }
+.ucm-inputwrap.is-date input { appearance: none; -webkit-appearance: none; -moz-appearance: textfield; }
+/* Ẩn icon mặc định của trình duyệt (bên trái) */
+.ucm-inputwrap.is-date input::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }
+.ucm-inputwrap.is-date input::-webkit-clear-button { display: none; }
+.ucm-inputwrap.is-date input::-webkit-inner-spin-button { display: none; }
+.ucm-inputwrap.select select { padding-right: 28px; appearance:none; -webkit-appearance:none; -moz-appearance:none; }
+.ucm-ico { position:absolute; left: 10px; color: var(--text-tertiary); }
+.ucm-ico-right { position:absolute; right: 10px; top:50%; transform:translateY(-50%); color: var(--text-tertiary); display:inline-flex; }
+.ucm-ico-right[role="button"] { cursor:pointer; }
+.ucm-caret { position:absolute; right: 10px; color: var(--text-tertiary); pointer-events:none; }
+.ucm-error { color: #DC2626; font-size: 12px; margin-top: -2px; }
+.ucm-field.is-error .ucm-inputwrap input,
+.ucm-field.is-error .ucm-inputwrap select { border-color: #FCA5A5; background:#FFF1F2; }
+
+/* HeroUI DatePicker normalize to match inputs */
+.ucm-datepicker { width: 100%; }
+.ucm-datepicker * { box-sizing: border-box; }
+.ucm-datepicker [role="button"],
+.ucm-datepicker input { height: 40px !important; }
+/* Ô input tổng (wrapper của DatePicker) có viền chữ nhật giống các input khác */
+.ucm-datepicker [role="group"]{ 
+  position: relative; top: -2px; display:flex; align-items:center; width:100%; height:40px;
+  padding: 0 44px 0 12px; /* chừa chỗ icon bên phải */
+  border: 1px solid rgba(226,232,240,.9); border-radius:6px; background:#fff;
+}
+.ucm-datepicker :where(input) { 
+  width: 100% !important; height: 100% !important; 
+  padding: 0 !important; /* padding đã ở wrapper */
+  border: none !important; border-radius: 0 !important; 
+  background: transparent !important; color: var(--text-primary) !important; outline: none !important;
+}
+.ucm-datepicker [role="group"]:focus-within { box-shadow: 0 0 0 3px rgba(255,216,117,.25); border-color:#FFD875; }
+.ucm-field.is-error .ucm-datepicker [role="group"] { border-color:#FCA5A5; background:#FFF1F2; }
+
+/* Nút icon ở góc phải */
+.ucm-datepicker [data-slot="selector"],
+.ucm-datepicker button[aria-haspopup="dialog"]{
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; border: none;
+  border-radius: 6px; background: transparent; display:flex; align-items:center; justify-content:center;
+  color: var(--text-tertiary);
+}
+.ucm-datepicker [data-slot="selector"]:hover { background: transparent; }
+
+/* Stable class overrides via DatePicker.classNames */
+.ucm-dp-popover, .ucm-dp-content { background:#fff !important; border:1px solid rgba(226,232,240,.9) !important; border-radius:10px !important; box-shadow:0 12px 24px rgba(0,0,0,.12) !important; min-width:420px; }
+.ucm-dp-cal { padding:8px !important; background:#fff !important; }
+.ucm-dp-header { padding:8px !important; border-bottom:1px solid rgba(226,232,240,.9) !important; display:flex; align-items:center; justify-content:space-between; font-weight:700; }
+.ucm-dp-header [data-prev],
+.ucm-dp-header [data-next],
+.ucm-dp-header button{ width:24px; height:24px; border:none; border-radius:6px; background:transparent; display:inline-flex; align-items:center; justify-content:center; color:var(--text-secondary); }
+.ucm-dp-header [data-prev]:hover,
+.ucm-dp-header [data-next]:hover,
+.ucm-dp-header button:hover{ background:#F7F8FA; }
+.ucm-dp-grid { padding:8px !important; }
+.ucm-dp-grid table { width:100%; border-collapse:separate; border-spacing:8px 8px; }
+.ucm-dp-grid th { color:var(--text-secondary) !important; font-weight:600; padding-bottom:6px; }
+.ucm-dp-cell { width:40px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#fff; }
+.ucm-dp-cell:hover { background:#F7F8FA; border:1px solid rgba(226,232,240,.7); }
+.ucm-dp-cell[data-selected="true"], .ucm-dp-cell[aria-selected="true"]{ box-shadow:0 0 0 2px rgba(255,216,117,.9); border:1px solid #FFD875; }
+
+/* DayPicker overlay custom */
+.ucm-rdp-overlay {
+  position: absolute;
+  top: calc(100% + 6px); /* show below input to tránh bị che header */
+  right: 0;
+  transform: none;
+  background: #fff;
+  border: 1px solid rgba(226,232,240,.9);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(0,0,0,.12);
+  z-index: 99999; /* đảm bảo nổi trên modal nội dung */
+}
+.ucm-rdp {
+  padding: 8px;
+}
+.ucm-rdp .rdp-caption { display:flex; align-items:center; justify-content:space-between; padding:8px; font-weight:700; border-bottom:1px solid rgba(226,232,240,.9); }
+.ucm-rdp .rdp-nav button { width:24px; height:24px; border:none; border-radius:6px; background:transparent; color:var(--text-secondary); }
+.ucm-rdp .rdp-nav button:hover { background:#F7F8FA; }
+.ucm-rdp .rdp-table { width:100%; border-collapse:separate; border-spacing:8px; }
+.ucm-rdp .rdp-head_th { color:var(--text-secondary); font-weight:600; padding-bottom:6px; }
+.ucm-rdp .rdp-day { width:40px; height:36px; border-radius:8px; }
+.ucm-rdp .rdp-day:hover { background:#F7F8FA; border:1px solid rgba(226,232,240,.7); }
+.ucm-rdp .rdp-day_selected { box-shadow:0 0 0 2px rgba(255,216,117,.9); border:1px solid #FFD875; background:#fff; color:inherit; }
+
+/* Switch */
+.ucm-switch { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--text-primary); }
+.ucm-switch input { display:none; }
+.ucm-switch span { width:32px; height:18px; background:#e5e7eb; border-radius: 999px; position:relative; transition:.2s; }
+.ucm-switch span:after { content:""; position:absolute; width:14px; height:14px; background:#fff; border-radius:50%; top:2px; left:2px; box-shadow:0 1px 2px rgba(0,0,0,.2); transition:.2s; }
+.ucm-switch input:checked + span { background:#4ade80; }
+.ucm-switch input:checked + span:after { transform: translateX(14px); }
+
+.ucm-footer {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+.ucm-btn {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #fff;
+}
+.ucm-btn--ghost { background: var(--bg-card); border-color: transparent; }
+.ucm-btn--primary { background: #FFD875; border-color: #FFD875; color: #000; }
+.ucm-btn--primary:hover { box-shadow: 0 0 0 3px rgba(255,216,117,.25); }
+
+
