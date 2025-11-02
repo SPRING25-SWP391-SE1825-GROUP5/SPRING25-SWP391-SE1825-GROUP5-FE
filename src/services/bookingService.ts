@@ -90,6 +90,82 @@ export interface BookingResponse {
   }
 }
 
+// Admin booking interfaces
+export interface AdminBookingSummary {
+  bookingId: number
+  bookingDate: string
+  status: string
+  centerInfo: CenterInfo
+  vehicleInfo: VehicleInfo
+  serviceInfo: ServiceInfo
+  technicianInfo: TechnicianInfo
+  timeSlotInfo: TimeSlotInfo
+  customerInfo: CustomerInfo
+  specialRequests: string
+  appliedCreditId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GetBookingsByCenterParams {
+  centerId: number
+  page?: number
+  pageSize?: number
+  status?: string | null
+  fromDate?: string | null
+  toDate?: string | null
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export interface GetAllBookingsForAdminParams {
+  page?: number
+  pageSize?: number
+  status?: string | null
+  centerId?: number | null
+  customerId?: number | null
+  fromDate?: string | null
+  toDate?: string | null
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export interface GetBookingsByCenterResponse {
+  success: boolean
+  message: string
+  data: {
+    bookings: AdminBookingSummary[]
+    pagination: {
+      currentPage: number
+      pageSize: number
+      totalItems: number
+      totalPages: number
+      hasNextPage: boolean
+      hasPreviousPage: boolean
+    }
+    filters: {
+      status?: string | null
+      fromDate?: string | null
+      toDate?: string | null
+      sortBy?: string
+      sortOrder?: string
+    }
+  }
+}
+
+export interface UpdateBookingStatusRequest {
+  status: string
+}
+
+export interface UpdateBookingStatusResponse {
+  success: boolean
+  message: string
+  data: {
+    bookingId: number
+    status: string
+  }
+}
+
 // Chi tiết booking
 export interface BookingDetail {
   bookingId: number
@@ -189,8 +265,111 @@ export interface CustomerBooking {
 }
 
 export const BookingService = {
+  // Legacy method - kept for backward compatibility
   async getBookingsByCenter(centerId: number): Promise<BookingResponse> {
     const response = await api.get(`/Booking/center/${centerId}`)
+    return response.data
+  },
+
+  // Admin method with full params support
+  async getBookingsByCenterAdmin(params: GetBookingsByCenterParams): Promise<GetBookingsByCenterResponse> {
+    const { centerId, page = 1, pageSize = 10, status, fromDate, toDate, sortBy = 'createdAt', sortOrder = 'desc' } = params
+
+    const queryParams = new URLSearchParams()
+    queryParams.append('page', page.toString())
+    queryParams.append('pageSize', pageSize.toString())
+    queryParams.append('sortBy', sortBy)
+    queryParams.append('sortOrder', sortOrder)
+    if (status) queryParams.append('status', status)
+    if (fromDate) queryParams.append('fromDate', fromDate)
+    if (toDate) queryParams.append('toDate', toDate)
+
+    const response = await api.get(`/Booking/center/${centerId}?${queryParams.toString()}`)
+
+    // Map response structure
+    const responseData = response.data
+    if (responseData?.success && responseData?.data) {
+      // Map Bookings to bookings (camelCase)
+      const data = responseData.data
+      return {
+        success: true,
+        message: responseData.message || 'Lấy danh sách booking thành công',
+        data: {
+          bookings: data.Bookings || data.bookings || [],
+          pagination: {
+            currentPage: data.Pagination?.CurrentPage || data.pagination?.currentPage || page,
+            pageSize: data.Pagination?.PageSize || data.pagination?.pageSize || pageSize,
+            totalItems: data.Pagination?.TotalItems || data.pagination?.totalItems || 0,
+            totalPages: data.Pagination?.TotalPages || data.pagination?.totalPages || 1,
+            hasNextPage: data.Pagination?.HasNextPage ?? data.pagination?.hasNextPage ?? false,
+            hasPreviousPage: data.Pagination?.HasPreviousPage ?? data.pagination?.hasPreviousPage ?? false
+          },
+          filters: {
+            status: data.Filters?.Status || data.filters?.status || status || null,
+            fromDate: data.Filters?.FromDate || data.filters?.fromDate || fromDate || null,
+            toDate: data.Filters?.ToDate || data.filters?.toDate || toDate || null,
+            sortBy: data.Filters?.SortBy || data.filters?.sortBy || sortBy,
+            sortOrder: data.Filters?.SortOrder || data.filters?.sortOrder || sortOrder
+          }
+        }
+      }
+    }
+
+    return responseData
+  },
+
+  // Get all bookings for admin (without requiring centerId)
+  async getAllBookingsForAdmin(params: GetAllBookingsForAdminParams): Promise<GetBookingsByCenterResponse> {
+    const { page = 1, pageSize = 10, status, centerId, customerId, fromDate, toDate, sortBy = 'createdAt', sortOrder = 'desc' } = params
+
+    const queryParams = new URLSearchParams()
+    queryParams.append('page', page.toString())
+    queryParams.append('pageSize', pageSize.toString())
+    queryParams.append('sortBy', sortBy)
+    queryParams.append('sortOrder', sortOrder)
+    if (status) queryParams.append('status', status)
+    if (centerId) queryParams.append('centerId', centerId.toString())
+    if (customerId) queryParams.append('customerId', customerId.toString())
+    if (fromDate) queryParams.append('fromDate', fromDate)
+    if (toDate) queryParams.append('toDate', toDate)
+
+    const response = await api.get(`/Booking/admin/all?${queryParams.toString()}`)
+
+    // Map response structure
+    const responseData = response.data
+    if (responseData?.success && responseData?.data) {
+      // Map Bookings to bookings (camelCase)
+      const data = responseData.data
+      return {
+        success: true,
+        message: responseData.message || 'Lấy danh sách booking thành công',
+        data: {
+          bookings: data.Bookings || data.bookings || [],
+          pagination: {
+            currentPage: data.Pagination?.CurrentPage || data.pagination?.currentPage || page,
+            pageSize: data.Pagination?.PageSize || data.pagination?.pageSize || pageSize,
+            totalItems: data.Pagination?.TotalItems || data.pagination?.totalItems || 0,
+            totalPages: data.Pagination?.TotalPages || data.pagination?.totalPages || 1,
+            hasNextPage: data.Pagination?.HasNextPage ?? data.pagination?.hasNextPage ?? false,
+            hasPreviousPage: data.Pagination?.HasPreviousPage ?? data.pagination?.hasPreviousPage ?? false
+          },
+          filters: {
+            status: data.Filters?.Status || data.filters?.status || status || null,
+            fromDate: data.Filters?.FromDate || data.filters?.fromDate || fromDate || null,
+            toDate: data.Filters?.ToDate || data.filters?.toDate || toDate || null,
+            sortBy: data.Filters?.SortBy || data.filters?.sortBy || sortBy,
+            sortOrder: data.Filters?.SortOrder || data.filters?.sortOrder || sortOrder
+          }
+        }
+      }
+    }
+
+    return responseData
+  },
+
+  // Update booking status
+  async updateBookingStatus(bookingId: number, status: string): Promise<UpdateBookingStatusResponse> {
+    const response = await api.put(`/Booking/${bookingId}/status`, { Status: status })
     return response.data
   },
 
@@ -206,10 +385,10 @@ export const BookingService = {
       console.log('🌐 BookingService.getBookingHistory called:', { customerId, page, limit })
       const url = `/Booking/Customer/${customerId}/booking-history`
       console.log('📡 API URL:', url)
-      
+
       const response = await api.get(url, {
-        params: { 
-          page, 
+        params: {
+          page,
           pageSize: limit,
           sortBy: 'bookingDate',
           sortOrder: 'desc'
@@ -245,7 +424,7 @@ export const BookingService = {
   async getCustomerBookings(customerId: number): Promise<CustomerBooking[]> {
     try {
       const response = await api.get(`/Customer/${customerId}/bookings`)
-      
+
       // Handle axios response structure: response.data is the actual data
       let data = response.data
 
@@ -258,7 +437,7 @@ export const BookingService = {
       if (Array.isArray(data)) {
         return data
       }
-      
+
       // Handle nested structure: { success: true, data: { bookings: [...] } }
       if (data && typeof data === 'object' && data.data) {
         // Check if data.data has bookings property
@@ -270,7 +449,7 @@ export const BookingService = {
           return data.data
         }
       }
-      
+
       // If response is wrapped in an object with 'bookings' property at root level
       if (data && typeof data === 'object' && Array.isArray(data.bookings)) {
         return data.bookings
@@ -302,10 +481,10 @@ export const BookingService = {
   async cancelBooking(bookingId: number, reason?: string): Promise<{ success: boolean; data: { bookingId: number; status: string; cancelledAt?: string } }> {
     try {
       const response = await api.put(`/Booking/${bookingId}/cancel`, { Reason: reason || null })
-      
+
       // Handle response structure
       const responseData = response.data
-      
+
       if (responseData && responseData.success) {
         return {
           success: true,

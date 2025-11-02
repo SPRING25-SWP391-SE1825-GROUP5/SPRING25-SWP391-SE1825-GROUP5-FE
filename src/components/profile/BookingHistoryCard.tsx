@@ -3,6 +3,7 @@ import type { CustomerBooking } from '@/services/bookingService'
 interface BookingHistoryCardProps {
   booking: CustomerBooking
   isExpanded?: boolean
+  isNewest?: boolean
   onToggle?: () => void
   onCancel?: (bookingId: number) => void
   onPayment?: (bookingId: number) => void
@@ -59,7 +60,8 @@ const getStatusBadge = (status: string) => {
 
 export default function BookingHistoryCard({ 
   booking, 
-  isExpanded = false, 
+  isExpanded = false,
+  isNewest = false,
   onToggle,
   onCancel,
   onPayment,
@@ -88,13 +90,31 @@ export default function BookingHistoryCard({
           e.currentTarget.style.boxShadow = 'none'
         }}
       >
+        {/* Newest Badge */}
+        {isNewest && (
+          <div style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            padding: '4px 10px',
+            borderRadius: '12px',
+            backgroundColor: '#FFD875',
+            color: '#111827',
+            fontSize: '12px',
+            fontWeight: '600',
+            zIndex: 1
+          }}>
+            Mới nhất
+          </div>
+        )}
+
         {/* Status Badge */}
         <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
           {getStatusBadge(booking.status)}
         </div>
 
         {/* Service Name */}
-        <div style={{ marginBottom: '16px', paddingRight: '120px' }}>
+        <div style={{ marginBottom: '16px', paddingRight: '120px', paddingLeft: isNewest ? '100px' : '0' }}>
           <h3 style={{ 
             fontSize: '18px', 
             fontWeight: '600', 

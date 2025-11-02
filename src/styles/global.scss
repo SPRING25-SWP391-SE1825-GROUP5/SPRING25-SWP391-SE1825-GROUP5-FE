@@ -294,8 +294,6 @@ table thead tr:first-child th {
   border-top: 1px solid var(--border-primary) !important;
 }
 
-table th:first-child {
-  border-right: none !important;
-}
+/* Removed: table th:first-child:not(.cm-th) rule to allow border-right on first column */
 
 

@@ -126,3 +126,6 @@ scripts/
 .tmp/
 *.tmp
 *.temp
+
+# Dev tools configuration (local workspace files)
+dev-tools/

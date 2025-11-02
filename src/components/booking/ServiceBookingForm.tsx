@@ -266,15 +266,15 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
 
   const updateBookingData = (section: keyof BookingData, data: Record<string, any>) => {
     setBookingData(prev => ({
-      ...prev,
-      [section]: { ...(prev[section] as any), ...data }
+        ...prev,
+        [section]: { ...(prev[section] as any), ...data }
     }))
   }
 
   const handleGuestCustomerCreated = (customerId: number) => {
     setBookingData(prev => ({
-      ...prev,
-      guestCustomerId: customerId
+        ...prev,
+        guestCustomerId: customerId
     }))
   }
 

@@ -51,6 +51,14 @@ export type {
 export { ServiceChecklistTemplateService } from './serviceChecklistTemplateService'
 export type {
   ServiceChecklistTemplate,
+  TemplateItemDto,
+  TemplateCreateRequest,
+  TemplateUpdateRequest,
+  UpsertItemsRequest,
+  ActivateRequest,
+  BatchPartsRequest,
+  TemplateItemResponse,
+  GetItemsResponse,
   RecommendationRequest,
   RecommendationResponse
 } from './serviceChecklistTemplateService'
@@ -118,5 +126,24 @@ export type {
   PartAvailabilityResponse,
   PartFilters
 } from './partService'
+
+// Configuration Services
+export { ConfigurationService } from './configurationService'
+export type {
+  LoginLockoutConfigRequest,
+  UpdateBookingRealtimeRequest,
+  UpdatePayOsSettingsRequest,
+  UpdateGuestSessionSettingsRequest,
+  UpdateMaintenanceReminderSettingsRequest,
+  LoginLockoutConfig,
+  BookingRealtimeSettings,
+  PayOsSettings,
+  GuestSessionSettings,
+  MaintenanceReminderSettings,
+  LockoutStatus,
+  Features,
+  BusinessRules,
+  PublicSettings
+} from './configurationService'
 
 // TODO: Add other services as they are created

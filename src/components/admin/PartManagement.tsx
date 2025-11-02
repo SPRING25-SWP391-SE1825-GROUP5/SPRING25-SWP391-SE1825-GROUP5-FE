@@ -236,53 +236,53 @@ export default function PartManagement() {
   const totalValue = filteredParts.reduce((sum, part) => sum + part.price, 0)
 
   const loadParts = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const { data } = await api.get('/Part', { params: { pageNumber: 1, pageSize } })
-      const firstPage = data as {
-        success: boolean
-        message: string
-        data: {
-          parts: Array<{
-            partId: number
-            partNumber: string
-            partName: string
-            brand: string
-            price: number
-            imageUrl: string | null
-            isActive: boolean
-            createdAt: string
-          }>
-          pageNumber: number
-          pageSize: number
-          totalPages: number
-          totalCount: number
-          hasPreviousPage: boolean
-          hasNextPage: boolean
+      try {
+        setLoading(true)
+        setError(null)
+        const { data } = await api.get('/Part', { params: { pageNumber: 1, pageSize } })
+        const firstPage = data as {
+          success: boolean
+          message: string
+          data: {
+            parts: Array<{
+              partId: number
+              partNumber: string
+              partName: string
+              brand: string
+              price: number
+              imageUrl: string | null
+              isActive: boolean
+              createdAt: string
+            }>
+            pageNumber: number
+            pageSize: number
+            totalPages: number
+            totalCount: number
+            hasPreviousPage: boolean
+            hasNextPage: boolean
+          }
         }
+
+        const totalPages = firstPage.data.totalPages
+        const requests = [] as Promise<any>[]
+        for (let p = 2; p <= totalPages; p++) {
+          requests.push(api.get('/Part', { params: { pageNumber: p, pageSize } }))
+        }
+        const restPages = await Promise.all(requests)
+        const restParts = restPages.flatMap((res) => (res.data?.data?.parts || []))
+
+        const combined = [...firstPage.data.parts, ...restParts]
+          .sort((a, b) => a.partId - b.partId)
+          .map(mapApiPartToUi)
+
+        setAllParts(combined)
+        setTotalCount(combined.length)
+      } catch (e: any) {
+        setError(e?.message || 'Không thể tải danh sách phụ tùng')
+      } finally {
+        setLoading(false)
       }
-
-      const totalPages = firstPage.data.totalPages
-      const requests = [] as Promise<any>[]
-      for (let p = 2; p <= totalPages; p++) {
-        requests.push(api.get('/Part', { params: { pageNumber: p, pageSize } }))
-      }
-      const restPages = await Promise.all(requests)
-      const restParts = restPages.flatMap((res) => (res.data?.data?.parts || []))
-
-      const combined = [...firstPage.data.parts, ...restParts]
-        .sort((a, b) => a.partId - b.partId)
-        .map(mapApiPartToUi)
-
-      setAllParts(combined)
-      setTotalCount(combined.length)
-    } catch (e: any) {
-      setError(e?.message || 'Không thể tải danh sách phụ tùng')
-    } finally {
-      setLoading(false)
     }
-  }
 
   useEffect(() => {
     loadParts()
@@ -703,15 +703,15 @@ export default function PartManagement() {
       <PartsFormModal
         isOpen={isModalOpen}
         onClose={() => {
-          setIsModalOpen(false)
-          setEditingPart(null)
+                  setIsModalOpen(false)
+                  setEditingPart(null)
           setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
         }}
         onSuccess={() => {
           loadParts()
         }}
         editingPart={editingPart}
-      />
+                      />
 
       {/* Delete Confirmation - Consistent with main modal style */}
       {deleteConfirm.isOpen && (

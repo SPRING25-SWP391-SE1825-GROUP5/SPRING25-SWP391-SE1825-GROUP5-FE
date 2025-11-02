@@ -45,6 +45,17 @@ export default function ProfileHistory() {
   // Ensure bookings is always an array before rendering
   const bookingsArray = Array.isArray(bookings) ? bookings : []
 
+  // Find newest booking (highest bookingId or latest createdAt)
+  const newestBookingId = bookingsArray.length > 0 
+    ? bookingsArray.reduce((newest, booking) => {
+        if (!newest) return booking
+        const newestDate = new Date(newest.createdAt || 0).getTime()
+        const bookingDate = new Date(booking.createdAt || 0).getTime()
+        return bookingDate > newestDate || (bookingDate === newestDate && booking.bookingId > newest.bookingId)
+          ? booking : newest
+      }).bookingId
+    : null
+
   // Calculate pagination
   const totalPages = Math.ceil(bookingsArray.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -160,6 +171,7 @@ export default function ProfileHistory() {
           <BookingHistoryCard 
             key={booking.bookingId} 
             booking={booking}
+            isNewest={booking.bookingId === newestBookingId}
             isExpanded={expandedBookingId === booking.bookingId}
             onToggle={() => {
               if (expandedBookingId === booking.bookingId) {

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
-import api from '../../services/api'
 import toast from 'react-hot-toast'
 import {
   Users,
@@ -10,42 +9,20 @@ import {
   Package2,
   FileText,
   Settings,
-  TrendingUp,
   Calendar,
-  DollarSign,
-  Activity,
   ChevronRight,
   BarChart3,
-  UserCheck,
   Wrench,
   Bell,
-  Search,
   Menu,
   LogOut,
   Globe,
   Gift,
-  Edit,
-  X,
-  Plus,
-  CheckCircle,
-  Shield,
-  Mail,
-  Smartphone,
-  Eye,
-  Save,
-  RefreshCw,
-  AlertTriangle,
-  Info,
-  Key,
-  Server,
-  Palette,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  User,
-  Car,
-  Download,
-  Trash2
+  ShoppingCart,
+  CalendarCheck,
+  MessageSquare,
+  Warehouse,
+  Car
 } from 'lucide-react'
 import {
   AreaChart,
@@ -72,750 +49,150 @@ import PromotionManagement from '../../components/admin/PromotionManagement'
 import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import PartManagement from '../../components/admin/PartManagement'
 import { useAppSelector } from '@/store/hooks'
-import TimeSlotManagement from './TimeSlotManagement';
-
-// System Settings Component
-
-// System Settings Component
-function SystemSettingsContent() {
-  const [activeTab, setActiveTab] = useState('general')
-  const [settings, setSettings] = useState({
-    general: {
-      siteName: 'SAVART Electric Bike',
-      siteDescription: 'Hệ thống quản lý xe điện và bảo trì',
-      contactEmail: 'admin@savart.com',
-      contactPhone: '0123456789',
-      address: '123 Nguyễn Huệ, Q1, TP.HCM',
-      timezone: 'Asia/Ho_Chi_Minh',
-      language: 'vi'
-    },
-    security: {
-      passwordMinLength: 8,
-      requireSpecialChars: true,
-      sessionTimeout: 30,
-      twoFactorEnabled: false,
-      loginAttempts: 5,
-      lockoutDuration: 15
-    },
-    notifications: {
-      emailNotifications: true,
-      smsNotifications: false,
-      pushNotifications: true,
-      maintenanceAlerts: true,
-      lowStockAlerts: true,
-      appointmentReminders: true
-    },
-    system: {
-      maintenanceMode: false,
-      debugMode: false,
-      cacheEnabled: true,
-      backupFrequency: 'daily',
-      logLevel: 'info',
-      maxFileSize: 10
-    },
-    appearance: {
-      theme: 'light',
-      primaryColor: '#004030',
-      secondaryColor: '#4A9782',
-      showAnimations: true,
-      compactMode: false
-    }
-  })
-
-  const [saveStatus, setSaveStatus] = useState(null)
-
-  const tabs = [
-    { id: 'general', label: 'Tổng quan', icon: Globe },
-    { id: 'security', label: 'Bảo mật', icon: Shield },
-    { id: 'notifications', label: 'Thông báo', icon: Bell },
-    { id: 'system', label: 'Hệ thống', icon: Server },
-    { id: 'appearance', label: 'Giao diện', icon: Palette }
-  ]
-
-  const handleSave = async (tabId) => {
-    setSaveStatus('saving')
-
-    setTimeout(() => {
-      setSaveStatus('success')
-      setTimeout(() => setSaveStatus(null), 3000)
-    }, 1000)
-  }
-
-  const handleReset = (tabId) => {
-    // Reset to default values logic here
-    setSaveStatus('reset')
-    setTimeout(() => setSaveStatus(null), 2000)
-  }
-
-  const renderGeneralSettings = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '20px'
-      }}>
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '8px'
-          }}>
-            Tên website
-          </label>
-          <input
-            type="text"
-            value={settings.general.siteName}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              general: { ...prev.general, siteName: e.target.value }
-            }))}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none',
-              transition: 'border-color 0.2s ease'
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--primary-500)'}
-            onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-          />
-        </div>
-
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '8px'
-          }}>
-            Email liên hệ
-          </label>
-          <input
-            type="email"
-            value={settings.general.contactEmail}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              general: { ...prev.general, contactEmail: e.target.value }
-            }))}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none',
-              transition: 'border-color 0.2s ease'
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--primary-500)'}
-            onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-          />
-        </div>
-      </div>
-
-      <div>
-        <label style={{
-          display: 'block',
-          fontSize: '14px',
-          fontWeight: '600',
-          color: '#374151',
-          marginBottom: '8px'
-        }}>
-          Mô tả website
-        </label>
-        <textarea
-          value={settings.general.siteDescription}
-          onChange={(e) => setSettings(prev => ({
-            ...prev,
-            general: { ...prev.general, siteDescription: e.target.value }
-          }))}
-          rows={3}
-          style={{
-            width: '100%',
-            padding: '12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '14px',
-            outline: 'none',
-            resize: 'vertical',
-            transition: 'border-color 0.2s ease'
-          }}
-          onFocus={(e) => e.target.style.borderColor = 'var(--primary-500)'}
-          onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-        />
-      </div>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '20px'
-      }}>
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '8px'
-          }}>
-            Múi giờ
-          </label>
-          <select
-            value={settings.general.timezone}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              general: { ...prev.general, timezone: e.target.value }
-            }))}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none',
-              background: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="Asia/Ho_Chi_Minh">Việt Nam (GMT+7)</option>
-            <option value="Asia/Bangkok">Bangkok (GMT+7)</option>
-            <option value="Asia/Singapore">Singapore (GMT+8)</option>
-          </select>
-        </div>
-
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '8px'
-          }}>
-            Ngôn ngữ
-          </label>
-          <select
-            value={settings.general.language}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              general: { ...prev.general, language: e.target.value }
-            }))}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none',
-              background: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="vi">Tiếng Việt</option>
-            <option value="en">English</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  )
-
-  const renderSecuritySettings = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{
-        background: '#fef3c7',
-        border: '1px solid #f59e0b',
-        borderRadius: '8px',
-        padding: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        <AlertTriangle size={20} style={{ color: '#d97706' }} />
-        <div>
-          <h4 style={{ margin: '0 0 4px 0', color: '#92400e', fontSize: '14px', fontWeight: '600' }}>
-            Cảnh báo bảo mật
-          </h4>
-          <p style={{ margin: 0, color: '#92400e', fontSize: '13px' }}>
-            Thay đổi cài đặt bảo mật có thể ảnh hưởng đến tất cả người dùng trong hệ thống.
-          </p>
-        </div>
-      </div>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '20px'
-      }}>
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '8px'
-          }}>
-            Độ dài mật khẩu tối thiểu
-          </label>
-          <input
-            type="number"
-            min="6"
-            max="20"
-            value={settings.security.passwordMinLength}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              security: { ...prev.security, passwordMinLength: parseInt(e.target.value) }
-            }))}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none'
-            }}
-          />
-        </div>
-
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '8px'
-          }}>
-            Thời gian timeout (phút)
-          </label>
-          <input
-            type="number"
-            min="5"
-            max="120"
-            value={settings.security.sessionTimeout}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              security: { ...prev.security, sessionTimeout: parseInt(e.target.value) }
-            }))}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px',
-              outline: 'none'
-            }}
-          />
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {[
-          { key: 'requireSpecialChars', label: 'Yêu cầu ký tự đặc biệt trong mật khẩu', icon: Key },
-          { key: 'twoFactorEnabled', label: 'Bật xác thực hai yếu tố (2FA)', icon: Shield }
-        ].map(({ key, label, icon: Icon }) => (
-          <div key={key} style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '16px',
-            background: '#f9fafb',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Icon size={18} style={{ color: '#6b7280' }} />
-              <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
-                {label}
-              </span>
-            </div>
-            <label style={{
-              position: 'relative',
-              display: 'inline-block',
-              width: '50px',
-              height: '24px'
-            }}>
-              <input
-                type="checkbox"
-                checked={settings.security[key]}
-                onChange={(e) => setSettings(prev => ({
-                  ...prev,
-                  security: { ...prev.security, [key]: e.target.checked }
-                }))}
-                style={{ opacity: 0, width: 0, height: 0 }}
-              />
-              <span style={{
-                position: 'absolute',
-                cursor: 'pointer',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: settings.security[key] ? 'var(--primary-500)' : '#ccc',
-                transition: '0.4s',
-                borderRadius: '24px'
-              }}>
-                <span style={{
-                  position: 'absolute',
-                  content: '',
-                  height: '18px',
-                  width: '18px',
-                  left: settings.security[key] ? '26px' : '3px',
-                  bottom: '3px',
-                  background: 'white',
-                  transition: '0.4s',
-                  borderRadius: '50%'
-                }} />
-              </span>
-            </label>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-
-  const renderNotificationSettings = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{
-        background: '#dbeafe',
-        border: '1px solid #3b82f6',
-        borderRadius: '8px',
-        padding: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        <Info size={20} style={{ color: '#2563eb' }} />
-        <div>
-          <h4 style={{ margin: '0 0 4px 0', color: '#1e40af', fontSize: '14px', fontWeight: '600' }}>
-            Cài đặt thông báo
-          </h4>
-          <p style={{ margin: 0, color: '#1e40af', fontSize: '13px' }}>
-            Cấu hình các loại thông báo sẽ được gửi đến người dùng và quản trị viên.
-          </p>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {[
-          { key: 'emailNotifications', label: 'Thông báo qua Email', desc: 'Gửi thông báo quan trọng qua email', icon: Mail },
-          { key: 'smsNotifications', label: 'Thông báo qua SMS', desc: 'Gửi thông báo khẩn cấp qua tin nhắn', icon: Smartphone },
-          { key: 'pushNotifications', label: 'Thông báo đẩy', desc: 'Hiển thị thông báo trên trình duyệt', icon: Bell },
-          { key: 'maintenanceAlerts', label: 'Cảnh báo bảo trì', desc: 'Thông báo khi đến hạn bảo trì xe', icon: Wrench },
-          { key: 'lowStockAlerts', label: 'Cảnh báo tồn kho thấp', desc: 'Thông báo khi phụ tùng sắp hết', icon: Package },
-          { key: 'appointmentReminders', label: 'Nhắc hẹn lịch', desc: 'Nhắc nhở khách hàng về lịch hẹn', icon: Calendar }
-        ].map(({ key, label, desc, icon: Icon }) => (
-          <div key={key} style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '20px',
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '12px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: settings.notifications[key] ? 'var(--primary-50)' : '#f3f4f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: settings.notifications[key] ? 'var(--primary-500)' : '#6b7280'
-              }}>
-                <Icon size={20} />
-              </div>
-              <div>
-                <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                  {label}
-                </h4>
-                <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
-                  {desc}
-                </p>
-              </div>
-            </div>
-            <label style={{
-              position: 'relative',
-              display: 'inline-block',
-              width: '50px',
-              height: '24px'
-            }}>
-              <input
-                type="checkbox"
-                checked={settings.notifications[key]}
-                onChange={(e) => setSettings(prev => ({
-                  ...prev,
-                  notifications: { ...prev.notifications, [key]: e.target.checked }
-                }))}
-                style={{ opacity: 0, width: 0, height: 0 }}
-              />
-              <span style={{
-                position: 'absolute',
-                cursor: 'pointer',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: settings.notifications[key] ? 'var(--primary-500)' : '#ccc',
-                transition: '0.4s',
-                borderRadius: '24px'
-              }}>
-                <span style={{
-                  position: 'absolute',
-                  content: '',
-                  height: '18px',
-                  width: '18px',
-                  left: settings.notifications[key] ? '26px' : '3px',
-                  bottom: '3px',
-                  background: 'white',
-                  transition: '0.4s',
-                  borderRadius: '50%'
-                }} />
-              </span>
-            </label>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-
-  return (
-    <div style={{
-      padding: '24px',
-      background: 'var(--bg-secondary)',
-      minHeight: '100vh',
-      fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '12px',
-        boxShadow: 'var(--shadow-sm)',
-        border: '1px solid var(--border-primary)'
-      }}>
-        <div>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: '700',
-            color: 'var(--text-primary)',
-            margin: '0 0 4px 0',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              background: 'var(--primary-500)',
-              color: 'var(--text-inverse)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              marginRight: '12px'
-            }}>
-              <Settings size={18} />
-            </div>
-            Cài đặt hệ thống
-          </h2>
-          <p style={{
-            fontSize: '14px',
-            color: 'var(--text-secondary)',
-            margin: '0'
-          }}>
-            Quản lý cấu hình và tùy chỉnh hệ thống
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {saveStatus && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '500',
-              background: saveStatus === 'success' ? '#dcfce7' :
-                saveStatus === 'saving' ? '#fef3c7' : '#fee2e2',
-              color: saveStatus === 'success' ? '#166534' :
-                saveStatus === 'saving' ? '#92400e' : '#991b1b'
-            }}>
-              {saveStatus === 'saving' && <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />}
-              {saveStatus === 'success' && <CheckCircle size={14} />}
-              {saveStatus === 'success' ? 'Đã lưu thành công' :
-                saveStatus === 'saving' ? 'Đang lưu...' : 'Đã đặt lại'}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{
-        background: 'var(--bg-card)',
-        borderRadius: '12px',
-        boxShadow: 'var(--shadow-sm)',
-        border: '1px solid var(--border-primary)',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--border-primary)',
-          overflowX: 'auto'
-        }}>
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '16px 20px',
-                border: 'none',
-                background: activeTab === tab.id ? 'var(--primary-50)' : 'transparent',
-                color: activeTab === tab.id ? 'var(--primary-500)' : 'var(--text-secondary)',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                borderBottom: activeTab === tab.id ? '2px solid var(--primary-500)' : '2px solid transparent',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.background = 'var(--bg-tertiary)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.background = 'transparent'
-                }
-              }}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <div style={{ padding: '32px' }}>
-          {activeTab === 'general' && renderGeneralSettings()}
-          {activeTab === 'security' && renderSecuritySettings()}
-          {activeTab === 'notifications' && renderNotificationSettings()}
-          {activeTab === 'system' && (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-              <Server size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <h3>Cài đặt hệ thống</h3>
-              <p>Nội dung sẽ được phát triển...</p>
-            </div>
-          )}
-          {activeTab === 'appearance' && (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-              <Palette size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <h3>Cài đặt giao diện</h3>
-              <p>Nội dung sẽ được phát triển...</p>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '20px 32px',
-          background: 'var(--bg-tertiary)',
-          borderTop: '1px solid var(--border-primary)'
-        }}>
-          <button
-            onClick={() => handleReset(activeTab)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              padding: '10px 16px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--bg-card)'
-              e.currentTarget.style.borderColor = 'var(--text-secondary)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.borderColor = 'var(--border-primary)'
-            }}
-          >
-            <RefreshCw size={14} />
-            Đặt lại
-          </button>
-
-          <button
-            onClick={() => handleSave(activeTab)}
-            disabled={saveStatus === 'saving'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'var(--primary-500)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
-              opacity: saveStatus === 'saving' ? 0.7 : 1,
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (saveStatus !== 'saving') {
-                e.currentTarget.style.background = 'var(--primary-600)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (saveStatus !== 'saving') {
-                e.currentTarget.style.background = 'var(--primary-500)'
-              }
-            }}
-          >
-            <Save size={14} />
-            {saveStatus === 'saving' ? 'Đang lưu...' : 'Lưu thay đổi'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+import TimeSlotManagement from './TimeSlotManagement'
+import SystemSettings from './SystemSettings'
+import ServiceTemplateManagement from './ServiceTemplateManagement'
+import InventoryManagement from '../../components/admin/InventoryManagement'
+import BookingManagement from '../../components/admin/BookingManagement'
+import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
 
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const role = useAppSelector(s => s.auth.user?.role)
+  
+  // Empty data arrays - to be populated from API
+  const revenueData: Array<{ month: string; revenue: number; orders: number }> = []
+  const serviceData: Array<{ name: string; value: number; color: string }> = []
+  const customerGrowthData: Array<{ month: string; newCustomers: number; returningCustomers: number }> = []
+  const partsInventoryData: Array<{ name: string; stock: number; minStock: number; color: string }> = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stats: Array<{ title: string; value: string; unit: string; change: string; changeType: string; icon: any; color: string }> = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const quickActions: Array<{ title: string; description: string; icon: any; page: string; route: string; color: string }> = [
+    {
+      title: 'Quản lý nhân sự',
+      description: 'Thêm, sửa, xóa nhân viên',
+      icon: Users,
+      page: 'staff',
+      route: '/admin/staff',
+      color: 'var(--primary-500)'
+    },
+    {
+      title: 'Quản lý dịch vụ',
+      description: 'Thêm, sửa, xóa dịch vụ',
+      icon: Wrench,
+      page: 'services',
+      route: '/admin/services',
+      color: 'var(--success-500)'
+    },
+    {
+      title: 'Quản lý phụ tùng',
+      description: 'Kiểm tra tồn kho, nhập hàng',
+      icon: Package,
+      page: 'parts',
+      route: '/admin/parts-management',
+      color: 'var(--success-500)'
+    },
+    {
+      title: 'Cài đặt hệ thống',
+      description: 'Cấu hình và tùy chỉnh hệ thống',
+      icon: Settings,
+      page: 'settings',
+      route: '/admin/settings',
+      color: '#6366f1'
+    },
+    {
+      title: 'Báo cáo',
+      description: 'Xem báo cáo doanh thu, thống kê',
+      icon: BarChart3,
+      page: 'reports',
+      route: '/admin/reports',
+      color: 'var(--info-500)'
+    },
+    {
+      title: 'Quản lý người dùng',
+      description: 'Quản lý tài khoản khách hàng',
+      icon: Users,
+      page: 'users',
+      route: '/admin/users',
+      color: 'var(--warning-500)'
+    },
+    {
+      title: 'Mẫu Checklist bảo trì',
+      description: 'Quản lý mẫu checklist bảo trì',
+      icon: FileText,
+      page: 'maintenance-checklist',
+      route: '/admin/maintenance-checklist',
+      color: 'var(--info-500)'
+    }
+  ]
+  const recentActivities: Array<{ id: number; action: string; description: string; time: string; type: string }> = []
+  
+  // Sync activePage with current route
+  useEffect(() => {
+    const pathname = location.pathname
+    const routeMap: Record<string, string> = {
+      '/admin': 'dashboard',
+      '/admin/': 'dashboard',
+      '/admin/orders': 'orders',
+      '/admin/bookings': 'bookings',
+      '/admin/feedback': 'feedback',
+      '/admin/users': 'users',
+      '/admin/staff': 'staff',
+      '/admin/services': 'services',
+      '/admin/service-packages': 'service-packages',
+      '/admin/parts-management': 'parts',
+      '/admin/inventory': 'inventory',
+      '/admin/service-centers': 'service-centers',
+      '/admin/vehicle-models': 'vehicle-models',
+      '/admin/time-slots': 'time-slots',
+      '/admin/maintenance-checklist': 'maintenance-checklist',
+      '/admin/promotions': 'promotions',
+      '/admin/reports': 'reports',
+      '/admin/account-settings': 'account-settings',
+      '/admin/settings': 'settings'
+    }
+    
+    if (routeMap[pathname]) {
+      setActivePage(routeMap[pathname])
+    } else if (pathname.startsWith('/admin/')) {
+      // Extract route name from path
+      const routeMatch = pathname.match(/\/admin\/([^/]+)/)
+      if (routeMatch) {
+        const routeName = routeMatch[1]
+        // Map route names to page names
+        const routeToPage: Record<string, string> = {
+          'orders': 'orders',
+          'bookings': 'bookings',
+          'feedback': 'feedback',
+          'users': 'users',
+          'staff': 'staff',
+          'services': 'services',
+          'service-packages': 'service-packages',
+          'parts-management': 'parts',
+          'inventory': 'inventory',
+          'service-centers': 'service-centers',
+          'vehicle-models': 'vehicle-models',
+          'time-slots': 'time-slots',
+          'maintenance-checklist': 'maintenance-checklist',
+          'promotions': 'promotions',
+          'reports': 'reports',
+          'account-settings': 'account-settings',
+          'settings': 'settings'
+        }
+        if (routeToPage[routeName]) {
+          setActivePage(routeToPage[routeName])
+        }
+      }
+    }
+  }, [location.pathname])
+  
   const isAdmin = (() => {
     const r = (role || '').toString().toLowerCase()
     // Robust: treat any role containing 'admin' as admin, but exclude manager
@@ -833,20 +210,56 @@ export default function AdminDashboard() {
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
+      case 'orders':
+        return (
+      <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
+              Đơn hàng
+            </h2>
+      <div style={{
+              background: 'var(--bg-card)',
+              padding: '24px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)' }}>Quản lý đơn hàng sẽ được hiển thị ở đây...</p>
+      </div>
+    </div>
+  )
+      case 'bookings':
+        return <BookingManagement />
+      case 'feedback':
+        return (
+        <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
+              Phản hồi
+            </h2>
+            <div style={{
+              background: 'var(--bg-card)',
+              padding: '24px',
+            borderRadius: '12px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)' }}>Quản lý phản hồi sẽ được hiển thị ở đây...</p>
+      </div>
+    </div>
+  )
       case 'users':
         return <UsersComponent />
       case 'staff':
         return <StaffManagement />
       case 'parts':
         return <PartManagement />
+      case 'inventory':
+        return <InventoryManagement />
+      case 'vehicle-models':
+        return <VehicleModelManagement />
       case 'services':
         return isAdmin
           ? <ServicesManagementAdmin />
           : <ServicesManagement />
       case 'service-centers':
         return <CenterManagement />
-      case 'settings':
-        return <SystemSettingsContent />
       case 'promotions':
         return <PromotionManagement />
       case 'service-packages':
@@ -868,7 +281,29 @@ export default function AdminDashboard() {
           </div>
         )
       case 'time-slots':
-        return <TimeSlotManagement />;
+        return <TimeSlotManagement />
+      case 'settings':
+        return <SystemSettings />
+      case 'maintenance-checklist':
+        return <ServiceTemplateManagement />
+      case 'account-settings':
+        return (
+          <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
+              Cài đặt tài khoản
+            </h2>
+            <div style={{
+              background: 'var(--bg-card)',
+              padding: '24px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)' }}>Cài đặt tài khoản sẽ được hiển thị ở đây...</p>
+            </div>
+          </div>
+        )
+      case 'dashboard':
+        return renderDashboardContent()
       default:
         return renderDashboardContent()
     }
@@ -906,7 +341,8 @@ export default function AdminDashboard() {
           width: '100%'
         }}
       >
-        {stats.map((stat, index) => (
+        {stats.length > 0 ? (
+          stats.map((stat, index) => (
           <div
             key={index}
             style={{
@@ -974,7 +410,20 @@ export default function AdminDashboard() {
               </span>
             </div>
           </div>
-        ))}
+        ))
+        ) : (
+          <div style={{
+            gridColumn: '1 / -1',
+            background: 'var(--bg-card)',
+            padding: '48px 24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            textAlign: 'center',
+            color: 'var(--text-secondary)'
+          }}>
+            <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu thống kê</p>
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}
@@ -1005,6 +454,7 @@ export default function AdminDashboard() {
           }}>
             Doanh thu theo tháng
           </h3>
+          {revenueData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
@@ -1039,6 +489,15 @@ export default function AdminDashboard() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          ) : (
+            <div style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)'
+            }}>
+              <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu doanh thu</p>
+            </div>
+          )}
         </div>
 
         {/* Charts Grid */}
@@ -1059,6 +518,7 @@ export default function AdminDashboard() {
             }}>
               Phân bố dịch vụ
             </h3>
+            {serviceData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
@@ -1086,6 +546,15 @@ export default function AdminDashboard() {
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
+            ) : (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu phân bố dịch vụ</p>
+              </div>
+            )}
           </div>
 
           {/* Customer Growth Chart */}
@@ -1104,6 +573,7 @@ export default function AdminDashboard() {
             }}>
               Tăng trưởng khách hàng
             </h3>
+            {customerGrowthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={customerGrowthData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
@@ -1129,6 +599,15 @@ export default function AdminDashboard() {
                 <Bar dataKey="returningCustomers" fill="var(--primary-500)" name="Khách hàng cũ" />
               </BarChart>
             </ResponsiveContainer>
+            ) : (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu tăng trưởng khách hàng</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1149,6 +628,7 @@ export default function AdminDashboard() {
           }}>
             Tình trạng tồn kho phụ tùng
           </h3>
+          {partsInventoryData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={partsInventoryData} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
@@ -1180,6 +660,15 @@ export default function AdminDashboard() {
               <Bar dataKey="minStock" fill="var(--border-secondary)" name="Tồn kho tối thiểu" />
             </BarChart>
           </ResponsiveContainer>
+          ) : (
+            <div style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)'
+            }}>
+              <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu tồn kho</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1196,10 +685,17 @@ export default function AdminDashboard() {
             Thao tác nhanh
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            {quickActions.map((action, index) => (
+            {quickActions.length > 0 ? (
+              quickActions.map((action, index) => (
               <div
                 key={index}
-                onClick={() => setActivePage(action.page)}
+                onClick={() => {
+                  if (action.route) {
+                    navigate(action.route)
+                  } else {
+                    setActivePage(action.page)
+                  }
+                }}
                 style={{
                   background: 'var(--bg-card)',
                   padding: '20px',
@@ -1254,7 +750,20 @@ export default function AdminDashboard() {
                 </div>
                 <ChevronRight size={16} style={{ color: 'var(--text-tertiary)' }} />
               </div>
-            ))}
+            ))
+            ) : (
+              <div style={{
+                gridColumn: '1 / -1',
+                background: 'var(--bg-card)',
+                padding: '48px 24px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-primary)',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có thao tác nhanh</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1274,7 +783,8 @@ export default function AdminDashboard() {
             border: '1px solid var(--border-primary)',
             overflow: 'hidden'
           }}>
-            {recentActivities.map((activity, index) => (
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity, index) => (
               <div
                 key={activity.id}
                 style={{
@@ -1319,175 +829,21 @@ export default function AdminDashboard() {
                   {activity.time}
                 </span>
               </div>
-            ))}
+            ))
+            ) : (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có hoạt động gần đây</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </>
   )
-
-  // Chart data
-  const revenueData = [
-    { month: 'T1', revenue: 2400000, orders: 45 },
-    { month: 'T2', revenue: 2800000, orders: 52 },
-    { month: 'T3', revenue: 3200000, orders: 48 },
-    { month: 'T4', revenue: 2900000, orders: 41 },
-    { month: 'T5', revenue: 3500000, orders: 58 },
-    { month: 'T6', revenue: 4200000, orders: 62 },
-    { month: 'T7', revenue: 3800000, orders: 55 },
-    { month: 'T8', revenue: 4500000, orders: 68 },
-    { month: 'T9', revenue: 4100000, orders: 59 },
-    { month: 'T10', revenue: 4800000, orders: 72 },
-    { month: 'T11', revenue: 5200000, orders: 78 },
-    { month: 'T12', revenue: 5800000, orders: 85 }
-  ]
-
-  const serviceData = [
-    { name: 'Bảo trì', value: 45, color: 'var(--primary-500)' },
-    { name: 'Sửa chữa', value: 30, color: 'var(--success-500)' },
-    { name: 'Thay thế phụ tùng', value: 15, color: 'var(--warning-500)' },
-    { name: 'Kiểm tra định kỳ', value: 10, color: 'var(--info-500)' }
-  ]
-
-  const customerGrowthData = [
-    { month: 'T1', newCustomers: 12, returningCustomers: 8 },
-    { month: 'T2', newCustomers: 15, returningCustomers: 12 },
-    { month: 'T3', newCustomers: 18, returningCustomers: 15 },
-    { month: 'T4', newCustomers: 14, returningCustomers: 18 },
-    { month: 'T5', newCustomers: 22, returningCustomers: 20 },
-    { month: 'T6', newCustomers: 25, returningCustomers: 24 },
-    { month: 'T7', newCustomers: 20, returningCustomers: 22 },
-    { month: 'T8', newCustomers: 28, returningCustomers: 26 },
-    { month: 'T9', newCustomers: 24, returningCustomers: 28 },
-    { month: 'T10', newCustomers: 30, returningCustomers: 32 },
-    { month: 'T11', newCustomers: 32, returningCustomers: 35 },
-    { month: 'T12', newCustomers: 35, returningCustomers: 38 }
-  ]
-
-  const partsInventoryData = [
-    { name: 'Pin Lithium', stock: 45, minStock: 20, color: 'var(--success-500)' },
-    { name: 'Bộ sạc', stock: 12, minStock: 15, color: 'var(--warning-500)' },
-    { name: 'Động cơ', stock: 8, minStock: 10, color: 'var(--error-500)' },
-    { name: 'Phanh đĩa', stock: 25, minStock: 15, color: 'var(--success-500)' },
-    { name: 'Lốp xe', stock: 18, minStock: 20, color: 'var(--warning-500)' },
-    { name: 'Đèn LED', stock: 35, minStock: 25, color: 'var(--success-500)' }
-  ]
-
-
-  const stats = [
-    {
-      title: 'Tổng doanh thu',
-      value: '2,450,000,000',
-      unit: 'VND',
-      change: '+12.5%',
-      changeType: 'positive',
-      icon: DollarSign,
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Đơn hàng mới',
-      value: '156',
-      unit: 'đơn',
-      change: '+8.2%',
-      changeType: 'positive',
-      icon: Package,
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Khách hàng',
-      value: '1,234',
-      unit: 'người',
-      change: '+5.1%',
-      changeType: 'positive',
-      icon: Users,
-      color: 'var(--info-500)'
-    },
-    {
-      title: 'Tỷ lệ hoàn thành',
-      value: '94.2',
-      unit: '%',
-      change: '+2.3%',
-      changeType: 'positive',
-      icon: Activity,
-      color: 'var(--warning-500)'
-    }
-  ]
-
-  const quickActions = [
-    {
-      title: 'Quản lý nhân sự',
-      description: 'Thêm, sửa, xóa nhân viên',
-      icon: UserCheck,
-      page: 'staff',
-      color: 'var(--primary-500)'
-    },
-    {
-      title: 'Quản lý dịch vụ',
-      description: 'Thêm, sửa, xóa dịch vụ',
-      icon: Wrench,
-      page: 'services',
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Quản lý phụ tùng',
-      description: 'Kiểm tra tồn kho, nhập hàng',
-      icon: Package,
-      page: 'parts',
-      color: 'var(--success-500)'
-    },
-    {
-      title: 'Cài đặt hệ thống',
-      description: 'Cấu hình và tùy chỉnh hệ thống',
-      icon: Settings,
-      page: 'settings',
-      color: '#6366f1'
-    },
-    {
-      title: 'Báo cáo',
-      description: 'Xem báo cáo doanh thu, thống kê',
-      icon: BarChart3,
-      page: 'reports',
-      color: 'var(--info-500)'
-    },
-    {
-      title: 'Quản lý người dùng',
-      description: 'Quản lý tài khoản khách hàng',
-      icon: Users,
-      page: 'users',
-      color: 'var(--warning-500)'
-    }
-  ]
-
-  const recentActivities = [
-    {
-      id: 1,
-      action: 'Đơn hàng mới',
-      description: 'Đơn hàng #ORD-001 từ Nguyễn Văn A',
-      time: '5 phút trước',
-      type: 'order'
-    },
-    {
-      id: 2,
-      action: 'Nhập kho',
-      description: 'Nhập 50 pin lithium 48V',
-      time: '1 giờ trước',
-      type: 'inventory'
-    },
-    {
-      id: 3,
-      action: 'Bảo trì hoàn thành',
-      description: 'Xe Honda Lead đã hoàn thành bảo trì',
-      time: '2 giờ trước',
-      type: 'maintenance'
-    },
-    {
-      id: 4,
-      action: 'Khách hàng mới',
-      description: 'Đăng ký tài khoản mới',
-      time: '3 giờ trước',
-      type: 'user'
-    }
-  ]
 
   return (
     <div className="admin-dashboard" style={{ display: 'flex', minHeight: '100vh', fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif' }}>
@@ -1594,10 +950,19 @@ export default function AdminDashboard() {
           position: 'fixed',
           height: '100vh',
           zIndex: 1004,
-          top: 0
+          top: 0,
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        <div style={{ padding: '24px' }}>
+        {/* Scrollable Content */}
+        <div style={{ 
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '24px',
+          paddingBottom: '24px'
+        }}>
           {/* Logo */}
           <div style={{
             display: 'flex',
@@ -1686,21 +1051,39 @@ export default function AdminDashboard() {
                 Quản lý
               </h3>
               {[
+                // Quản lý đơn hàng & lịch hẹn
+                { icon: ShoppingCart, label: 'Đơn hàng', page: 'orders', route: '/admin/orders' },
+                { icon: CalendarCheck, label: 'Đặt lịch', page: 'bookings', route: '/admin/bookings' },
+                { icon: MessageSquare, label: 'Phản hồi', page: 'feedback', route: '/admin/feedback' },
+                // Quản lý người dùng
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
+                // Quản lý dịch vụ
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
+                // Quản lý sản phẩm & kho
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
+                { icon: Warehouse, label: 'Kho hàng', page: 'inventory', route: '/admin/inventory' },
+                // Quản lý địa điểm & thời gian
                 { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
+                { icon: Car, label: 'Mẫu xe', page: 'vehicle-models', route: '/admin/vehicle-models' },
                 { icon: Calendar, label: 'Khung giờ làm việc', page: 'time-slots', route: '/admin/time-slots' },
+                // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
-                { icon: Settings, label: 'Cài đặt tài khoản', page: 'account-settings', route: '/admin/account-settings' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' },
-                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
+                // Báo cáo & Cài đặt
+                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' },
+                { icon: Settings, label: 'Cài đặt tài khoản', page: 'account-settings', route: '/admin/account-settings' },
+                { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (
                 <div
                   key={index}
-                  onClick={() => setActivePage(item.page)}
+                  onClick={() => {
+                    if (item.route) {
+                      navigate(item.route)
+                    } else {
+                      setActivePage(item.page)
+                    }
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1733,7 +1116,7 @@ export default function AdminDashboard() {
           </nav>
         </div>
 
-        {/* Collapse Button */}
+        {/* Collapse Button - Fixed position */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           style={{
@@ -1750,7 +1133,9 @@ export default function AdminDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px'
+            fontSize: '12px',
+            zIndex: 1005,
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}
         >
           {sidebarCollapsed ? '→' : '←'}
@@ -1763,7 +1148,7 @@ export default function AdminDashboard() {
         style={{
           marginLeft: sidebarCollapsed ? '80px' : '280px',
           padding: '0px',
-          paddingTop: '96px', // giữ khoảng trống cho header fixed
+          paddingTop: '96px',
           background: '#fff',
           minHeight: '100vh',
           transition: 'margin-left 0.3s ease',

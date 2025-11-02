@@ -585,9 +585,9 @@ export default function ProfileVehicles() {
                           borderRadius: '0'
                         }}>
                           {vehicle.lastServiceDate ? formatDate(vehicle.lastServiceDate) : 'Chưa có'}
-                        </div>
-                      )}
-                    </div>
+                          </div>
+                            )}
+                          </div>
 
 
                     {vehicle.nextServiceDue && (

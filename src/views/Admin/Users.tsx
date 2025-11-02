@@ -750,7 +750,8 @@ export default function Users() {
                     padding: '16px 20px',
                     textAlign: 'left',
                     fontSize: '14px',
-                    fontWeight: '500'
+                    fontWeight: '500',
+                    borderRight: '1px solid #e5e7eb'
                     }}
                   >
                     <span className="th-inner"><input type="checkbox" className="users-checkbox" aria-label="Chọn tất cả" checked={isAllSelected} onChange={(e)=>handleToggleAll(e.target.checked)} /> <UserIcon size={16} className="th-icon" /> Họ tên</span>
