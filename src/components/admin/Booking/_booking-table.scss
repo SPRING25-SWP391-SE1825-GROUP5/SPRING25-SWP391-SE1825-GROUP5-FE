@@ -34,7 +34,7 @@
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
   }
-  
+
   tbody td:first-child {
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
@@ -157,24 +157,23 @@
 .booking-id-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
-
-  &__avatar {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    background: #FFD875;
-    color: #111;
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-  }
+  gap: 6px;
 
   &__text {
     font-weight: 500;
+    font-size: 13px;
+  }
+}
+
+// Thu nhỏ cột ID
+.booking-table.users-table {
+  thead th:first-child,
+  tbody td:first-child {
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
   }
 }
 
@@ -245,7 +244,7 @@
     background: #FFF8E5;
     color: #FFD875;
     border: 1px solid #FFD875;
-    
+
     .dot {
       background: #FFD875;
     }
@@ -255,7 +254,7 @@
     background: #E0F2FE;
     color: #0EA5E9;
     border: 1px solid #0EA5E9;
-    
+
     .dot {
       background: #0EA5E9;
     }
@@ -265,7 +264,7 @@
     background: #FEF3C7;
     color: #F59E0B;
     border: 1px solid #F59E0B;
-    
+
     .dot {
       background: #F59E0B;
     }
@@ -275,7 +274,7 @@
     background: #F0FDF4;
     color: #22C55E;
     border: 1px solid #22C55E;
-    
+
     .dot {
       background: #22C55E;
     }
@@ -285,7 +284,7 @@
     background: #D1FAE5;
     color: #059669;
     border: 1px solid #059669;
-    
+
     .dot {
       background: #059669;
     }
@@ -295,7 +294,7 @@
     background: #FEE2E2;
     color: #EF4444;
     border: 1px solid #EF4444;
-    
+
     .dot {
       background: #EF4444;
     }
@@ -305,7 +304,7 @@
     background: #F3F4F6;
     color: #6B7280;
     border: 1px solid #6B7280;
-    
+
     .dot {
       background: #6B7280;
     }

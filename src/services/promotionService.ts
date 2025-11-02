@@ -206,6 +206,17 @@ export const PromotionService = {
         } catch (error) {
             throw error
         }
+    },
+    async exportPromotions(): Promise<Blob> {
+        try {
+            const response = await api.get('/promotion/export', {
+                responseType: 'blob'
+            })
+            return response.data
+        } catch (error: any) {
+            console.error('Export promotions error:', error)
+            throw error
+        }
     }
 }
 

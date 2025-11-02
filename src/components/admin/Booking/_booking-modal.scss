@@ -133,8 +133,73 @@
   }
 
   &__status {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     text-align: center;
+  }
+
+  // Tabs Navigation
+  &__tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #e5e7eb;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    position: relative;
+
+    &:hover {
+      color: #374151;
+      background: #f9fafb;
+    }
+
+    &.active {
+      color: var(--primary-600);
+      border-bottom-color: var(--primary-600);
+      font-weight: 600;
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
+  // Tab Content
+  &__tab-content {
+    animation: fadeInTab 0.3s ease-out;
+    min-height: 200px;
+  }
+
+  @keyframes fadeInTab {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   &__info-grid {
@@ -177,6 +242,130 @@
     color: #374151;
     line-height: 1.5;
     white-space: pre-wrap;
+  }
+
+  // Parts List
+  &__parts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__part-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+
+    .part-name {
+      flex: 1;
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    .part-quantity {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .part-price {
+      font-weight: 600;
+      color: var(--primary-600);
+    }
+  }
+
+  // Checklist
+  &__checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+
+    .checklist-checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+  }
+
+  // History Timeline
+  &__history {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__history-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: #f9fafb;
+    border-left: 3px solid var(--primary-500);
+    border-radius: 8px;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 20px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary-500);
+      border: 2px solid #fff;
+    }
+
+    .history-time {
+      flex-shrink: 0;
+      width: 140px;
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .history-content {
+      flex: 1;
+      font-size: 14px;
+      color: #374151;
+
+      .history-action {
+        font-weight: 600;
+        color: #1f2937;
+      }
+
+      .history-note {
+        color: #6b7280;
+      }
+    }
+  }
+
+  // Empty State
+  &__empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+
+    p {
+      font-size: 14px;
+      margin: 0;
+    }
   }
 
   &__actions {

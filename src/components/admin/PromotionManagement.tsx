@@ -263,11 +263,21 @@ export default function PromotionManagement() {
   const handleExport = async () => {
     try {
       setExporting(true);
-      // TODO: Implement export functionality
-      toast.success('Chức năng xuất dữ liệu sẽ được triển khai sau');
-    } catch (err) {
+      const blob = await PromotionService.exportPromotions();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      link.download = `promotions_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Xuất danh sách khuyến mãi thành công!');
+    } catch (err: any) {
       console.error('Export promotions failed:', err);
-      toast.error('Không thể xuất danh sách khuyến mãi. Vui lòng thử lại!');
+      const errorMessage = err?.response?.data?.message || err?.message || 'Không thể xuất danh sách khuyến mãi';
+      toast.error(errorMessage);
     } finally {
       setExporting(false);
     }
@@ -369,37 +379,37 @@ export default function PromotionManagement() {
       </div>
 
         <div className="toolbar-filters">
-          <div className="filter-dropdown" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenTypeMenu(false); setOpenStatusMenu(v=>!v); }}>
-            <CheckCircle size={14} className="filter-icon" />
-            <span className="filter-text">{statuses.find(s=>s.value===filterStatus)?.label}</span>
-            <ChevronDownIcon width={16} height={16} className="filter-arrow" />
+          <div className="pill-select" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenTypeMenu(false); setOpenStatusMenu(v=>!v); }}>
+            <CheckCircle size={14} className="icon" />
+            <button type="button" className="pill-trigger">{statuses.find(s=>s.value===filterStatus)?.label}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
             {openStatusMenu && (
-              <ul className="filter-menu show">
+              <ul className="pill-menu show">
                 {statuses.map(s => (
-                  <li key={s.value} className={`filter-item ${filterStatus===s.value ? 'active' : ''}`}
+                  <li key={s.value} className={`pill-item ${filterStatus===s.value ? 'active' : ''}`}
                       onClick={()=>{ setFilterStatus(s.value); setPageNumber(1); setOpenStatusMenu(false); }}>
                     {s.label}
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+        </div>
 
-          <div className="filter-dropdown" ref={typeRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenTypeMenu(v=>!v); }}>
-            <Percent size={14} className="filter-icon" />
-            <span className="filter-text">{types.find(t=>t.value===filterType)?.label}</span>
-            <ChevronDownIcon width={16} height={16} className="filter-arrow" />
+          <div className="pill-select" ref={typeRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenTypeMenu(v=>!v); }}>
+            <Percent size={14} className="icon" />
+            <button type="button" className="pill-trigger">{types.find(t=>t.value===filterType)?.label}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
             {openTypeMenu && (
-              <ul className="filter-menu show">
+              <ul className="pill-menu show">
                 {types.map(t => (
-                  <li key={t.value} className={`filter-item ${filterType===t.value ? 'active' : ''}`}
+                  <li key={t.value} className={`pill-item ${filterType===t.value ? 'active' : ''}`}
                       onClick={()=>{ setFilterType(t.value); setPageNumber(1); setOpenTypeMenu(false); }}>
                     {t.label}
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+        </div>
 
           <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
         </div>
@@ -480,7 +490,19 @@ export default function PromotionManagement() {
                           <div className="promotion-code-cell__avatar users-avatar users-avatar--fallback">
                             {p.code ? p.code.charAt(0).toUpperCase() : 'P'}
                   </div>
-                          <span className="promotion-code-cell__text">{p.code}</span>
+                          <span
+                            className="promotion-code-cell__text"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (p.code) {
+                                navigator.clipboard.writeText(p.code);
+                                toast.success(`Đã copy mã khuyến mãi: ${p.code}`);
+                              }
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {p.code}
+                          </span>
                 </div>
               </td>
                       <td className="text-secondary text-ellipsis">
@@ -490,7 +512,7 @@ export default function PromotionManagement() {
                         {formatDiscount(p)}
               </td>
                       <td>
-                        <span className={`promotion-discount-badge ${p.discountType === 'PERCENT' ? 'percent' : 'fixed'}`}>
+                        <span className={`promotion-discount-badge ${p.discountType === 'PERCENT' ? 'percent' : 'fixed-amount'}`}>
                           {p.discountType === 'PERCENT' ? 'Phần trăm' : 'Số tiền'}
                         </span>
               </td>
@@ -543,13 +565,13 @@ export default function PromotionManagement() {
       <div className="promotion-pagination">
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
-          <div className="page-size-selector" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
-            <span className="page-size-text">{pageSize}</span>
-            <ChevronDownIcon width={16} height={16} className="page-size-arrow" />
+          <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
+            <button type="button" className="pill-trigger">{pageSize}</button>
+            <ChevronDownIcon width={16} height={16} className="caret" />
             {openPageSizeMenu && (
-              <ul className="page-size-menu show">
+              <ul className="pill-menu show">
                 {[10, 15, 20, 30, 50].map(sz => (
-                  <li key={sz} className={`page-size-item ${pageSize === sz ? 'active' : ''}`}
+                  <li key={sz} className={`pill-item ${pageSize === sz ? 'active' : ''}`}
                       onClick={() => { setPageSize(sz); setPageNumber(1); setOpenPageSizeMenu(false); }}>
                     {sz}
                   </li>

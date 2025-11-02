@@ -179,5 +179,27 @@
       cursor: not-allowed;
     }
   }
+
+  // Error state styles - override default styles
+  &__input--error,
+  input.promotion-form-modal__input--error,
+  textarea.promotion-form-modal__input--error,
+  select.promotion-form-modal__input--error,
+  input[style*="border: 2px solid #ef4444"],
+  input[style*="border:2px solid #ef4444"],
+  textarea[style*="border: 2px solid #ef4444"],
+  textarea[style*="border:2px solid #ef4444"],
+  select[style*="border: 2px solid #ef4444"],
+  select[style*="border:2px solid #ef4444"] {
+    background-color: #fef2f2 !important;
+    border: 2px solid #ef4444 !important;
+    border-color: #ef4444 !important;
+
+    &:focus {
+      background-color: #fee2e2 !important;
+      border-color: #dc2626 !important;
+      outline: none !important;
+    }
+  }
 }
 

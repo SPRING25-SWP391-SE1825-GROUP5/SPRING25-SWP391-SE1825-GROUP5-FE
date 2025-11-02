@@ -721,11 +721,16 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       {/* CSS Styles */}
       <style>{`
         .service-booking-form {
+          width: 100%;
           max-width: 1000px;
           margin: 0 auto;
           padding: 1.5rem;
           background: var(--bg-card);
           min-height: 100vh;
+          box-sizing: border-box;
+          position: relative;
+          left: 0;
+          right: 0;
         }
 
         .booking-header {

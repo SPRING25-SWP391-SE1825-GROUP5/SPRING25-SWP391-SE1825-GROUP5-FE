@@ -15,10 +15,25 @@ export const store = configureStore({
 })
 
 // Wire axios to Redux store without creating circular imports
+// This ensures token is always available, even if Redux store is not ready yet
 attachTokenGetter(() => {
   try {
-    return store.getState().auth.token
+    const state = store.getState()
+    const token = state.auth.token
+
+    // If Redux token is null but localStorage has token, return localStorage token
+    // This handles timing issues during app initialization
+    if (!token && typeof localStorage !== 'undefined') {
+      const localToken = localStorage.getItem('authToken') || localStorage.getItem('token')
+      return localToken
+    }
+
+    return token
   } catch {
+    // Fallback to localStorage if Redux store access fails
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('authToken') || localStorage.getItem('token')
+    }
     return null
   }
 })

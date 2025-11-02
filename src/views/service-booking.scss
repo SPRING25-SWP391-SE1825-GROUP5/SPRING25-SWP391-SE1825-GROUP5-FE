@@ -1,6 +1,10 @@
 .booking-page {
   background: var(--bg-primary);
   padding-top: 80px;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
 
   .booking-title {
     color: var(--text-primary);
@@ -16,6 +20,20 @@
     border-radius: 16px;
     box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
   }
+}
+
+.service-booking-view {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
 
   /* Progress indicator unify */
   .steps-progress-indicator {
@@ -288,14 +306,14 @@
 
       &:hover:not(:disabled) { border-color: var(--primary-300); background: var(--primary-50); }
       &.selected { background: var(--primary-500); color: var(--text-inverse); border-color: var(--primary-500); }
-      
+
       &.disabled {
         background: var(--bg-secondary);
         color: var(--text-tertiary);
         border-color: var(--border-secondary);
         cursor: not-allowed;
         opacity: 0.6;
-        
+
         .slot-status {
           font-size: 0.7rem;
           color: var(--error-500);
@@ -326,7 +344,7 @@
     }
 
     .cal-title { font-weight: 700; }
-    .cal-nav { 
+    .cal-nav {
       border: 1px solid var(--border-primary);
       background: #fff;
       border-radius: 10px;
@@ -449,7 +467,7 @@
         &:last-child { border-bottom: none; }
 
         .service-name { color: var(--text-primary); }
-        .service-price { 
+        .service-price {
           color: var(--primary-600);
           font-weight: 600;
           text-align: right;
@@ -466,7 +484,7 @@
         font-weight: 700;
 
         .total-label { color: var(--text-primary); }
-        .total-price { 
+        .total-price {
           color: var(--primary-600);
           text-align: right;
           font-size: 1.1rem;
@@ -526,12 +544,23 @@
       gap: 2rem;
     }
   }
+
+  /* Fix layout centering */
+  .service-booking-form {
+    width: 100% !important;
+    max-width: 1000px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    box-sizing: border-box !important;
+  }
 }
 
 /* Location Service Enhancements */
 .address-input-container {
   position: relative;
-  
+
   .address-suggestions {
     position: absolute;
     top: 100%;
@@ -544,21 +573,21 @@
     z-index: 1000;
     max-height: 200px;
     overflow-y: auto;
-    
+
     .suggestion-item {
       padding: 0.75rem;
       cursor: pointer;
       border-bottom: 1px solid var(--border-secondary);
       transition: background-color 0.2s ease;
-      
+
       &:hover {
         background-color: var(--bg-tertiary);
       }
-      
+
       &:last-child {
         border-bottom: none;
       }
-      
+
       .suggestion-text {
         font-size: 0.875rem;
         color: var(--text-primary);
@@ -605,17 +634,17 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.2s ease;
-  
+
   &:hover:not(:disabled) {
     background: var(--primary-blue-dark);
   }
-  
+
   &:disabled {
     background: var(--secondary-gray-light);
     color: var(--text-muted);
     cursor: not-allowed;
   }
-  
+
   .location-icon {
     width: 16px;
     height: 16px;
@@ -628,7 +657,7 @@
   border-radius: 0.5rem;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  
+
   iframe {
     width: 100%;
     height: 200px;
@@ -641,11 +670,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
+
   .center-name {
     flex: 1;
   }
-  
+
   .center-distance {
     color: var(--text-muted);
     font-size: 0.8rem;
@@ -658,11 +687,11 @@
   .address-input-container .address-suggestions {
     max-height: 150px;
   }
-  
+
   .map-container iframe {
     height: 150px;
   }
-  
+
   .btn-location {
     width: 100%;
     justify-content: center;

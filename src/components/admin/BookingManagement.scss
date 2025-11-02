@@ -34,7 +34,71 @@
 // Fix alignment for toolbar filters and pill-select buttons
 .admin-booking,
 .admin-bookings {
+  // Search input with icon
+  .toolbar-search {
+    flex: 1 1 auto;
+    max-width: none;
+    display: flex;
+    align-items: center;
+    margin: 0 16px 0 0;
+    position: relative;
+    z-index: 1;
+    min-width: 240px;
+
+    .search-wrap {
+      position: relative;
+      width: 100%;
+      display: block;
+
+      input {
+        width: 100% !important;
+        padding: 10px 12px 10px 34px !important;
+        border: none;
+        border-bottom: 1px solid transparent;
+        border-radius: 0;
+        background: #fff !important;
+        color: var(--text-primary);
+        font-size: 13px;
+        outline: none;
+        box-shadow: none;
+      }
+
+      .icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-tertiary);
+        z-index: 2;
+        pointer-events: none;
+        display: block;
+        width: 14px;
+        height: 14px;
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: #FFD875;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform .25s ease;
+      }
+
+      &:focus-within::after {
+        transform: scaleX(1);
+      }
+    }
+  }
+
   .users-toolbar {
+    padding-right: 0;
+    margin-right: 0;
+
     // Uniform padding for all toolbar buttons
     .toolbar-chip {
       padding: 6px 10px !important;

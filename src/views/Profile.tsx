@@ -722,19 +722,19 @@ export default function Profile() {
             )}
             <span className="profile-v2__avatar-camera" title="Change avatar">
               <CameraIcon />
-            </span>
+                            </span>
             <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
-          </div>
+                  </div>
 
           <div className="profile-v2__header-info">
             <h1 className="profile-v2__name">{profileData.fullName || 'Vo Minh Tien'}</h1>
-          </div>
-        </div>
+                              </div>
+                            </div>
 
         {/* Vehicles section removed - using ProfileVehicles component in section-wrapper */}
 
-        {/* Other tabs... */}
-        {activeTab === 'service-history' && (
+            {/* Other tabs... */}
+            {activeTab === 'service-history' && (
               <div className="tab-content">
                 <BaseCard>
                 <div className="card-header">
@@ -786,18 +786,18 @@ export default function Profile() {
                         )}
                       </div>
                     )}
-                  </div>
-                </BaseCard>
-              </div>
+                    </div>
+              </BaseCard>
+                    </div>
             )}
 
-        {activeTab === 'promo-codes' && (
-          <div className="tab-content">
-            <BaseCard>
-              <div className="card-header">
-                <h3 className="card-title">Mã khuyến mãi đã lưu</h3>
-              </div>
-              <div className="card-body">
+            {activeTab === 'promo-codes' && (
+              <div className="tab-content">
+                <BaseCard>
+                <div className="card-header">
+                    <h3 className="card-title">Mã khuyến mãi đã lưu</h3>
+                    </div>
+                  <div className="card-body">
                     {promotionsLoading ? (
                       <div className="loading-state">
                         <div className="spinner"></div>
@@ -895,9 +895,9 @@ export default function Profile() {
           {activeTab === 'promotions' && <ProfilePromotions />}
           {activeTab === 'packages' && <ProfilePackages />}
           {activeTab === 'notifications' && <ProfileNotifications />}
-        </div>
-      </div>
-    </div>
+                    </div>
+                </div>
+              </div>
   )
 }
 
