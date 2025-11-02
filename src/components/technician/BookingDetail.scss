@@ -5,14 +5,10 @@
   background: #F8FAFC;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-  /* Main Content Area */
+  /* Main Content Area - styles moved to inline for better customization */
   &__main {
     display: flex;
     flex-direction: column;
-    background: #F8FAFC;
-    padding: 1rem;
-    padding-bottom: 1rem;
-    gap: 1rem;
   }
 
   /* Compact Header */
