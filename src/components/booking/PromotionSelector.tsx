@@ -39,7 +39,7 @@ const PromotionSelector: React.FC<PromotionSelectorProps> = ({
         const response = await PromotionService.getActivePromotions()
         setAvailablePromotions(response.data || [])
       } catch (error) {
-        console.error('Error loading promotions:', error)
+        // Silently handle error
       }
     }
     loadPromotions()

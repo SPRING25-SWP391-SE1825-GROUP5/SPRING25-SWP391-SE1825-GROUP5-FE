@@ -27,6 +27,30 @@ export interface FeedbackStats {
   }
 }
 
+export interface Review {
+  feedbackId: number
+  customerId: number
+  bookingId: number | null
+  orderId: number | null
+  partId: number | null
+  technicianId: number | null
+  rating: number
+  comment: string
+  isAnonymous: boolean
+  createdAt: string
+  partName: string | null
+  technicianName: string | null
+}
+
+export interface ReviewsResponse {
+  success: boolean
+  message: string
+  total: number
+  page: number
+  pageSize: number
+  data: Review[]
+}
+
 class FeedbackService {
   // Submit feedback for a booking (technician)
   async submitFeedback(bookingId: string, technicianId: number, feedback: FeedbackData): Promise<FeedbackResponse> {
@@ -125,6 +149,48 @@ class FeedbackService {
     } catch (error: any) {
       console.error('Error deleting feedback:', error)
       throw new Error(error.response?.data?.message || 'Không thể xóa đánh giá')
+    }
+  }
+
+  // Get my reviews with pagination
+  async getMyReviews(page: number = 1, pageSize: number = 20): Promise<ReviewsResponse> {
+    try {
+      const { data } = await api.get('/Feedback/my-reviews', {
+        params: {
+          page,
+          pageSize
+        }
+      })
+      
+      // Xử lý nhiều trường hợp response format
+      if (data && typeof data === 'object') {
+        return {
+          success: data.success ?? true,
+          message: data.message ?? 'Lấy danh sách đánh giá thành công',
+          total: data.total ?? 0,
+          page: data.page ?? page,
+          pageSize: data.pageSize ?? pageSize,
+          data: Array.isArray(data.data) ? data.data : []
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Không thể lấy danh sách đánh giá',
+        total: 0,
+        page,
+        pageSize,
+        data: []
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Không thể lấy danh sách đánh giá',
+        total: 0,
+        page,
+        pageSize,
+        data: []
+      }
     }
   }
 }

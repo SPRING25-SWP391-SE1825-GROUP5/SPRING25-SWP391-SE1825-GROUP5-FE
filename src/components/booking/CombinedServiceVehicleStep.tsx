@@ -94,13 +94,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadCategories = async () => {
       setCategoriesLoading(true)
       try {
-        console.log('🔄 Loading categories...')
         const cats = await ServiceCategoryService.getActiveCategories()
-        console.log('✅ Loaded categories:', cats)
-        console.log('✅ Categories count:', cats.length)
         setCategories(cats)
       } catch (error) {
-        console.error('❌ Error loading categories:', error)
         setCategories([])
       } finally {
         setCategoriesLoading(false)
@@ -114,15 +110,12 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadServices = async () => {
       setServicesLoading(true)
       try {
-        console.log('Loading services with categoryId:', selectedCategoryId)
         const res = await ServiceManagementService.getActiveServices({ 
           pageSize: 100,
           categoryId: selectedCategoryId 
         })
-        console.log('Services loaded:', res.services)
         setServices(res.services || [])
       } catch (_e) {
-        console.error('Error loading services:', _e)
         setServices([])
       } finally {
         setServicesLoading(false)
@@ -136,35 +129,23 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadPackages = async () => {
       setPackagesLoading(true)
       try {
-        console.log('Loading packages with categoryId:', selectedCategoryId)
         const res = await ServiceManagementService.getActiveServicePackages({ pageSize: 100 })
-        console.log('Packages loaded (before filter):', res.packages)
-        console.log('Total packages from API:', res.packages?.length || 0)
         
         // Filter packages by category
         let filteredPackages = res.packages || []
         if (selectedCategoryId) {
-          console.log('Filtering packages by category:', selectedCategoryId)
           // Get services for this category
           const categoryServices = await ServiceManagementService.getActiveServices({ 
             pageSize: 100,
             categoryId: selectedCategoryId 
           })
-          console.log('Services in category:', categoryServices.services)
-          console.log('Service IDs in category:', categoryServices.services.map(s => s.id))
           const serviceIds = categoryServices.services.map(s => s.id)
-          console.log('Filtering packages. Total packages before filter:', filteredPackages.length)
           filteredPackages = filteredPackages.filter(pkg => {
-            const matches = serviceIds.includes(pkg.serviceId)
-            console.log(`Package ${pkg.packageId} (serviceId: ${pkg.serviceId}) matches:`, matches)
-            return matches
+            return serviceIds.includes(pkg.serviceId)
           })
-          console.log('Total packages after filter:', filteredPackages.length)
         }
-        console.log('Final packages loaded:', filteredPackages)
         setPackages(filteredPackages)
       } catch (_e) {
-        console.error('Error loading packages:', _e)
         setPackages([])
       } finally {
         setPackagesLoading(false)
@@ -208,17 +189,11 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   // Function to get recommended services
   const getRecommendedServices = async () => {
     if (!vehicleData.mileage || !vehicleData.lastMaintenanceDate || !selectedCategoryId) {
-      console.log('Missing required info for recommendation:', {
-        mileage: vehicleData.mileage,
-        lastMaintenanceDate: vehicleData.lastMaintenanceDate,
-        categoryId: selectedCategoryId
-      })
       return
     }
 
     const currentKm = parseInt(vehicleData.mileage)
     if (isNaN(currentKm)) {
-      console.log('Invalid mileage:', vehicleData.mileage)
       return
     }
 
@@ -233,7 +208,6 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       setRecommendedServices(response.data)
       setShowRecommendations(true)
     } catch (error) {
-      console.error('Error getting recommended services:', error)
       setRecommendedServices([])
     } finally {
       setRecommendationLoading(false)
@@ -672,7 +646,6 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           open={openCreate}
           onClose={() => setOpenCreate(false)}
           onCreated={(veh, customerId) => {
-            console.log('CombinedServiceVehicleStep received customerId:', customerId)
             setVehicles((list) => [veh, ...list])
             
             // Reset selected vehicle (since new vehicle was created)
@@ -692,10 +665,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
             
             // Nếu có customerId từ guest, truyền về ServiceBookingForm
             if (customerId && onGuestCustomerCreated) {
-              console.log('Calling onGuestCustomerCreated with customerId:', customerId)
               onGuestCustomerCreated(customerId)
-            } else {
-              console.log('Not calling onGuestCustomerCreated:', { customerId, onGuestCustomerCreated: !!onGuestCustomerCreated })
             }
             
             setOpenCreate(false)

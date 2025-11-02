@@ -43,20 +43,15 @@ const VehicleSelection: React.FC<VehicleSelectionProps> = ({
     const loadCenters = async () => {
       setCentersLoading(true)
       try {
-        console.log('Loading active centers...')
         const response = await CenterService.getActiveCenters()
-        console.log('Centers response:', response)
         
         // Handle the response format from your API
         if (response.centers) {
           setCenters(response.centers)
-          console.log('Centers loaded:', response.centers)
         } else {
-          console.log('No centers found in response')
           setCenters([])
         }
       } catch (error) {
-        console.error('Error loading centers:', error)
         setCenters([])
       } finally {
         setCentersLoading(false)

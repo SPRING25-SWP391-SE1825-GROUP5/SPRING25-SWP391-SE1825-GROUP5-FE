@@ -1,0 +1,298 @@
+// Table styles
+.promotion-table-container {
+  background: var(--bg-card);
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.promotion-table-wrapper {
+  overflow: auto;
+}
+
+.promotion-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
+  border: 1px solid #e5e7eb;
+
+  // Override global users-table styles from Users.scss - với specificity cao hơn
+  &.users-table {
+    thead th:first-child,
+    tbody td:first-child {
+      border-left: 1px solid #e5e7eb !important;
+      border-right: 1px solid #e5e7eb !important;
+    }
+  }
+
+  // Override global table styles from global.scss với specificity cao hơn
+  thead th:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+  
+  tbody td:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+
+  thead tr {
+    background: #FFF8E1 !important;
+    box-shadow: none;
+
+    th {
+      background: #FFF8E1 !important;
+      box-shadow: none;
+      border: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+      border-top: 1px solid #e5e7eb;
+      color: var(--text-secondary);
+      font-weight: 400;
+      padding: 6px;
+      text-align: left;
+      font-size: 14px;
+      border-radius: 0;
+
+      &:first-child {
+        border-left: 1px solid #e5e7eb !important;
+        border-right: 1px solid #e5e7eb !important;
+      }
+
+      // Đảm bảo border-right không bị override
+      &:not(:last-child) {
+        border-right: 1px solid #e5e7eb !important;
+      }
+
+      &:last-child {
+        border-right: 1px solid #e5e7eb;
+      }
+
+      // Giảm width cho cột "Mô tả" (cột thứ 2)
+      &:nth-child(2) {
+        max-width: 200px;
+        width: 200px;
+      }
+
+      // Tăng width cho cột "% Loại"
+      &:nth-child(4) {
+        min-width: 120px;
+        width: 120px;
+      }
+
+      .th-inner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        &.sortable {
+          gap: 6px;
+          cursor: pointer;
+          user-select: none;
+        }
+      }
+
+      .th-icon {
+        color: var(--text-tertiary);
+      }
+
+      &.sortable {
+        cursor: pointer;
+        user-select: none;
+      }
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid #e5e7eb;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      opacity: 0;
+      background: #fff;
+
+      &:last-child {
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      &:nth-child(even) {
+        background: #fff;
+      }
+
+      &:nth-child(odd) {
+        background: #fff;
+      }
+
+      &:hover {
+        background: rgba(255, 216, 117, 0.15) !important;
+        transform: translateY(0);
+        box-shadow: none;
+      }
+
+      td {
+        padding: 6px;
+        font-size: 14px;
+        color: var(--text-primary);
+        font-weight: 400;
+        border: 1px solid #e5e7eb;
+        border-radius: 0;
+        background: inherit;
+        vertical-align: middle;
+
+        &:first-child {
+          border-left: 1px solid #e5e7eb !important;
+          border-right: 1px solid #e5e7eb !important;
+        }
+
+        &:last-child {
+          border-right: 1px solid #e5e7eb !important;
+        }
+
+        // Đảm bảo border-right không bị override
+        &:not(:last-child) {
+          border-right: 1px solid #e5e7eb !important;
+        }
+
+        // Giảm width cho cột "Mô tả" (cột thứ 2)
+        &:nth-child(2) {
+          max-width: 200px;
+          width: 200px;
+        }
+
+        // Tăng width cho cột "% Loại" (cột thứ 4)
+        &:nth-child(4) {
+          min-width: 120px;
+          width: 120px;
+        }
+
+        &.text-secondary {
+          color: var(--text-secondary);
+        }
+
+        &.text-primary-bold {
+          font-weight: 500;
+        }
+
+        &.text-ellipsis {
+          max-width: 300px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+}
+
+.promotion-code-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &__avatar {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    background: #FFD875;
+    color: #111;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  &__text {
+    font-weight: 500;
+  }
+}
+
+.promotion-discount-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  line-height: 1;
+  vertical-align: middle;
+
+  &.percent {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+  }
+
+  &.fixed {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+  }
+}
+
+.promotion-date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  span {
+    font-size: 12px;
+  }
+}
+
+.promotion-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.promotion-action-btn {
+  padding: 8px;
+  border: 2px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+
+  &:hover {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+  }
+
+  &.toggle {
+    &.active {
+      border-color: var(--error-500);
+      background: var(--error-50);
+      color: var(--error-600);
+
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+
+    &.inactive {
+      border-color: var(--success-500);
+      background: var(--success-50);
+      color: var(--success-600);
+
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+  }
+}
+

@@ -30,7 +30,32 @@ export const NotificationService = {
   async getMyNotifications(): Promise<NotificationResponse> {
     try {
       const { data } = await api.get('/Notification/my-notifications')
-      return data
+      
+      // Xử lý nhiều trường hợp response format
+      // Trường hợp 1: Response là array trực tiếp
+      if (Array.isArray(data)) {
+        return {
+          success: true,
+          message: 'Lấy danh sách thông báo thành công',
+          data: data
+        }
+      }
+      
+      // Trường hợp 2: Response có structure { success, message, data }
+      if (data && typeof data === 'object' && 'data' in data) {
+        return {
+          success: data.success ?? true,
+          message: data.message ?? 'Lấy danh sách thông báo thành công',
+          data: Array.isArray(data.data) ? data.data : []
+        }
+      }
+      
+      // Trường hợp 3: Response có structure { success, data: [...] } nhưng không có message
+      return {
+        success: true,
+        message: 'Lấy danh sách thông báo thành công',
+        data: []
+      }
     } catch (error) {
       return {
         success: false,

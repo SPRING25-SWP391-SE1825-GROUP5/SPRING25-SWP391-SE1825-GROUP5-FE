@@ -1,0 +1,348 @@
+.profile-notifications {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__mark-all-read {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+
+    &:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+      color: #374151;
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+
+  &__refresh {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    color: #6b7280;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover:not(:disabled) {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .spinning {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: #6b7280;
+  }
+
+  &__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e5e7eb;
+    border-top: 3px solid #4A9782;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+  }
+
+  &__empty {
+    padding: 60px 20px;
+    text-align: center;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__item {
+    padding: 16px 24px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #f3f4f6;
+    position: relative;
+
+    &:hover {
+      background: #f9fafb;
+    }
+
+    &.unread {
+      background: #fff8e5;
+      border-left: 3px solid #ffd875;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  &__item-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  &__item-dot {
+    width: 8px;
+    height: 8px;
+    background: #ffd875;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
+  &__item-message {
+    margin: 0;
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+
+  &__item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  &__item-time {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 500;
+  }
+
+  &__item-type {
+    font-size: 11px;
+    color: #4A9782;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    background: rgba(74, 151, 130, 0.1);
+    border-radius: 12px;
+  }
+
+  &__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+  }
+
+  &__pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+  }
+
+  &__pagination-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    &.active {
+      background: #ffd875;
+      color: #f59e0b;
+      font-weight: 600;
+      
+      &:hover {
+        background: #ffd875;
+        color: #f59e0b;
+      }
+    }
+  }
+
+  &__pagination-ellipsis {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    color: #9ca3af;
+    font-size: 14px;
+    font-weight: 500;
+    user-select: none;
+  }
+}
+
+// Animations
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Scrollbar styling (if list becomes scrollable)
+.profile-notifications__list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-notifications__list::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.profile-notifications__list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.profile-notifications__list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .profile-notifications {
+    &__header {
+      padding: 16px 20px;
+    }
+
+    &__title {
+      font-size: 18px;
+    }
+
+    &__item {
+      padding: 14px 20px;
+    }
+
+    &__item-title {
+      font-size: 15px;
+    }
+
+    &__item-message {
+      font-size: 13px;
+    }
+
+    &__pagination {
+      padding: 16px 20px;
+      gap: 4px;
+    }
+
+    &__pagination-btn,
+    &__pagination-number {
+      min-width: 28px;
+      height: 28px;
+      font-size: 13px;
+    }
+
+    &__pagination-ellipsis {
+      min-width: 28px;
+      height: 28px;
+      font-size: 13px;
+    }
+  }
+}
+

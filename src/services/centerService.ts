@@ -156,49 +156,6 @@ export const CenterService = {
     }
   },
 
-  // Toggle center active status
-  async toggleCenterStatus(id: number): Promise<Center> {
-    try {
-      const { data, status } = await api.patch(`/center/${id}/toggle-active`)
-      console.log('toggleCenterStatus response:', data)
-
-      if (status >= 200 && status < 300) {
-        if (data?.success && data?.data) {
-          return data.data
-        }
-        // Some APIs may return the entity directly
-        if (data && typeof data === 'object' && (data.centerId || data.centerName)) {
-          return data as Center
-        }
-        // Some APIs may return only a message; fetch the updated entity as fallback
-        const refreshed = await this.getCenterById(id)
-        return refreshed
-      }
-      throw new Error('Unexpected response status from server')
-    } catch (error: any) {
-      console.error('Error toggling center status:', error)
-
-      // Extract detailed error message
-      let errorMessage = 'Unknown error'
-
-      if (error.response?.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message
-        } else if (error.response.data.errors) {
-          const errors = error.response.data.errors
-          if (typeof errors === 'object') {
-            errorMessage = Object.values(errors).flat().join(', ')
-          }
-        }
-      } else if (error.message) {
-        errorMessage = error.message
-      }
-
-      throw new Error(`Không thể cập nhật trạng thái: ${errorMessage}`)
-    }
-  },
 
   // Get nearby centers
   async getNearbyCenters(params: NearbyCentersParams): Promise<NearbyCenter[]> {

@@ -30,14 +30,14 @@ const PopupNotification = ({ message, type, onClose }: { message: string; type: 
 export default function TechnicianProfile() {
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [popup, setPopup] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  
+
   // Edit modes
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)
-  
+
   // Profile data
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -46,7 +46,7 @@ export default function TechnicianProfile() {
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [avatar, setAvatar] = useState<string | null>(null)
-  
+
   // Password change
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -63,11 +63,11 @@ export default function TechnicianProfile() {
 
   // Helper functions for notifications
   const setSuccessMessage = (message: string) => {
-    setSuccess(message)
+    setPopup({ message, type: 'success' })
   }
 
   const setErrorMessage = (message: string) => {
-    setError(message)
+    setPopup({ message, type: 'error' })
   }
 
   useEffect(() => {
@@ -77,9 +77,9 @@ export default function TechnicianProfile() {
   const loadProfile = async () => {
     try {
       setLoading(true)
-      
+
       const response = await AuthService.getProfile()
-      
+
       if (response.success && response.data) {
         const userData = response.data
         setFullName(userData.fullName || '')
@@ -101,23 +101,23 @@ export default function TechnicianProfile() {
 
   const validatePassword = () => {
     const errors: { [key: string]: string } = {}
-    
+
     if (!currentPassword) {
       errors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại'
     }
-    
+
     if (!newPassword) {
       errors.newPassword = 'Vui lòng nhập mật khẩu mới'
     } else if (newPassword.length < 6) {
       errors.newPassword = 'Mật khẩu phải có ít nhất 6 ký tự'
     }
-    
+
     if (!confirmPassword) {
       errors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới'
     } else if (newPassword !== confirmPassword) {
       errors.confirmPassword = 'Mật khẩu xác nhận không khớp'
     }
-    
+
     setPasswordErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -125,7 +125,7 @@ export default function TechnicianProfile() {
   const handleSaveProfile = async () => {
     try {
       setSaving(true)
-      
+
       const response = await AuthService.updateProfile({
         fullName,
         email,
@@ -134,16 +134,16 @@ export default function TechnicianProfile() {
         dateOfBirth,
         gender
       })
-      
+
       if (response.success && response.data) {
         dispatch(updateUser(response.data))
-        setSuccess('Cập nhật thông tin thành công!')
+        setPopup({ message: 'Cập nhật thông tin thành công!', type: 'success' })
         setIsEditingPersonal(false)
       } else {
-        setError(response.message || 'Cập nhật thông tin thất bại')
+        setPopup({ message: response.message || 'Cập nhật thông tin thất bại', type: 'error' })
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật')
+      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -151,27 +151,27 @@ export default function TechnicianProfile() {
 
   const handleChangePassword = async () => {
     if (!validatePassword()) return
-    
+
     try {
       setSaving(true)
-      
+
       const response = await AuthService.changePassword({
         currentPassword,
         newPassword,
         confirmNewPassword: confirmPassword
       })
-      
+
       if (response.success) {
-        setSuccess('Đổi mật khẩu thành công!')
+        setPopup({ message: 'Đổi mật khẩu thành công!', type: 'success' })
         setShowPasswordModal(false)
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       } else {
-        setError(response.message || 'Đổi mật khẩu thất bại')
+        setPopup({ message: response.message || 'Đổi mật khẩu thất bại', type: 'error' })
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu')
+      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -180,11 +180,11 @@ export default function TechnicianProfile() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     try {
       setSaving(true)
       const response = await AuthService.uploadAvatar(file)
-      
+
       if (response.success && response.data) {
         setAvatar(response.data.avatarUrl || response.data.avatar)
         setSuccessMessage('Cập nhật ảnh đại diện thành công')
@@ -207,7 +207,7 @@ export default function TechnicianProfile() {
   }
 
   const { firstName, lastName } = splitName(fullName)
-  
+
   // Get role from user data
   const getRole = () => {
     if (user?.role === 'TECHNICIAN') return 'Kỹ thuật viên'
@@ -231,10 +231,10 @@ export default function TechnicianProfile() {
 
       {/* Popup Notification */}
       {popup && (
-        <PopupNotification 
-          message={popup.message} 
-          type={popup.type} 
-          onClose={() => setPopup(null)} 
+        <PopupNotification
+          message={popup.message}
+          type={popup.type}
+          onClose={() => setPopup(null)}
         />
       )}
 
