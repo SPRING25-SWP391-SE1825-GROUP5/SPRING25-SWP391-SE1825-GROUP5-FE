@@ -15,8 +15,6 @@ import {
   UserX,
   WrenchIcon,
   RotateCcw,
-  ToggleLeft,
-  ToggleRight,
   ChevronUp,
   ChevronDown,
   ChevronLeft,
@@ -34,6 +32,7 @@ import {
 import { CenterService, type Center, type CenterListParams } from '../../services/centerService'
 import { StaffService } from '../../services/staffService'
 import { TechnicianService } from '../../services/technicianService'
+import CenterFormModal from './CenterFormModal'
 import './CenterManagement.scss'
 
 export default function CenterManagement() {
@@ -50,24 +49,8 @@ export default function CenterManagement() {
   
   // Modal states
   const [formOpen, setFormOpen] = useState(false)
-  const [formMode, setFormMode] = useState<'create' | 'update'>('create')
-  const [formSubmitting, setFormSubmitting] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
   const [selectedCenter, setSelectedCenter] = useState<Center | null>(null)
-  const [formValues, setFormValues] = useState({
-    centerName: '',
-    address: '',
-    phoneNumber: '',
-    isActive: true
-  })
   
-  const [fieldErrors, setFieldErrors] = useState({
-    centerName: '',
-    address: '',
-    phoneNumber: ''
-  })
-  
-  const [togglingCenterId, setTogglingCenterId] = useState<number | null>(null)
   
   // Detail modal states
   const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -89,42 +72,6 @@ export default function CenterManagement() {
   // totalItems lấy từ data trả về lúc fetch
   const [totalItems, setTotalItems] = useState(0)
 
-  // Real-time validation
-  const validateField = (field: string, value: string) => {
-    const errors = { ...fieldErrors }
-    
-    switch (field) {
-      case 'centerName':
-        if (!value.trim()) {
-          errors.centerName = 'Tên trung tâm là bắt buộc'
-        } else if (value.trim().length < 3) {
-          errors.centerName = 'Tên trung tâm phải có ít nhất 3 ký tự'
-        } else {
-          errors.centerName = ''
-        }
-        break
-      case 'address':
-        if (!value.trim()) {
-          errors.address = 'Địa chỉ là bắt buộc'
-        } else if (value.trim().length < 10) {
-          errors.address = 'Địa chỉ phải có ít nhất 10 ký tự'
-        } else {
-          errors.address = ''
-        }
-        break
-      case 'phoneNumber':
-        if (!value.trim()) {
-          errors.phoneNumber = 'Số điện thoại là bắt buộc'
-        } else if (!/^0\d{9,10}$/.test(value.trim())) {
-          errors.phoneNumber = 'Số điện thoại phải có 10-11 chữ số và bắt đầu bằng 0'
-        } else {
-          errors.phoneNumber = ''
-        }
-        break
-    }
-    
-    setFieldErrors(errors)
-  }
 
   const fetchStats = async () => {
     try {
@@ -225,124 +172,19 @@ export default function CenterManagement() {
   }
 
   const openCreateForm = () => {
-    setFormMode('create')
-    setFormValues({ centerName: '', address: '', phoneNumber: '', isActive: true })
-    setFormError(null)
-    setFieldErrors({ centerName: '', address: '', phoneNumber: '' })
+    setSelectedCenter(null)
     setFormOpen(true)
   }
 
   const openEditForm = (center: Center) => {
-    setFormMode('update')
     setSelectedCenter(center)
-    setFormValues({
-      centerName: center.centerName || '',
-      address: center.address || '',
-      phoneNumber: center.phoneNumber || '',
-      isActive: center.isActive
-    })
-    setFormError(null)
-    setFieldErrors({ centerName: '', address: '', phoneNumber: '' })
     setFormOpen(true)
   }
 
-  const submitForm = async () => {
-    try {
-      setFormSubmitting(true)
-      setFormError(null)
-      
-      // Validation
-      if (!formValues.centerName.trim()) {
-        setFormError('Tên trung tâm là bắt buộc')
-        return
-      }
-      if (formValues.centerName.trim().length < 3) {
-        setFormError('Tên trung tâm phải có ít nhất 3 ký tự')
-        return
-      }
-      
-      if (!formValues.address.trim()) {
-        setFormError('Địa chỉ là bắt buộc')
-        return
-      }
-      if (formValues.address.trim().length < 10) {
-        setFormError('Địa chỉ phải có ít nhất 10 ký tự')
-        return
-      }
-      
-      if (!formValues.phoneNumber.trim()) {
-        setFormError('Số điện thoại là bắt buộc')
-        return
-      }
-      // More flexible phone validation
-      const phoneRegex = /^0\d{9,10}$/
-      if (!phoneRegex.test(formValues.phoneNumber.trim())) {
-        setFormError('Số điện thoại phải có 10-11 chữ số và bắt đầu bằng 0')
-        return
-      }
-      
-      // Prepare clean data
-      const cleanData = {
-        centerName: formValues.centerName.trim(),
-        address: formValues.address.trim(),
-        phoneNumber: formValues.phoneNumber.trim(),
-        isActive: formValues.isActive
-      }
-
-      if (formMode === 'create') {
-        await CenterService.createCenter(cleanData)
-      } else {
-        if (!selectedCenter) {
-          setFormError('Không tìm thấy trung tâm để cập nhật')
-          return
-        }
-        await CenterService.updateCenter(selectedCenter.centerId, cleanData)
-      }
-      
-      setFormOpen(false)
+  const handleFormSuccess = async () => {
       await fetchCenters()
-    } catch (err: any) {
-      
-      // Extract detailed error message
-      let errorMessage = 'Unknown error'
-      
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message
-        } else if (err.response.data.errors) {
-          // Handle validation errors from server
-          const errors = err.response.data.errors
-          if (typeof errors === 'object') {
-            errorMessage = Object.values(errors).flat().join(', ')
-          }
-        }
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
-      setFormError(`Không thể lưu trung tâm: ${errorMessage}`)
-    } finally {
-      setFormSubmitting(false)
-    }
   }
 
-  const toggleCenterStatus = async (centerId: number) => {
-    try {
-      setTogglingCenterId(centerId)
-      const updatedCenter = await CenterService.toggleCenterStatus(centerId)
-      
-      // Success handled by UI state
-      
-      // Refresh the list
-      await fetchCenters()
-    } catch (err: any) {
-      setError(`Lỗi: ${err.message || 'Không thể cập nhật trạng thái'}`)
-    } finally {
-      setTogglingCenterId(null)
-    }
-  }
 
   const openDetailModal = async (center: Center) => {
     try {
@@ -380,7 +222,21 @@ export default function CenterManagement() {
       setCenterStaff(staff)
       setCenterTechnicians(technicians)
     } catch (err: any) {
-      setError(`Lỗi khi tải chi tiết trung tâm: ${err.message || 'Unknown error'}`)
+      // Improved error handling with better messages
+      const errorMessage = err?.userMessage || 
+                          err?.message || 
+                          err?.response?.data?.message ||
+                          'Unknown error'
+      
+      // Check if it's a backend restart error
+      if (err?.isBackendRestart) {
+        setError(`Server đang khởi động lại. Vui lòng đợi và thử lại sau...`)
+      } else if (err?.isAuthError) {
+        // Auth error will be handled by interceptor
+        setError(errorMessage)
+      } else {
+        setError(`Lỗi khi tải chi tiết trung tâm: ${errorMessage}`)
+      }
     } finally {
       setLoadingDetails(false)
     }
@@ -461,15 +317,14 @@ export default function CenterManagement() {
         </div>
           <div className="toolbar-right">
             <div className="toolbar-search">
+              <div className="search-wrap">
               <span className="icon"><Search size={16}/></span>
               <input
                 placeholder="Tìm trung tâm theo tên"
                 value={searchTerm}
                 onChange={(e)=>{ setPage(1); setSearchTerm(e.target.value) }}
-                onFocus={e => e.target.classList.add('search-input-focus')}
-                onBlur={e => e.target.classList.remove('search-input-focus')}
               />
-              <span className="search-underline"></span>
+              </div>
             </div>
             <div className="toolbar-actions" style={{marginLeft:'auto'}}>
               <button type="button" className="toolbar-btn"><Eye size={14}/> Ẩn</button>
@@ -543,53 +398,65 @@ export default function CenterManagement() {
           </div>
         ) : (
           <div className="parts-table-wrapper" style={{ overflow: 'auto' }}>
-            <table className="parts-table center-management__table">
+            <table className="centers-table">
               <thead>
                 <tr>
-                  <th><Building2 size={16} style={{marginRight:4}}/>Tên trung tâm</th>
-                  <th><Globe size={15} style={{marginRight:4}}/>Địa chỉ</th>
-                  <th><Phone size={15} style={{marginRight:4}}/>Số điện thoại</th>
-                  <th><CheckCircle size={15} style={{marginRight:4}}/>Trạng thái</th>
-                  <th><Calendar size={15} style={{marginRight:4}}/>Ngày tạo</th>
-                  <th><Settings size={15} style={{marginRight:4}}/>Thao tác</th>
+                  <th>
+                    <span className="th-content"><Building2 size={16} /> <span>Tên trung tâm</span></span>
+                  </th>
+                  <th>
+                    <span className="th-content"><Globe size={15} /> <span>Địa chỉ</span></span>
+                  </th>
+                  <th>
+                    <span className="th-content"><Phone size={15} /> <span>Số điện thoại</span></span>
+                  </th>
+                  <th>
+                    <span className="th-content"><CheckCircle size={15} /> <span>Trạng thái</span></span>
+                  </th>
+                  <th>
+                    <span className="th-content"><Calendar size={15} /> <span>Ngày tạo</span></span>
+                  </th>
+                  <th>
+                    <span className="th-content"><Settings size={15} /> <span>Thao tác</span></span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {centers.map((center, index) => (
+                {centers.map((center) => (
                   <tr key={center.centerId}>
-                    <td className="center-management__table td">
-                      <div className="center-management__center-info">
-                        <span className="center-management__center-info-name" style={{ fontWeight: 400 }}>{center.centerName}</span>
+                    <td>
+                      <div className="center-info">
+                        <span style={{ fontWeight: 400 }}>{center.centerName}</span>
                       </div>
                     </td>
-                    <td className="center-management__table td center-management__table td--secondary">
-                      <div className="center-management__center-address">
+                    <td>
+                      <div className="center-address">
                         {center.address}
                       {center.city && (
-                          <div className="center-management__center-address-city">
+                          <div className="center-address-city">
                           {center.city}
                         </div>
                       )}
                       </div>
                     </td>
-                    <td className="center-management__table td center-management__table td--secondary">
-                      <div className="center-management__center-phone">
+                    <td>
+                      <div className="center-phone">
                          {center.phoneNumber}
                       </div>
                     </td>
-                    <td className="center-management__table td center-management__table td--center">
+                    <td>
                       <div className={`status-badge ${center.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
                         <span className="dot" /> {center.isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
                       </div>
                     </td>
-                    <td className="center-management__table td center-management__table td--secondary">
+                    <td>
                       {new Date(center.createdAt).toLocaleDateString('vi-VN')}
                     </td>
-                    <td className="center-management__table td">
-                      <div className="center-management__actions">
+                    <td>
+                      <div className="center-actions">
                         <button
                           onClick={(e) => { e.stopPropagation(); openDetailModal(center); }}
-                          className="center-management__action-button"
+                          className="action-button"
                           title="Xem chi tiết trung tâm"
                         >
                           <Eye size={16} />
@@ -597,19 +464,10 @@ export default function CenterManagement() {
                         
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditForm(center); }}
-                          className="center-management__action-button"
+                          className="action-button"
                           title="Sửa trung tâm"
                         >
                           <Edit size={16} />
-                        </button>
-                        
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleCenterStatus(center.centerId); }}
-                          disabled={togglingCenterId === center.centerId}
-                          className={`center-management__action-button center-management__action-button--toggle ${!center.isActive ? 'center-management__action-button--toggle--inactive' : ''}`}
-                          title={center.isActive ? 'Vô hiệu hóa trung tâm' : 'Kích hoạt trung tâm'}
-                        >
-                          {center.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                         </button>
                       </div>
                     </td>
@@ -626,23 +484,24 @@ export default function CenterManagement() {
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
           <div
-            className={`pill-select custom-dropdown${isPageSizeDropdownOpen ? ' open' : ''}`}
+            className="pill-select"
             ref={pageSizeRef}
             tabIndex={0}
             onClick={() => setIsPageSizeDropdownOpen(open => !open)}
             style={{ cursor: 'pointer', userSelect: 'none' }}
             onBlur={()=>setIsPageSizeDropdownOpen(false)}
           >
-            <span className="pill-trigger" style={{minWidth:32, display:'flex', alignItems:'center', justifyContent:'center', height:26}}>{pageSize}</span>
-            <svg className="caret" style={{marginLeft:6}} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <button type="button" className="pill-trigger" style={{minWidth:32, display:'flex', alignItems:'center', justifyContent:'center', height:26}}>
+              {pageSize}
+              <svg className="caret" style={{marginLeft:6}} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
             {isPageSizeDropdownOpen && (
-              <ul className="dropdown-menu" style={{ position: 'absolute', zIndex: 100, left: 0, top: '100%', background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: '64px', listStyle: 'none', padding: 0, margin: '6px 0 0 0', border: '1px solid #ccc', borderRadius: 8 }}>
+              <ul className="pill-menu show" style={{ position: 'absolute', zIndex: 100, left: 0, top: '100%', minWidth: '64px' }}>
                 {pageSizeOptions.map(option => (
                   <li
                     key={option}
-                    className={option === pageSize ? 'selected-dropdown-option' : ''}
-                    style={{ padding: '8px 12px', color: option === pageSize ? '#FFA726' : '#222', background: option === pageSize ? '#FFF7D0' : 'transparent', cursor: 'pointer', borderRadius: 8, textAlign:'center' }}
-                    onMouseDown={e => { e.preventDefault(); setPageSize(option); setPage(1); setIsPageSizeDropdownOpen(false) }}
+                    className={`pill-item ${option === pageSize ? 'active' : ''}`}
+                    onClick={() => { setPageSize(option); setPage(1); setIsPageSizeDropdownOpen(false) }}
                   >
                     {option}
                   </li>
@@ -672,360 +531,13 @@ export default function CenterManagement() {
       </div>
 
       {/* Form Modal */}
-      {formOpen && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '600px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '24px',
-              paddingBottom: '16px',
-              borderBottom: '2px solid var(--border-primary)'
-            }}>
-              <div>
-                <h3 style={{ 
-                  margin: '0 0 4px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>
-                  {formMode === 'create' ? 'Tạo Trung tâm Mới' : 'Cập nhật Trung tâm'}
-                </h3>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  {formMode === 'create' 
-                    ? 'Thêm trung tâm dịch vụ mới vào hệ thống' 
-                    : 'Cập nhật thông tin trung tâm dịch vụ'
-                  }
-                </p>
-              </div>
-              <button
-                onClick={() => setFormOpen(false)}
-                style={{ 
-                  border: 'none', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--error-50)'
-                  e.currentTarget.style.color = 'var(--error-600)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {formError && (
-              <div style={{ 
-                marginBottom: '20px', 
-                color: 'var(--error-600)', 
-                fontSize: '14px',
-                padding: '16px',
-                background: 'var(--error-50)',
-                borderRadius: '12px',
-                border: '2px solid var(--error-200)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                ⚠️ {formError}
-              </div>
-            )}
-            
-            <div style={{ display: 'grid', gap: '20px' }}>
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
-                }}>
-                  Tên trung tâm <span style={{ color: 'var(--error-500)' }}>*</span>
-                </label>
-                <input
-                  value={formValues.centerName}
-                  onChange={(e) => {
-                    setFormValues(v => ({ ...v, centerName: e.target.value }))
-                    validateField('centerName', e.target.value)
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${fieldErrors.centerName ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="Nhập tên trung tâm"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = fieldErrors.centerName ? 'var(--error-500)' : 'var(--primary-500)'
-                    e.target.style.boxShadow = fieldErrors.centerName ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = fieldErrors.centerName ? 'var(--error-500)' : 'var(--border-primary)'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-                {fieldErrors.centerName && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
-                  }}>
-                    {fieldErrors.centerName}
-                  </div>
-                )}
-              </div>
-              
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
-                }}>
-                  Địa chỉ <span style={{ color: 'var(--error-500)' }}>*</span>
-                </label>
-                <textarea
-                  value={formValues.address}
-                  onChange={(e) => {
-                    setFormValues(v => ({ ...v, address: e.target.value }))
-                    validateField('address', e.target.value)
-                  }}
-                  rows={3}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${fieldErrors.address ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px', 
-                    resize: 'vertical',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="Nhập địa chỉ trung tâm"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = fieldErrors.address ? 'var(--error-500)' : 'var(--primary-500)'
-                    e.target.style.boxShadow = fieldErrors.address ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = fieldErrors.address ? 'var(--error-500)' : 'var(--border-primary)'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-                {fieldErrors.address && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
-                  }}>
-                    {fieldErrors.address}
-                  </div>
-                )}
-              </div>
-              
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px',
-                  
-                }}>
-                  Số điện thoại <span style={{ color: 'var(--error-500)' }}>*</span>
-                </label>
-                <input
-                  value={formValues.phoneNumber}
-                  onChange={(e) => {
-                    setFormValues(v => ({ ...v, phoneNumber: e.target.value }))
-                    validateField('phoneNumber', e.target.value)
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: `2px solid ${fieldErrors.phoneNumber ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="Nhập số điện thoại (VD: 0123456789)"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = fieldErrors.phoneNumber ? 'var(--error-500)' : 'var(--primary-500)'
-                    e.target.style.boxShadow = fieldErrors.phoneNumber ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = fieldErrors.phoneNumber ? 'var(--error-500)' : 'var(--border-primary)'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-                {fieldErrors.phoneNumber && (
-                  <div style={{ 
-                    color: 'var(--error-600)', 
-                    fontSize: '12px', 
-                    marginTop: '4px' 
-                  }}>
-                    {fieldErrors.phoneNumber}
-                  </div>
-                )}
-              </div>
-              
-              <div style={{
-                padding: '16px',
-                background: 'var(--bg-secondary)',
-                borderRadius: '12px',
-                border: '2px solid var(--border-primary)'
-              }}>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px', 
-                  color: 'var(--text-primary)', 
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}>
-                  <input 
-                    type="checkbox" 
-                    checked={formValues.isActive} 
-                    onChange={(e) => setFormValues(v => ({ ...v, isActive: e.target.checked }))}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      accentColor: 'var(--primary-500)'
-                    }}
-                  />
-                  <div>
-                    <div>Trung tâm đang hoạt động</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {formValues.isActive ? 'Trung tâm sẽ hoạt động ngay' : 'Trung tâm sẽ bị tạm ngừng hoạt động'}
-                    </div>
-                  </div>
-                </label>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', 
-                gap: '12px', 
-                marginTop: '8px',
-                paddingTop: '20px',
-                borderTop: '2px solid var(--border-primary)'
-              }}>
-                <button
-                  onClick={() => setFormOpen(false)}
-                  style={{ 
-                    border: '2px solid var(--border-primary)', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
-                    borderRadius: '12px', 
-                    padding: '12px 24px', 
-                    cursor: 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--text-secondary)'
-                    e.currentTarget.style.background = 'var(--bg-tertiary)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                    e.currentTarget.style.background = 'var(--bg-secondary)'
-                  }}
-                >
-                  Hủy
-                </button>
-                <button
-                  disabled={formSubmitting}
-                  onClick={submitForm}
-                  style={{ 
-                    border: 'none', 
-                    background: formSubmitting 
-                      ? 'var(--text-tertiary)' 
-                      : 'linear-gradient(135deg, var(--primary-500), var(--primary-600))', 
-                    color: 'white', 
-                    borderRadius: '12px', 
-                    padding: '12px 24px', 
-                    cursor: formSubmitting ? 'not-allowed' : 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    opacity: formSubmitting ? 0.7 : 1,
-                    transition: 'all 0.2s ease',
-                    boxShadow: formSubmitting ? 'none' : '0 4px 12px rgba(59, 130, 246, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!formSubmitting) {
-                      e.currentTarget.style.transform = 'translateY(-1px)'
-                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!formSubmitting) {
-                      e.currentTarget.style.transform = 'translateY(0)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-                    }
-                  }}
-                >
-                  {formSubmitting ? 'Đang lưu...' : (formMode === 'create' ? 'Tạo Trung tâm' : 'Cập nhật Trung tâm')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CenterFormModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSuccess={handleFormSuccess}
+        mode={selectedCenter ? 'update' : 'create'}
+        center={selectedCenter}
+      />
 
       {/* Detail Modal */}
       {detailModalOpen && selectedCenterDetail && (

@@ -53,6 +53,27 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Override for pill-trigger to prevent duplicate border */
+.pill-trigger,
+.pill-trigger:hover,
+.pill-trigger:focus,
+.pill-trigger:focus-visible,
+.pill-trigger:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+.pill-trigger *,
+.pill-trigger *:hover,
+.pill-trigger *:focus,
+.pill-trigger *:focus-visible,
+.pill-trigger *:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

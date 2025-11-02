@@ -40,10 +40,14 @@ export interface VehicleListResponse {
   message: string
   data: {
     vehicles: Vehicle[]
-    total: number
-    page: number
+    total?: number
+    totalCount?: number
+    page?: number
+    pageNumber?: number
     pageSize: number
     totalPages: number
+    hasPreviousPage?: boolean
+    hasNextPage?: boolean
   }
 }
 

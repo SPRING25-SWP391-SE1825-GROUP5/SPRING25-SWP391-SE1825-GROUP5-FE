@@ -1,16 +1,16 @@
-@import '../admin-common';
+@use '../admin-common' as *;
 
 /* New unified pagination layout */
-.pagination-controls-bottom { 
-  margin-top: 16px; 
-  display: flex; 
+.pagination-controls-bottom {
+  margin-top: 16px;
+  display: flex;
   justify-content: space-between;
-  align-items: center; 
-  background: transparent; 
-  padding: 8px 0; 
-  border: none; 
-  border-radius: 0; 
-  box-shadow: none; 
+  align-items: center;
+  background: transparent;
+  padding: 8px 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .pagination-info {
@@ -34,16 +34,16 @@
 .pagination-right-controls { display:flex; align-items:center; gap:8px; }
 .pager-pages { display:flex; align-items:center; gap:8px; margin:0 8px; }
 .pager-ellipsis { color: var(--text-tertiary); }
-.pager-btn { 
-  padding:8px 12px; 
-  border-radius:8px; 
-  border:none; 
-  background: var(--bg-card); 
-  color: var(--text-primary); 
-  font-size:14px; 
-  font-weight:500; 
-  display:flex; align-items:center; gap:4px; 
-  cursor:pointer; transition: .2s; 
+.pager-btn {
+  padding:8px 12px;
+  border-radius:8px;
+  border:none;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size:14px;
+  font-weight:500;
+  display:flex; align-items:center; gap:4px;
+  cursor:pointer; transition: .2s;
 }
 .pager-btn.is-active { background: var(--primary-50); color: var(--primary-700); font-weight:600; }
 .pager-btn.is-disabled { background: var(--bg-secondary); color: var(--text-tertiary); cursor:not-allowed; }

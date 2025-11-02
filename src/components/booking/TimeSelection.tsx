@@ -75,7 +75,6 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
   const dates = generateDates()
   
   // Debug: Log generated dates
-  console.log('Generated dates:', dates)
 
   // Generate time slots from 8:00 to 17:00 with 30-minute intervals
   const generateTimeSlots = (selectedDate?: string) => {
@@ -178,8 +177,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
             technicians
           })
         } catch (error) {
-          console.error('Error loading availability:', error)
-          // Fallback: Try to get basic time slots from TimeSlot API
+          // Fallback: Get basic time slots from TimeSlot API and mark all as available
           try {
             const { data: timeSlotsResponse } = await api.get('/TimeSlot')
             const timeSlots = (timeSlotsResponse.data || []).map((slot: any, index: number) => ({
@@ -210,13 +208,8 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
               technicians // Use real data from API only
             })
           } catch (fallbackError) {
-            console.error('Fallback API also failed:', fallbackError)
-            // No mock data - show empty state and error
-            setAvailability({
-              timeSlots: [],
-              technicians: []
-            })
-            setError('Không thể tải thông tin lịch trống. Vui lòng thử lại sau.')
+            // Show error to user instead of using mock data
+            setAvailability({ timeSlots: [], technicians: [] })
           }
         } finally {
           setAvailabilityLoading(false)
@@ -335,7 +328,6 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                   <button
                     key={date.value}
                     onClick={() => {
-                      console.log('Date clicked:', date.value, 'Label:', date.label)
                       onSelectDate(date.value)
                     }}
                     style={{

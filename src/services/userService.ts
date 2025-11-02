@@ -31,7 +31,19 @@ export type CreateUserRequest = {
 export type CreateUserByAdminRequest = {
   fullName: string
   email: string
-  password: string
+  phoneNumber: string
+  dateOfBirth: string
+  gender: 'MALE' | 'FEMALE'
+  address: string
+  role: 'ADMIN' | 'STAFF' | 'CUSTOMER' | 'MANAGER' | 'TECHNICIAN'
+  isActive: boolean
+  emailVerified: boolean
+}
+
+// Yêu cầu mới: tạo người dùng không cần password, body như đặc tả
+export type CreateUserAdminRequest = {
+  fullName: string
+  email: string
   phoneNumber: string
   dateOfBirth: string
   gender: 'MALE' | 'FEMALE'
@@ -113,6 +125,27 @@ export const UserService = {
     return data
   },
 
+  /**
+   * Export users list as a file (ADMIN only)
+   * GET /api/User/export -> Blob
+   */
+  async exportUsers(params: Partial<GetUsersRequest> = {}): Promise<{ blob: Blob; filename?: string }> {
+    const query = { ...params }
+    const response = await api.get('/User/export', {
+      params: query,
+      responseType: 'blob',
+      headers: { Accept: 'application/octet-stream' }
+    })
+
+    const disposition = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition']
+    let filename: string | undefined
+    if (disposition && typeof disposition === 'string') {
+      const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i)
+      filename = decodeURIComponent(match?.[1] || match?.[2] || '') || undefined
+    }
+    return { blob: response.data as Blob, filename }
+  },
+
 
   /**
    * Create new user (Admin only)
@@ -136,6 +169,14 @@ export const UserService = {
   async createUserByAdmin(userData: CreateUserByAdminRequest): Promise<any> {
     const response = await api.post('/User', userData)
     // API returns { data: User, message: string, success: boolean }
+    return response.data
+  },
+
+  /**
+   * API mới: POST /api/User theo body không có password
+   */
+  async createUserAdmin(userData: CreateUserAdminRequest): Promise<any> {
+    const response = await api.post('/User', userData)
     return response.data
   },
 
@@ -171,7 +212,8 @@ export const UserService = {
    * @throws {Error} When activation fails or unauthorized
    */
   async activateUser(userId: string): Promise<User> {
-    const { data } = await api.patch<User>(`/User/${userId}/activate`)
+    // Deprecated per new API contract; use updateUserStatus instead
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive: true })
     return data
   },
 
@@ -183,7 +225,17 @@ export const UserService = {
    * @throws {Error} When deactivation fails or unauthorized
    */
   async deactivateUser(userId: string): Promise<User> {
-    const { data } = await api.patch<User>(`/User/${userId}/deactivate`)
+    // Deprecated per new API contract; use updateUserStatus instead
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive: false })
+    return data
+  },
+
+  /**
+   * Cập nhật trạng thái hoạt động của người dùng theo API mới
+   * PATCH /api/User/{id}/status
+   */
+  async updateUserStatus(userId: string | number, isActive: boolean): Promise<User> {
+    const { data } = await api.patch<User>(`/User/${userId}/status`, { isActive })
     return data
   },
 
@@ -196,11 +248,7 @@ export const UserService = {
    * @throws {Error} When update fails or unauthorized
    */
   async toggleUserStatus(userId: string, isActive: boolean): Promise<User> {
-    if (isActive) {
-      return this.activateUser(userId)
-    } else {
-      return this.deactivateUser(userId)
-    }
+    return this.updateUserStatus(userId, isActive)
   },
 
   /**

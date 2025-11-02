@@ -18,6 +18,7 @@ import { ServiceManagementService, type Service, type ServiceListParams } from '
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import './ServicesManagement.scss'
 import ServicesListTable from './ServicesListTable'
+import ServiceCreateModal from './ServiceCreateModal'
 
 export default function ServicesManagement() {
   // User info không cần dùng trong màn hình này
@@ -40,6 +41,7 @@ export default function ServicesManagement() {
   const [openStatusMenu, setOpenStatusMenu] = useState(false)
   const [openPriceMenu, setOpenPriceMenu] = useState(false)
   const [priceRange, setPriceRange] = useState<'all' | 'lt10' | '10to50' | 'gt50'>('all')
+  const [exporting, setExporting] = useState(false)
   
   // Refs for dropdown management
   const servicePageSizeRef = useRef<HTMLDivElement | null>(null)
@@ -54,23 +56,9 @@ export default function ServicesManagement() {
   
   // Service form modal
   const [serviceFormOpen, setServiceFormOpen] = useState(false)
-  const [serviceFormSubmitting, setServiceFormSubmitting] = useState(false)
-  const [serviceFormError, setServiceFormError] = useState<string | null>(null)
-  const [serviceFormMode, setServiceFormMode] = useState<'create' | 'update'>('create')
-  const [serviceFormValues, setServiceFormValues] = useState<{ 
-    id?: number; 
-    name: string; 
-    description: string; 
-    price: number; 
-    notes: string;
-    isActive: boolean 
-  }>({ 
-    name: '', 
-    description: '', 
-    price: 0, 
-    notes: '',
-    isActive: true 
-  })
+  const [editData, setEditData] = useState<Service | null>(null)
+  // Trạng thái form được quản lý trong component riêng
+  // Form state sẽ được quản lý bên trong component ServiceCreateModal
 
   // Fetch data functions
   const fetchServices = useCallback(async () => {
@@ -181,95 +169,20 @@ export default function ServicesManagement() {
   }
 
   const openCreateService = () => {
-    setServiceFormMode('create')
-    setServiceFormValues({ name: '', description: '', notes: '', price: 0, isActive: true })
-    setServiceFormError(null)
+    setEditData(null)
     setServiceFormOpen(true)
   }
 
   // create service flow is controlled elsewhere; removed unused helper
 
   const openEditService = (s: Service) => {
-    setServiceFormMode('update')
-    setServiceFormValues({ 
-      id: s.id, 
-      name: s.name, 
-      description: s.description, 
-      price: s.price, 
-      notes: s.notes || '',
-      isActive: s.isActive 
-    })
-    setServiceFormError(null)
+    setEditData(s)
     setServiceFormOpen(true)
   }
 
-  const submitServiceForm = async () => {
-    try {
-      setServiceFormSubmitting(true)
-      setServiceFormError(null)
-      
-      // Validation
-      if (!serviceFormValues.name.trim()) {
-        setServiceFormError('Tên dịch vụ là bắt buộc')
-        return
-      }
-      if (serviceFormValues.price < 0) {
-        setServiceFormError('Giá phải lớn hơn hoặc bằng 0')
-        return
-      }
+  // submitServiceForm: chuyển sang component ServiceCreateModal trong bước tiếp theo
 
-      console.log('Submitting form:', {
-        mode: serviceFormMode,
-        values: serviceFormValues
-      })
-
-      if (serviceFormMode === 'create') {
-        await ServiceManagementService.createService({
-          name: serviceFormValues.name,
-          description: serviceFormValues.description,
-          price: serviceFormValues.price,
-          notes: serviceFormValues.notes,
-          isActive: serviceFormValues.isActive
-        })
-      } else {
-        if (!serviceFormValues.id) {
-          setServiceFormError('ID dịch vụ không hợp lệ')
-          return
-        }
-        await ServiceManagementService.updateService(serviceFormValues.id, {
-          name: serviceFormValues.name,
-          description: serviceFormValues.description,
-          price: serviceFormValues.price,
-          notes: serviceFormValues.notes,
-          isActive: serviceFormValues.isActive
-        })
-      }
-      
-      setServiceFormOpen(false)
-      await fetchServices() // Refresh the list
-    } catch (err: unknown) {
-      console.error('Lỗi khi gửi form dịch vụ:', err)
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      setServiceFormError(`Không thể lưu dịch vụ: ${msg}`)
-    } finally {
-      setServiceFormSubmitting(false)
-    }
-  }
-
-  const handleToggleServiceStatus = async (id: number) => {
-    try {
-      await ServiceManagementService.updateServiceStatus(id)
-      await fetchServices()
-      if (selectedService && selectedService.id === id) {
-        const updated = await ServiceManagementService.getServiceById(id)
-        setSelectedService(updated)
-      }
-    } catch (err: unknown) {
-      console.error('Lỗi khi chuyển trạng thái dịch vụ:', err)
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Không thể cập nhật trạng thái dịch vụ: ${msg}`)
-    }
-  }
+  // Bỏ nút kích hoạt/vô hiệu hóa theo yêu cầu => loại bỏ handler trạng thái
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -317,6 +230,30 @@ export default function ServicesManagement() {
   }, [fetchServices])
 
   // Service stats (hiện chưa dùng trong toolbar)
+
+  const handleExport = async () => {
+    try {
+      setExporting(true)
+      const { blob, filename } = await ServiceManagementService.exportServices({
+        search: serviceSearch,
+        categoryId: undefined,
+      })
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename || 'services.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Lỗi xuất danh sách dịch vụ:', err)
+      window.alert('Không thể xuất danh sách dịch vụ. Vui lòng thử lại!')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
       <div className="services-management" style={{ 
@@ -395,7 +332,9 @@ export default function ServicesManagement() {
             <div className="toolbar-actions">
               <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
               <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-              <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
+              <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
+                <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
+              </button>
               <button type="button" className="toolbar-adduser accent-button" onClick={() => openCreateService()}>
                 <Plus size={14} /> Thêm dịch vụ
               </button>
@@ -403,14 +342,14 @@ export default function ServicesManagement() {
           </div>
         </div>
         <div className="toolbar-filters">
-          {/* Trạng thái */}
-          <div className="pill-select" ref={statusRef} onClick={(e) => { e.stopPropagation(); setOpenStatusMenu(v => !v); setOpenPriceMenu(false); }}>
-            <button type="button" className="pill-trigger">{serviceStatus === 'all' ? 'Tất cả trạng thái' : serviceStatus === 'active' ? 'Hoạt động' : 'Không hoạt động'}</button>
+          {/* Trạng thái (nút mới tránh xung đột CSS) */}
+          <div className="svc-filter" ref={statusRef} onClick={(e) => { e.stopPropagation(); setOpenStatusMenu(v => !v); setOpenPriceMenu(false); }}>
+            <button type="button" className="svc-trigger">{serviceStatus === 'all' ? 'Tất cả trạng thái' : serviceStatus === 'active' ? 'Hoạt động' : 'Không hoạt động'}</button>
             <ChevronDownIcon width={16} height={16} className="caret" />
             {openStatusMenu && (
-              <ul className="pill-menu show">
+              <ul className="svc-menu show">
                 {[{v:'all',t:'Tất cả trạng thái'},{v:'active',t:'Hoạt động'},{v:'inactive',t:'Không hoạt động'}].map(opt => (
-                  <li key={opt.v} className={`pill-item ${serviceStatus === opt.v ? 'active' : ''}`}
+                  <li key={opt.v} className={`svc-item ${serviceStatus === opt.v ? 'active' : ''}`}
                       onClick={() => { setServiceStatus(opt.v as 'all'|'active'|'inactive'); setServicePage(1); setOpenStatusMenu(false); }}>
                     {opt.t}
                   </li>
@@ -419,19 +358,19 @@ export default function ServicesManagement() {
             )}
           </div>
 
-          {/* Khoảng giá */}
-          <div className="pill-select" ref={priceRef} onClick={(e) => { e.stopPropagation(); setOpenPriceMenu(v => !v); setOpenStatusMenu(false); }}>
-            <button type="button" className="pill-trigger">{priceRange === 'all' ? 'Tất cả giá' : priceRange === 'lt10' ? '< 10k' : priceRange === '10to50' ? '10k – 50k' : '> 50k'}</button>
+          {/* Khoảng giá (nút mới tránh xung đột CSS) */}
+          <div className="svc-filter" ref={priceRef} onClick={(e) => { e.stopPropagation(); setOpenPriceMenu(v => !v); setOpenStatusMenu(false); }}>
+            <button type="button" className="svc-trigger">{priceRange === 'all' ? 'Tất cả giá' : priceRange === 'lt10' ? '< 10k' : priceRange === '10to50' ? '10k – 50k' : '> 50k'}</button>
             <ChevronDownIcon width={16} height={16} className="caret" />
             {openPriceMenu && (
-              <ul className="pill-menu show">
+              <ul className="svc-menu show">
                 {([
                   {v:'all',t:'Tất cả giá'},
                   {v:'lt10',t:'< 10k'},
                   {v:'10to50',t:'10k – 50k'},
                   {v:'gt50',t:'> 50k'}
                 ] as {v:'all'|'lt10'|'10to50'|'gt50'; t:string}[]).map(opt => (
-                  <li key={opt.v} className={`pill-item ${priceRange === opt.v ? 'active' : ''}`}
+                  <li key={opt.v} className={`svc-item ${priceRange === opt.v ? 'active' : ''}`}
                       onClick={() => { setPriceRange(opt.v); setServicePage(1); setOpenPriceMenu(false); }}>
                     {opt.t}
                   </li>
@@ -518,7 +457,6 @@ export default function ServicesManagement() {
                 onSort={handleSort}
                 onView={(id) => openServiceDetail(id)}
                 onEdit={(s) => openEditService(s)}
-                onToggle={(id) => handleToggleServiceStatus(id)}
               />
             )}
 
@@ -650,237 +588,7 @@ export default function ServicesManagement() {
         </div>
       </div>
 
-      {/* Service Form Modal */}
-      {serviceFormOpen && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '600px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '24px',
-              paddingBottom: '16px',
-              borderBottom: '2px solid var(--border-primary)'
-            }}>
-              <div>
-                <h3 style={{ 
-                  margin: '0 0 4px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>
-                  {serviceFormMode === 'create' ? 'Tạo Dịch vụ Mới' : 'Cập nhật Dịch vụ'}
-                </h3>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  {serviceFormMode === 'create' 
-                    ? 'Thêm dịch vụ mới vào hệ thống' 
-                    : 'Cập nhật thông tin dịch vụ'
-                  }
-                </p>
-              </div>
-              <button
-                onClick={() => setServiceFormOpen(false)}
-                style={{ 
-                  border: 'none', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--error-50)'
-                  e.currentTarget.style.color = 'var(--error-600)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {serviceFormError && (
-              <div style={{ 
-                marginBottom: '16px', 
-                color: 'var(--error-600)', 
-                fontSize: '14px',
-                padding: '12px',
-                background: 'var(--error-50)',
-                borderRadius: '8px',
-                border: '1px solid var(--error-200)'
-              }}>
-                {serviceFormError}
-              </div>
-            )}
-            
-            <div style={{ display: 'grid', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '500' }}>
-                  Tên dịch vụ *
-                </label>
-                <input
-                  value={serviceFormValues.name}
-                  onChange={(e) => setServiceFormValues(v => ({ ...v, name: e.target.value }))}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    border: '1px solid var(--border-primary)', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-card)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px' 
-                  }}
-                  placeholder="Nhập tên dịch vụ"
-                />
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '500' }}>
-                  Mô tả
-                </label>
-                <textarea
-                  value={serviceFormValues.description}
-                  onChange={(e) => setServiceFormValues(v => ({ ...v, description: e.target.value }))}
-                  rows={3}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    border: '1px solid var(--border-primary)', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-card)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px', 
-                    resize: 'vertical' 
-                  }}
-                  placeholder="Nhập mô tả dịch vụ"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '500' }}>
-                  Ghi chú
-                </label>
-                <textarea
-                  value={serviceFormValues.notes}
-                  onChange={(e) => setServiceFormValues(v => ({ ...v, notes: e.target.value }))}
-                  rows={2}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    border: '1px solid var(--border-primary)', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-card)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px', 
-                    resize: 'vertical' 
-                  }}
-                  placeholder="Nhập ghi chú (nếu có)"
-                />
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '500' }}>
-                  Giá (VNĐ) *
-                </label>
-                <input
-                  type="number"
-                  value={serviceFormValues.price}
-                  onChange={(e) => setServiceFormValues(v => ({ ...v, price: Number(e.target.value) }))}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    border: '1px solid var(--border-primary)', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-card)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px' 
-                  }}
-                  min={0}
-                  step={1000}
-                  placeholder="Nhập giá dịch vụ"
-                />
-              </div>
-              
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                <input 
-                  type="checkbox" 
-                  checked={serviceFormValues.isActive} 
-                  onChange={(e) => setServiceFormValues(v => ({ ...v, isActive: e.target.checked }))} 
-                />
-                Dịch vụ đang hoạt động
-              </label>
-              
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
-                <button
-                  onClick={() => setServiceFormOpen(false)}
-                  style={{ 
-                    border: '1px solid var(--border-primary)', 
-                    background: 'transparent', 
-                    color: 'var(--text-primary)', 
-                    borderRadius: '8px', 
-                    padding: '10px 20px', 
-                    cursor: 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: 500 
-                  }}
-                >
-                  Hủy
-                </button>
-                <button
-                  disabled={serviceFormSubmitting}
-                  onClick={submitServiceForm}
-                  style={{ 
-                    border: 'none', 
-                    background: 'var(--primary-500)', 
-                    color: 'white', 
-                    borderRadius: '8px', 
-                    padding: '10px 20px', 
-                    cursor: serviceFormSubmitting ? 'not-allowed' : 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: 600, 
-                    opacity: serviceFormSubmitting ? 0.7 : 1 
-                  }}
-                >
-                  {serviceFormSubmitting ? 'Đang lưu...' : (serviceFormMode === 'create' ? 'Tạo Dịch vụ' : 'Cập nhật Dịch vụ')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Service Form Modal đã được gỡ theo yêu cầu */}
 
       {/* Service Detail Modal */}
       {serviceDetailOpen && (
@@ -978,22 +686,6 @@ export default function ServicesManagement() {
 
                 <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                   <button
-                    onClick={async () => handleToggleServiceStatus(selectedService.id)}
-                    style={{
-                      padding: '10px 16px',
-                      border: '1px solid var(--border-primary)',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    {selectedService.isActive ? 'Ngừng hoạt động' : 'Kích hoạt'} Dịch vụ
-                  </button>
-                  <button
                     onClick={() => openEditService(selectedService)}
                     style={{
                       padding: '10px 16px',
@@ -1017,6 +709,9 @@ export default function ServicesManagement() {
           </div>
         </div>
       )}
+
+      {/* New Service Create Modal (component riêng) */}
+      <ServiceCreateModal open={serviceFormOpen} onClose={() => setServiceFormOpen(false)} initial={editData || undefined} onSaved={() => fetchServices()} />
     </div>
   )
 }

@@ -16,3 +16,8 @@ export interface CreateTimeSlotRequest {
 }
 
 export type UpdateTimeSlotRequest = Partial<CreateTimeSlotRequest>;
+
+
+
+
+

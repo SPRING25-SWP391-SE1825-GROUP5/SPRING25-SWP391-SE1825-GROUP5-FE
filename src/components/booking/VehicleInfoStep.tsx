@@ -31,32 +31,18 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({ data, onUpdate, onNex
     const fetchVehicleModels = async () => {
       try {
         setLoading(true)
-        console.log('Fetching vehicle models from /VehicleModel/active...')
         const response = await api.get('/VehicleModel/active')
-        console.log('Vehicle models response:', response.data)
-        console.log('Response type:', typeof response.data)
-        console.log('Is array:', Array.isArray(response.data))
-        console.log('First item:', response.data?.[0])
         
         // Check if data is nested
         let models = response.data
         if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
           // Try common nested structures
           models = response.data.data || response.data.models || response.data.items || response.data
-          console.log('Extracted models from nested structure:', models)
         }
         
-        console.log('Final models array:', models)
-        console.log('Models length:', models?.length)
         setVehicleModels(models || [])
-      } catch (error: any) {
-        console.error('Error fetching vehicle models:', error)
-        console.error('Error details:', {
-          status: error?.response?.status,
-          statusText: error?.response?.statusText,
-          data: error?.response?.data,
-          message: error?.message
-        })
+      } catch (error: unknown) {
+        // Silently handle error
         setVehicleModels([])
       } finally {
         setLoading(false)
@@ -89,10 +75,6 @@ const VehicleInfoStep: React.FC<VehicleInfoStepProps> = ({ data, onUpdate, onNex
               {loading ? 'Đang tải...' : 'Chọn dòng xe'}
             </option>
             {vehicleModels.map((model, index) => {
-              console.log(`Model ${index}:`, model)
-              console.log(`Model ${index} name:`, model.modelName)
-              console.log(`Model ${index} brand:`, model.brand)
-              console.log(`Model ${index} id:`, model.id)
               
               const displayName = model.modelName || `Model ${index + 1}`
               const brand = model.brand || ''

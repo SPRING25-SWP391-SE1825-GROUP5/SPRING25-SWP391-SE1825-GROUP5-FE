@@ -16,20 +16,57 @@
   @media (max-width: 1024px) { .toolbar-search { flex-basis: 260px; max-width: 260px; } }
   @media (max-width: 768px) { .toolbar-search { flex: 1 1 100%; max-width: 100%; } }
   .toolbar-search .search-wrap { position:relative; width:100%; display:block; }
-  .toolbar-search input { width:100% !important; padding:10px 12px 10px 34px; border:none; border-bottom:1px solid transparent; border-radius:0; background:#fff !important; color:var(--text-primary); font-size:13px; outline:none; box-shadow:none; }
-  .toolbar-search .search-wrap::after { content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; width:auto; background:#FFD875; transform:scaleX(0); transform-origin:left; transition:transform .25s ease; }
+  .toolbar-search input { width:100% !important; padding:10px 12px 10px 34px; border:none; border-bottom:1px solid transparent; border-radius:0; background:#fff !important; color:var(--text-primary); font-size:13px; outline:none; box-shadow:none; position:relative; z-index:1; }
+  .toolbar-search .search-wrap::after { content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; width:auto; background:#FFD875; transform:scaleX(0); transform-origin:left; transition:transform .25s ease; z-index:0; }
   .toolbar-search .search-wrap:focus-within::after { transform:scaleX(1); }
-  .toolbar-search .icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); }
+  .toolbar-search .icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); z-index:2; pointer-events:none; }
   .toolbar-actions { display:flex; align-items:center; gap:8px; margin-left:auto; position:relative; z-index:2; flex:0 0 auto; }
 
   /* Pill select (Role, 2F Auth/Status) */
-  .pill-select { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--border-primary); background:#fff; border-radius:999px; position:relative; cursor:pointer; }
+  .pill-select {
+    height: 28px;
+    border-radius: 8px;
+    padding: 0 10px;
+    min-width: 110px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+
+    .pill-trigger {
+      font-size: 13px;
+      padding: 0 18px 0 4px;
+      height: 28px;
+      line-height: 26px;
+      display: flex;
+      align-items: center;
+      font-weight: 400;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+    .icon {
+      font-size: 13px;
+      margin-right: 6px;
+      color: var(--text-secondary);
+      display: inline-flex;
+      vertical-align: middle;
+    }
+    .caret {
+      font-size: 14px;
+      margin-left: auto;
+    }
+    .pill-trigger span {
+      margin-left: 0;
+      padding-left: 0;
+    }
+  }
   .pill-select .icon { color:var(--text-secondary); }
   /* When using native <select> inside pill */
   .pill-select select { appearance:none; -webkit-appearance:none; -moz-appearance:none; background:transparent; border:none; outline:none; color:var(--text-primary); font-size:14px; padding:0 28px 0 0; cursor:pointer; line-height:1; }
   .pill-select select:focus { outline:none; }
   .pill-select select::-ms-expand { display:none; }
-  /* When using headless trigger */
+  /* When using headless trigger - scoped to admin-users */
   .pill-trigger { background:transparent; border:none; color:var(--text-primary); font-size:14px; padding-right:18px; cursor:pointer; }
   .pill-select::after { content:""; display:none; }
   .pill-select .caret { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); pointer-events:none; z-index:2; }
@@ -54,9 +91,13 @@
     }
   }
 
+  /* Highlight header row in light yellow with subtle glow */
   .table-header-yellow {
-    background: #fff;
-    color: var(--text-secondary);
+    background: #FFF8E1 !important;
+  }
+  .table-header-yellow th {
+    background: #FFF8E1 !important;
+    box-shadow: inset 0 -1px 0 var(--border-primary), 0 6px 16px rgba(255, 216, 117, 0.25);
   }
   .table-header-yellow th {
     background: #fff;
@@ -501,5 +542,131 @@
     }
   }
 }
+
+/* Scope to admin-users only */
+.admin-users {
+  .pill-select .pill-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    font-size: 13px;
+    padding: 0 16px 0 4px;
+  }
+  .pill-select .icon {
+    flex: none;
+    margin-right: 4px;
+    margin-left: 0;
+  }
+  .pill-select .caret {
+    margin-left: 2px;
+    margin-right: 0;
+    position: static;
+  }
+
+  // Force spacing cho pill-select để icon–chữ luôn sát (overwrite mọi css global)
+  .pill-select .pill-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    font-size: 12px !important;
+    padding: 0 2px 0 2px !important;
+    height: 24px !important;
+    min-width: 0 !important;
+    line-height: 1.2 !important;
+  }
+  .pill-select .icon {
+    margin-right: 2px !important;
+    margin-left: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: 14px !important;
+    height: 14px !important;
+    font-size: 12px !important;
+  }
+  .pill-select .caret {
+    margin-left: 3px !important;
+    margin-right: 0 !important;
+    position: static !important;
+    top: auto !important;
+    transform: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+    width: 12px !important;
+    height: 16px !important;
+  }
+
+  .pill-select.status-filter .pill-trigger {
+    min-width: 90px !important;
+    max-width: 120px !important;
+    width: auto !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    padding: 0 4px 0 4px !important;
+    height: 24px !important;
+  }
+  .pill-select.status-filter {
+    width: auto !important;
+  }
+
+  .pagination-info .pill-select {
+    width: 52px !important;
+    min-width: 0 !important;
+  }
+  .pagination-info .pill-select .pill-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 52px !important;
+    min-width: 0 !important;
+    max-width: 60px !important;
+    height: 28px !important;
+    padding: 0 4px !important;
+    font-size: 14px !important;
+  }
+}
+#admin-users .pagination-info .pill-select .caret {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 4px !important;
+  position: static !important;
+  top: auto !important;
+  transform: none !important;
+}
+.pagination-info .pill-select .caret,
+.pagination-info .pill-select .caret-lg {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 4px !important;
+  position: static !important;
+  transform: none !important;
+  color: var(--text-tertiary) !important;
+}
+
+/* Revert any previous first tbody row highlight */
+.users-table tbody tr:first-child {
+  background: transparent !important;
+}
+.users-table tbody tr:first-child::after { content: none; }
+
+/* Email verified badge */
+.badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px; font-size:12px; line-height:1; border:1px solid var(--border-primary); }
+.badge svg { width:14px; height:14px; color: var(--text-secondary); }
+.badge--enabled { background:#FFF6D1; border-color:#FFD875; color:var(--text-secondary); }
+.badge--disabled { background:#F3F4F6; border-color:#E5E7EB; color:var(--text-tertiary); }
 
 

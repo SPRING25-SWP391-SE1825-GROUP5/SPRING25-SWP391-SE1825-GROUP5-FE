@@ -7,13 +7,13 @@
   /* Font Family Stack - Modern System Fonts */
   --font-family-primary: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  
+
   /* Font Weights */
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  
+
   /* Font Sizes */
   --font-size-xs: 0.75rem;    /* 12px */
   --font-size-sm: 0.875rem;   /* 14px */
@@ -23,7 +23,7 @@
   --font-size-2xl: 1.5rem;    /* 24px */
   --font-size-3xl: 1.875rem;  /* 30px */
   --font-size-4xl: 2.25rem;   /* 36px */
-  
+
   /* Line Heights */
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
@@ -49,7 +49,7 @@ html, body {
 /* Ensure main content starts right below header */
 main, .main-content {
   margin-top: 0 !important;
-  padding-top: 0 !important;
+  /* Do NOT reset padding-top here; allow layouts to control header offset */
   isolation: isolate;
   position: relative;
   z-index: 1;
@@ -309,9 +309,7 @@ table thead tr:first-child th {
   border-top: 1px solid var(--border-primary) !important;
 }
 
-table th:first-child {
-  border-right: none !important;
-}
+/* Removed: table th:first-child:not(.cm-th) rule to allow border-right on first column */
 
 .pill-select {
   display: inline-flex;
@@ -321,8 +319,6 @@ table th:first-child {
 .pill-select .pill-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   min-width: 84px;
   height: 36px;
   font-size: 14px;
@@ -356,11 +352,22 @@ table th:first-child {
   padding: 0 18px 0 8px;
 }
 /* Pagination pill giữ lớn như hiện tại */
+.pagination-info .pill-select {
+  width: 38px !important;
+  min-width: 0 !important;
+  max-width: 42px !important;
+}
 .pagination-info .pill-select .pill-trigger {
-  min-width: 84px;
-  height: 36px;
-  font-size: 14px;
-  padding: 0 28px 0 12px;
+  min-width: 0 !important;
+  width: 38px !important;
+  max-width: 42px !important;
+  padding: 0 2px !important;
+  font-size: 13px !important;
+  height: 26px !important;
+  text-align:center !important;
+}
+.pagination-info .pill-trigger .caret {
+  right: 2px !important;
 }
 /* Icon căn trong đúng chuẩn mũi tên cuối bên phải (auto fit) */
 .pill-trigger svg,

@@ -16,6 +16,10 @@
     "screenshot:profile": "node scripts/capture-screenshots.js --profile"
   },
   "dependencies": {
+    "@heroui/react": "^2.8.5",
+    "@internationalized/date": "^3.6.0",
+    "framer-motion": "^11.6.0",
+    "react-day-picker": "^9.1.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
@@ -23,8 +27,8 @@
     "@fortawesome/react-fontawesome": "^3.1.0",
     "@heroicons/react": "^2.2.0",
     "@microsoft/signalr": "^9.0.6",
-    "@mui/material": "^7.3.4",
-    "@mui/x-date-pickers": "^8.15.0",
+    
+    
     "@playwright/test": "^1.56.1",
     "@reduxjs/toolkit": "^2.9.0",
     "@types/qrcode": "^1.5.5",

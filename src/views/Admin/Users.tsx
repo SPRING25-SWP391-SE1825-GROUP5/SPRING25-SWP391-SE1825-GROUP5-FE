@@ -35,11 +35,27 @@ import {
   AtSign,
   Settings,
 } from "lucide-react";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ShieldCheckIcon, ShieldExclamationIcon } from "@heroicons/react/24/outline";
+import { UserCreateModal } from '@/components/forms'
+import toast from 'react-hot-toast';
 
-import type { User } from "@/store/authSlice";
+// Định nghĩa kiểu người dùng dành riêng cho trang Admin (khác store auth)
+type AdminUser = {
+  userId: number;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  avatarUrl?: string | null;
+  avatar?: string | null;
+  emailVerified?: boolean;
+};
 import { UserService } from "@/services";
-import type { CreateUserByAdminRequest } from "@/services/userService";
+// import type { CreateUserByAdminRequest } from "@/services/userService";
 import './Users.scss'
 
 export default function Users() {
@@ -49,25 +65,11 @@ export default function Users() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortBy, setSortBy] = useState("fullName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [createUserForm, setCreateUserForm] = useState<CreateUserByAdminRequest>({
-    fullName: '',
-    email: '',
-    password: '',
-    phoneNumber: '',
-    dateOfBirth: '',
-    gender: 'MALE',
-    address: '',
-    role: 'CUSTOMER',
-    isActive: true,
-    emailVerified: false
-  });
-  const [createUserLoading, setCreateUserLoading] = useState(false);
-  const [createUserError, setCreateUserError] = useState<string | null>(null);
+  // Đã loại bỏ modal tạo người dùng và state liên quan
 
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -86,19 +88,41 @@ export default function Users() {
   const [openRoleMenu, setOpenRoleMenu] = useState(false);
   const [openStatusMenu, setOpenStatusMenu] = useState(false);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
+  const [openAddFilterMenu, setOpenAddFilterMenu] = useState(false);
+  type AddedFilter = { id: number; type: 'status' | 'role' | 'verified' | 'sort'; value: any; label: string };
+  const [addedFilters, setAddedFilters] = useState<AddedFilter[]>([]);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const roleRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
+  const addFilterRef = useRef<HTMLDivElement | null>(null);
+  const nextFilterId = useRef(1);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (roleRef.current && !roleRef.current.contains(e.target as Node)) setOpenRoleMenu(false);
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) setOpenStatusMenu(false);
       if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setOpenPageSizeMenu(false);
+      if (addFilterRef.current && !addFilterRef.current.contains(e.target as Node)) setOpenAddFilterMenu(false);
     };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+  const addFilterPill = (type: AddedFilter['type'], value: any, label: string) => {
+    setAddedFilters(prev => {
+      // không thêm trùng cùng type+value
+      if (prev.some(f => f.type === type && String(f.value) === String(value))) return prev;
+      let next = [...prev];
+      // Loại trừ trường hợp verified true/false cùng lúc: giữ cái mới, bỏ cái cũ
+      if (type === 'verified') {
+        next = next.filter(f => f.type !== 'verified');
+      }
+      return [...next, { id: nextFilterId.current++, type, value, label }];
+    });
+    setOpenAddFilterMenu(false);
+  };
+  const removeFilterPill = (id: number) => setAddedFilters(prev => prev.filter(f => f.id !== id));
 
   // Force page background to white while on Admin Users
   useEffect(() => {
@@ -137,9 +161,15 @@ export default function Users() {
       const params: any = {
         pageNumber,
         pageSize,
-        role: filterRole !== "all" ? filterRole : undefined,
-        isActive: filterStatus !== "all" ? filterStatus === "active" : undefined,
-        sortBy,
+        // Ưu tiên các filter pill; nếu không có, dùng state mặc định
+        role: (addedFilters.find(f=>f.type==='role')?.value || (filterRole !== 'all' ? filterRole : undefined)) as any,
+        isActive: ((): any => {
+          const st = addedFilters.find(f=>f.type==='status')?.value as string | undefined;
+          if (st) return st === 'active';
+          return filterStatus !== 'all' ? filterStatus === 'active' : undefined;
+        })(),
+        emailVerified: addedFilters.find(f=>f.type==='verified')?.value as boolean | undefined,
+        sortBy: (addedFilters.find(f=>f.type==='sort')?.value as string | undefined) || sortBy,
         sortOrder,
       };
 
@@ -199,9 +229,10 @@ export default function Users() {
         });
       }
 
-      setUsers(users);
-      setTotalPages(res.data?.totalPages || 1);
-      setTotalCount(res.data?.total || 0);
+      setUsers(users as unknown as AdminUser[]);
+      const count = (res.data?.total ?? users.length) as number;
+      setTotalCount(count);
+      setTotalPages(res.data?.totalPages || Math.max(1, Math.ceil(count / pageSize)));
     } catch (err: any) {
       setError(err.message || "Không thể tải danh sách người dùng");
     } finally {
@@ -344,24 +375,18 @@ export default function Users() {
     },
   ];
 
-  const handleViewUser = (user: User) => {
+  const handleViewUser = (user: AdminUser) => {
     setSelectedUser(user);
     setShowUserModal(true);
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: AdminUser) => {
   };
 
-  const handleToggleUserStatus = async (user: User) => {
+  const handleToggleUserStatus = async (user: AdminUser) => {
     try {
       const newStatus = !user.isActive;
-      if (newStatus) {
-        await UserService.activateUser(user.userId.toString());
-        
-      } else {
-         await UserService.deactivateUser(user.userId.toString());
-        
-      }
+      await UserService.updateUserStatus(user.userId.toString(), newStatus);
       
       // Update local state
       setUsers(prevUsers => 
@@ -372,7 +397,7 @@ export default function Users() {
         )
       );
       
-      alert(`Trạng thái người dùng "${user.fullName}" đã được ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} thành công!`);
+      toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} người dùng "${user.fullName}"`);
       
     } catch (err: any) {
       console.error('Error toggling user status:', err);
@@ -388,121 +413,11 @@ export default function Users() {
         errorMessage = err.message;
       }
       
-      alert(`Lỗi: ${errorMessage}`);
+      toast.error(`Lỗi: ${errorMessage}`);
     }
   };
 
-  const handleCreateUser = async () => {
-    setCreateUserLoading(true);
-    setCreateUserError(null);
-    
-    try {
-      // Validate required fields
-      if (!createUserForm.fullName.trim()) {
-        setCreateUserError('Vui lòng nhập họ tên');
-        return;
-      }
-      if (!createUserForm.email.trim()) {
-        setCreateUserError('Vui lòng nhập email');
-        return;
-      }
-      if (!createUserForm.password.trim()) {
-        setCreateUserError('Vui lòng nhập mật khẩu');
-        return;
-      }
-      if (!createUserForm.phoneNumber.trim()) {
-        setCreateUserError('Vui lòng nhập số điện thoại');
-        return;
-      }
-      if (!createUserForm.dateOfBirth) {
-        setCreateUserError('Vui lòng chọn ngày sinh');
-        return;
-      }
-      if (!createUserForm.address.trim()) {
-        setCreateUserError('Vui lòng nhập địa chỉ');
-        return;
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(createUserForm.email)) {
-        setCreateUserError('Email không hợp lệ');
-        return;
-      }
-
-      // Phone validation (basic)
-      const phoneRegex = /^[0-9+\-\s()]+$/;
-      if (!phoneRegex.test(createUserForm.phoneNumber)) {
-        setCreateUserError('Số điện thoại không hợp lệ');
-        return;
-      }
-
-      // Password validation
-      if (createUserForm.password.length < 6) {
-        setCreateUserError('Mật khẩu phải có ít nhất 6 ký tự');
-        return;
-      }
-
-      const response = await UserService.createUserByAdmin(createUserForm);
-      console.log('API Response:', {response});
-      
-      // Extract user data from response
-      const newUser = response.data || response;
-      console.log('Extracted User:', {newUser});
-      
-      // Add new user to the list
-      setUsers(prevUsers => [newUser, ...prevUsers]);
-      
-      // Reset form and close modal
-      setCreateUserForm({
-        fullName: '',
-        email: '',
-        password: '',
-        phoneNumber: '',
-        dateOfBirth: '',
-        gender: 'MALE',
-        address: '',
-        role: 'CUSTOMER',
-        isActive: true,
-        emailVerified: false
-      });
-      setShowCreateUserModal(false);
-      
-      // Show success message
-      const userName = newUser?.fullName || newUser?.email || 'người dùng mới';
-      alert(`Tạo người dùng ${userName} thành công!`);
-      
-      // Refresh stats
-      fetchStats();
-      
-    } catch (err: any) {
-      console.error('Error creating user:', err);
-      
-      let errorMessage = 'Không thể tạo người dùng';
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setCreateUserError(errorMessage);
-    } finally {
-      setCreateUserLoading(false);
-    }
-  };
-
-  const handleCreateUserFormChange = (field: keyof CreateUserByAdminRequest, value: any) => {
-    setCreateUserForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when user starts typing
-    if (createUserError) {
-      setCreateUserError(null);
-    }
-  };
+  // Đã xóa handleCreateUser và handleCreateUserFormChange
 
   const handleSearchTypeChange = (newSearchType: string) => {
     setSearchType(newSearchType);
@@ -518,6 +433,33 @@ export default function Users() {
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
     // Don't reset page number here to avoid losing focus
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const { blob, filename } = await UserService.exportUsers({
+        pageNumber,
+        pageSize,
+        searchTerm,
+        sortBy,
+        sortOrder,
+        role: filterRole === 'all' ? undefined : filterRole,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'users.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export users failed:', err);
+      alert('Không thể xuất danh sách người dùng. Vui lòng thử lại!');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleSort = (field: string) => {
@@ -652,11 +594,13 @@ export default function Users() {
           <div className="toolbar-actions">
             <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
             <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
+            <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
+              <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
+            </button>
             <button 
               type="button" 
               className="accent-button toolbar-adduser" 
-              onClick={() => { setShowCreateUserModal(true); setCreateUserError(null); }}
+              onClick={() => setOpenCreateModal(true)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 216, 117, 0.6), 0 0 40px rgba(255, 216, 117, 0.4)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -671,7 +615,7 @@ export default function Users() {
                 </div>
               </div>
             </div>
-        <div className="toolbar-filters">
+          <div className="toolbar-filters" style={{ display:'flex', alignItems:'center', gap:8 }}>
           <div className="pill-select" ref={roleRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenRoleMenu(v=>!v); }}>
             <Shield size={14} className="icon" />
             <button type="button" className="pill-trigger">{roles.find(r=>r.value===filterRole)?.label}</button>
@@ -687,7 +631,7 @@ export default function Users() {
               </ul>
             )}
           </div>
-          <div className="pill-select" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenRoleMenu(false); setOpenStatusMenu(v=>!v); }}>
+          <div className="pill-select status-filter" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenRoleMenu(false); setOpenStatusMenu(v=>!v); }}>
             <Lock size={14} className="icon" />
             <button type="button" className="pill-trigger">{statuses.find(s=>s.value===filterStatus)?.label}</button>
             <ChevronDownIcon width={16} height={16} className="caret" />
@@ -702,7 +646,31 @@ export default function Users() {
               </ul>
             )}
           </div>
-          <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
+            {/* Các pill filter được thêm động: đặt giữa filter mặc định và nút thêm */}
+            {addedFilters.map(f => (
+              <span key={f.id} className="toolbar-chip" style={{ display:'inline-flex', alignItems:'center' }}>
+                {f.label}
+                <button type="button" style={{ marginLeft:6, border:'none', background:'transparent', cursor:'pointer', color:'var(--text-tertiary)' }} onClick={()=>removeFilterPill(f.id)}>×</button>
+              </span>
+            ))}
+          <div ref={addFilterRef} style={{ position:'relative' }}>
+            <button type="button" className="toolbar-chip" onClick={() => setOpenAddFilterMenu(v=>!v)}><Plus size={14} /> Thêm bộ lọc</button>
+            {openAddFilterMenu && (
+              <div style={{ position:'absolute', top:'36px', left:0, width:320, background:'#fff', border:'1px solid rgba(226,232,240,.9)', borderRadius:12, boxShadow:'0 8px 16px rgba(0,0,0,.10)', zIndex:50 }}>
+                <ul style={{ listStyle:'none', margin:0, padding:'6px 0 10px' }}>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('verified',true,'Xác thực email: Đã xác thực')}>
+                    <ShieldCheckIcon width={16} height={16} /> Xác thực email: Đã xác thực
+                  </li>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('verified',false,'Xác thực email: Chưa xác thực')}>
+                    <Clock width={16} height={16} /> Xác thực email: Chưa xác thực
+                  </li>
+                  <li style={{ padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:14, color:'var(--text-primary)' }} onClick={()=>addFilterPill('sort','createdAt','Sắp xếp: Ngày tạo')}>
+                    <Calendar width={16} height={16} /> Sắp xếp: Ngày tạo
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
           </div>
       </div>
 
@@ -761,6 +729,10 @@ export default function Users() {
             </p>
           </div>
         ) : (
+          <>
+            <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
+              Tổng số người dùng: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{totalCount}</strong>
+            </div>
           <div style={{ overflow: 'auto' }}>
             <table className="users-table" style={{
               width: '100%',
@@ -778,7 +750,8 @@ export default function Users() {
                     padding: '16px 20px',
                     textAlign: 'left',
                     fontSize: '14px',
-                    fontWeight: '500'
+                    fontWeight: '500',
+                    borderRight: '1px solid #e5e7eb'
                     }}
                   >
                     <span className="th-inner"><input type="checkbox" className="users-checkbox" aria-label="Chọn tất cả" checked={isAllSelected} onChange={(e)=>handleToggleAll(e.target.checked)} /> <UserIcon size={16} className="th-icon" /> Họ tên</span>
@@ -816,6 +789,17 @@ export default function Users() {
                       <Shield size={16} className="th-icon" /> Vai trò
                     </div>
                   </th>
+                  {/* Email verified column */}
+                  <th
+                    style={{
+                    padding: '16px 20px',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                    }}
+                  >
+                    <span className="th-inner"><ShieldCheckIcon width={16} height={16} className="th-icon" /> Xác thực email</span>
+                  </th>
                   <th className="col-status" style={{
                     padding: '16px 20px',
                     textAlign: 'left',
@@ -851,12 +835,14 @@ export default function Users() {
                 {users.map((u, i) => (
                   <tr 
                     key={u.userId}
+                    onClick={() => handleViewUser(u)}
                     style={{
                       borderBottom: i < users.length - 1 ? '1px solid var(--border-primary)' : 'none',
                       transition: 'all 0.3s ease',
                       background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
                       transform: 'translateY(0)',
                       boxShadow: 'none',
+                      cursor: 'pointer',
                       animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards`,
                       opacity: 0
                     }}
@@ -878,9 +864,9 @@ export default function Users() {
                       fontWeight: 400
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} />
-                        {u.avatar ? (
-                          <img src={u.avatar} alt={u.fullName || 'user'} className="users-avatar" />
+                        <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} onClick={(e)=>e.stopPropagation()} />
+                        {((u as any).avatarUrl || u.avatar) ? (
+                          <img src={(u as any).avatarUrl || u.avatar || ''} alt={u.fullName || 'user'} className="users-avatar" />
                         ) : (
                           <div className="users-avatar users-avatar--fallback">
                           {u.fullName ? u.fullName.charAt(0).toUpperCase() : 'U'}
@@ -908,6 +894,17 @@ export default function Users() {
                       textAlign: 'left'
                     }}>
                       <div className="role-badge">{getRoleLabel(u.role)}</div>
+                    </td>
+                    {/* Email verified cell */}
+                    <td style={{
+                      padding: '8px 12px',
+                      textAlign: 'left'
+                    }}>
+                      {u.emailVerified ? (
+                        <span className="badge badge--enabled"><ShieldCheckIcon width={14} height={14} /> Đã xác thực</span>
+                      ) : (
+                        <span className="badge badge--disabled"><ShieldExclamationIcon width={14} height={14} /> Chưa xác thực</span>
+                      )}
                     </td>
                     <td className="col-status" style={{
                       padding: '8px 12px',
@@ -1000,6 +997,7 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
@@ -1017,7 +1015,7 @@ export default function Users() {
       <span className="pagination-label">Hàng mỗi trang</span>
       <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
         <button type="button" className="pill-trigger">{pageSize}</button>
-        <ChevronDownIcon width={16} height={16} className="caret" />
+        <ChevronDownIcon width={20} height={20} className="caret caret-lg" />
         {openPageSizeMenu && (
           <ul className="pill-menu show">
             {[10, 15, 20, 30, 50].map(sz => (
@@ -1105,6 +1103,13 @@ export default function Users() {
         </button>
         </div>
       </div>
+
+    {/* Modal tạo người dùng */}
+    <UserCreateModal
+      open={openCreateModal}
+      onClose={() => setOpenCreateModal(false)}
+      onCreate={() => { toast.success('Đã chuẩn bị form, sẽ hoàn thiện ở bước tiếp theo'); setOpenCreateModal(false); }}
+    />
 
       {showUserModal && selectedUser && (
         <div style={{ 
@@ -1375,255 +1380,7 @@ export default function Users() {
         </div>
       )}
 
-      {/* Create User Modal */}
-      {showCreateUserModal && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '800px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "24px",
-              paddingBottom: "16px",
-              borderBottom: "1px solid var(--border-primary)"
-            }}>
-              <h3 style={{ 
-                margin: 0,
-                fontSize: "20px",
-                fontWeight: "600",
-                color: "var(--text-primary)"
-              }}>
-                Tạo người dùng mới
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreateUserModal(false);
-                  setCreateUserError(null);
-                }}
-                style={{
-                  padding: "8px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: "var(--bg-secondary)",
-                  cursor: "pointer",
-                  color: "var(--text-secondary)",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--error-50)"
-                  e.currentTarget.style.color = "var(--error-600)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-secondary)"
-                  e.currentTarget.style.color = "var(--text-secondary)"
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Error Alert */}
-            {createUserError && (
-              <div style={{
-                background: 'var(--error-50)',
-                border: '1px solid var(--error-200)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '20px',
-                color: 'var(--error-700)',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <AlertCircle size={16} />
-                {createUserError}
-              </div>
-            )}
-
-            <div className="form-container">
-              {/* Basic Information */}
-              <div className="form-grid-half">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Họ và tên <span className="required-asterisk">*</span>
-                  </label>
-                  <UserIcon size={16} className="form-input-icon" />
-                    <input
-                      type="text"
-                      placeholder="Nhập họ và tên"
-                      value={createUserForm.fullName}
-                      onChange={(e) => handleCreateUserFormChange('fullName', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Email <span className="required-asterisk">*</span>
-                  </label>
-                  <Mail size={16} className="form-input-icon" />
-                    <input
-                      type="email"
-                      placeholder="Nhập email"
-                      value={createUserForm.email}
-                      onChange={(e) => handleCreateUserFormChange('email', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-half">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Mật khẩu <span className="required-asterisk">*</span>
-                  </label>
-                  <Lock size={16} className="form-input-icon" />
-                    <input
-                      type="password"
-                      placeholder="Nhập mật khẩu"
-                      value={createUserForm.password}
-                      onChange={(e) => handleCreateUserFormChange('password', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Số điện thoại <span className="required-asterisk">*</span>
-                  </label>
-                  <Phone size={16} className="form-input-icon" />
-                    <input
-                      type="tel"
-                      placeholder="Nhập số điện thoại"
-                      value={createUserForm.phoneNumber}
-                      onChange={(e) => handleCreateUserFormChange('phoneNumber', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-half">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Ngày sinh <span className="required-asterisk">*</span>
-                  </label>
-                  <CalendarIcon size={16} className="form-input-icon" />
-                    <input
-                      type="date"
-                      value={createUserForm.dateOfBirth}
-                      onChange={(e) => handleCreateUserFormChange('dateOfBirth', e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-
-                <div className="form-select-wrapper">
-                  <label className="form-label">
-                    Giới tính
-                  </label>
-                  <select
-                    value={createUserForm.gender}
-                    onChange={(e) => handleCreateUserFormChange('gender', e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="MALE">Nam</option>
-                    <option value="FEMALE">Nữ</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-grid-full">
-                <div className="form-input-wrapper">
-                  <label className="form-label">
-                    Địa chỉ <span className="required-asterisk">*</span>
-                </label>
-                  <MapPinIcon size={16} className="form-input-icon" />
-                  <textarea
-                    placeholder="Nhập địa chỉ"
-                    value={createUserForm.address}
-                    onChange={(e) => handleCreateUserFormChange('address', e.target.value)}
-                    rows={3}
-                    className="form-textarea"
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid-half">
-                <div className="form-select-wrapper">
-                  <label className="form-label">
-                    Vai trò
-                  </label>
-                  <select
-                    value={createUserForm.role}
-                    onChange={(e) => handleCreateUserFormChange('role', e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="CUSTOMER">Khách hàng</option>
-                    <option value="STAFF">Nhân viên</option>
-                    <option value="MANAGER">Quản lí</option>
-                    <option value="TECHNICIAN">Kỹ thuật viên</option>
-                    {/** Bỏ quản trị viên theo yêu cầu */}
-                  </select>
-                </div>
-
-                {/** Bỏ phần trạng thái theo yêu cầu **/}
-              </div>
-            </div>
-
-            <div className="form-modal-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateUserModal(false);
-                  setCreateUserError(null);
-                }}
-                className="form-modal-cancel"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleCreateUser}
-                disabled={createUserLoading}
-                className="form-modal-submit"
-              >
-                {createUserLoading ? (
-                  <>
-                    <div className="loading-spinner" />
-                    Đang tạo...
-                  </>
-                ) : (
-                  <>
-                    <Plus size={16} />
-                    Tạo người dùng
-                  </>
-                )}
-            </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Đã xoá Create User Modal */}
     </div>
   );
 }

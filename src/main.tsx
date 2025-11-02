@@ -9,6 +9,7 @@ import { store } from './store'
 import { syncFromLocalStorage } from './store/authSlice'
 import { Toaster } from 'react-hot-toast'
 import LoginToastWatcher from '@/components/common/LoginToastWatcher'
+import { HeroUIProvider } from '@heroui/react'
 
 // Sync authentication state from localStorage on app start
 store.dispatch(syncFromLocalStorage())
@@ -16,7 +17,9 @@ store.dispatch(syncFromLocalStorage())
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <AppRouter />
+      <HeroUIProvider>
+        <AppRouter />
+      </HeroUIProvider>
       {/* Global login toast watcher */}
       {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
       {/* @ts-ignore */}
