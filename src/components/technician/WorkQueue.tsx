@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Plus, 
   Clock, 
@@ -18,15 +18,21 @@ import {
   Flag,
   Loader2,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Calendar,
+  Filter,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import { TechnicianService } from '@/services/technicianService'
 import { BookingService } from '@/services/bookingService'
 import { useAppSelector } from '@/store/hooks'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
-import StatsCards from './StatsCards'
-import WorkQueueToolbar from './WorkQueueToolbar'
 import './WorkQueue.scss'
 import './DatePicker.scss'
 
@@ -115,6 +121,10 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Sort state
+  const [sortBy, setSortBy] = useState<'bookingId' | 'customer' | 'serviceName' | 'status' | 'scheduledTime' | 'scheduledDate'>('bookingId')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
   // Lấy thông tin user từ store và resolve đúng technicianId
   const user = useAppSelector((state) => state.auth.user)
   const [technicianId, setTechnicianId] = useState<number | null>(null)
@@ -143,7 +153,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         } catch {}
 
         // 2) Gọi API để lấy technicianId chính xác từ userId
-        if (Number.isFinite(Number(userId))) {
+        if (Number.isFinite(Number(userId))) {        
           try {
             const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
             
@@ -304,8 +314,45 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     return matchesSearch && matchesStatus
   })
     .sort((a, b) => {
-      // Sort theo booking mới nhất (bookingId cao nhất)
-      return b.bookingId - a.bookingId
+      // Quick sort functionality
+      let aValue: any
+      let bValue: any
+      
+      switch (sortBy) {
+        case 'bookingId':
+          aValue = a.bookingId || 0
+          bValue = b.bookingId || 0
+          break
+        case 'customer':
+          aValue = (a.customer || '').toLowerCase()
+          bValue = (b.customer || '').toLowerCase()
+          break
+        case 'serviceName':
+          aValue = (a.serviceName || a.title || '').toLowerCase()
+          bValue = (b.serviceName || b.title || '').toLowerCase()
+          break
+        case 'status':
+          aValue = (a.status || '').toLowerCase()
+          bValue = (b.status || '').toLowerCase()
+          break
+        case 'scheduledTime':
+          aValue = (a.scheduledTime || '').toLowerCase()
+          bValue = (b.scheduledTime || '').toLowerCase()
+          break
+        case 'scheduledDate':
+          aValue = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0
+          bValue = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0
+          break
+        default:
+          aValue = a.bookingId || 0
+          bValue = b.bookingId || 0
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+      }
     })
 
   // Pagination logic
@@ -318,7 +365,24 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   // Reset to first page only when search or status filter changes (not date)
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, sortBy, sortOrder])
+
+  // Sort handlers
+  const handleSort = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'scheduledTime' | 'scheduledDate') => {
+    if (sortBy === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(field)
+      setSortOrder('desc') // Default to descending
+    }
+  }
+
+  const getSortIcon = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'scheduledTime' | 'scheduledDate') => {
+    if (sortBy !== field) {
+      return <ChevronUp size={14} style={{ opacity: 0.3 }} />
+    }
+    return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+  }
 
   // Ensure selectedDate is always current date on mount
   useEffect(() => {
@@ -380,44 +444,54 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     }
   }
 
-  const stats = [
+  // Tính toán stats từ workQueue với useMemo để tối ưu performance
+  const stats = useMemo(() => {
+    const statsData = [
     {
       label: 'Chờ xác nhận',
       value: workQueue.filter(w => w.status === 'pending').length,
       color: '#8b5cf6',
-      icon: Clock
+        icon: Clock,
+        bgColor: 'rgba(139, 92, 246, 0.1)'
     },
     {
       label: 'Đã xác nhận',
       value: workQueue.filter(w => w.status === 'confirmed').length,
       color: '#3b82f6',
-      icon: CheckCircle2
+        icon: CheckCircle2,
+        bgColor: 'rgba(59, 130, 246, 0.1)'
     },
     {
       label: 'Đang làm việc',
       value: workQueue.filter(w => w.status === 'in_progress').length,
       color: '#8b5cf6',
-      icon: Wrench
+        icon: Wrench,
+        bgColor: 'rgba(139, 92, 246, 0.1)'
     },
     {
       label: 'Hoàn thành',
       value: workQueue.filter(w => w.status === 'completed').length,
       color: '#10b981',
-      icon: CheckCircle
+        icon: CheckCircle,
+        bgColor: 'rgba(16, 185, 129, 0.1)'
     },
     {
       label: 'Đã thanh toán',
       value: workQueue.filter(w => w.status === 'paid').length,
       color: '#059669',
-      icon: Package
+        icon: Package,
+        bgColor: 'rgba(5, 150, 105, 0.1)'
     },
     {
       label: 'Đã hủy',
       value: workQueue.filter(w => w.status === 'cancelled').length,
       color: '#ef4444',
-      icon: XCircle
+        icon: XCircle,
+        bgColor: 'rgba(239, 68, 68, 0.1)'
     }
   ]
+    return statsData
+  }, [workQueue])
 
   const handleStatusUpdate = async (e: React.MouseEvent, workId: number, newStatus: string) => {
     e.stopPropagation()
@@ -503,439 +577,788 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
 
 
   return (
-    <div className="work-queue">
-      {/* Main Content Area */}
-      <div className="work-queue__main">
-
-        {/* Enhanced Stats Cards with Colors */}
-        <StatsCards stats={stats} />
-
-        {/* Main Content Card */}
-        <div className="work-queue__main-card">
-          {/* Compact Toolbar */}
-          <WorkQueueToolbar
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            loading={loading}
-              onRefresh={() => fetchTechnicianBookings(selectedDate, true)} // Preserve current page
-          />
-
-          {/* Work List */}
-          <div className="work-queue__list-container">
-            {/* Compact List Header */}
-            <div className="work-queue__list-header">
-              <div className="work-queue__list-header__item">ID</div>
-              <div className="work-queue__list-header__item">Khách hàng</div>
-              <div className="work-queue__list-header__item">Xe</div>
-              <div className="work-queue__list-header__item">Dịch vụ</div>
-              <div className="work-queue__list-header__item">Trạng thái</div>
-              <div className="work-queue__list-header__item">Thời gian</div>
-              <div className="work-queue__list-header__item">Hành động</div>
+    <div className="work-queue" style={{ 
+      padding: '0px 16px 16px 16px', 
+      background: '#fff', 
+      minHeight: '100vh',
+      animation: 'fadeIn 0.5s ease-out'
+    }}>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '32px',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div>
+          <h2 style={{ 
+            fontSize: '28px', 
+            fontWeight: '600', 
+            color: 'var(--text-primary)',
+            margin: '0 0 8px 0',
+            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            Hàng đợi công việc
+          </h2>
+          <p style={{ 
+            fontSize: '16px', 
+            color: 'var(--text-secondary)',
+            margin: '0'
+          }}>
+            Quản lý và theo dõi công việc được giao
+          </p>
+        </div>
             </div>
 
-            {/* Work Items List */}
-            <div 
-              className="work-queue__list"
+      {/* Stats Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: '16px',
+        marginBottom: '24px'
+      }}>
+        {stats.map((stat, index) => {
+          const Icon = stat.icon
+          return (
+            <div
+              key={index}
               style={{
+                background: '#fff',
+                border: `2px solid ${stat.color}20`,
+                borderRadius: '12px',
+                padding: '16px',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem'
+                alignItems: 'center',
+                gap: '12px',
+                transition: 'all 0.3s ease',
+                cursor: 'default',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
               }}
             >
-              {loading ? (
-                <div className="work-queue__loading">
-                  <RefreshCw size={24} className="animate-spin" />
-                  <span>Đang tải dữ liệu...</span>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: stat.bgColor || 'rgba(139, 92, 246, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: stat.color,
+                flexShrink: 0
+              }}>
+                <Icon size={24} />
                 </div>
-              ) : paginatedWork.length > 0 ? (
-                paginatedWork.map((work) => (
-                <div key={work.id}>
-                  {/* Main Work Card */}
-                  <div 
-                    className="work-queue__list__item"
-                    onClick={() => handleViewBookingDetail(work.bookingId)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="work-queue__list__item__cell">
-                      <div className="work-queue__list__item__cell__primary" style={{ color: '#FFD875', fontWeight: '600' }}>#{work.bookingId}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.2',
+                  marginBottom: '4px'
+                }}>
+                  {stat.value}
                     </div>
-                    <div className="work-queue__list__item__cell">
-                      <div className="work-queue__list__item__cell__primary">{work.customer}</div>
-                      <div className="work-queue__list__item__cell__secondary">{work.customerPhone}</div>
+                <div style={{
+                  fontSize: '13px',
+                  color: 'var(--text-secondary)',
+                  fontWeight: '500'
+                }}>
+                  {stat.label}
                     </div>
-                    <div className="work-queue__list__item__cell">
-                      <div className="work-queue__list__item__cell__primary">{work.licensePlate}</div>
-                      <div className="work-queue__list__item__cell__secondary">{work.bikeBrand} {work.bikeModel}</div>
                     </div>
-                    <div className="work-queue__list__item__cell">
-                      <div className="work-queue__list__item__cell__primary">{work.title}</div>
-                      <div className="work-queue__list__item__cell__secondary">
-                        {work.serviceType === 'repair' ? 'Sửa chữa' : 
-                         work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
                       </div>
+          )
+        })}
                     </div>
-                    <div className="work-queue__list__item__cell">
-                      {/* Show status badge and buttons for non-terminal states */}
-                      {!['completed', 'paid', 'cancelled'].includes(work.status) ? (
-                        <div className="work-queue__list__item__status-container">
-                          {/* Sử dụng terminal-status style cho confirmed */}
-                          {work.status === 'confirmed' ? (
-                            <div className="work-queue__list__item__terminal-status">
-                              <div className="work-queue__list__item__terminal-status__info">
-                                <div 
-                                  className="work-queue__list__item__terminal-status__icon"
+
+      {/* Toolbar */}
+      <div className="work-queue-toolbar" style={{
+        background: 'var(--bg-card)',
+        padding: '16px',
+        borderRadius: '12px',
+        border: '1px solid var(--border-primary)',
+        marginBottom: '24px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+      }}>
+        <div className="toolbar-top" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <div className="toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              background: '#FFF6D1',
+              borderRadius: '8px',
+              border: '1px solid #FFD875',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--text-primary)'
+            }}>
+              <Calendar size={14} />
+              {new Date(selectedDate).toLocaleDateString('vi-VN')}
+            </div>
+          </div>
+          <div className="toolbar-right" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px', 
+            flex: 1,
+            justifyContent: 'flex-end'
+          }}>
+            <div className="toolbar-search" style={{ flex: 1, maxWidth: '400px' }}>
+              <div className="search-wrap" style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <Search size={14} className="icon" style={{
+                  position: 'absolute',
+                  left: '12px',
+                  color: 'var(--text-tertiary)',
+                  pointerEvents: 'none'
+                }} />
+                <input
+                  placeholder="Tìm kiếm theo tên, biển số, SĐT..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ 
-                              backgroundColor: getStatusColor(work.status) + '15',
-                                    color: getStatusColor(work.status)
-                                  }}
-                                >
-                                  <CheckCircle2 size={14} />
+                    width: '100%',
+                    padding: '10px 12px 10px 36px',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    background: '#fff',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary-500)'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-primary)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                />
+              </div>
+            </div>
+            <div className="toolbar-actions">
+              <button 
+                type="button" 
+                className="toolbar-btn"
+                onClick={() => fetchTechnicianBookings(selectedDate, true)}
+                disabled={loading}
+                style={{
+                  padding: '10px 16px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  background: '#fff',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  opacity: loading ? 0.6 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.background = 'var(--primary-50)'
+                    e.currentTarget.style.borderColor = 'var(--primary-500)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.background = '#fff'
+                    e.currentTarget.style.borderColor = 'var(--border-primary)'
+                  }
+                }}
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{
+                  animation: loading ? 'spin 1s linear infinite' : 'none'
+                }} /> 
+                {loading ? 'Đang tải...' : 'Làm mới'}
+              </button>
                                 </div>
-                                <div className="work-queue__list__item__terminal-status__text">
-                                  <span 
-                                    className="work-queue__list__item__terminal-status__value"
-                                    style={{ color: getStatusColor(work.status) }}
-                          >
-                            {getStatusText(work.status)}
-                          </span>
+          </div>
+        </div>
+        <div className="toolbar-filters" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <div className="pill-select" style={{
+            position: 'relative',
+            height: '36px',
+            border: '1px solid var(--border-primary)',
+            borderRadius: '8px',
+            padding: '0 12px',
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--primary-500)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-primary)'
+          }}
+          >
+            <Filter size={14} className="icon" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                cursor: 'pointer',
+                lineHeight: '1',
+                height: '100%',
+                flex: 1,
+                paddingRight: '20px'
+              }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="PENDING">Chờ xác nhận</option>
+              <option value="CONFIRMED">Đã xác nhận</option>
+              <option value="IN_PROGRESS">Đang làm việc</option>
+              <option value="COMPLETED">Hoàn thành</option>
+              <option value="PAID">Đã thanh toán</option>
+              <option value="CANCELLED">Đã hủy</option>
+            </select>
+            <ChevronDown size={14} style={{
+              position: 'absolute',
+              right: '12px',
+              color: 'var(--text-tertiary)',
+              pointerEvents: 'none',
+              flexShrink: 0
+            }} />
                                 </div>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid var(--border-primary)',
+              borderRadius: '8px',
+              background: '#fff',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              height: '36px'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary-500)'
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-primary)'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
+          />
                               </div>
+      </div>
+
+      {/* Work Table */}
+      <div style={{
+        background: 'var(--bg-card)',
+        padding: 0,
+        borderRadius: 0,
+        border: 'none',
+        boxShadow: 'none'
+      }}>
+              {loading ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '60px', 
+            color: 'var(--text-secondary)' 
+          }}>
+            <RefreshCw size={48} className="animate-spin" style={{ margin: '0 auto 16px', display: 'block' }} />
+            <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Đang tải dữ liệu...</p>
+                    </div>
+        ) : paginatedWork.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '60px', 
+            color: 'var(--text-secondary)' 
+          }}>
+            <Clock size={64} style={{ margin: '0 auto 16px', display: 'block', opacity: 0.5 }} />
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
+              {searchTerm || statusFilter !== 'all' ? 'Không tìm thấy công việc nào' : 'Chưa có công việc nào'}
+            </h4>
+            <p style={{ margin: 0, fontSize: '14px' }}>
+              {searchTerm || statusFilter !== 'all' ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc' : 'Hiện tại chưa có công việc nào trong hàng đợi'}
+            </p>
                             </div>
                           ) : (
-                            <div className="work-queue__list__item__terminal-status">
-                              <div className="work-queue__list__item__terminal-status__info">
-                                <div 
-                                  className="work-queue__list__item__terminal-status__icon"
+          <>
+            <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
+              Tổng số công việc: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{filteredWork.length}</strong>
+                    </div>
+            <div style={{ overflow: 'auto' }}>
+              <table className="work-queue-table" style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                background: 'var(--bg-card)',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
+                border: 'none'
+              }}>
+                <thead>
+                  <tr className="table-header-yellow" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
+                    <th 
+                      onClick={() => handleSort('bookingId')}
                                   style={{ 
-                                    backgroundColor: work.status === 'pending' ? '#8b5cf6' + '15' : getStatusColor(work.status) + '15',
-                                    color: work.status === 'pending' ? '#8b5cf6' : getStatusColor(work.status)
-                                  }}
-                                >
-                                  {work.status === 'pending' && <Clock size={14} />}
-                                  {work.status === 'in_progress' && <Wrench size={14} />}
+                        padding: '16px 20px', 
+                        textAlign: 'left', 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <span className="th-inner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        ID
+                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'bookingId' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
+                          {getSortIcon('bookingId')}
                                 </div>
-                                <div className="work-queue__list__item__terminal-status__text">
-                                  <span 
-                                    className="work-queue__list__item__terminal-status__value"
-                                    style={{ color: work.status === 'pending' ? '#8b5cf6' : getStatusColor(work.status) }}
-                                  >
+                      </span>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('customer')}
+                      style={{ 
+                        padding: '16px 20px', 
+                        textAlign: 'left', 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <span className="th-inner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        Khách hàng
+                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'customer' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
+                          {getSortIcon('customer')}
+                        </div>
+                                  </span>
+                    </th>
+                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '500' }}>
+                      <span className="th-inner">Xe</span>
+                    </th>
+                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '500' }}>
+                      <span className="th-inner">Dịch vụ</span>
+                    </th>
+                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '500' }}>
+                      <span className="th-inner">Trạng thái</span>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('scheduledTime')}
+                                  style={{ 
+                        padding: '16px 20px', 
+                        textAlign: 'left', 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <span className="th-inner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        Thời gian
+                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'scheduledTime' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
+                          {getSortIcon('scheduledTime')}
+                                </div>
+                      </span>
+                    </th>
+                    <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '500' }}>
+                      <span className="th-inner" style={{ justifyContent:'flex-start' }}>Hành động</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedWork.map((work, i) => (
+                    <tr 
+                      key={work.id}
+                      onClick={() => handleViewBookingDetail(work.bookingId)}
+                                  style={{ 
+                        borderBottom: i < paginatedWork.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                        transition: 'all 0.3s ease',
+                        background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                        transform: 'translateY(0)',
+                        boxShadow: 'none',
+                        cursor: 'pointer',
+                        animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards`,
+                        opacity: 0
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 216, 117, 0.15)'
+                        e.currentTarget.style.transform = 'translateY(-2px)'
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                        e.currentTarget.style.transform = 'translateY(0)'
+                        e.currentTarget.style.boxShadow = 'none'
+                      }}
+                    >
+                      <td style={{ padding: '8px 12px', fontSize: '14px', color: '#FFD875', fontWeight: '600' }}>
+                        #{work.bookingId}
+                      </td>
+                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: '500' }}>{work.customer}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.customerPhone}</div>
+                      </td>
+                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: '500' }}>{work.licensePlate}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.bikeBrand} {work.bikeModel}</div>
+                      </td>
+                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: '500' }}>{work.title}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {work.serviceType === 'repair' ? 'Sửa chữa' : 
+                         work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
+                              </div>
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'left' }}>
+                      {!['completed', 'paid', 'cancelled'].includes(work.status) ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <span className="status-badge" style={{ 
+                              backgroundColor: getStatusColor(work.status) + '15',
+                              color: getStatusColor(work.status),
+                              borderColor: getStatusColor(work.status),
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              width: 'fit-content'
+                            }}>
+                              {work.status === 'pending' && <Clock size={12} />}
+                              {work.status === 'confirmed' && <CheckCircle2 size={12} />}
+                              {work.status === 'in_progress' && <Wrench size={12} />}
                                     {getStatusText(work.status)}
                                   </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Status change buttons */}
-                          <div className="work-queue__list__item__status-actions">
-
-                            {/* CONFIRMED -> IN_PROGRESS */}
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             {work.status === 'confirmed' && canTransitionTo(work.status, 'in_progress') && (
                               <button
-                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--start"
+                                  className="work-queue-action-btn work-queue-action-btn--start"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleStatusUpdate(e, work.id, 'in_progress')
                                 }}
                                 disabled={updatingStatus.has(work.id)}
                                 title="Bắt đầu làm việc"
-                              >
-                                {updatingStatus.has(work.id) ? (
-                                  <RefreshCw size={14} className="animate-spin" />
-                                ) : (
-                                  <Play size={14} />
-                                )}
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                >
+                                  {updatingStatus.has(work.id) ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                               </button>
                             )}
-
-                            {/* IN_PROGRESS -> COMPLETED */}
                             {work.status === 'in_progress' && canTransitionTo(work.status, 'completed') && (
                               <button
-                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--complete"
+                                  className="work-queue-action-btn work-queue-action-btn--complete"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleStatusUpdate(e, work.id, 'completed')
                                 }}
                                 disabled={updatingStatus.has(work.id)}
                                 title="Hoàn thành công việc"
-                              >
-                                {updatingStatus.has(work.id) ? (
-                                  <RefreshCw size={14} className="animate-spin" />
-                                ) : (
-                                  <Flag size={14} />
-                                )}
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                >
+                                  {updatingStatus.has(work.id) ? <RefreshCw size={12} className="animate-spin" /> : <Flag size={12} />}
                               </button>
                             )}
-
-
-                            {/* Cancel button for non-terminal states */}
                             {!['paid', 'cancelled'].includes(work.status) && canTransitionTo(work.status, 'cancelled') && (
                               <button
-                                className="work-queue__list__item__status-btn work-queue__list__item__status-btn--cancel"
+                                  className="work-queue-action-btn work-queue-action-btn--cancel"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleCancelBooking(e, work.id)
                                 }}
                                 disabled={updatingStatus.has(work.id)}
                                 title="Hủy booking"
-                              >
-                                {updatingStatus.has(work.id) ? (
-                                  <RefreshCw size={14} className="animate-spin" />
-                                ) : (
-                                  <XCircle size={14} />
-                                )}
+                                  style={{ padding: '4px 8px', fontSize: '11px' }}
+                                >
+                                  {updatingStatus.has(work.id) ? <RefreshCw size={12} className="animate-spin" /> : <XCircle size={12} />}
                               </button>
                             )}
                           </div>
                         </div>
                       ) : (
-                        /* Show terminal status box for completed/paid/cancelled states */
-                        <div className="work-queue__list__item__terminal-status">
-                          <div className="work-queue__list__item__terminal-status__info">
-                            <div 
-                              className="work-queue__list__item__terminal-status__icon"
-                              style={{ 
+                          <span className="status-badge" style={{ 
                                 backgroundColor: getStatusColor(work.status) + '15',
-                                color: getStatusColor(work.status)
-                              }}
-                            >
-                              {work.status === 'completed' && <CheckCircle size={14} />}
-                              {work.status === 'paid' && <Package size={14} />}
-                              {work.status === 'cancelled' && <XCircle size={14} />}
-                            </div>
-                            <div className="work-queue__list__item__terminal-status__text">
-                              <span 
-                                className="work-queue__list__item__terminal-status__value"
-                                style={{ 
                                   color: getStatusColor(work.status),
-                                  fontSize: '0.75rem',
-                                  fontWeight: '600'
-                                }}
-                              >
+                            borderColor: getStatusColor(work.status),
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            width: 'fit-content'
+                          }}>
+                            {work.status === 'completed' && <CheckCircle size={12} />}
+                            {work.status === 'paid' && <Package size={12} />}
+                            {work.status === 'cancelled' && <XCircle size={12} />}
                                 {getStatusText(work.status)}
                               </span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="work-queue__list__item__cell">
-                      <div className="work-queue__list__item__cell__primary">{work.scheduledTime}</div>
-                      <div className="work-queue__list__item__cell__secondary">{work.scheduledDate}</div>
-                    </div>
-                    <div className="work-queue__list__item__cell">
-                      <div className="work-queue__list__item__actions">
-                        <button
-                          className="work-queue__list__item__action-btn work-queue__list__item__action-btn--view"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleViewBookingDetail(work.bookingId)
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: '500' }}>{work.scheduledTime}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.scheduledDate}</div>
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'left' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '8px', 
+                          justifyContent: 'flex-start',
+                          alignItems: 'center'
+                        }}>
+                          <button type="button"
+                            onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
+                            style={{
+                              padding: '8px',
+                              border: '2px solid var(--border-primary)',
+                              borderRadius: '8px',
+                              background: '#FFD875',
+                              color: '#000000',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease',
+                              width: '36px',
+                              height: '36px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#FFD875'
+                              e.currentTarget.style.background = '#FFF6D1'
+                              e.currentTarget.style.transform = 'translateY(-2px)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--border-primary)'
+                              e.currentTarget.style.background = '#FFD875'
+                              e.currentTarget.style.transform = 'translateY(0)'
                           }}
                           title="Xem chi tiết"
-                          style={{ background: '#FFD875', color: '#000000' }}
                         >
                           <Eye size={16} />
                         </button>
-                        
-                        {/* Nút xác nhận - hiển thị luôn nhưng disable khi không phù hợp */}
-                          <button
-                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--confirm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                            if (work.status === 'pending') {
-                              handleStatusUpdate(e, work.id, 'confirmed')
-                            }
-                          }}
-                          disabled={updatingStatus.has(work.id) || work.status !== 'pending'}
-                          title={work.status === 'pending' ? 'Xác nhận' : 'Không thể xác nhận'}
+                          {work.status === 'pending' && (
+                            <button type="button"
+                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'confirmed'); }}
+                              disabled={updatingStatus.has(work.id)}
                           style={{ 
+                                padding: '8px',
+                                border: '2px solid var(--border-primary)',
+                                borderRadius: '8px',
                             background: work.status === 'pending' ? '#3b82f6' : '#e5e7eb',
                             color: work.status === 'pending' ? '#ffffff' : '#9ca3af',
-                            cursor: work.status === 'pending' ? 'pointer' : 'not-allowed'
-                          }}
+                                cursor: work.status === 'pending' ? 'pointer' : 'not-allowed',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease',
+                                width: '36px',
+                                height: '36px'
+                              }}
+                              title="Xác nhận"
                           >
                             {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                           </button>
-                        
-                        {/* Nút bắt đầu - hiển thị luôn nhưng disable khi không phù hợp */}
-                          <button
-                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--start"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                            if (work.status === 'confirmed') {
-                              handleStatusUpdate(e, work.id, 'in_progress')
-                            }
-                          }}
-                          disabled={updatingStatus.has(work.id) || work.status !== 'confirmed'}
-                          title={work.status === 'confirmed' ? 'Bắt đầu làm việc' : 'Không thể bắt đầu'}
+                          )}
+                          {work.status === 'confirmed' && (
+                            <button type="button"
+                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
+                              disabled={updatingStatus.has(work.id)}
                           style={{ 
-                            background: work.status === 'confirmed' ? '#8b5cf6' : '#e5e7eb',
-                            color: work.status === 'confirmed' ? '#ffffff' : '#9ca3af',
-                            cursor: work.status === 'confirmed' ? 'pointer' : 'not-allowed'
-                          }}
+                                padding: '8px',
+                                border: '2px solid var(--border-primary)',
+                                borderRadius: '8px',
+                                background: '#8b5cf6',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease',
+                                width: '36px',
+                                height: '36px'
+                              }}
+                              title="Bắt đầu làm việc"
                           >
                             {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
                           </button>
-                        
-                        {/* Nút hoàn thành - đổi từ in_progress sang completed */}
-                          <button
-                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--complete"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                            if (work.status === 'in_progress') {
-                              handleStatusUpdate(e, work.id, 'completed')
-                            }
-                          }}
-                          disabled={updatingStatus.has(work.id) || work.status !== 'in_progress'}
-                          title={work.status === 'in_progress' ? 'Hoàn thành công việc' : 'Không thể hoàn thành'}
+                          )}
+                          {work.status === 'in_progress' && (
+                            <button type="button"
+                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'completed'); }}
+                              disabled={updatingStatus.has(work.id)}
                           style={{ 
-                            background: work.status === 'in_progress' ? '#10b981' : '#e5e7eb',
-                            color: work.status === 'in_progress' ? '#ffffff' : '#9ca3af',
-                            cursor: work.status === 'in_progress' ? 'pointer' : 'not-allowed'
-                          }}
+                                padding: '8px',
+                                border: '2px solid var(--border-primary)',
+                                borderRadius: '8px',
+                                background: '#10b981',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease',
+                                width: '36px',
+                                height: '36px'
+                              }}
+                              title="Hoàn thành công việc"
                           >
                             {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
                           </button>
-                        
-                        
-                        {/* Nút hủy - sử dụng API cancel */}
-                          <button
-                            className="work-queue__list__item__action-btn work-queue__list__item__action-btn--cancel"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                            if (work.status !== 'completed' && work.status !== 'paid' && work.status !== 'cancelled') {
-                              handleCancelBooking(e, work.id)
-                            }
-                          }}
-                          disabled={updatingStatus.has(work.id) || ['completed', 'paid', 'cancelled'].includes(work.status)}
-                          title={!['completed', 'paid', 'cancelled'].includes(work.status) ? 'Hủy booking' : 'Không thể hủy'}
+                          )}
+                          {!['completed', 'paid', 'cancelled'].includes(work.status) && (
+                            <button type="button"
+                              onClick={(e) => { e.stopPropagation(); handleCancelBooking(e, work.id); }}
+                              disabled={updatingStatus.has(work.id)}
                           style={{ 
-                            background: !['completed', 'paid', 'cancelled'].includes(work.status) ? '#ef4444' : '#e5e7eb',
-                            color: !['completed', 'paid', 'cancelled'].includes(work.status) ? '#ffffff' : '#9ca3af',
-                            cursor: !['completed', 'paid', 'cancelled'].includes(work.status) ? 'pointer' : 'not-allowed'
-                          }}
+                                padding: '8px',
+                                border: '2px solid var(--border-primary)',
+                                borderRadius: '8px',
+                                background: '#ef4444',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease',
+                                width: '36px',
+                                height: '36px'
+                              }}
+                              title="Hủy booking"
                           >
                             {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
                           </button>
+                          )}
                       </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
                     </div>
-                  </div>
-
-                </div>
-              ))
-              ) : (
-                <div style={{
-                  padding: '2rem',
-                  textAlign: 'center',
-                  color: '#9CA3AF',
-                  fontSize: '0.875rem',
-                  background: '#F9FAFB',
-                  borderRadius: '8px',
-                  margin: '1rem 0'
-                }}>
-                  <Clock size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                  <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
-                    {searchTerm || statusFilter !== '' ? 'Không tìm thấy công việc phù hợp' : 'Chưa có công việc nào'}
-                  </div>
-                  <div>
-                    {searchTerm || statusFilter !== '' ? 'Hãy thử điều chỉnh bộ lọc để tìm kiếm công việc khác' : 'Hiện tại chưa có công việc nào trong hàng đợi'}
-                  </div>
-                </div>
-              )}
-            </div>
+          </>
+        )}
           </div>
 
       {/* Pagination */}
       {!loading && filteredWork.length > 0 && (
-        <div 
-          className="work-queue__pagination"
-          style={{
+        <div style={{
+          marginTop: '16px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '1rem 1.5rem',
-            background: 'white',
-            borderTop: '1px solid #e5e7eb',
-            marginTop: '1rem',
-            marginBottom: '2rem' // Thêm margin bottom để có thể scroll đến
-          }}
-        >
-          <div className="work-queue__pagination__info">
-            Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredWork.length)} trong {filteredWork.length} kết quả
+          background: 'transparent',
+          padding: '8px 0'
+        }}>
+          <div className="pagination-info">
+            <span className="pagination-label">Hiển thị</span>
+            <span className="pagination-range">
+              {startIndex + 1}–{Math.min(endIndex, filteredWork.length)} trong {filteredWork.length} kết quả
+            </span>
           </div>
-          <div className="work-queue__pagination__controls">
-            <button
-              className="work-queue__pagination__button"
-              style={{
-                padding: '0.5rem 1rem',
-                border: '1px solid #e5e7eb',
-                background: 'white',
-                color: '#374151',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                opacity: currentPage === 1 ? 0.5 : 1
-              }}
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <button type="button"
               disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className={`pager-btn ${currentPage === 1 ? 'is-disabled' : ''}`}
             >
-              Trước
+              <ChevronsLeft size={16} />
             </button>
-            
-            <div className="work-queue__pagination__pages">
+            <button type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              className={`pager-btn ${currentPage === 1 ? 'is-disabled' : ''}`}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div className="pager-pages">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
-                  className={`work-queue__pagination__page ${
-                    currentPage === page ? 'work-queue__pagination__page--active' : ''
-                  }`}
-                  style={{
-                    width: '2rem',
-                    height: '2rem',
-                    border: '1px solid #e5e7eb',
-                    background: currentPage === page ? '#FFD875' : 'white',
-                    color: currentPage === page ? '#000000' : '#374151',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 0.125rem'
-                  }}
                   onClick={() => setCurrentPage(page)}
+                  className={`pager-btn ${currentPage === page ? 'is-active' : ''}`}
                 >
                   {page}
                 </button>
               ))}
             </div>
-            
-            <button
-              className="work-queue__pagination__button"
-              style={{
-                padding: '0.5rem 1rem',
-                border: '1px solid #e5e7eb',
-                background: 'white',
-                color: '#374151',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                opacity: currentPage === totalPages ? 0.5 : 1
-              }}
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            <button type="button"
               disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className={`pager-btn ${currentPage === totalPages ? 'is-disabled' : ''}`}
             >
-              Sau
+              <ChevronRight size={16} />
+            </button>
+            <button type="button"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className={`pager-btn ${currentPage === totalPages ? 'is-disabled' : ''}`}
+            >
+              <ChevronsRight size={16} />
             </button>
           </div>
         </div>
       )}
-          </div>
-      </div>
     </div>
   )
 }
