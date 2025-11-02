@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, Star, Clock, Shield, Wrench, Car, Calendar, CheckCircle, ArrowRight, Package } from 'lucide-react'
+import { Search, Filter, Star, Clock, Wrench, Calendar, ArrowRight, Package, Info } from 'lucide-react'
 import { ServiceManagementService, ServicePackage, Service } from '@/services/serviceManagementService'
+import ServiceDetailModal from '@/components/common/ServiceDetailModal'
 import './services.scss'
 
 export default function Services() {
@@ -13,6 +14,8 @@ export default function Services() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [activeTab, setActiveTab] = useState<'services' | 'packages'>('services')
+  const [selectedService, setSelectedService] = useState<Service | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Fetch services and service packages on component mount
   useEffect(() => {
@@ -86,6 +89,20 @@ export default function Services() {
       style: 'currency',
       currency: 'VND'
     }).format(price)
+  }
+
+  const handleViewDetails = (service: Service) => {
+    setSelectedService(service)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedService(null)
+  }
+
+  const handleBookService = (serviceId: number) => {
+    navigate('/booking', { state: { serviceId } })
   }
 
   return (
@@ -200,22 +217,9 @@ export default function Services() {
                     
                     <div className="card-content">
                       <h3 className="package-name">{service.name}</h3>
-                      <p className="package-description">{service.description}</p>
-                      
-                      <div className="package-features">
-                        <div className="feature-item">
-                          <CheckCircle className="feature-icon" />
-                          <span>Chuyên nghiệp</span>
-                        </div>
-                        <div className="feature-item">
-                          <Shield className="feature-icon" />
-                          <span>Bảo hành chính hãng</span>
-                        </div>
-                        <div className="feature-item">
-                          <Clock className="feature-icon" />
-                          <span>Hỗ trợ 24/7</span>
-                        </div>
-                      </div>
+                      <p className="package-description">
+                        {service.description || 'Dịch vụ chuyên nghiệp cho xe VinFast'}
+                      </p>
 
                       <div className="package-pricing">
                         <div className="price-container">
@@ -226,17 +230,18 @@ export default function Services() {
 
                     <div className="card-actions">
                       <button 
+                        className="btn-outline btn-full"
+                        onClick={() => handleViewDetails(service)}
+                      >
+                        <Info className="btn-icon" />
+                        Xem Chi Tiết
+                      </button>
+                      <button 
                         className="btn-primary btn-full"
                         onClick={() => navigate('/booking', { state: { serviceId: service.id } })}
                       >
-                        Chọn Dịch vụ
+                        Đặt Lịch Ngay
                         <ArrowRight className="btn-icon" />
-                      </button>
-                      <button 
-                        className="btn-outline btn-full"
-                        onClick={() => navigate('/contact')}
-                      >
-                        Tư Vấn Chi Tiết
                       </button>
                     </div>
                   </div>
@@ -262,22 +267,16 @@ export default function Services() {
                     <div className="service-category">{pkg.serviceName}</div>
                   </div>
                   
-                  <div className="card-content">
+                    <div className="card-content">
                     <h3 className="package-name">{pkg.packageName}</h3>
-                    <p className="package-description">{pkg.description}</p>
+                    <p className="package-description">
+                      {pkg.description || `Gói dịch vụ ${pkg.serviceName} với ${pkg.totalCredits} lần sử dụng`}
+                    </p>
                     
                     <div className="package-features">
                       <div className="feature-item">
-                        <CheckCircle className="feature-icon" />
+                        <Package className="feature-icon" />
                         <span>{pkg.totalCredits} lần sử dụng</span>
-                      </div>
-                      <div className="feature-item">
-                        <Shield className="feature-icon" />
-                        <span>Bảo hành chính hãng</span>
-                      </div>
-                      <div className="feature-item">
-                        <Clock className="feature-icon" />
-                        <span>Hỗ trợ 24/7</span>
                       </div>
                     </div>
 
@@ -304,12 +303,6 @@ export default function Services() {
                       Chọn Gói
                       <ArrowRight className="btn-icon" />
                     </button>
-                    <button 
-                      className="btn-outline btn-full"
-                      onClick={() => navigate('/contact')}
-                    >
-                      Tư Vấn Chi Tiết
-                    </button>
                   </div>
                 </div>
               ))}
@@ -318,6 +311,14 @@ export default function Services() {
         )}
         </div>
       </section>
+
+      {/* Service Detail Modal */}
+      <ServiceDetailModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        service={selectedService}
+        onBookService={handleBookService}
+      />
     </div>
   )
 }

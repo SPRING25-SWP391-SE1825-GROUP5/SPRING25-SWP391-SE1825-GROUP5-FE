@@ -40,9 +40,18 @@ const ChatInterface: React.FC = () => {
         isOnline: true
       }
     }
+    // Guest user: sử dụng guestSessionId từ localStorage
+    const guestSessionId = typeof localStorage !== 'undefined' 
+      ? localStorage.getItem('guestSessionId') || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      : `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    if (typeof localStorage !== 'undefined' && !localStorage.getItem('guestSessionId')) {
+      localStorage.setItem('guestSessionId', guestSessionId)
+    }
+    
     return {
-      id: '1',
-      name: 'Nguyễn Văn A',
+      id: guestSessionId,
+      name: 'Khách',
       avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
       role: 'customer',
       isOnline: true
