@@ -2,6 +2,12 @@
   background: #fff;
   min-height: 100vh;
 
+  /* 3 sections like Users page */
+  .spm-section { width: 100%; }
+  .spm-section--top { margin-bottom: 8px; }
+  .spm-section--middle { margin: 0; }
+  .spm-section--bottom { margin-top: 12px; }
+
   /* Header */
   .spm-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px; }
   .spm-title { font-size:28px; font-weight:700; color: var(--text-primary); margin:0 0 8px 0; }
@@ -24,12 +30,79 @@
   .toolbar-search input { width:100% !important; padding:10px 12px 10px 34px; border:none; border-bottom:1px solid transparent; border-radius:0; background:#fff !important; color:var(--text-primary); font-size:13px; outline:none; box-shadow:none; }
   .toolbar-search .search-wrap::after { content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:#FFD875; transform:scaleX(0); transform-origin:left; transition:transform .25s ease; }
   .toolbar-search .search-wrap:focus-within::after { transform:scaleX(1); }
-  .toolbar-search .icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); }
+  .toolbar-search .icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); z-index:3; pointer-events:none; display:block; width:14px; height:14px; }
 
   .toolbar-actions { display:flex; align-items:center; gap:8px; margin-left:auto; position:relative; z-index:2; flex:0 0 auto; }
 
   /* Bottom toolbar row */
   .toolbar-filters { display:flex; align-items:center; gap:8px; padding-top:10px; }
+
+  /* Remove inner border/outline of filter pills */
+  .pill-select .pill-trigger {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .pill-select .pill-trigger:focus,
+  .pill-select .pill-trigger:focus-visible,
+  .pill-select .pill-trigger:active {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* New clean pills */
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    height: 32px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-primary);
+    position: relative;
+    cursor: pointer;
+  }
+  .filter-pill .icon { color: var(--text-secondary); }
+  .filter-pill .label { font-size: 13px; }
+  .filter-pill .caret { color: var(--text-tertiary); }
+
+  .page-size-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    height: 28px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    user-select: none;
+  }
+  .page-size-pill .value { font-size: 13px; color: var(--text-primary); }
+  .page-size-pill .caret { color: var(--text-tertiary); }
+
+  /* Dropdown menu for pills */
+  .pill-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+    padding: 8px 0;
+    z-index: 10;
+    list-style: none;
+  }
+  .pill-item { padding: 10px 14px; font-size: 14px; color: var(--text-primary); cursor: pointer; white-space: nowrap; }
+  .pill-item:hover { background: #FFF6D1; }
+  .pill-item.active { background: #FFF6D1; font-weight: 600; }
 
   /* Accent button style for CTA */
   .accent-button { background:#FFD875; color:#000; box-shadow:0 4px 12px rgba(255,216,117,.35); transition: box-shadow .2s ease, transform .2s ease; }
@@ -46,7 +119,7 @@
     box-shadow: none !important;
   }
 
-  thead tr { background: #fff !important; color: var(--text-secondary) !important; }
+  thead tr { background: #FFF6D1 !important; color: var(--text-primary) !important; }
   thead th {
     height: 36px;
     padding: 6px 12px !important;
@@ -132,7 +205,7 @@
   .pager-btn.is-disabled { background: var(--bg-secondary); color: var(--text-tertiary); cursor:not-allowed; }
 }
 
-table th:not(:last-child), table td:not(:last-child) {
+.service-packages table th:not(:last-child), .service-packages table td:not(:last-child) {
   border-right: 1px solid var(--border-primary);
 }
 

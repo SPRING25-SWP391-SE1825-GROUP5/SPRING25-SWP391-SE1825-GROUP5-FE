@@ -92,6 +92,7 @@ export default function Users() {
   type AddedFilter = { id: number; type: 'status' | 'role' | 'verified' | 'sort'; value: any; label: string };
   const [addedFilters, setAddedFilters] = useState<AddedFilter[]>([]);
   const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const roleRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
@@ -434,6 +435,33 @@ export default function Users() {
     // Don't reset page number here to avoid losing focus
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const { blob, filename } = await UserService.exportUsers({
+        pageNumber,
+        pageSize,
+        searchTerm,
+        sortBy,
+        sortOrder,
+        role: filterRole === 'all' ? undefined : filterRole,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'users.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export users failed:', err);
+      alert('Không thể xuất danh sách người dùng. Vui lòng thử lại!');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleSort = (field: string) => {
     if (sortBy === field) {
       // If clicking the same field, toggle order
@@ -552,7 +580,7 @@ export default function Users() {
           <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
           <div className="toolbar-sep" />
       </div>
-          <div className="toolbar-right" style={{ flex: 1 }}>
+        <div className="toolbar-right" style={{ flex: 1 }}>
           <div className="toolbar-search">
             <div className="search-wrap">
               <Search size={14} className="icon" />
@@ -566,7 +594,9 @@ export default function Users() {
           <div className="toolbar-actions">
             <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
             <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn"><Download size={14} /> Xuất</button>
+            <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
+              <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
+            </button>
             <button 
               type="button" 
               className="accent-button toolbar-adduser" 
@@ -703,7 +733,7 @@ export default function Users() {
             <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
               Tổng số người dùng: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{totalCount}</strong>
             </div>
-            <div style={{ overflow: 'auto' }}>
+          <div style={{ overflow: 'auto' }}>
             <table className="users-table" style={{
               width: '100%',
               borderCollapse: 'collapse',

@@ -35,6 +35,37 @@ export interface BookingPromotionInfo {
     startDate?: string
 }
 
+export interface SavedPromotionResponse {
+    success: boolean
+    data: SavedPromotion[]
+}
+
+export interface SavedPromotion {
+    promotionId: number
+    code: string
+    description: string
+    discountValue: number
+    discountType: 'FIXED_AMOUNT' | 'PERCENT'
+    minOrderAmount: number
+    startDate: string
+    endDate: string
+    maxDiscount: number | null
+    status: string
+    usageLimit: number
+    usageCount: number
+    remainingUsage: number
+    isActive: boolean
+    isExpired: boolean
+    isUsageLimitReached: boolean
+    createdAt: string
+    updatedAt: string
+    bookingId: number | null
+    orderId: number | null
+    userPromotionStatus: string
+    discountAmount: number
+    usedAt: string | null
+}
+
 /**
  * Service for handling promotion operations in booking context
  * Provides APIs for public customers to use promotions
@@ -53,9 +84,9 @@ export const PromotionBookingService = {
             }
 
             return data.data
-        } catch (error: any) {
-            console.error('Error validating promotion:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi xác thực mã khuyến mãi')
+        } catch (error: unknown) {
+            const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+            throw new Error(message || 'Lỗi xác thực mã khuyến mãi')
         }
     },
 
@@ -70,9 +101,9 @@ export const PromotionBookingService = {
             })
 
             return data
-        } catch (error: any) {
-            console.error('Error applying promotion to booking:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi áp dụng mã khuyến mãi')
+        } catch (error: unknown) {
+            const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+            throw new Error(message || 'Lỗi áp dụng mã khuyến mãi')
         }
     },
 
@@ -85,9 +116,9 @@ export const PromotionBookingService = {
             const { data } = await api.delete(`/promotion/bookings/${request.bookingId}/${request.promotionCode}`)
 
             return data
-        } catch (error: any) {
-            console.error('Error removing promotion from booking:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi gỡ bỏ mã khuyến mãi')
+        } catch (error: unknown) {
+            const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+            throw new Error(message || 'Lỗi gỡ bỏ mã khuyến mãi')
         }
     },
 
@@ -104,45 +135,62 @@ export const PromotionBookingService = {
             }
 
             return data.data || []
-        } catch (error: any) {
-            console.error('Error getting booking promotions:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi lấy thông tin khuyến mãi')
+        } catch (error: unknown) {
+            const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+            throw new Error(message || 'Lỗi lấy thông tin khuyến mãi')
         }
     },
 
     /**
-     * Get customer's saved promotions
+     * Get customer's saved promotions with full details
      * Requires authentication (customer must be logged in)
+     * CustomerId is automatically extracted from JWT token
      */
-    async getCustomerPromotions(customerId: number): Promise<BookingPromotionInfo[]> {
+    async getSavedPromotions(): Promise<SavedPromotion[]> {
         try {
-            const { data } = await api.get(`/promotion/customers/${customerId}/promotions`)
+            const { data } = await api.get<SavedPromotionResponse>('/Promotion/promotions')
 
             if (!data.success) {
-                throw new Error('Failed to get customer promotions')
+                throw new Error('Failed to get saved promotions')
             }
 
             return data.data || []
-        } catch (error: any) {
-            console.error('Error getting customer promotions:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi lấy danh sách khuyến mãi')
+        } catch (error: unknown) {
+            const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+            throw new Error(message || 'Lỗi lấy danh sách mã khuyến mãi đã lưu')
         }
     },
 
     /**
      * Save a promotion for customer (without applying to booking)
      * Requires authentication (customer must be logged in)
+     * CustomerId is automatically extracted from JWT token
      */
-    async saveCustomerPromotion(customerId: number, code: string): Promise<{ success: boolean; message: string }> {
+    async saveCustomerPromotion(code: string): Promise<{ success: boolean; message: string }> {
         try {
-            const { data } = await api.post(`/promotion/customers/${customerId}/promotions`, {
+            const { data } = await api.post('/Promotion/promotions', {
                 code: code.trim().toUpperCase()
             })
 
             return data
-        } catch (error: any) {
-            console.error('Error saving customer promotion:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi lưu mã khuyến mãi')
+        } catch (error: unknown) {
+            const err = error as { 
+                response?: { 
+                    data?: { 
+                        message?: string
+                        errorMessage?: string
+                        error?: string
+                    }
+                    status?: number
+                } 
+            }
+            
+            const errorMessage = err.response?.data?.message 
+                || err.response?.data?.errorMessage
+                || err.response?.data?.error 
+                || (err.response?.status === 500 ? 'Lỗi máy chủ. Vui lòng thử lại sau.' : 'Lỗi lưu mã khuyến mãi')
+            
+            throw new Error(errorMessage)
         }
     }
 }

@@ -45,6 +45,30 @@ export interface VehicleListResponse {
   }
 }
 
+export interface CustomerServicePackage {
+  creditId: number
+  packageId: number
+  packageName: string
+  packageDescription: string
+  originalPrice: number
+  discountPercent: number
+  finalPrice: number
+  totalCredits: number
+  usedCredits: number
+  remainingCredits: number
+  status: string
+  purchaseDate: string
+  expiryDate: string
+  serviceName: string
+  serviceDescription: string
+}
+
+export interface CustomerServicePackagesResponse {
+  success: boolean
+  message: string
+  data: CustomerServicePackage[]
+}
+
 /**
  * Customer Service
  * Handles customer management operations
@@ -116,6 +140,17 @@ export const CustomerService = {
    */
   async quickCreateCustomer(customerData: QuickCreateCustomerRequest): Promise<CustomerResponse> {
     const { data } = await api.post<CustomerResponse>('/Customer/quick-create', customerData)
+    return data
+  },
+
+  /**
+   * Get customer service packages
+   * 
+   * @returns Promise with customer's service packages
+   * @throws {Error} When request fails
+   */
+  async getCustomerServicePackages(): Promise<CustomerServicePackagesResponse> {
+    const { data } = await api.get<CustomerServicePackagesResponse>('/Customer/service-packages')
     return data
   }
 }

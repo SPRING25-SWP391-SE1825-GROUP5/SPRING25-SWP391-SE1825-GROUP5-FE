@@ -118,6 +118,27 @@ export const UserService = {
     return data
   },
 
+  /**
+   * Export users list as a file (ADMIN only)
+   * GET /api/User/export -> Blob
+   */
+  async exportUsers(params: Partial<GetUsersRequest> = {}): Promise<{ blob: Blob; filename?: string }> {
+    const query = { ...params }
+    const response = await api.get('/User/export', {
+      params: query,
+      responseType: 'blob',
+      headers: { Accept: 'application/octet-stream' }
+    })
+
+    const disposition = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition']
+    let filename: string | undefined
+    if (disposition && typeof disposition === 'string') {
+      const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i)
+      filename = decodeURIComponent(match?.[1] || match?.[2] || '') || undefined
+    }
+    return { blob: response.data as Blob, filename }
+  },
+
 
   /**
    * Create new user (Admin only)

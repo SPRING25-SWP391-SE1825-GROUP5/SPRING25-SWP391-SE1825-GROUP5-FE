@@ -4,11 +4,18 @@ import {
   FileText,
   Settings,
   DollarSign,
+  CheckCircle,
   Activity,
   Search,
   RefreshCw,
   Plus,
   X,
+  Star,
+  List,
+  BarChart2,
+  Eye,
+  EyeOff,
+  Download,
   ChevronUp,
   ChevronDown,
   ChevronLeft,
@@ -18,11 +25,13 @@ import {
   Circle,
   AlertCircle,
   Edit,
-  Eye,
-  Trash2
+  Trash2,
+  Hash,
+  Building2
 } from 'lucide-react'
 import api from '../../services/api'
 import './PartManagement.scss'
+import PartsFormModal from './PartsFormModal'
 
 export default function PartManagement() {
   const [partsData, setPartsData] = useState<any[]>([])
@@ -226,56 +235,57 @@ export default function PartManagement() {
   const inactiveParts = filteredParts.filter(part => !part.isActive).length
   const totalValue = filteredParts.reduce((sum, part) => sum + part.price, 0)
 
-  useEffect(() => {
-    const fetchAllParts = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const { data } = await api.get('/Part', { params: { pageNumber: 1, pageSize } })
-        const firstPage = data as {
-          success: boolean
-          message: string
-          data: {
-            parts: Array<{
-              partId: number
-              partNumber: string
-              partName: string
-              brand: string
-              price: number
-              imageUrl: string | null
-              isActive: boolean
-              createdAt: string
-            }>
-            pageNumber: number
-            pageSize: number
-            totalPages: number
-            totalCount: number
-            hasPreviousPage: boolean
-            hasNextPage: boolean
-          }
+  const loadParts = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const { data } = await api.get('/Part', { params: { pageNumber: 1, pageSize } })
+      const firstPage = data as {
+        success: boolean
+        message: string
+        data: {
+          parts: Array<{
+            partId: number
+            partNumber: string
+            partName: string
+            brand: string
+            price: number
+            imageUrl: string | null
+            isActive: boolean
+            createdAt: string
+          }>
+          pageNumber: number
+          pageSize: number
+          totalPages: number
+          totalCount: number
+          hasPreviousPage: boolean
+          hasNextPage: boolean
         }
-
-        const totalPages = firstPage.data.totalPages
-        const requests = [] as Promise<any>[]
-        for (let p = 2; p <= totalPages; p++) {
-          requests.push(api.get('/Part', { params: { pageNumber: p, pageSize } }))
-        }
-        const restPages = await Promise.all(requests)
-        const restParts = restPages.flatMap((res) => (res.data?.data?.parts || []))
-
-        const combined = [...firstPage.data.parts, ...restParts]
-          .sort((a, b) => a.partId - b.partId)
-          .map(mapApiPartToUi)
-
-        setAllParts(combined)
-        setTotalCount(combined.length)
-      } catch (e: any) {
-        setError(e?.message || 'Không thể tải danh sách phụ tùng')
-      } finally {
-        setLoading(false)
       }
+
+      const totalPages = firstPage.data.totalPages
+      const requests = [] as Promise<any>[]
+      for (let p = 2; p <= totalPages; p++) {
+        requests.push(api.get('/Part', { params: { pageNumber: p, pageSize } }))
+      }
+      const restPages = await Promise.all(requests)
+      const restParts = restPages.flatMap((res) => (res.data?.data?.parts || []))
+
+      const combined = [...firstPage.data.parts, ...restParts]
+        .sort((a, b) => a.partId - b.partId)
+        .map(mapApiPartToUi)
+
+      setAllParts(combined)
+      setTotalCount(combined.length)
+    } catch (e: any) {
+      setError(e?.message || 'Không thể tải danh sách phụ tùng')
+    } finally {
+      setLoading(false)
     }
-    fetchAllParts()
+  }
+
+  useEffect(() => {
+    loadParts()
   }, [pageSize])
 
   // derive current page slice from globally sorted full list
@@ -366,9 +376,9 @@ export default function PartManagement() {
       <div className="users-toolbar" style={{marginBottom: 16}}>
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip">Bảng</button>
-            <button type="button" className="toolbar-chip is-active">Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip">Danh sách</button>
+            <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
+            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
+            <button type="button" className="toolbar-chip"><List size={14}/> Danh sách</button>
             <div className="toolbar-sep"/>
           </div>
           <div className="toolbar-right" style={{flex:1}}>
@@ -379,22 +389,25 @@ export default function PartManagement() {
               </div>
             </div>
             <div className="toolbar-actions">
-              <button type="button" className="toolbar-chip">Ẩn</button>
-              <button type="button" className="toolbar-chip">Tùy chỉnh</button>
-              <button type="button" className="toolbar-btn" onClick={()=>{ /* xuất dữ liệu tạm thời chưa triển khai */ }}>Xuất</button>
+              <button type="button" className="toolbar-chip"><EyeOff size={14}/> Ẩn</button>
+              <button type="button" className="toolbar-btn" onClick={()=>{ /* xuất dữ liệu tạm thời chưa triển khai */ }}><Download size={14}/> Xuất</button>
+              <button type="button" className="toolbar-adduser accent-button" onClick={()=>setIsModalOpen(true)}>
+                <Plus size={16}/> Thêm phụ tùng
+              </button>
             </div>
           </div>
         </div>
         <div className="toolbar-filters">
           {/* Trạng thái */}
-          <div className="pill-select" ref={statusRef}>
-            <button type="button" className="pill-trigger" onClick={()=>{ setOpenStatusMenu(!openStatusMenu); setOpenPriceMenu(false); }}>
-              {statusOptions.find(o=>o.value===filterStatus)?.label || 'Tất cả trạng thái'}
+          <div className="filter-dropdown" ref={statusRef}>
+            <button type="button" className="filter-btn" onClick={()=>{ setOpenStatusMenu(!openStatusMenu); setOpenPriceMenu(false); setOpenRatingMenu(false); }}>
+              <CheckCircle size={14} />
+              <span>{statusOptions.find(o=>o.value===filterStatus)?.label || 'Tất cả trạng thái'}</span>
+              <svg className="filter-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </button>
-            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            <ul className={`pill-menu ${openStatusMenu ? 'show' : ''}`}>
+            <ul className={`filter-menu ${openStatusMenu ? 'is-open' : ''}`}>
               {statusOptions.map(opt => (
-                <li key={opt.value} className={`pill-item ${filterStatus===opt.value ? 'active' : ''}`} onClick={()=>{ setFilterStatus(opt.value); setPageNumber(1); setOpenStatusMenu(false); }}>
+                <li key={opt.value} className={`filter-item ${filterStatus===opt.value ? 'is-active' : ''}`} onClick={()=>{ setFilterStatus(opt.value); setPageNumber(1); setOpenStatusMenu(false); }}>
                   {opt.label}
                 </li>
               ))}
@@ -402,14 +415,15 @@ export default function PartManagement() {
           </div>
 
           {/* Đánh giá */}
-          <div className="pill-select" ref={ratingRef}>
-            <button type="button" className="pill-trigger" onClick={()=>{ setOpenRatingMenu(!openRatingMenu); setOpenStatusMenu(false); setOpenPriceMenu(false); }}>
-              {ratingOptions.find(o=>o.value===filterRating)?.label || 'Tất cả đánh giá'}
+          <div className="filter-dropdown" ref={ratingRef}>
+            <button type="button" className="filter-btn" onClick={()=>{ setOpenRatingMenu(!openRatingMenu); setOpenStatusMenu(false); setOpenPriceMenu(false); }}>
+              <Star size={14} />
+              <span>{ratingOptions.find(o=>o.value===filterRating)?.label || 'Tất cả đánh giá'}</span>
+              <svg className="filter-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </button>
-            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            <ul className={`pill-menu ${openRatingMenu ? 'show' : ''}`}>
+            <ul className={`filter-menu ${openRatingMenu ? 'is-open' : ''}`}>
               {ratingOptions.map(opt => (
-                <li key={opt.value} className={`pill-item ${filterRating===opt.value ? 'active' : ''}`} onClick={()=>{ setFilterRating(opt.value); setPageNumber(1); setOpenRatingMenu(false); }}>
+                <li key={opt.value} className={`filter-item ${filterRating===opt.value ? 'is-active' : ''}`} onClick={()=>{ setFilterRating(opt.value); setPageNumber(1); setOpenRatingMenu(false); }}>
                   {opt.label}
                 </li>
               ))}
@@ -417,26 +431,22 @@ export default function PartManagement() {
           </div>
 
           {/* Giá */}
-          <div className="pill-select" ref={priceRef}>
-            <button type="button" className="pill-trigger" onClick={()=>{ setOpenPriceMenu(!openPriceMenu); setOpenStatusMenu(false); setOpenRatingMenu(false); }}>
-              {priceOptions.find(o=>o.value===filterPrice)?.label || 'Tất cả giá'}
+          <div className="filter-dropdown" ref={priceRef}>
+            <button type="button" className="filter-btn" onClick={()=>{ setOpenPriceMenu(!openPriceMenu); setOpenStatusMenu(false); setOpenRatingMenu(false); }}>
+              <DollarSign size={14} />
+              <span>{priceOptions.find(o=>o.value===filterPrice)?.label || 'Tất cả giá'}</span>
+              <svg className="filter-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </button>
-            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            <ul className={`pill-menu ${openPriceMenu ? 'show' : ''}`}>
+            <ul className={`filter-menu ${openPriceMenu ? 'is-open' : ''}`}>
               {priceOptions.map(opt => (
-                <li key={opt.value} className={`pill-item ${filterPrice===opt.value ? 'active' : ''}`} onClick={()=>{ setFilterPrice(opt.value); setPageNumber(1); setOpenPriceMenu(false); }}>
+                <li key={opt.value} className={`filter-item ${filterPrice===opt.value ? 'is-active' : ''}`} onClick={()=>{ setFilterPrice(opt.value); setPageNumber(1); setOpenPriceMenu(false); }}>
                   {opt.label}
                 </li>
               ))}
             </ul>
           </div>
 
-          <button type="button" className="toolbar-chip">Thêm bộ lọc</button>
-          <div className="toolbar-actions" style={{marginLeft:'auto'}}>
-            <button type="button" className="toolbar-adduser accent-button" onClick={()=>setIsModalOpen(true)}>
-              <Plus size={16}/> Thêm phụ tùng
-            </button>
-          </div>
+          <button type="button" className="toolbar-chip"><Plus size={14}/> Thêm bộ lọc</button>
         </div>
       </div>
 
@@ -509,25 +519,60 @@ export default function PartManagement() {
           <table className="parts-table">
             <thead>
               <tr>
-                <th className="checkbox-cell">
-                  <input type="checkbox" className="table-checkbox" />
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="checkbox" className="table-checkbox" style={{ margin: 0, marginRight: '4px' }} />
+                    <Hash size={15} />
+                    Mã SP
+                  </div>
                 </th>
-                <th>Mã SP</th>
-                <th>Tên sản phẩm</th>
-                <th>Nhà cung cấp</th>
-                <th>Giá</th>
-                <th>Đánh giá</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Package size={15} />
+                    Tên sản phẩm
+                  </div>
+                </th>
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Building2 size={15} />
+                    Nhà cung cấp
+                  </div>
+                </th>
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <DollarSign size={15} />
+                    Giá
+                  </div>
+                </th>
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Star size={15} />
+                    Đánh giá
+                  </div>
+                </th>
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle size={15} />
+                    Trạng thái
+                  </div>
+                </th>
+                <th>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Settings size={15} />
+                    Thao tác
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
               {partsData.map((part, i) => (
                 <tr key={part.id}>
-                  <td className="checkbox-cell">
-                    <input type="checkbox" className="table-checkbox" />
+                  <td className="cell-part-number">
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <input type="checkbox" className="table-checkbox" style={{ margin: 0, marginRight: '4px' }} />
+                      {part.partNumber}
+                    </div>
                   </td>
-                  <td className="cell-part-number">{part.partNumber}</td>
                   <td className="cell-name">{part.name}</td>
                   <td className="cell-supplier">{part.supplier}</td>
                   <td className="cell-price">{formatPrice(part.price)}</td>
@@ -573,14 +618,14 @@ export default function PartManagement() {
       <div className="pagination-controls-bottom">
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
-          <div className="pill-select" ref={pageSizeRef}>
-            <button type="button" className="pill-trigger" onClick={() => setOpenPageSizeMenu(!openPageSizeMenu)}>
+          <div className="page-size-select" ref={pageSizeRef}>
+            <button type="button" className="page-size-btn" onClick={() => setOpenPageSizeMenu(!openPageSizeMenu)}>
               {pageSize}
+              <svg className="page-size-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </button>
-            <svg className="caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            <ul className={`pill-menu ${openPageSizeMenu ? 'show' : ''}`}>
+            <ul className={`page-size-menu ${openPageSizeMenu ? 'is-open' : ''}`}>
               {[10, 20, 50, 100].map(size => (
-                <li key={size} className={`pill-item ${pageSize === size ? 'active' : ''}`} onClick={() => { setPageSize(size); setPageNumber(1); setOpenPageSizeMenu(false); }}>
+                <li key={size} className={`page-size-item ${pageSize === size ? 'is-active' : ''}`} onClick={() => { setPageSize(size); setPageNumber(1); setOpenPageSizeMenu(false); }}>
                   {size}
                 </li>
               ))}
@@ -591,7 +636,6 @@ export default function PartManagement() {
           </span>
         </div>
         <div className="pagination-right-controls">
-          <div className="pager-pages">
             <button
               type="button"
               className={`pager-btn ${pageNumber === 1 ? 'is-disabled' : ''}`}
@@ -610,7 +654,30 @@ export default function PartManagement() {
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="pager-ellipsis">1, 2, ..., {totalPages}</span>
+          <div className="pager-pages">
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === 1 ? 'is-active' : ''}`}
+              onClick={() => handlePageChange(1)}
+            >
+              1
+            </button>
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === 2 ? 'is-active' : ''}`}
+              onClick={() => handlePageChange(2)}
+            >
+              2
+            </button>
+            <span className="pager-ellipsis">…</span>
+            <button
+              type="button"
+              className={`pager-btn ${pageNumber === 5 ? 'is-active' : ''}`}
+              onClick={() => handlePageChange(5)}
+            >
+              5
+            </button>
+          </div>
             <button
               type="button"
               className={`pager-btn ${pageNumber === totalPages ? 'is-disabled' : ''}`}
@@ -629,526 +696,22 @@ export default function PartManagement() {
             >
               <ChevronsRight size={16} />
             </button>
-          </div>
         </div>
       </div>
 
-      {/* Modal for Add/Edit - Styled like the reference image */}
-      {isModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '0',
-            width: '90%',
-            maxWidth: '460px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-            position: 'relative'
-          }}>
-            {/* Header */}
-            <div style={{
-              padding: '24px 24px 20px 24px',
-              borderBottom: '1px solid #f0f0f0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <h3 style={{
-                fontSize: '20px',
-                fontWeight: '600',
-                color: '#1a1a1a',
-                margin: 0
-              }}>
-                {editingPart ? 'Chỉnh sửa phụ tùng' : 'Thêm phụ tùng'}
-              </h3>
-              <button
-                onClick={() => {
-                  setIsModalOpen(false)
-                  setEditingPart(null)
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#999',
-                  padding: '4px',
-                  lineHeight: 1
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: '24px' }}>
-              {/* Form create part */}
-              {!editingPart && (
-                <div
-                  style={{
-                    background: 'var(--bg-card)',
-                    padding: '24px',
-                    borderRadius: '12px',
-                    boxShadow: 'var(--shadow-sm)',
-                    marginBottom: '24px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '20px',
-                      maxWidth: '500px',
-                      margin: '0 auto',
-                    }}
-                  >
-                    {/* Mã phụ tùng */}
-                    <div>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          color: '#374151',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        Mã phụ tùng
-                      </label>
-                      <input
-                        value={newPart.partNumber}
-                        onChange={(e) => setNewPart({ ...newPart, partNumber: e.target.value })}
-                        placeholder="Nhập mã phụ tùng"
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                        onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                      />
-                    </div>
-
-                    {/* Tên phụ tùng */}
-                    <div>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          color: '#374151',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        Tên phụ tùng
-                      </label>
-                      <input
-                        value={newPart.partName}
-                        onChange={(e) => setNewPart({ ...newPart, partName: e.target.value })}
-                        placeholder="Nhập tên phụ tùng"
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                        onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                      />
-                    </div>
-
-                    {/* Thương hiệu và Đơn giá - 2 cột */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '20px',
-                      }}
-                    >
-                      {/* Thương hiệu */}
-                      <div>
-                        <label
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: '#374151',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Thương hiệu
-                        </label>
-                        <input
-                          value={newPart.brand}
-                          onChange={(e) => setNewPart({ ...newPart, brand: e.target.value })}
-                          placeholder="Nhập thương hiệu"
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            outline: 'none',
-                            transition: 'border-color 0.2s ease',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                        />
-                      </div>
-
-                      {/* Đơn giá */}
-                      <div>
-                        <label
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: '#374151',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Đơn giá
-                        </label>
-                        <input
-                          type="number"
-                          value={newPart.unitPrice}
-                          onChange={(e) => setNewPart({ ...newPart, unitPrice: Number(e.target.value) })}
-                          placeholder="Nhập đơn giá"
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            outline: 'none',
-                            transition: 'border-color 0.2s ease',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Checkbox hoạt động */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        marginTop: '8px',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={newPart.isActive}
-                        onChange={(e) => setNewPart({ ...newPart, isActive: e.target.checked })}
-                        style={{ width: '16px', height: '16px' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#111827' }}>Hoạt động</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Form edit part */}
-              {editingPart && (
-                <div
-                  style={{
-                    background: 'var(--bg-card)',
-                    padding: '24px',
-                    borderRadius: '12px',
-                    boxShadow: 'var(--shadow-sm)',
-                    marginBottom: '24px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '20px',
-                      maxWidth: '500px',
-                      margin: '0 auto',
-                    }}
-                  >
-                    {/* Tên phụ tùng */}
-                    <div>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          color: '#374151',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        Tên phụ tùng
-                      </label>
-                      <input
-                        value={editingPart.name}
-                        onChange={(e) => setEditingPart({ ...editingPart, name: e.target.value })}
-                        placeholder="Nhập tên phụ tùng"
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                        onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                      />
-                    </div>
-
-                    {/* Thương hiệu và Đơn giá - 2 cột */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '20px',
-                      }}
-                    >
-                      {/* Thương hiệu */}
-                      <div>
-                        <label
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: '#374151',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Thương hiệu
-                        </label>
-                        <input
-                          value={editingPart.supplier}
-                          onChange={(e) => setEditingPart({ ...editingPart, supplier: e.target.value })}
-                          placeholder="Nhập thương hiệu"
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            outline: 'none',
-                            transition: 'border-color 0.2s ease',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                        />
-                      </div>
-
-                      {/* Đơn giá */}
-                      <div>
-                        <label
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: '#374151',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          Đơn giá
-                        </label>
-                        <input
-                          type="number"
-                          value={editingPart.price}
-                          onChange={(e) => setEditingPart({ ...editingPart, price: Number(e.target.value) })}
-                          placeholder="Nhập đơn giá"
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            outline: 'none',
-                            transition: 'border-color 0.2s ease',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                          onBlur={(e) => (e.target.style.borderColor = '#d1d5db')}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Checkbox hoạt động */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        marginTop: '8px',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editingPart.isActive}
-                        onChange={(e) => setEditingPart({ ...editingPart, isActive: e.target.checked })}
-                        style={{ width: '16px', height: '16px' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#111827' }}>Hoạt động</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                marginTop: '32px',
-                justifyContent: 'flex-end'
-              }}>
-                <button
-                  onClick={() => {
-                    setIsModalOpen(false)
-                    setEditingPart(null)
-                  }}
-                  style={{
-                    background: '#f8f9fa',
-                    color: '#495057',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#e9ecef'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f8f9fa'
-                  }}
-                >
-                  Đóng
-                </button>
-                {!editingPart && (
-                  <button
-                    style={{
-                      background: 'var(--primary-500)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '10px 20px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--primary-600)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--primary-500)'
-                    }}
-                    onClick={async () => {
-                      try {
-                        const payload = {
-                          partNumber: newPart.partNumber,
-                          partName: newPart.partName,
-                          brand: newPart.brand,
-                          unitPrice: newPart.unitPrice,
-                          isActive: newPart.isActive
-                        }
-                        const res = await api.post('/Part', payload)
-                        const created = res.data?.data || res.data
-                        appendNewApiPartAtEnd(created)
-                        setIsModalOpen(false)
-                        setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
-                      } catch (e) {
-                        setError('Tạo phụ tùng thất bại')
-                      }
-                    }}
-                  >
-                    Tạo mới
-                  </button>
-                )}
-                {editingPart && (
-                  <button
-                    style={{
-                      background: 'var(--primary-500)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '10px 20px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--primary-600)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--primary-500)'
-                    }}
-                    onClick={async () => {
-                      try {
-                        const payload = {
-                          partName: editingPart.name,
-                          brand: editingPart.supplier,
-                          unitPrice: editingPart.price,
-                          imageUrl: '', // API yêu cầu nhưng không dùng
-                          isActive: editingPart.isActive
-                        }
-                        const res = await api.put(`/Part/${editingPart.id}`, payload)
-
-                        // Cập nhật lại danh sách
-                        setAllParts((prev) => {
-                          const updated = prev.map(p =>
-                            p.id === editingPart.id
-                              ? { ...p, name: editingPart.name, supplier: editingPart.supplier, price: editingPart.price, isActive: editingPart.isActive }
-                              : p
-                          )
-                          return updated
-                        })
-
-                        setIsModalOpen(false)
-                        setEditingPart(null)
-                      } catch (e) {
-                        setError('Cập nhật phụ tùng thất bại')
-                      }
-                    }}
-                  >
-                    Cập nhật
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal for Add/Edit */}
+      <PartsFormModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setEditingPart(null)
+          setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
+        }}
+        onSuccess={() => {
+          loadParts()
+        }}
+        editingPart={editingPart}
+      />
 
       {/* Delete Confirmation - Consistent with main modal style */}
       {deleteConfirm.isOpen && (

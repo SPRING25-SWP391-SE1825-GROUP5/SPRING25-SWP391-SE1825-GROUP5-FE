@@ -39,12 +39,10 @@ const QRPayment: React.FC<QRPaymentProps> = ({
           description: `Thanh toán đặt lịch bảo dưỡng xe điện - ${reservation.vehicle?.licensePlate || 'N/A'}`
         }
 
-        console.log('Creating QR payment:', qrPaymentRequest)
 
         // Call API to create QR payment
         const qrPaymentResponse = await PaymentService.createQRPayment(qrPaymentRequest)
         
-        console.log('QR payment created:', qrPaymentResponse)
         setPaymentData(qrPaymentResponse)
         
         // Use checkoutUrl from PayOS (this is the correct URL for QR code)
@@ -79,7 +77,6 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         }
         
       } catch (error: any) {
-        console.error('Error generating QR code:', error)
         setError(error.message || 'Có lỗi xảy ra khi tạo mã QR thanh toán')
         
         // Don't use fallback - show error instead
@@ -99,7 +96,6 @@ const QRPayment: React.FC<QRPaymentProps> = ({
     const pollPaymentStatus = async () => {
       try {
         const statusResponse = await PaymentService.getPaymentStatus(paymentData.paymentId)
-        console.log('Payment status:', statusResponse)
         
         setPaymentStatus(statusResponse.status)
         
@@ -113,7 +109,6 @@ const QRPayment: React.FC<QRPaymentProps> = ({
           navigate(cancelUrl)
         }
       } catch (error) {
-        console.error('Error checking payment status:', error)
       }
     }
 

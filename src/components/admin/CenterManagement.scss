@@ -10,8 +10,8 @@
   .users-toolbar { margin-bottom: 16px; }
   .toolbar-top { display:flex; align-items:center; gap:12px; padding:8px 0 12px; border-bottom:1px solid var(--border-primary); }
   .toolbar-left { display:flex; align-items:center; gap:8px; }
-  .toolbar-right { display:flex; align-items:center; gap:12px; flex:1; }
-  .toolbar-actions{ display:flex; align-items:center; gap:12px; }
+  .toolbar-right { display:flex; align-items:center; gap:12px; flex:1; min-width: 0; }
+  .toolbar-actions{ display:flex; align-items:center; gap:12px; flex-shrink: 0; }
   .toolbar-chip {
     background: #fff;
     border: none;
@@ -38,7 +38,9 @@
   .accent-button { background:#FFD875; color:#000; border:none; padding:10px 14px; border-radius:10px; display:inline-flex; align-items:center; gap:8px; }
   .toolbar-search {
     position: relative;
-    width: 350px;
+    flex: 1 1 auto;
+    min-width: 200px;
+    max-width: 400px;
   }
   .toolbar-search input {
     display: block;
@@ -77,7 +79,7 @@
   .toolbar-search input:focus + .search-underline {
     transform: scaleX(1);
   }
-  .toolbar-filters{ display:flex; align-items:center; gap:8px; padding:12px 0; }
+  .toolbar-filters{ display:flex; align-items:center; gap:8px; padding:12px 0; border-bottom: 1px solid var(--border-primary); }
   .pill-menu{ position:absolute; top:calc(100% + 6px); left:0; min-width:180px; background:#fff; border:1px solid var(--border-primary); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.08); display:none; z-index:10; }
   .pill-menu.show{ display:block; }
   .pill-item{ padding:10px 12px; cursor:pointer; }
@@ -498,12 +500,49 @@
   &__pagination { @include admin-pagination; }
 }
 
-.center-management__filters .pill-select .pill-trigger {
-  min-width: 60px;
-  height: 32px;
+/* Filter pills styling */
+.pill-select {
+  position: relative;
+  display: inline-block;
+}
+
+.pill-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
   font-size: 13px;
-  border-radius: 6px;
-  padding: 0 14px 0 8px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  box-shadow: none;
+  font-family: inherit;
+  
+  &:hover {
+    background: #f6f7f9;
+  }
+  
+  &:focus,
+  &:focus-visible,
+  &:active {
+    outline: none;
+    box-shadow: none;
+    background: #f6f7f9;
+  }
+}
+
+.pill-trigger .caret {
+  margin-left: 4px;
+  flex-shrink: 0;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
 
 /* Bảng & phân trang chuẩn Users (tận dụng từ Parts) */
@@ -519,19 +558,19 @@
   border-spacing: 0;
   background: #fff;
 }
-.parts-table th,
-.parts-table td {
+.center-management .parts-table th,
+.center-management .parts-table td {
   padding: 8px 12px;
   box-sizing: border-box;
   border: none;
   background: #fff;
 }
-.parts-table th + th,
-.parts-table td + td {
-  border-left: 1px solid var(--border-primary);
+.center-management .parts-table th + th,
+.center-management .parts-table td + td {
+  border-left: none !important;
 }
-.parts-table th:last-child,
-.parts-table td:last-child {
+.center-management .parts-table th:last-child,
+.center-management .parts-table td:last-child {
   border-right: none !important;
 }
 // Đảm bảo mọi td đều đồng bộ padding kể cả cột phụ
@@ -550,45 +589,66 @@
   padding: 0 !important;
   margin: 0 !important;
 }
-.parts-table thead th{
+.center-management .parts-table thead th{
   font-weight: 400 !important;
   text-align:left !important;
   color: var(--text-secondary) !important;
-  border-bottom: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
   border-top: none !important;
 }
-.parts-table thead th:first-child{ border-left:none !important; }
-.parts-table thead th:last-child{ border-right:none !important; }
-.parts-table th {
+.center-management .parts-table thead th:first-child{ border-left:none !important; }
+.center-management .parts-table thead th:last-child{ border-right:none !important; }
+.center-management .parts-table th {
   border-left: none !important;
   border-right: none !important;
 }
-.parts-table th + th {
-  border-left: 1px solid var(--border-primary) !important;
+.center-management .parts-table th + th {
+  border-left: none !important;
+  border-right: none !important;
 }
-.parts-table tr, .parts-table tbody, .parts-table td {
-  border-bottom: none !important;
+.center-management .parts-table tr, .center-management .parts-table tbody, .center-management .parts-table td {
   border-top: none !important;
 }
-.parts-table tbody td{
+.center-management .parts-table tbody td{
   font-weight: 400 !important;
   text-align:left !important;
   color: var(--text-primary) !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+.center-management .parts-table tbody td:first-child{ border-left:none !important; }
+.center-management .parts-table tbody td:last-child{ border-right:none !important; }
+.center-management .parts-table tbody tr {
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+.center-management .parts-table tbody tr:last-child td {
   border-bottom: none !important;
 }
-.parts-table tbody td:first-child{ border-left:none !important; }
-.parts-table tbody td:last-child{ border-right:none !important; }
-.parts-table tbody tr {
-  border-bottom: none !important;
-}
-.parts-table tbody tr:hover{
+.center-management .parts-table tbody tr:hover{
   background:#FFF6D1;
   box-shadow:none;
   transform: translateY(-1px);
 }
-.parts-table tbody td + td {
-  border-left: 1px solid var(--border-primary) !important;
+.center-management .parts-table tbody td + td {
+  border-left: none !important;
 }
+
+/* New header row without vertical separators */
+.cm-table-head tr { background: #FFF7D0 !important; }
+.cm-th { 
+  border: none !important; 
+  border-left: none !important;
+  border-right: none !important;
+  padding: 8px 12px !important; 
+}
+.cm-th + .cm-th { 
+  border-left: none !important; 
+  border-right: none !important;
+}
+.cm-th .th { display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary); }
+
+/* Fallback: enforce yellow header for any thead in this page */
+.center-management .parts-table thead tr { background: #FFF7D0 !important; }
+.center-management .parts-table thead th { color: var(--text-primary) !important; }
 
 .pagination-controls-bottom{ display:flex; justify-content:space-between; align-items:center; background:transparent; padding:8px 0; border:none; }
 .pagination-info {

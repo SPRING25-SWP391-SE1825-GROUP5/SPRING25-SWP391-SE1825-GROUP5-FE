@@ -523,14 +523,26 @@ export default function CenterManagement() {
         ) : (
           <div className="parts-table-wrapper" style={{ overflow: 'auto' }}>
             <table className="parts-table center-management__table">
-              <thead>
+              <thead className="cm-table-head">
                 <tr>
-                  <th><Building2 size={16} style={{marginRight:4}}/>Tên trung tâm</th>
-                  <th><Globe size={15} style={{marginRight:4}}/>Địa chỉ</th>
-                  <th><Phone size={15} style={{marginRight:4}}/>Số điện thoại</th>
-                  <th><CheckCircle size={15} style={{marginRight:4}}/>Trạng thái</th>
-                  <th><Calendar size={15} style={{marginRight:4}}/>Ngày tạo</th>
-                  <th><Settings size={15} style={{marginRight:4}}/>Thao tác</th>
+                  <th className="cm-th">
+                    <span className="th"><Building2 size={16} /> <span>Tên trung tâm</span></span>
+                  </th>
+                  <th className="cm-th">
+                    <span className="th"><Globe size={15} /> <span>Địa chỉ</span></span>
+                  </th>
+                  <th className="cm-th">
+                    <span className="th"><Phone size={15} /> <span>Số điện thoại</span></span>
+                  </th>
+                  <th className="cm-th">
+                    <span className="th"><CheckCircle size={15} /> <span>Trạng thái</span></span>
+                  </th>
+                  <th className="cm-th">
+                    <span className="th"><Calendar size={15} /> <span>Ngày tạo</span></span>
+                  </th>
+                  <th className="cm-th">
+                    <span className="th"><Settings size={15} /> <span>Thao tác</span></span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -605,23 +617,24 @@ export default function CenterManagement() {
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
           <div
-            className={`pill-select custom-dropdown${isPageSizeDropdownOpen ? ' open' : ''}`}
+            className="pill-select"
             ref={pageSizeRef}
             tabIndex={0}
             onClick={() => setIsPageSizeDropdownOpen(open => !open)}
             style={{ cursor: 'pointer', userSelect: 'none' }}
             onBlur={()=>setIsPageSizeDropdownOpen(false)}
           >
-            <span className="pill-trigger" style={{minWidth:32, display:'flex', alignItems:'center', justifyContent:'center', height:26}}>{pageSize}</span>
-            <svg className="caret" style={{marginLeft:6}} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <button type="button" className="pill-trigger" style={{minWidth:32, display:'flex', alignItems:'center', justifyContent:'center', height:26}}>
+              {pageSize}
+              <svg className="caret" style={{marginLeft:6}} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
             {isPageSizeDropdownOpen && (
-              <ul className="dropdown-menu" style={{ position: 'absolute', zIndex: 100, left: 0, top: '100%', background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: '64px', listStyle: 'none', padding: 0, margin: '6px 0 0 0', border: '1px solid #ccc', borderRadius: 8 }}>
+              <ul className="pill-menu show" style={{ position: 'absolute', zIndex: 100, left: 0, top: '100%', minWidth: '64px' }}>
                 {pageSizeOptions.map(option => (
                   <li
                     key={option}
-                    className={option === pageSize ? 'selected-dropdown-option' : ''}
-                    style={{ padding: '8px 12px', color: option === pageSize ? '#FFA726' : '#222', background: option === pageSize ? '#FFF7D0' : 'transparent', cursor: 'pointer', borderRadius: 8, textAlign:'center' }}
-                    onMouseDown={e => { e.preventDefault(); setPageSize(option); setPage(1); setIsPageSizeDropdownOpen(false) }}
+                    className={`pill-item ${option === pageSize ? 'active' : ''}`}
+                    onClick={() => { setPageSize(option); setPage(1); setIsPageSizeDropdownOpen(false) }}
                   >
                     {option}
                   </li>

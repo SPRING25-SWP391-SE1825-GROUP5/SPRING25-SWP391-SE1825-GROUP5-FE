@@ -1,0 +1,178 @@
+.banner {
+  width: 100%;
+  background: linear-gradient(135deg, #FFD875 0%, #FFD15C 50%, #FFCA3D 100%);
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  box-shadow: 0 8px 24px rgba(255, 216, 117, 0.3);
+  margin: 0;
+  padding: 0;
+  margin-bottom: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 20px,
+        rgba(255, 255, 255, 0.1) 20px,
+        rgba(255, 255, 255, 0.1) 40px
+      );
+    opacity: 0.3;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+}
+
+.bannerContent {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    padding: 32px 24px;
+    text-align: center;
+  }
+}
+
+.bannerText {
+  flex: 1;
+  color: #1a1a1a;
+}
+
+.title {
+  font-size: 42px;
+  font-weight: 900;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  color: #1a1a1a;
+  text-shadow: 
+    0 0 10px rgba(255, 216, 117, 0.9),
+    0 0 20px rgba(255, 216, 117, 0.7),
+    0 0 30px rgba(255, 216, 117, 0.5),
+    0 0 40px rgba(255, 216, 117, 0.4),
+    2px 2px 4px rgba(0, 0, 0, 0.3),
+    4px 4px 8px rgba(0, 0, 0, 0.2);
+  animation: glow 2s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 8px rgba(255, 216, 117, 0.7));
+
+  @media (max-width: 768px) {
+    font-size: 32px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 28px;
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 
+      0 0 10px rgba(255, 216, 117, 0.9),
+      0 0 20px rgba(255, 216, 117, 0.7),
+      0 0 30px rgba(255, 216, 117, 0.5),
+      0 0 40px rgba(255, 216, 117, 0.4),
+      2px 2px 4px rgba(0, 0, 0, 0.3),
+      4px 4px 8px rgba(0, 0, 0, 0.2);
+    filter: drop-shadow(0 0 8px rgba(255, 216, 117, 0.7));
+  }
+  to {
+    text-shadow: 
+      0 0 15px rgba(255, 216, 117, 1),
+      0 0 25px rgba(255, 216, 117, 0.85),
+      0 0 35px rgba(255, 216, 117, 0.7),
+      0 0 50px rgba(255, 216, 117, 0.6),
+      2px 2px 4px rgba(0, 0, 0, 0.3),
+      4px 4px 8px rgba(0, 0, 0, 0.2);
+    filter: drop-shadow(0 0 12px rgba(255, 216, 117, 0.9));
+  }
+}
+
+.subtitle {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+  opacity: 0.95;
+  line-height: 1.5;
+  text-shadow: 
+    0 0 5px rgba(255, 216, 117, 0.6),
+    0 0 10px rgba(255, 216, 117, 0.4),
+    1px 1px 2px rgba(0, 0, 0, 0.2);
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
+}
+
+.decorativeElement {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ribbon {
+  width: 120px;
+  height: 120px;
+  position: relative;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+  }
+
+  &::before {
+    top: 0;
+    right: 0;
+    border-width: 60px 60px 0 0;
+    border-color: rgba(255, 255, 255, 0.3) transparent transparent transparent;
+    transform: rotate(45deg);
+  }
+
+  &::after {
+    bottom: 0;
+    left: 0;
+    border-width: 0 0 60px 60px;
+    border-color: transparent transparent rgba(255, 255, 255, 0.3) transparent;
+    transform: rotate(45deg);
+  }
+
+  @media (max-width: 768px) {
+    width: 80px;
+    height: 80px;
+
+    &::before {
+      border-width: 40px 40px 0 0;
+    }
+
+    &::after {
+      border-width: 0 0 40px 40px;
+    }
+  }
+}
+

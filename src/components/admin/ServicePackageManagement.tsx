@@ -43,6 +43,7 @@ import {
   type Service
 } from '../../services/serviceManagementService'
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import ServicePackageCreateModal from './ServicePackageCreateModal'
 
 export default function ServicePackageManagement() {
   const [packages, setPackages] = useState<ServicePackage[]>([])
@@ -60,10 +61,14 @@ export default function ServicePackageManagement() {
   const [pageSize, setPageSize] = useState(10)
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false)
   const pageSizeRef = useRef<HTMLDivElement | null>(null)
+  const [openStatusMenu, setOpenStatusMenu] = useState(false)
+  const [openServiceMenu, setOpenServiceMenu] = useState(false)
+  const statusRef = useRef<HTMLDivElement | null>(null)
+  const serviceRef = useRef<HTMLDivElement | null>(null)
   
   // Modal states
   const [formOpen, setFormOpen] = useState(false)
-  const [formMode, setFormMode] = useState<'create' | 'update'>('create')
+  const [formMode, setFormMode] = useState<'create' | 'update' | 'view'>('create')
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null)
@@ -274,6 +279,7 @@ export default function ServicePackageManagement() {
 
   const openCreateForm = () => {
     setFormMode('create')
+    setSelectedPackage(null)
     setFormValues({ 
       packageName: '', 
       packageCode: '', 
@@ -315,90 +321,12 @@ export default function ServicePackageManagement() {
     try {
       setFormSubmitting(true)
       setFormError(null)
-      
-      // Validation
-      if (!formValues.packageName.trim()) {
-        setFormError('Tên gói dịch vụ là bắt buộc')
-        return
-      }
-      if (formValues.packageName.trim().length < 3) {
-        setFormError('Tên gói dịch vụ phải có ít nhất 3 ký tự')
-        return
-      }
-      
-      if (!formValues.packageCode.trim()) {
-        setFormError('Mã gói dịch vụ là bắt buộc')
-        return
-      }
-      if (formValues.packageCode.trim().length < 2) {
-        setFormError('Mã gói dịch vụ phải có ít nhất 2 ký tự')
-        return
-      }
-      
-      if (!formValues.serviceId || formValues.serviceId === 0) {
-        setFormError('Dịch vụ là bắt buộc')
-        return
-      }
-      
-      if (!formValues.totalCredits || formValues.totalCredits <= 0) {
-        setFormError('Tổng số credit phải lớn hơn 0')
-        return
-      }
-      
-      if (formValues.price < 0) {
-        setFormError('Giá gói phải lớn hơn hoặc bằng 0')
-        return
-      }
-      
-      // Prepare clean data
-      const cleanData = {
-        packageName: formValues.packageName.trim(),
-        packageCode: formValues.packageCode.trim(),
-        description: formValues.description.trim() || undefined,
-        serviceId: formValues.serviceId,
-        totalCredits: formValues.totalCredits,
-        price: formValues.price,
-        discountPercent: formValues.discountPercent || undefined,
-        isActive: formValues.isActive,
-        validFrom: formValues.validFrom || undefined,
-        validTo: formValues.validTo || undefined
-      }
-
-      if (formMode === 'create') {
-        await ServiceManagementService.createServicePackage(cleanData as CreateServicePackageRequest)
-      } else {
-        if (!selectedPackage) {
-          setFormError('Không tìm thấy gói dịch vụ để cập nhật')
-          return
-        }
-        await ServiceManagementService.updateServicePackage(selectedPackage.packageId, cleanData as UpdateServicePackageRequest)
-      }
-      
+      // Placeholder – real form removed
       setFormOpen(false)
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
-      
-      // Extract detailed error message
-      let errorMessage = 'Unknown error'
-      
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message
-        } else if (err.response.data.errors) {
-          // Handle validation errors from server
-          const errors = err.response.data.errors
-          if (typeof errors === 'object') {
-            errorMessage = Object.values(errors).flat().join(', ')
-          }
-        }
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
-      setFormError(`Không thể lưu gói dịch vụ: ${errorMessage}`)
+      setFormError('Không thể lưu gói dịch vụ')
     } finally {
       setFormSubmitting(false)
     }
@@ -413,8 +341,6 @@ export default function ServicePackageManagement() {
       setDeletingPackageId(packageId)
       await ServiceManagementService.deleteServicePackage(packageId)
       // Success handled by UI state
-      
-      // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
@@ -427,10 +353,6 @@ export default function ServicePackageManagement() {
   const togglePackageStatus = async (packageId: number) => {
     try {
       const updatedPackage = await ServiceManagementService.togglePackageStatus(packageId)
-      
-      // Success handled by UI state
-      
-      // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
@@ -441,10 +363,6 @@ export default function ServicePackageManagement() {
   const activatePackage = async (packageId: number) => {
     try {
       const updatedPackage = await ServiceManagementService.activatePackage(packageId)
-      
-      // Success handled by UI state
-      
-      // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
@@ -455,10 +373,6 @@ export default function ServicePackageManagement() {
   const deactivatePackage = async (packageId: number) => {
     try {
       const updatedPackage = await ServiceManagementService.deactivatePackage(packageId)
-      
-      // Success handled by UI state
-      
-      // Refresh the list
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {
@@ -467,8 +381,9 @@ export default function ServicePackageManagement() {
   }
 
   const openDetailModal = async (pkg: ServicePackage) => {
-    setSelectedPackageDetail(pkg)
-    setDetailModalOpen(true)
+    setSelectedPackage(pkg)
+    setFormMode('view')
+    setFormOpen(true)
   }
 
   const handleSort = (field: string) => {
@@ -501,11 +416,17 @@ export default function ServicePackageManagement() {
     fetchServices()
   }, [page, pageSize, searchTerm, serviceId, packageStatus, sortBy, sortOrder])
 
-  // Handle click outside for pageSize dropdown
+  // Handle click outside for dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pageSizeRef.current && !pageSizeRef.current.contains(event.target as Node)) {
         setOpenPageSizeMenu(false)
+      }
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setOpenStatusMenu(false)
+      }
+      if (serviceRef.current && !serviceRef.current.contains(event.target as Node)) {
+        setOpenServiceMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -544,7 +465,8 @@ export default function ServicePackageManagement() {
         </div>
       </div>
 
-      {/* Toolbar chuẩn giống Users/Services */}
+      {/* Section: Top (toolbar like Users) */}
+      <section className="spm-section spm-section--top">
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
@@ -571,23 +493,50 @@ export default function ServicePackageManagement() {
           </div>
         </div>
         <div className="toolbar-filters">
-          <div className="pill-select">
-            <span className="icon"><CheckCircle size={14} /></span>
-            <button type="button" className="pill-trigger">{packageStatus==='all'?'Tất cả trạng thái':packageStatus==='active'?'Hoạt động':'Không hoạt động'}</button>
+          <div className="filter-pill" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(v=>!v); setOpenServiceMenu(false); }}>
+            <CheckCircle size={14} className="icon" />
+            <span className="label">{packageStatus==='all'?'Tất cả trạng thái':packageStatus==='active'?'Hoạt động':'Không hoạt động'}</span>
             <ChevronDownIcon className="caret" width={16} height={16} />
+            {openStatusMenu && (
+              <ul className="pill-menu show">
+                {[
+                  { value: 'all', label: 'Tất cả trạng thái' },
+                  { value: 'active', label: 'Hoạt động' },
+                  { value: 'inactive', label: 'Không hoạt động' }
+                ].map(s => (
+                  <li key={s.value} className={`pill-item ${packageStatus===s.value ? 'active' : ''}`}
+                      onClick={()=>{ setPackageStatus(s.value); setPage(1); setOpenStatusMenu(false); }}>
+                    {s.label}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <div className="pill-select">
-            <span className="icon"><Wrench size={14} /></span>
-            <button type="button" className="pill-trigger">{serviceId ? (services.find(s=>s.id===serviceId)?.name || 'Dịch vụ') : 'Tất cả dịch vụ'}</button>
+          <div className="filter-pill" ref={serviceRef} onClick={(e)=>{ e.stopPropagation(); setOpenServiceMenu(v=>!v); setOpenStatusMenu(false); }}>
+            <Wrench size={14} className="icon" />
+            <span className="label">{serviceId ? (services.find(s=>s.id===serviceId)?.name || 'Dịch vụ') : 'Tất cả dịch vụ'}</span>
             <ChevronDownIcon className="caret" width={16} height={16} />
+            {openServiceMenu && (
+              <ul className="pill-menu show">
+                <li className={`pill-item ${serviceId? '' : 'active'}`} onClick={()=>{ setServiceId(null); setPage(1); setOpenServiceMenu(false); }}>Tất cả dịch vụ</li>
+                {services.map(s => (
+                  <li key={s.id} className={`pill-item ${serviceId===s.id ? 'active' : ''}`}
+                      onClick={()=>{ setServiceId(s.id); setPage(1); setOpenServiceMenu(false); }}>
+                    {s.name}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <button type="button" className="toolbar-chip"><Plus size={14}/> Thêm bộ lọc</button>
         </div>
         </div>
+      </section>
 
       {/* Stats removed */}
 
-      {/* Packages List */}
+      {/* Section: Middle (table content) */}
+      <section className="spm-section spm-section--middle">
       <div className="packages-table-wrapper">
         
         {loading ? (
@@ -665,9 +614,9 @@ export default function ServicePackageManagement() {
             }}>
               <thead>
                 <tr style={{
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  color: 'white',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  background: '#FFF7D6',
+                  color: 'var(--text-primary)',
+                  boxShadow: 'inset 0 -1px 0 var(--border-primary)'
                 }}>
                   <th 
                     style={{
@@ -1013,14 +962,16 @@ export default function ServicePackageManagement() {
           </div>
         )}
       </div>
+      </section>
 
-      {/* Enhanced Pagination (class-based, no border/shadow) */}
+      {/* Section: Bottom (pagination controls like Users) */}
+      <section className="spm-section spm-section--bottom">
       <div className="pagination-controls-bottom">
         {/* Left: Rows per page + range */}
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
-          <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
-            <button type="button" className="pill-trigger">{pageSize}</button>
+          <div className="page-size-pill" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
+            <span className="value">{pageSize}</span>
             <ChevronDownIcon width={16} height={16} className="caret" />
             {openPageSizeMenu && (
               <ul className="pill-menu show">
@@ -1064,827 +1015,28 @@ export default function ServicePackageManagement() {
           </button>
         </div>
       </div>
+      </section>
 
-      {/* Form Modal */}
-      {formOpen && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '700px', 
-            maxWidth: '90vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '24px',
-              paddingBottom: '16px',
-              borderBottom: '2px solid var(--border-primary)'
-            }}>
-              <div>
-                <h3 style={{ 
-                  margin: '0 0 4px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>
-                  {formMode === 'create' ? 'Tạo Gói Dịch vụ Mới' : 'Cập nhật Gói Dịch vụ'}
-                </h3>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  {formMode === 'create' 
-                    ? 'Thêm gói dịch vụ mới vào hệ thống' 
-                    : 'Cập nhật thông tin gói dịch vụ'
-                  }
-                </p>
-              </div>
-              <button
-                onClick={() => setFormOpen(false)}
-                style={{ 
-                  border: 'none', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--error-50)'
-                  e.currentTarget.style.color = 'var(--error-600)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {formError && (
-              <div style={{ 
-                marginBottom: '20px', 
-                color: 'var(--error-600)', 
-                fontSize: '14px',
-                padding: '16px',
-                background: 'var(--error-50)',
-                borderRadius: '12px',
-                border: '2px solid var(--error-200)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                ⚠️ {formError}
-              </div>
-            )}
-            
-            <div style={{ display: 'grid', gap: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Tên gói dịch vụ <span style={{ color: 'var(--error-500)' }}>*</span>
-                  </label>
-                  <input
-                    value={formValues.packageName}
-                    onChange={(e) => {
-                      setFormValues(v => ({ ...v, packageName: e.target.value }))
-                      validateField('packageName', e.target.value)
-                    }}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: `2px solid ${fieldErrors.packageName ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    placeholder="Nhập tên gói dịch vụ"
-                    onFocus={(e) => {
-                      e.target.style.borderColor = fieldErrors.packageName ? 'var(--error-500)' : 'var(--primary-500)'
-                      e.target.style.boxShadow = fieldErrors.packageName ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = fieldErrors.packageName ? 'var(--error-500)' : 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                  {fieldErrors.packageName && (
-                    <div style={{ 
-                      color: 'var(--error-600)', 
-                      fontSize: '12px', 
-                      marginTop: '4px' 
-                    }}>
-                      {fieldErrors.packageName}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Mã gói dịch vụ <span style={{ color: 'var(--error-500)' }}>*</span>
-                  </label>
-                  <input
-                    value={formValues.packageCode}
-                    onChange={(e) => {
-                      setFormValues(v => ({ ...v, packageCode: e.target.value }))
-                      validateField('packageCode', e.target.value)
-                    }}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: `2px solid ${fieldErrors.packageCode ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    placeholder="Nhập mã gói dịch vụ"
-                    onFocus={(e) => {
-                      e.target.style.borderColor = fieldErrors.packageCode ? 'var(--error-500)' : 'var(--primary-500)'
-                      e.target.style.boxShadow = fieldErrors.packageCode ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = fieldErrors.packageCode ? 'var(--error-500)' : 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                  {fieldErrors.packageCode && (
-                    <div style={{ 
-                      color: 'var(--error-600)', 
-                      fontSize: '12px', 
-                      marginTop: '4px' 
-                    }}>
-                      {fieldErrors.packageCode}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  color: 'var(--text-primary)', 
-                  marginBottom: '8px' 
-                }}>
-                  Mô tả
-                </label>
-                <textarea
-                  value={formValues.description}
-                  onChange={(e) => setFormValues(v => ({ ...v, description: e.target.value }))}
-                  rows={3}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    border: '2px solid var(--border-primary)', 
-                    borderRadius: '12px', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
-                    fontSize: '14px', 
-                    resize: 'vertical',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="Nhập mô tả gói dịch vụ"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'var(--primary-500)'
-                    e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'var(--border-primary)'
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Dịch vụ <span style={{ color: 'var(--error-500)' }}>*</span>
-                  </label>
-                  <select
-                    value={formValues.serviceId}
-                    onChange={(e) => {
-                      setFormValues(v => ({ ...v, serviceId: Number(e.target.value) }))
-                      validateField('serviceId', Number(e.target.value))
-                    }}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: `2px solid ${fieldErrors.serviceId ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = fieldErrors.serviceId ? 'var(--error-500)' : 'var(--primary-500)'
-                      e.target.style.boxShadow = fieldErrors.serviceId ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = fieldErrors.serviceId ? 'var(--error-500)' : 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  >
-                    <option value={0}>Chọn dịch vụ</option>
-                    {services.map(service => (
-                      <option key={service.id} value={service.id}>
-                        {service.name}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.serviceId && (
-                    <div style={{ 
-                      color: 'var(--error-600)', 
-                      fontSize: '12px', 
-                      marginTop: '4px' 
-                    }}>
-                      {fieldErrors.serviceId}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Tổng số credit <span style={{ color: 'var(--error-500)' }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formValues.totalCredits}
-                    onChange={(e) => {
-                      setFormValues(v => ({ ...v, totalCredits: Number(e.target.value) }))
-                      validateField('totalCredits', Number(e.target.value))
-                    }}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: `2px solid ${fieldErrors.totalCredits ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    placeholder="Nhập tổng số credit"
-                    onFocus={(e) => {
-                      e.target.style.borderColor = fieldErrors.totalCredits ? 'var(--error-500)' : 'var(--primary-500)'
-                      e.target.style.boxShadow = fieldErrors.totalCredits ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = fieldErrors.totalCredits ? 'var(--error-500)' : 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                  {fieldErrors.totalCredits && (
-                    <div style={{ 
-                      color: 'var(--error-600)', 
-                      fontSize: '12px', 
-                      marginTop: '4px' 
-                    }}>
-                      {fieldErrors.totalCredits}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Giá gói <span style={{ color: 'var(--error-500)' }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={formValues.price}
-                    onChange={(e) => {
-                      setFormValues(v => ({ ...v, price: Number(e.target.value) }))
-                      validateField('price', Number(e.target.value))
-                    }}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: `2px solid ${fieldErrors.price ? 'var(--error-500)' : 'var(--border-primary)'}`, 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    placeholder="Nhập giá gói (VNĐ)"
-                    onFocus={(e) => {
-                      e.target.style.borderColor = fieldErrors.price ? 'var(--error-500)' : 'var(--primary-500)'
-                      e.target.style.boxShadow = fieldErrors.price ? '0 0 0 3px rgba(239, 68, 68, 0.1)' : '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = fieldErrors.price ? 'var(--error-500)' : 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                  {fieldErrors.price && (
-                    <div style={{ 
-                      color: 'var(--error-600)', 
-                      fontSize: '12px', 
-                      marginTop: '4px' 
-                    }}>
-                      {fieldErrors.price}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Phần trăm giảm giá (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={formValues.discountPercent}
-                    onChange={(e) => setFormValues(v => ({ ...v, discountPercent: Number(e.target.value) }))}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: '2px solid var(--border-primary)', 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    placeholder="Nhập phần trăm giảm giá"
-                    onFocus={(e) => {
-                      e.target.style.borderColor = 'var(--primary-500)'
-                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Có hiệu lực từ
-                  </label>
-                  <input
-                    type="date"
-                    value={formValues.validFrom}
-                    onChange={(e) => setFormValues(v => ({ ...v, validFrom: e.target.value }))}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: '2px solid var(--border-primary)', 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = 'var(--primary-500)'
-                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    color: 'var(--text-primary)', 
-                    marginBottom: '8px' 
-                  }}>
-                    Có hiệu lực đến
-                  </label>
-                  <input
-                    type="date"
-                    value={formValues.validTo}
-                    onChange={(e) => setFormValues(v => ({ ...v, validTo: e.target.value }))}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      border: '2px solid var(--border-primary)', 
-                      borderRadius: '12px', 
-                      background: 'var(--bg-secondary)', 
-                      color: 'var(--text-primary)', 
-                      fontSize: '14px',
-                      transition: 'all 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = 'var(--primary-500)'
-                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'var(--border-primary)'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                  />
-                </div>
-              </div>
-              
-              <div style={{
-                padding: '16px',
-                background: 'var(--bg-secondary)',
-                borderRadius: '12px',
-                border: '2px solid var(--border-primary)'
-              }}>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px', 
-                  color: 'var(--text-primary)', 
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}>
-                  <input 
-                    type="checkbox" 
-                    checked={formValues.isActive} 
-                    onChange={(e) => setFormValues(v => ({ ...v, isActive: e.target.checked }))}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      accentColor: 'var(--primary-500)'
-                    }}
-                  />
-                  <div>
-                    <div>Gói dịch vụ đang hoạt động</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {formValues.isActive ? 'Gói dịch vụ sẽ hoạt động ngay' : 'Gói dịch vụ sẽ bị tạm ngừng hoạt động'}
-                    </div>
-                  </div>
-                </label>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', 
-                gap: '12px', 
-                marginTop: '8px',
-                paddingTop: '20px',
-                borderTop: '2px solid var(--border-primary)'
-              }}>
-                <button
-                  onClick={() => setFormOpen(false)}
-                  style={{ 
-                    border: '2px solid var(--border-primary)', 
-                    background: 'var(--bg-secondary)', 
-                    color: 'var(--text-primary)', 
-                    borderRadius: '12px', 
-                    padding: '12px 24px', 
-                    cursor: 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: '600',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--text-secondary)'
-                    e.currentTarget.style.background = 'var(--bg-tertiary)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                    e.currentTarget.style.background = 'var(--bg-secondary)'
-                  }}
-                >
-                  Hủy
-                </button>
-                <button
-                  disabled={formSubmitting}
-                  onClick={submitForm}
-                  style={{ 
-                    border: 'none', 
-                    background: formSubmitting 
-                      ? 'var(--text-tertiary)' 
-                      : 'linear-gradient(135deg, var(--primary-500), var(--primary-600))', 
-                    color: 'white', 
-                    borderRadius: '12px', 
-                    padding: '12px 24px', 
-                    cursor: formSubmitting ? 'not-allowed' : 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
-                    opacity: formSubmitting ? 0.7 : 1,
-                    transition: 'all 0.2s ease',
-                    boxShadow: formSubmitting ? 'none' : '0 4px 12px rgba(59, 130, 246, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!formSubmitting) {
-                      e.currentTarget.style.transform = 'translateY(-1px)'
-                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!formSubmitting) {
-                      e.currentTarget.style.transform = 'translateY(0)'
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)'
-                    }
-                  }}
-                >
-                  {formSubmitting ? 'Đang lưu...' : (formMode === 'create' ? 'Tạo Gói Dịch vụ' : 'Cập nhật Gói Dịch vụ')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Detail Modal */}
-      {detailModalOpen && selectedPackageDetail && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          zIndex: 2000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
-            borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '600px', 
-            maxWidth: '95vw', 
-            maxHeight: '90vh',
-            overflow: 'auto',
-            padding: '32px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            animation: 'modalSlideIn 0.3s ease-out'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              marginBottom: '24px',
-              paddingBottom: '16px',
-              borderBottom: '2px solid var(--border-primary)'
-            }}>
-              <div>
-                <h3 style={{ 
-                  margin: '0 0 4px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>
-                  Chi tiết Gói Dịch vụ
-                </h3>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  {selectedPackageDetail.packageName}
-                </p>
-              </div>
-              <button
-                onClick={() => setDetailModalOpen(false)}
-                style={{ 
-                  border: 'none', 
-                  background: 'var(--bg-secondary)', 
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--error-50)'
-                  e.currentTarget.style.color = 'var(--error-600)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)'
-                  e.currentTarget.style.color = 'var(--text-primary)'
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Package Info */}
-            <div style={{
-              background: 'var(--bg-secondary)',
-              padding: '20px',
-              borderRadius: '12px',
-              marginBottom: '24px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <h4 style={{ 
-                margin: '0 0 16px 0', 
-                fontSize: '18px', 
-                fontWeight: '600',
-                color: 'var(--text-primary)'
-              }}>
-                Thông tin Gói Dịch vụ
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tên gói</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.packageName}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mã gói</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.packageCode}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Dịch vụ</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.serviceName}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tổng credits</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.totalCredits}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giá</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {new Intl.NumberFormat('vi-VN').format(selectedPackageDetail.price)}đ
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Giảm giá</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.discountPercent ? `${selectedPackageDetail.discountPercent}%` : 'Không có'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Trạng thái</div>
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 12px',
-                    borderRadius: '20px',
-                    background: selectedPackageDetail.isActive ? 'var(--success-50)' : 'var(--error-50)',
-                    color: selectedPackageDetail.isActive ? 'var(--success-700)' : 'var(--error-700)',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    border: `1px solid ${selectedPackageDetail.isActive ? 'var(--success-200)' : 'var(--error-200)'}`
-                  }}>
-                    {selectedPackageDetail.isActive ? (
-                      <>
-                        <Circle size={12} fill="currentColor" />
-                        Hoạt động
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle size={12} fill="currentColor" />
-                        Ngừng hoạt động
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ngày tạo</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {new Date(selectedPackageDetail.createdAt).toLocaleDateString('vi-VN')}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Có hiệu lực từ</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.validFrom 
-                      ? new Date(selectedPackageDetail.validFrom).toLocaleDateString('vi-VN')
-                      : 'Không xác định'
-                    }
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Có hiệu lực đến</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.validTo 
-                      ? new Date(selectedPackageDetail.validTo).toLocaleDateString('vi-VN')
-                      : 'Không giới hạn'
-                    }
-                  </div>
-                </div>
-              </div>
-              {selectedPackageDetail.description && (
-                <div style={{ marginTop: '16px' }}>
-                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Mô tả</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {selectedPackageDetail.description}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Placeholder create modal component */}
+      <ServicePackageCreateModal
+        open={formOpen}
+        mode={formMode}
+        initialData={selectedPackage ? {
+          id: selectedPackage.packageId,
+          packageName: selectedPackage.packageName,
+          packageCode: selectedPackage.packageCode,
+          description: selectedPackage.description,
+          serviceId: selectedPackage.serviceId,
+          totalCredits: selectedPackage.totalCredits,
+          price: selectedPackage.price,
+          discountPercent: selectedPackage.discountPercent,
+          isActive: selectedPackage.isActive,
+          validFrom: selectedPackage.validFrom ? new Date(selectedPackage.validFrom).toISOString().split('T')[0] : '',
+          validTo: selectedPackage.validTo ? new Date(selectedPackage.validTo).toISOString().split('T')[0] : ''
+        } : null}
+        onClose={() => setFormOpen(false)}
+        onSaved={async () => { setFormOpen(false); await fetchPackages(); await fetchStats(); }}
+      />
     </div>
   )
 }
