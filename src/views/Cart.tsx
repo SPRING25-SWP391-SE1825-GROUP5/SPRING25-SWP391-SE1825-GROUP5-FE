@@ -43,41 +43,8 @@ export default function Cart() {
   const shipping = cart.total >= 10000000 ? 0 : 200000 // Free shipping over 10M
   const finalTotal = cart.total + shipping
 
-  const mockItems = [
-    {
-      id: '1',
-      name: 'Pin Lithium 72V-40Ah',
-      price: 9200000,
-      originalPrice: 10600000,
-      image: '',
-      brand: 'Panasonic',
-      quantity: 2,
-      category: 'Phụ tùng EV',
-      inStock: true
-    },
-    {
-      id: '2',
-      name: 'Lốp Yokohama City 12", Tubeless (Chính hãng)',
-      price: 520000,
-      image: '',
-      brand: 'Yokohama',
-      quantity: 1,
-      category: 'Phụ tùng EV',
-      inStock: true
-    },
-    {
-      id: '3',
-      name: 'Sên dẫn động DID 10mm',
-      price: 370000,
-      image: '',
-      brand: 'DID (Japan)',
-      quantity: 4,
-      category: 'Phụ kiện',
-      inStock: true
-    }
-  ]
-
-  const displayedItems = cart.items.length === 0 ? mockItems : cart.items
+  // Use real data from Redux cart state only - no mock data
+  const displayedItems = cart.items
   const displayedCount = displayedItems.reduce((sum, it) => sum + it.quantity, 0)
   const displayedTotal = displayedItems.reduce((sum, it) => sum + (it.price * it.quantity), 0)
 

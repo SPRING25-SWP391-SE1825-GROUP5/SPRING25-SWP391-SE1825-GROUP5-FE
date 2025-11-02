@@ -24,13 +24,10 @@ interface PromoState {
   availablePromotions: Promotion[]
 }
 
-// TODO: Replace with real API data
-const savedPromotions: Promotion[] = []
-
 const initialState: PromoState = {
-  savedPromotions: [],
+  savedPromotions: [], // Loaded from API via PromotionBookingService
   appliedPromo: null,
-  availablePromotions: []
+  availablePromotions: [] // Loaded from API via PromotionService
 }
 
 const promoSlice = createSlice({

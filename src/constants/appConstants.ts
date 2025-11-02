@@ -119,6 +119,15 @@ export const STORAGE_KEYS = {
   LANGUAGE: 'language'
 } as const
 
+// Error Types
+export const ERROR_TYPES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  ORDER_INVALID_STATE: 'ORDER_INVALID_STATE',
+  BUSINESS_RULE_VIOLATION: 'BUSINESS_RULE_VIOLATION',
+  SYSTEM_ERROR: 'SYSTEM_ERROR'
+} as const
+
 // Error Messages
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: 'Lỗi kết nối mạng. Vui lòng thử lại.',
@@ -128,7 +137,9 @@ export const ERROR_MESSAGES = {
   FORBIDDEN: 'Truy cập bị từ chối.',
   NOT_FOUND: 'Không tìm thấy dữ liệu.',
   TIMEOUT: 'Yêu cầu quá thời gian chờ.',
-  UNKNOWN: 'Đã xảy ra lỗi không xác định.'
+  UNKNOWN: 'Đã xảy ra lỗi không xác định.',
+  PAYMENT_LINK_NOT_FOUND: 'Không tìm thấy payment link cho đơn hàng này. Payment link có thể chưa được tạo hoặc đã hết hạn.',
+  PAYMENT_LINK_EXISTS: 'Đơn thanh toán đã tồn tại. Đang chuyển đến trang thanh toán...'
 } as const
 
 // Success Messages

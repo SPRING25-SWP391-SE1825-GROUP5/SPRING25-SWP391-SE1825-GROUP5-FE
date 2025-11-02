@@ -1,8 +1,10 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { clearCart, addToCart } from '@/store/cartSlice'
 import { applyPromotion, removePromotion, type Promotion } from '@/store/promoSlice'
+import { PromotionBookingService } from '@/services/promotionBookingService'
+import { CustomerService } from '@/services/customerService'
 import {
   ArrowLeftIcon,
   CreditCardIcon,
@@ -74,6 +76,8 @@ export default function Checkout() {
 
   const [selectedPayment, setSelectedPayment] = useState('card')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [loadingPromotions, setLoadingPromotions] = useState(false)
+  const [savedPromotionsFromAPI, setSavedPromotionsFromAPI] = useState<Promotion[]>([])
   const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
     fullName: user?.fullName || '',
     email: user?.email || '',
@@ -84,6 +88,69 @@ export default function Checkout() {
     ward: '',
     postalCode: ''
   })
+
+  // Load saved promotions from API: GET /api/Promotion/customers/{customerId}/promotions
+  useEffect(() => {
+    const loadSavedPromotions = async () => {
+      if (!user?.id) return
+
+      setLoadingPromotions(true)
+      try {
+        console.log('🔄 Checkout: Loading saved promotions...')
+        const customerResponse = await CustomerService.getCurrentCustomer()
+        const customerId = customerResponse?.data?.customerId
+        
+        if (!customerId) {
+          console.warn('⚠️ Checkout: No customerId available')
+          setLoadingPromotions(false)
+          return
+        }
+
+        console.log('📡 Checkout: Loading promotions for customerId:', customerId)
+        const promos = await PromotionBookingService.getCustomerPromotions(customerId)
+        console.log('📦 Checkout: Promotions response:', promos)
+
+        if (Array.isArray(promos) && promos.length > 0) {
+          // Convert API response to Redux Promotion format
+          const convertedPromotions: Promotion[] = promos
+            .filter((p: any) => {
+              const status = String(p.userPromotionStatus || p.status || '').toUpperCase()
+              // Only show SAVED or APPLIED promotions (not USED)
+              return status === 'SAVED' || status === 'APPLIED'
+            })
+            .map((p: any) => ({
+              id: String(p.code),
+              code: p.code || '',
+              title: p.description || '',
+              description: p.description || '',
+              type: (p.discountType === 'PERCENT' ? 'percentage' : 'fixed') as 'percentage' | 'fixed' | 'shipping',
+              value: p.discountValue || p.discountAmount || 0,
+              minOrder: 0,
+              maxDiscount: p.maxDiscount,
+              validFrom: p.startDate || new Date().toISOString(),
+              validTo: p.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+              isActive: true,
+              usageLimit: 1,
+              usedCount: 0,
+              category: []
+            }))
+          
+          console.log('✅ Checkout: Converted promotions count:', convertedPromotions.length)
+          setSavedPromotionsFromAPI(convertedPromotions)
+        } else {
+          console.log('ℹ️ Checkout: No promotions found')
+          setSavedPromotionsFromAPI([])
+        }
+      } catch (error: any) {
+        console.error('❌ Checkout: Error loading saved promotions:', error)
+        setSavedPromotionsFromAPI([])
+      } finally {
+        setLoadingPromotions(false)
+      }
+    }
+
+    loadSavedPromotions()
+  }, [user?.id])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -157,15 +224,25 @@ export default function Checkout() {
   }
 
   const getEligiblePromotions = (): Promotion[] => {
-    // For debugging - always show some promotions
-    if (!promo.savedPromotions || promo.savedPromotions.length === 0) {
+    // Use promotions from API (savedPromotionsFromAPI) as primary source
+    // Fallback to Redux store if API hasn't loaded yet
+    const sourcePromotions = savedPromotionsFromAPI.length > 0 
+      ? savedPromotionsFromAPI 
+      : (promo.savedPromotions || [])
+    
+    if (!sourcePromotions || sourcePromotions.length === 0) {
       return []
     }
     
-    // For demo purposes, show all active promotions regardless of other conditions
-    const eligible = promo.savedPromotions.filter(promotion => {
-      // Only check if active for now
-      return promotion.isActive
+    // Filter eligible promotions based on cart total and promotion rules
+    const eligible = sourcePromotions.filter(promotion => {
+      // Only check if active
+      if (!promotion.isActive) return false
+      
+      // Check minimum order requirement
+      if (promotion.minOrder && cart.total < promotion.minOrder) return false
+      
+      return true
     })
     
     return eligible

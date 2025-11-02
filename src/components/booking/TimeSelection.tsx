@@ -179,7 +179,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
           })
         } catch (error) {
           console.error('Error loading availability:', error)
-          // Fallback: Get basic time slots from TimeSlot API and mark all as available
+          // Fallback: Try to get basic time slots from TimeSlot API
           try {
             const { data: timeSlotsResponse } = await api.get('/TimeSlot')
             const timeSlots = (timeSlotsResponse.data || []).map((slot: any, index: number) => ({
@@ -189,25 +189,34 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
               isPast: false
             }))
             
+            // Try to get technicians from API, otherwise empty array
+            let technicians: any[] = []
+            try {
+              const { TechnicianService } = await import('@/services/technicianService')
+              const techniciansResponse = await TechnicianService.list({ centerId: selectedCenter?.centerId, pageSize: 100 })
+              technicians = (techniciansResponse.technicians || []).map((tech: any) => ({
+                id: tech.technicianId,
+                name: tech.userFullName,
+                specialization: tech.specialization || 'Kỹ thuật viên',
+                available: true
+              }))
+            } catch (techError) {
+              console.warn('Could not load technicians in fallback:', techError)
+              // Empty array - no mock data
+            }
+            
             setAvailability({
               timeSlots,
-              technicians: [
-                { id: 1, name: 'Nguyễn Văn A', specialization: 'Động cơ điện', available: true },
-                { id: 2, name: 'Trần Thị B', specialization: 'Pin và sạc', available: true },
-                { id: 3, name: 'Lê Văn C', specialization: 'Hệ thống điện', available: false },
-              ]
+              technicians // Use real data from API only
             })
           } catch (fallbackError) {
             console.error('Fallback API also failed:', fallbackError)
-            // Final fallback to mock data
+            // No mock data - show empty state and error
             setAvailability({
-              timeSlots: generateTimeSlots(selectedDate),
-              technicians: [
-                { id: 1, name: 'Nguyễn Văn A', specialization: 'Động cơ điện', available: true },
-                { id: 2, name: 'Trần Thị B', specialization: 'Pin và sạc', available: true },
-                { id: 3, name: 'Lê Văn C', specialization: 'Hệ thống điện', available: false },
-              ]
+              timeSlots: [],
+              technicians: []
             })
+            setError('Không thể tải thông tin lịch trống. Vui lòng thử lại sau.')
           }
         } finally {
           setAvailabilityLoading(false)

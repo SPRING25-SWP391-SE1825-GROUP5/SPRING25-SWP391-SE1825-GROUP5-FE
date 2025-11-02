@@ -8,6 +8,10 @@ const PaymentCancel: React.FC = () => {
   // Removed auto-redirect countdown
   
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
+  const orderId = searchParams.get('orderId')
+  // Phân biệt order và booking dựa trên orderId (ưu tiên) hoặc bookingId
+  const isOrder = orderId != null
+  const entityId = orderId || bookingId
   const reason = searchParams.get('reason') || searchParams.get('cancelReason')
   const amount = searchParams.get('amount')
   const error = searchParams.get('error')
@@ -62,8 +66,8 @@ const PaymentCancel: React.FC = () => {
         <div className="alert-message">
           <AlertTriangle size={20} />
           <div className="alert-content">
-            <h3>Đặt lịch chưa được xác nhận</h3>
-            <p>Để hoàn tất đặt lịch, bạn cần thanh toán thành công. Vui lòng thử lại.</p>
+            <h3>{isOrder ? 'Đơn hàng chưa được xác nhận' : 'Đặt lịch chưa được xác nhận'}</h3>
+            <p>{isOrder ? 'Để hoàn tất đơn hàng, bạn cần thanh toán thành công. Vui lòng thử lại.' : 'Để hoàn tất đặt lịch, bạn cần thanh toán thành công. Vui lòng thử lại.'}</p>
             {error && (
               <div className="error-details">
                 <p><strong>Chi tiết lỗi:</strong> {decodeURIComponent(error)}</p>
@@ -72,17 +76,17 @@ const PaymentCancel: React.FC = () => {
           </div>
         </div>
         
-        {/* Booking Details */}
-        {bookingId && (
+        {/* Booking/Order Details */}
+        {entityId && (
           <div className="booking-details">
-            <h2>Thông tin đặt lịch</h2>
+            <h2>{isOrder ? 'Thông tin đơn hàng' : 'Thông tin đặt lịch'}</h2>
             
             <div className="detail-card">
               <div className="detail-row">
                 <CreditCard className="detail-icon" />
                 <div className="detail-content">
-                  <span className="detail-label">Mã đặt lịch</span>
-                  <span className="detail-value">#{bookingId}</span>
+                  <span className="detail-label">{isOrder ? 'Mã đơn hàng' : 'Mã đặt lịch'}</span>
+                  <span className="detail-value">#{entityId}</span>
                 </div>
               </div>
               
@@ -121,7 +125,7 @@ const PaymentCancel: React.FC = () => {
               <strong>Liên hệ hỗ trợ:</strong> Gọi hotline 1900 1234 để được hỗ trợ
             </li>
             <li>
-              <strong>Đặt lịch mới:</strong> Tạo đặt lịch mới với thông tin khác
+              <strong>{isOrder ? 'Tạo đơn hàng mới' : 'Đặt lịch mới'}:</strong> {isOrder ? 'Tạo đơn hàng mới với thông tin khác' : 'Tạo đặt lịch mới với thông tin khác'}
             </li>
           </ul>
         </div>
@@ -149,7 +153,15 @@ const PaymentCancel: React.FC = () => {
         <div className="action-buttons">
           <button 
             className="btn-secondary"
-            onClick={() => navigate('/booking')}
+            onClick={() => {
+              if (isOrder) {
+                // Nếu là order, redirect về trang giỏ hàng hoặc trang đơn hàng
+                navigate(orderId ? `/confirm-order/${orderId}` : '/cart')
+              } else {
+                // Nếu là booking, redirect về trang booking
+                navigate('/booking')
+              }
+            }}
           >
             <RefreshCw size={16} />
             Thử lại

@@ -208,18 +208,21 @@ export default function Profile() {
     }
   }, [activeTab, auth.user?.id])
 
-  useEffect(() => {
-    if (activeTab === 'promo-codes' && customerId) {
-      loadSavedPromotions()
-    }
-  }, [activeTab, customerId])
-
-  // Load customerId when component mounts
+  // Load customerId when component mounts or when needed
   useEffect(() => {
     if (auth.user?.id && !customerId) {
       loadCustomerId()
     }
-  }, [auth.user?.id])
+  }, [auth.user?.id, customerId])
+
+  // Load saved promotions when promo-codes tab is active
+  useEffect(() => {
+    if (activeTab === 'promo-codes' && auth.user?.id) {
+      // loadSavedPromotions() will handle loading customerId if needed
+      loadSavedPromotions()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, auth.user?.id])
 
   // Load vehicle models when form is opened
   useEffect(() => {
@@ -395,9 +398,11 @@ export default function Profile() {
   // Load saved promotions for customer
   const loadSavedPromotions = async () => {
     if (!auth.user?.id) {
+      console.warn('loadSavedPromotions: User not authenticated')
       return
     }
 
+    console.log('🔄 Starting loadSavedPromotions, customerId:', customerId)
     setPromotionsLoading(true)
     setPromotionsError(null)
     
@@ -405,32 +410,55 @@ export default function Profile() {
       // Get customerId if not available
       let currentCustomerId = customerId
       if (!currentCustomerId) {
+        console.log('📋 CustomerId not available, loading...')
         currentCustomerId = await loadCustomerId()
         if (!currentCustomerId) {
+          console.error('❌ Cannot load promotions: customerId not available')
           setSavedPromotions([])
           setTotalPromotions(0)
+          setPromotionsError('Không thể tải thông tin khách hàng')
           setPromotionsLoading(false)
           return
         }
+        console.log('✅ CustomerId loaded:', currentCustomerId)
       }
 
-      console.log('Loading saved promotions for customerId:', currentCustomerId)
+      console.log('📡 Loading saved promotions for customerId:', currentCustomerId)
       const promotions = await PromotionBookingService.getCustomerPromotions(currentCustomerId)
-      console.log('Saved promotions response:', promotions)
+      console.log('📦 Saved promotions response:', promotions)
+      console.log('📦 Response type:', Array.isArray(promotions) ? 'array' : typeof promotions)
+      console.log('📦 Response length:', Array.isArray(promotions) ? promotions.length : 'not array')
       
-      // Hiển thị các mã khuyến mãi chưa sử dụng: SAVED và APPLIED (đã áp dụng nhưng chưa thanh toán)
-      // KHÔNG hiển thị USED (đã sử dụng = đã thanh toán thành công)
-      // Nếu đơn hàng chưa thanh toán thì mã vẫn còn nguyên (SAVED hoặc APPLIED)
-      const filteredPromotions = (promotions || []).filter((p: any) => {
-        const status = String(p.status || '').toUpperCase()
-        return status === 'SAVED' || status === 'APPLIED' // Hiển thị các mã chưa sử dụng
+      if (!promotions || !Array.isArray(promotions)) {
+        console.warn('⚠️ Invalid promotions response format:', promotions)
+        setSavedPromotions([])
+        setTotalPromotions(0)
+        return
+      }
+
+      // Hiển thị tất cả promotions (SAVED, APPLIED, USED)
+      // Backend trả về: userPromotionStatus (SAVED, APPLIED, USED) và status (ACTIVE, EXPIRED từ Promotion)
+      // UI sẽ map thành 2 trạng thái: "Có thể sử dụng" (SAVED/APPLIED) và "Đã sử dụng" (USED)
+      const filteredPromotions = promotions.filter((p: any) => {
+        // Sử dụng userPromotionStatus thay vì status vì đây mới là trạng thái của user promotion
+        const userStatus = String(p.userPromotionStatus || p.status || '').toUpperCase()
+        console.log(`🔍 Promotion ${p.code}: userStatus=${userStatus}, status=${p.status}`)
+        // Hiển thị tất cả: SAVED, APPLIED và USED
+        return userStatus === 'SAVED' || userStatus === 'APPLIED' || userStatus === 'USED'
       })
       
+      console.log('✅ Filtered promotions count:', filteredPromotions.length)
       setSavedPromotions(filteredPromotions)
       setTotalPromotions(filteredPromotions.length)
     } catch (error: any) {
-      console.error('Error loading saved promotions:', error)
-      setPromotionsError(error.message || 'Không thể tải danh sách mã khuyến mãi')
+      console.error('❌ Error loading saved promotions:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể tải danh sách mã khuyến mãi'
+      setPromotionsError(errorMessage)
       setSavedPromotions([])
       setTotalPromotions(0)
     } finally {
@@ -553,28 +581,9 @@ export default function Profile() {
       console.log('📊 Final bookings with feedback:', bookingsWithFeedback)
       console.log('📊 Booking history length:', bookingsWithFeedback.length)
       
-      // Add test feedback for COMPLETED bookings (for testing)
-      const bookingsWithTestFeedback = bookingsWithFeedback.map(booking => {
-        if (booking.status === 'COMPLETED' && !booking.hasFeedback) {
-          console.log('🧪 Adding test feedback for booking:', booking.bookingId)
-          return {
-            ...booking,
-            feedback: {
-              technicianRating: 5,
-              partsRating: 4,
-              comment: 'Dịch vụ rất tốt, kỹ thuật viên chuyên nghiệp',
-              tags: ['Chuyên nghiệp', 'Nhanh chóng', 'Chất lượng cao']
-            },
-            hasFeedback: true,
-            feedbackId: `test-${booking.bookingId}`
-          }
-        }
-        return booking
-      })
-      
-      console.log('📊 Final bookings with test feedback:', bookingsWithTestFeedback)
-      setBookingHistory(bookingsWithTestFeedback)
-      setBookingHistoryTotalPages(pagination?.totalPages || Math.max(1, Math.ceil(bookingsWithTestFeedback.length / HISTORY_PAGE_SIZE)))
+      // Use real data from API only - no mock/test data
+      setBookingHistory(bookingsWithFeedback)
+      setBookingHistoryTotalPages(pagination?.totalPages || Math.max(1, Math.ceil(bookingsWithFeedback.length / HISTORY_PAGE_SIZE)))
     } catch (error: unknown) {
       console.error('Error loading booking history:', error)
       setBookingHistory([])
@@ -1945,18 +1954,27 @@ export default function Profile() {
                             <div className="promotion-info">
                               <div className="promotion-main">
                                 <span className="promotion-code">{promotion.code}</span>
-                                <span className={`promotion-status status-${promotion.status?.toLowerCase()}`}>
-                                  {promotion.status === 'SAVED' ? 'Có thể sử dụng' : 
-                                   promotion.status === 'APPLIED' ? 'Có thể sử dụng' : 
-                                   promotion.status === 'USED' ? 'Đã sử dụng' : 
-                                   'Không xác định'}
+                                <span className={`promotion-status status-${((promotion.userPromotionStatus || promotion.status) === 'USED' ? 'used' : 'available')}`}>
+                                  {(promotion.userPromotionStatus || promotion.status) === 'USED' 
+                                    ? 'Đã sử dụng' 
+                                    : 'Có thể sử dụng'}
                                 </span>
                               </div>
                               <div className="promotion-details">
                                 <span className="promotion-description">{promotion.description}</span>
-                                {promotion.discountAmount > 0 && (
+                                {promotion.discountAmount && promotion.discountAmount > 0 && (
                                   <span className="promotion-discount">
                                     Giảm {promotion.discountAmount.toLocaleString('vi-VN')} VNĐ
+                                  </span>
+                                )}
+                                {promotion.discountValue && promotion.discountType && (
+                                  <span className="promotion-discount">
+                                    {promotion.discountType === 'PERCENT' 
+                                      ? `Giảm ${promotion.discountValue}%` 
+                                      : `Giảm ${promotion.discountValue.toLocaleString('vi-VN')} VNĐ`}
+                                    {promotion.maxDiscount && promotion.discountType === 'PERCENT' && (
+                                      ` (tối đa ${promotion.maxDiscount.toLocaleString('vi-VN')} VNĐ)`
+                                    )}
                                   </span>
                                 )}
                                 {promotion.endDate && (

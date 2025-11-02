@@ -98,15 +98,28 @@ export const PromotionService = {
     },
   async applyCouponToOrder(orderId: number, code: string): Promise<{ success: boolean; message: string; data?: any }> {
     try {
-      const { data } = await api.post(`/promotion/orders/${orderId}/apply`, { code })
-      return data
+      // Try uppercase endpoint first (consistent with other endpoints)
+      try {
+        const { data } = await api.post(`/Promotion/orders/${orderId}/apply`, { code })
+        return data
+      } catch (upperError: any) {
+        // Fallback to lowercase if uppercase fails
+        if (upperError?.response?.status === 404 || upperError?.response?.status === 400) {
+          console.log('Trying lowercase endpoint for apply coupon...')
+          const { data } = await api.post(`/promotion/orders/${orderId}/apply`, { code })
+          return data
+        }
+        throw upperError
+      }
     } catch (error) {
       throw error
     }
   },
   async getSavedPromotionsByCustomer(customerId: number): Promise<{ success: boolean; message?: string; data?: Array<{ code?: string; description?: string; discountAmount?: number; status?: string }> }> {
     try {
-      const { data } = await api.get(`/promotion/customers/${customerId}/promotions`)
+      // Endpoint doesn't need customerId in URL, it's extracted from JWT token
+      // ASP.NET Core route: [Route("api/[controller]")] -> /api/Promotion/promotions
+      const { data } = await api.get(`/Promotion/promotions`)
       return data
     } catch (error) {
       throw error

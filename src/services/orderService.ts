@@ -30,8 +30,12 @@ export const OrderService = {
     const { data } = await api.get(`/Order/${orderId}/items`)
     return data
   },
-  async checkoutOnline(orderId: number): Promise<{ success: boolean; message?: string; checkoutUrl?: string }> {
+  async checkoutOnline(orderId: number): Promise<{ success: boolean; message?: string; checkoutUrl?: string; code?: string }> {
     const { data } = await api.post(`/Order/${orderId}/checkout/online`)
+    return data
+  },
+  async getExistingPaymentLink(orderId: number): Promise<{ success: boolean; message?: string; checkoutUrl?: string; orderCode?: number }> {
+    const { data } = await api.get(`/Order/${orderId}/payment/link`)
     return data
   },
   // Ghi chú: Endpoint apply-coupon không tồn tại trong BE hiện tại. Chờ BE bổ sung.

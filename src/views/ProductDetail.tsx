@@ -43,14 +43,14 @@ const convertPartToProduct = (part: Part): Product => {
     id: part.partId.toString(),
     name: part.partName,
     price: part.unitPrice,
-    originalPrice: part.unitPrice * 1.2, // Mock original price (20% higher)
+    originalPrice: part.originalPrice || undefined, // Use actual originalPrice from API if available
     brand: part.brand,
     category: part.brand, // Using brand as category for now
     rating: part.rating,
     inStock: !part.isOutOfStock,
     // Add UI-specific properties
     description: `${part.partName} - ${part.brand}`,
-    reviewCount: Math.floor(Math.random() * 200) + 50, // Mock review count
+    reviewCount: part.reviewCount || 0, // Use actual reviewCount from API if available
     images: [`https://picsum.photos/seed/${part.partId}/400/400`],
     features: ['Chất lượng cao', 'Bền bỉ', 'Đáng tin cậy'],
     specifications: {

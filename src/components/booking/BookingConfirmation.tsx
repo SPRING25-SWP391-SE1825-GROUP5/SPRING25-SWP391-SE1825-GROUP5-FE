@@ -88,21 +88,9 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     
     // Allow payment even without reservation (for testing)
     if (!reservation?.bookingId) {
-      console.warn('No booking ID available, but allowing payment for testing')
-      // For testing purposes, create a mock booking ID
-      const mockReservation = {
-        bookingId: Date.now(), // Mock booking ID
-        reservationId: `BK${Date.now()}`,
-        totalAmount: totalPrice,
-        vehicle: selectedVehicle,
-        center: selectedCenter,
-        appointmentDate: selectedDate,
-        timeSlot: selectedTimeSlot?.slotTime,
-        services: selectedServices.map(id => services.find(s => s.id === id)).filter(Boolean)
-      }
-      
-      console.log('Using mock reservation:', mockReservation)
-      setShowPaymentMethods(true)
+      console.error('No booking ID available - cannot proceed with payment')
+      // Show error to user - booking must be created first
+      alert('Lỗi: Không thể tạo thanh toán. Vui lòng thử lại hoặc liên hệ hỗ trợ.')
       return
     }
     
