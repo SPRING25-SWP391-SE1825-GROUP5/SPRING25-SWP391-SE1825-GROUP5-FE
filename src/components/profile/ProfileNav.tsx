@@ -20,7 +20,9 @@ export type ProfileTabKey =
   | 'promotions'
   | 'packages'
   | 'notifications'
-  
+  | 'service-history'
+  | 'promo-codes'
+
 
 interface NavItem {
   key: ProfileTabKey

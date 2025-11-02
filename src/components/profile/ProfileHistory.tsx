@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BookingService, type CustomerBooking } from '@/services/bookingService'
+import { CustomerService } from '@/services/customerService'
 import { useAppSelector } from '@/store/hooks'
 import { PayOSService } from '@/services/payOSService'
 import toast from 'react-hot-toast'
@@ -17,7 +18,7 @@ export default function ProfileHistory() {
 
   useEffect(() => {
     const loadBookings = async () => {
-      if (!user || !user.customerId) {
+      if (!user?.id) {
         setLoading(false)
         setBookings([])
         return
@@ -25,9 +26,41 @@ export default function ProfileHistory() {
 
       try {
         setLoading(true)
-        const customerBookings = await BookingService.getCustomerBookings(user.customerId)
-        // Ensure bookings is always an array
-        const bookingsArray = Array.isArray(customerBookings) ? customerBookings : []
+
+        // Get customerId - check user first, then load from API
+        let currentCustomerId = user.customerId
+        if (!currentCustomerId) {
+          try {
+            const customerResponse = await CustomerService.getCurrentCustomer()
+            if (customerResponse.success && customerResponse.data) {
+              currentCustomerId = customerResponse.data.customerId
+            }
+          } catch (error) {
+            console.error('Error loading customer:', error)
+            setLoading(false)
+            setBookings([])
+            return
+          }
+        }
+
+        if (!currentCustomerId) {
+          setLoading(false)
+          setBookings([])
+          return
+        }
+
+        // Load bookings using CustomerService (has pagination support)
+        const response = await CustomerService.getCustomerBookings(currentCustomerId, { pageNumber: 1, pageSize: 100 })
+
+        let bookingsArray: CustomerBooking[] = []
+        if (response && response.data) {
+          if (Array.isArray(response.data)) {
+            bookingsArray = response.data
+          } else if (response.data.bookings && Array.isArray(response.data.bookings)) {
+            bookingsArray = response.data.bookings
+          }
+        }
+
         setBookings(bookingsArray)
       } catch (error: unknown) {
         const err = error as { message?: string }
@@ -39,14 +72,13 @@ export default function ProfileHistory() {
     }
 
     loadBookings()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.customerId])
+  }, [user?.id, user?.customerId])
 
   // Ensure bookings is always an array before rendering
   const bookingsArray = Array.isArray(bookings) ? bookings : []
 
   // Find newest booking (highest bookingId or latest createdAt)
-  const newestBookingId = bookingsArray.length > 0 
+  const newestBookingId = bookingsArray.length > 0
     ? bookingsArray.reduce((newest, booking) => {
         if (!newest) return booking
         const newestDate = new Date(newest.createdAt || 0).getTime()
@@ -74,16 +106,16 @@ export default function ProfileHistory() {
     try {
       setCancellingBookingId(bookingId)
       const result = await BookingService.cancelBooking(bookingId)
-      
+
       if (result.success) {
         // Update booking status in state
-        setBookings(prev => prev.map(booking => 
-          booking.bookingId === bookingId 
+        setBookings(prev => prev.map(booking =>
+          booking.bookingId === bookingId
             ? { ...booking, status: 'CANCELLED' }
             : booking
         ))
         toast.success('Đã hủy đặt lịch thành công')
-        
+
         // Close expanded section if this booking was expanded
         if (expandedBookingId === bookingId) {
           setExpandedBookingId(null)
@@ -102,7 +134,7 @@ export default function ProfileHistory() {
     try {
       setProcessingPaymentId(bookingId)
       const paymentResponse = await PayOSService.createPaymentLink(bookingId)
-      
+
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
         window.location.href = paymentResponse.data.checkoutUrl
       } else {
@@ -128,7 +160,7 @@ export default function ProfileHistory() {
     )
   }
 
-  if (!user || !user.customerId) {
+  if (!user) {
     return (
       <div className="profile-v2__section">
         <div className="profile-v2__empty">
@@ -161,15 +193,15 @@ export default function ProfileHistory() {
 
   return (
     <div className="profile-v2__section">
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         flexDirection: 'column',
         gap: '16px',
         padding: '16px 0'
       }}>
         {currentBookings.map((booking) => (
-          <BookingHistoryCard 
-            key={booking.bookingId} 
+          <BookingHistoryCard
+            key={booking.bookingId}
             booking={booking}
             isNewest={booking.bookingId === newestBookingId}
             isExpanded={expandedBookingId === booking.bookingId}

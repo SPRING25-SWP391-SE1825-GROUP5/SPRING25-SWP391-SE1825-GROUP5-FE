@@ -177,7 +177,7 @@ export default function InventoryManagement() {
       if (response.success) {
         setSelectedInventory({
           ...inventory,
-          inventoryParts: response.data.data.parts
+          inventoryParts: response.data.parts
         });
         setShowPartsModal(true);
       }

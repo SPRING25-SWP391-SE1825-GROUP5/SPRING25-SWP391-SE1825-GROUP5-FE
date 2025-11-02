@@ -137,7 +137,61 @@
 .video-player { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
 
 /* CTA */
-.cta-section { padding: 6rem 0; background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%); text-align: center; }
+.cta-section { padding: 6rem 0; background: #ffffff; text-align: center; position: relative; overflow: hidden; }
+.cta-section::before {
+  content: '';
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 60%;
+  background: radial-gradient(1200px 400px at 50% 0%, rgba(255,216,117,0.25), rgba(255,255,255,0) 60%);
+  pointer-events: none;
+}
+.cta-section::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 60%;
+  height: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(184,134,11,0.35), rgba(255,255,255,0));
+  opacity: .7;
+}
+.cta-section .cta-buttons .btn-primary { box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+.cta-section .cta-buttons .btn-secondary { box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+
+/* Shape dividers between sections */
+.shape-divider { position: relative; height: 80px; width: 100%; overflow: hidden; line-height: 0; }
+.shape-divider svg { position: relative; display: block; width: 100%; height: 80px; }
+.shape-divider .shape-fill { fill: rgba(184,134,11,0.5); }
+.shape-divider.shape-divider--flip svg { transform: rotate(180deg); }
+.shape-divider--angled .shape-fill { fill: rgba(184,134,11,0.55); }
+.shape-divider--angled { filter: drop-shadow(0 -2px 6px rgba(0,0,0,0.06)); }
+
+/* Stacked (layered) variant for stronger impact */
+.shape-divider--stacked { height: 90px; }
+.shape-divider--stacked svg { height: 90px; }
+.shape-divider--stacked .shape-fill-1 { fill: rgba(184,134,11,0.65); }
+.shape-divider--stacked .shape-fill-2 { fill: rgba(255,216,117,0.45); }
+.shape-divider--stacked.shape-divider--flip { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.06)); }
+
+/* Color variants to match next section */
+.shape-divider--to-light .shape-fill,
+.shape-divider--to-light .shape-fill-1 { fill: rgba(255,216,117,0.38); }
+.shape-divider--to-light .shape-fill-2 { fill: rgba(255,255,255,0.7); }
+.shape-divider--to-dark .shape-fill,
+.shape-divider--to-dark .shape-fill-1 { fill: rgba(184,134,11,0.6); }
+.shape-divider--to-dark .shape-fill-2 { fill: rgba(255,216,117,0.42); }
+
+@media (max-width: 768px) {
+  .shape-divider { height: 60px; }
+  .shape-divider svg { height: 60px; }
+}
+
+/* Ensure text/button contrast on white CTA */
+.cta-section h2 { color: var(--text-primary); }
+.cta-section p { color: var(--text-secondary); }
+.cta-section .btn-primary { color: var(--text-deep); }
 .cta-buttons { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
 
 /* Responsive helpers */

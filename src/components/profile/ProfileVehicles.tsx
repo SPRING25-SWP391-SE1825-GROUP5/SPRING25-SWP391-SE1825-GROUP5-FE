@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { 
-  PlusIcon, 
-  ChevronDownIcon, 
+import {
+  PlusIcon,
+  ChevronDownIcon,
   ChevronUpIcon,
   TruckIcon,
   HashtagIcon,
@@ -15,6 +15,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline'
 import { VehicleService, type Vehicle } from '@/services/vehicleService'
+import { CustomerService } from '@/services/customerService'
 import { useAppSelector } from '@/store/hooks'
 import toast from 'react-hot-toast'
 import AddVehicleModal from './AddVehicleModal'
@@ -36,17 +37,29 @@ export default function ProfileVehicles() {
   const [savingVehicles, setSavingVehicles] = useState<Set<number>>(new Set())
 
   const loadVehicles = useCallback(async () => {
-    const customerId = user?.customerId
-    
-    if (!customerId) {
+    let currentCustomerId = user?.customerId
+
+    // If customerId not in user, get from API
+    if (!currentCustomerId && user?.id) {
+      try {
+        const customerResponse = await CustomerService.getCurrentCustomer()
+        if (customerResponse.success && customerResponse.data) {
+          currentCustomerId = customerResponse.data.customerId
+        }
+      } catch (error) {
+        console.error('Error loading customer:', error)
+      }
+    }
+
+    if (!currentCustomerId) {
       setLoading(false)
       return
     }
 
     setLoading(true)
     try {
-      const response = await VehicleService.getCustomerVehicles(customerId)
-      
+      const response = await VehicleService.getCustomerVehicles(currentCustomerId)
+
       if (response.success && response.data?.vehicles) {
         setVehicles(response.data.vehicles)
       } else {
@@ -59,15 +72,15 @@ export default function ProfileVehicles() {
     } finally {
       setLoading(false)
     }
-  }, [user?.customerId])
+  }, [user?.customerId, user?.id])
 
   useEffect(() => {
-    if (user?.customerId) {
+    if (user?.id) {
       loadVehicles()
     } else {
       setLoading(false)
     }
-  }, [loadVehicles, user?.customerId])
+  }, [loadVehicles, user?.id])
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return null
@@ -146,27 +159,27 @@ export default function ProfileVehicles() {
 
       await VehicleService.updateVehicle(vehicleId, payload)
       toast.success('Cập nhật thông tin phương tiện thành công!')
-      
+
       // Reload vehicles
       await loadVehicles()
-      
+
       // Exit edit mode
       cancelEdit(vehicleId)
     } catch (error: unknown) {
       const err = error as { response?: { status?: number; data?: { message?: string; errors?: Record<string, string[]> } }; message?: string }
-      
+
       // Handle validation errors
       if (err.response?.status === 400 && err.response.data?.errors) {
         const backendErrors = err.response.data.errors
         let errorMessages: string[] = []
-        
+
         Object.keys(backendErrors).forEach((field) => {
           const messages = backendErrors[field]
           if (Array.isArray(messages) && messages.length > 0) {
             errorMessages.push(...messages)
           }
         })
-        
+
         if (errorMessages.length > 0) {
           toast.error(errorMessages[0])
         }
@@ -301,7 +314,7 @@ export default function ProfileVehicles() {
           {vehicles.map((vehicle, index) => {
             const isCollapsed = collapsedVehicles.has(vehicle.vehicleId)
             const vehicleName = vehicle.licensePlate ? vehicle.licensePlate.toUpperCase() : `VIN: ${vehicle.vin}`
-            
+
             // Màu sắc cho mỗi form (luân phiên)
             const colors = [
               { bg: '#FFEBB7', border: '#FFD875', inputBg: '#FFF9E6', inputBorder: '#FFE082' }, // Vàng nhạt
@@ -310,13 +323,13 @@ export default function ProfileVehicles() {
               { bg: '#E8F5E9', border: '#A5D6A7', inputBg: '#F1F8E9', inputBorder: '#C8E6C9' }, // Xanh lá nhạt
             ]
             const colorScheme = colors[index % colors.length]
-            
+
             const isEditing = editingVehicles.has(vehicle.vehicleId)
             const isSaving = savingVehicles.has(vehicle.vehicleId)
             const editValues = editData[vehicle.vehicleId]
-            
+
             return (
-              <div 
+              <div
                 key={vehicle.vehicleId}
                 style={{
                   width: '360px',
@@ -353,9 +366,9 @@ export default function ProfileVehicles() {
                     <ChevronUpIcon width={18} height={18} style={{ color: '#111827', flexShrink: 0 }} />
                   )}
                   <TruckIcon width={20} height={20} style={{ color: '#111827', flexShrink: 0 }} />
-                  <span style={{ 
-                    fontSize: '16px', 
-                    fontWeight: '600', 
+                  <span style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
                     color: '#111827',
                     flex: 1
                   }}>
@@ -453,8 +466,8 @@ export default function ProfileVehicles() {
                         <TruckIcon width={16} height={16} style={{ color: colorScheme.border }} />
                         Biển số xe
                       </label>
-                      <div style={{ 
-                        fontSize: '16px', 
+                      <div style={{
+                        fontSize: '16px',
                         color: '#111827',
                         padding: '8px 12px',
                         background: colorScheme.inputBg,
@@ -470,8 +483,8 @@ export default function ProfileVehicles() {
                         <HashtagIcon width={16} height={16} style={{ color: colorScheme.border }} />
                         VIN
                       </label>
-                      <div style={{ 
-                        fontSize: '16px', 
+                      <div style={{
+                        fontSize: '16px',
                         color: '#111827',
                         padding: '8px 12px',
                         background: colorScheme.inputBg,
@@ -507,8 +520,8 @@ export default function ProfileVehicles() {
                           ))}
                         </select>
                       ) : (
-                        <div style={{ 
-                          fontSize: '16px', 
+                        <div style={{
+                          fontSize: '16px',
                           color: '#111827',
                           padding: '8px 12px',
                           background: colorScheme.inputBg,
@@ -541,15 +554,15 @@ export default function ProfileVehicles() {
                           }}
                         />
                       ) : (
-                        <div style={{ 
-                          fontSize: '16px', 
+                        <div style={{
+                          fontSize: '16px',
                           color: '#111827',
                           padding: '8px 12px',
                           background: colorScheme.inputBg,
                           border: `1px solid ${colorScheme.inputBorder}`,
                           borderRadius: '0'
                         }}>
-                          {vehicle.currentMileage !== undefined && vehicle.currentMileage !== null 
+                          {vehicle.currentMileage !== undefined && vehicle.currentMileage !== null
                             ? `${vehicle.currentMileage.toLocaleString('vi-VN')} km`
                             : 'Chưa có'}
                         </div>
@@ -576,8 +589,8 @@ export default function ProfileVehicles() {
                           }}
                         />
                       ) : (
-                        <div style={{ 
-                          fontSize: '16px', 
+                        <div style={{
+                          fontSize: '16px',
                           color: '#111827',
                           padding: '8px 12px',
                           background: colorScheme.inputBg,
@@ -596,8 +609,8 @@ export default function ProfileVehicles() {
                           <CalendarIcon width={16} height={16} style={{ color: colorScheme.border }} />
                           Lần bảo dưỡng tiếp theo
                         </label>
-                        <div style={{ 
-                          fontSize: '16px', 
+                        <div style={{
+                          fontSize: '16px',
                           color: '#111827',
                           padding: '8px 12px',
                           background: colorScheme.inputBg,

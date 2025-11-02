@@ -76,6 +76,13 @@ export type UserListResponse = {
  */
 export const UserService = {
   /**
+   * Get current logged-in user (profile)
+   */
+  async getMe(): Promise<User> {
+    const { data } = await api.get<User>('/users/me')
+    return data
+  },
+  /**
    * Update current user profile
    * 
    * @param userData - Partial user data to update

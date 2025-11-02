@@ -14,6 +14,7 @@ import { CustomerService } from '@/services/customerService'
 import { ServiceManagementService } from '@/services/serviceManagementService'
 import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
 import { PayOSService } from '@/services/payOSService'
+import { PromotionBookingService } from '@/services/promotionBookingService'
 
 // Types
 interface CustomerInfo {
@@ -26,6 +27,8 @@ interface VehicleInfo {
   carModel: string
   modelId?: number
   mileage: string
+  // Km gần đây (người dùng nhập để cập nhật km hiện tại của xe nếu có)
+  recentMileage?: string
   licensePlate: string
   year?: string
   color?: string
@@ -95,7 +98,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const auth = useAppSelector((s) => s.auth)
   const dispatch = useAppDispatch()
-  
+
   const [bookingData, setBookingData] = useState<BookingData>({
     customerInfo: {
       fullName: '',
@@ -105,6 +108,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     vehicleInfo: {
       carModel: '',
       mileage: '',
+      recentMileage: '',
       licensePlate: ''
     },
     serviceInfo: {
@@ -282,7 +286,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     try {
       // Validate required fields first
       const validationErrors: string[] = []
-      
+
       if (!bookingData.customerInfo.fullName?.trim()) {
         validationErrors.push('Thiếu họ tên khách hàng')
       }
@@ -316,7 +320,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       if (!bookingData.locationTimeInfo.technicianSlotId) {
         validationErrors.push('Chưa chọn slot kỹ thuật viên')
       }
-      
+
       if (validationErrors.length > 0) {
         alert('Dữ liệu không hợp lệ:\n' + validationErrors.join('\n'))
         return
@@ -359,15 +363,19 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           return await sum
         }
       }, Promise.resolve(0))
-      
+
       const finalTotalPrice = await totalPrice
+      // apply promotion if available from ConfirmationStep persisted into bookingData
+      const payableAmount = Math.max(0, finalTotalPrice - (bookingData.promotionInfo?.discountAmount || 0))
+      console.log('Total price calculated:', finalTotalPrice)
+      console.log('Payable amount after promotion:', payableAmount)
 
       // Resolve current user -> customerId
       let me: any = null
       if (!isGuest) {
         me = await CustomerService.getCurrentCustomer()
       }
-      
+
       // Sử dụng guestCustomerId nếu có (khi staff tạo booking cho khách vãng lai)
       let customerId: number | null = null
       if (ensuredGuestCustomerId || bookingData.guestCustomerId) {
@@ -375,7 +383,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       } else {
         customerId = me?.data?.customerId || null
       }
-      
+
       if (!customerId) throw new Error('Không xác định được khách hàng')
 
       // Resolve vehicle: nếu đã có xe theo biển số -> dùng luôn, ngược lại tạo mới
@@ -407,6 +415,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       }
 
       // Nếu vẫn chưa có, tạo xe mới
+      let createdNewVehicle = false
       if (!vehicleId) {
         const createVeh = await VehicleService.createVehicle({
           customerId,
@@ -419,16 +428,33 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           modelId: bookingData.vehicleInfo.modelId
         })
         vehicleId = Number(createVeh?.data?.vehicleId)
+        console.log('Created vehicle ID:', vehicleId)
+        createdNewVehicle = true
       }
 
       if (!vehicleId) throw new Error('Không thể xác định VehicleID')
+
+      // Cập nhật km hiện tại nếu người dùng nhập "Km gần đây" và xe là xe đã tồn tại
+      try {
+        const recent = bookingData.vehicleInfo.recentMileage
+        if (!createdNewVehicle && recent && recent.trim() !== '') {
+          const recentNum = Number(recent)
+          const baseNum = Number(bookingData.vehicleInfo.mileage || 0)
+          if (!isNaN(recentNum) && recentNum >= 0 && recentNum >= baseNum) {
+            console.log('Updating vehicle mileage with recentMileage:', recentNum)
+            await VehicleService.updateMileage(Number(vehicleId), { currentMileage: recentNum })
+          }
+        }
+      } catch (updateErr) {
+        console.error('Failed to update recent mileage (will continue booking):', updateErr)
+      }
 
       // Choose serviceId or packageCode
       let serviceId: number | undefined = undefined
       if (bookingData.serviceInfo.services.length > 0) {
         // Get the selected service ID from bookingData.serviceInfo.services
         const selectedServiceIdStr = bookingData.serviceInfo.services[0]
-        
+
         // Convert string to number
         const selectedServiceIdNum = Number(selectedServiceIdStr)
         if (!isNaN(selectedServiceIdNum) && selectedServiceIdNum > 0) {
@@ -442,7 +468,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       if (!bookingData.locationTimeInfo.technicianSlotId || !bookingData.locationTimeInfo.centerId) {
         throw new Error('Thiếu slot hoặc trung tâm')
       }
-      
+
       try {
         await holdSlot({
           centerId: Number(bookingData.locationTimeInfo.centerId),
@@ -452,7 +478,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         })
       } catch (holdError: any) {
         // Check if it's a slot conflict error
-        if (holdError.response?.data?.message?.includes('Slot đang được giữ bởi người khác') || 
+        if (holdError.response?.data?.message?.includes('Slot đang được giữ bởi người khác') ||
             holdError.message?.includes('Slot đang được giữ bởi người khác')) {
           setSubmitError('Slot này đang được giữ bởi người khác. Vui lòng chọn slot khác hoặc thử lại sau.')
           setIsSubmitting(false)
@@ -478,12 +504,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
         licensePlate: bookingData.vehicleInfo.licensePlate
       }
-       
+
        const resp = await createBooking(bookingPayload)
 
        // Extract bookingId from response - check different possible structures
        let bookingId: string | null = null
-       
+
        // Try different possible response structures
        if (resp && typeof resp === 'object') {
          // Direct properties
@@ -500,7 +526,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
            }
          }
        }
-       
+
        if (!bookingId) {
          // Redirect to booking success page even without valid booking ID
          const fallbackUrl = `/booking-success?bookingId=unknown&amount=${finalTotalPrice}`
@@ -514,13 +540,28 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         bookingId: bookingId
       }))
 
+      // Apply promotion on server BEFORE creating PayOS link so BE has APPLIED record
+      try {
+        const promoCode = bookingData.promotionInfo?.promotionCode?.trim()
+        if (promoCode) {
+          console.log('Applying promotion to booking on server:', promoCode)
+          const applyRes = await PromotionBookingService.applyPromotionToBooking({ bookingId: Number(bookingId), code: promoCode })
+          console.log('Apply promotion result:', applyRes)
+        } else {
+          console.log('No promotion code to apply on server')
+        }
+      } catch (applyErr) {
+        console.warn('Apply promotion failed (continue with client-side discount + server safety-net):', applyErr)
+      }
+
       // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
-      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId))
-      
+      console.log('Creating PayOS payment link for booking ID:', bookingId)
+      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId), Math.round(payableAmount))
+
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
         // Redirect trực tiếp đến PayOS checkout
         window.location.href = paymentResponse.data.checkoutUrl
-        
+
         // Đánh dấu bước cuối cùng là completed khi booking được tạo thành công
         const finalStep = isGuest ? 4 : 3
         setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
@@ -530,7 +571,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       return
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string }
-      
+
       // Show user-friendly error message directly on the page
       const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi tạo đặt lịch'
       setSubmitError(errorMessage)
@@ -584,6 +625,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
+              onPromotionChange={(info) => {
+                setBookingData(prev => ({
+                  ...prev,
+                  promotionInfo: info ? { promotionCode: info.promotionCode, discountAmount: info.discountAmount } : { promotionCode: undefined, discountAmount: 0 }
+                }))
+              }}
             />
           )
         default:
@@ -648,7 +695,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               <h3>Không thể đặt lịch</h3>
               <p>{submitError}</p>
             </div>
-            <button 
+            <button
               className="error-close"
               onClick={() => setSubmitError(null)}
             >
@@ -764,11 +811,11 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           .service-booking-form {
             padding: 1rem;
           }
-          
+
           .booking-title {
             font-size: 1.5rem;
           }
-          
+
           .booking-content {
             padding: 1.5rem;
           }

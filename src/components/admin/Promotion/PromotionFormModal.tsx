@@ -283,7 +283,8 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: editingPromotion ? '#f3f4f6' : '#fff'
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.code && (
@@ -317,7 +318,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   fontSize: '15px',
                   boxSizing: 'border-box',
                   resize: 'vertical',
-                  fontFamily: 'inherit'
+                  fontFamily: 'inherit',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.description && (
@@ -348,7 +351,8 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#fff',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937',
                   cursor: 'pointer'
                 }}
               >
@@ -386,7 +390,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   border: `2px solid ${errors.discountValue ? '#ef4444' : '#d1d5db'}`,
                   borderRadius: '0',
                   fontSize: '15px',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.discountValue && (
@@ -421,7 +427,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                     border: `2px solid ${errors.maxDiscount ? '#ef4444' : '#d1d5db'}`,
                     borderRadius: '0',
                     fontSize: '15px',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    backgroundColor: '#f3f4f6',
+                    color: '#1f2937'
                   }}
                 />
                 {errors.maxDiscount && (
@@ -456,7 +464,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   border: `2px solid ${errors.minOrderAmount ? '#ef4444' : '#d1d5db'}`,
                   borderRadius: '0',
                   fontSize: '15px',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.minOrderAmount && (
@@ -487,7 +497,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   border: `2px solid ${errors.startDate ? '#ef4444' : '#d1d5db'}`,
                   borderRadius: '0',
                   fontSize: '15px',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.startDate && (
@@ -519,7 +531,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   border: `2px solid ${errors.endDate ? '#ef4444' : '#d1d5db'}`,
                   borderRadius: '0',
                   fontSize: '15px',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.endDate && (
@@ -552,7 +566,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   border: `2px solid ${errors.usageLimit ? '#ef4444' : '#d1d5db'}`,
                   borderRadius: '0',
                   fontSize: '15px',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f3f4f6',
+                  color: '#1f2937'
                 }}
               />
               {errors.usageLimit && (

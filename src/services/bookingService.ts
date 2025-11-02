@@ -268,6 +268,8 @@ export const BookingService = {
   // Legacy method - kept for backward compatibility
   async getBookingsByCenter(centerId: number): Promise<BookingResponse> {
     const response = await api.get(`/Booking/center/${centerId}`)
+
+
     return response.data
   },
 
@@ -382,9 +384,7 @@ export const BookingService = {
   // Lấy lịch sử booking của customer
   async getBookingHistory(customerId: number, page: number = 1, limit: number = 10): Promise<any> {
     try {
-      console.log('🌐 BookingService.getBookingHistory called:', { customerId, page, limit })
       const url = `/Booking/Customer/${customerId}/booking-history`
-      console.log('📡 API URL:', url)
 
       const response = await api.get(url, {
         params: {
@@ -394,7 +394,6 @@ export const BookingService = {
           sortOrder: 'desc'
         }
       })
-      console.log('✅ BookingService API response:', response.data)
       return response.data
     } catch (error: any) {
       console.error('❌ Error fetching booking history:', error)

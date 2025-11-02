@@ -369,37 +369,37 @@ export default function PromotionManagement() {
       </div>
 
         <div className="toolbar-filters">
-          <div className="pill-select" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenTypeMenu(false); setOpenStatusMenu(v=>!v); }}>
-            <CheckCircle size={14} className="icon" />
-            <button type="button" className="pill-trigger">{statuses.find(s=>s.value===filterStatus)?.label}</button>
-            <ChevronDownIcon width={16} height={16} className="caret" />
+          <div className="filter-dropdown" ref={statusRef} onClick={(e)=>{ e.stopPropagation(); setOpenTypeMenu(false); setOpenStatusMenu(v=>!v); }}>
+            <CheckCircle size={14} className="filter-icon" />
+            <span className="filter-text">{statuses.find(s=>s.value===filterStatus)?.label}</span>
+            <ChevronDownIcon width={16} height={16} className="filter-arrow" />
             {openStatusMenu && (
-              <ul className="pill-menu show">
+              <ul className="filter-menu show">
                 {statuses.map(s => (
-                  <li key={s.value} className={`pill-item ${filterStatus===s.value ? 'active' : ''}`}
+                  <li key={s.value} className={`filter-item ${filterStatus===s.value ? 'active' : ''}`}
                       onClick={()=>{ setFilterStatus(s.value); setPageNumber(1); setOpenStatusMenu(false); }}>
                     {s.label}
                   </li>
                 ))}
               </ul>
             )}
-        </div>
+          </div>
 
-          <div className="pill-select" ref={typeRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenTypeMenu(v=>!v); }}>
-            <Percent size={14} className="icon" />
-            <button type="button" className="pill-trigger">{types.find(t=>t.value===filterType)?.label}</button>
-            <ChevronDownIcon width={16} height={16} className="caret" />
+          <div className="filter-dropdown" ref={typeRef} onClick={(e)=>{ e.stopPropagation(); setOpenStatusMenu(false); setOpenTypeMenu(v=>!v); }}>
+            <Percent size={14} className="filter-icon" />
+            <span className="filter-text">{types.find(t=>t.value===filterType)?.label}</span>
+            <ChevronDownIcon width={16} height={16} className="filter-arrow" />
             {openTypeMenu && (
-              <ul className="pill-menu show">
+              <ul className="filter-menu show">
                 {types.map(t => (
-                  <li key={t.value} className={`pill-item ${filterType===t.value ? 'active' : ''}`}
+                  <li key={t.value} className={`filter-item ${filterType===t.value ? 'active' : ''}`}
                       onClick={()=>{ setFilterType(t.value); setPageNumber(1); setOpenTypeMenu(false); }}>
                     {t.label}
                   </li>
                 ))}
               </ul>
             )}
-        </div>
+          </div>
 
           <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
         </div>
@@ -543,13 +543,13 @@ export default function PromotionManagement() {
       <div className="promotion-pagination">
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
-          <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
-            <button type="button" className="pill-trigger">{pageSize}</button>
-            <ChevronDownIcon width={20} height={20} className="caret caret-lg" />
+          <div className="page-size-selector" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
+            <span className="page-size-text">{pageSize}</span>
+            <ChevronDownIcon width={16} height={16} className="page-size-arrow" />
             {openPageSizeMenu && (
-              <ul className="pill-menu show">
+              <ul className="page-size-menu show">
                 {[10, 15, 20, 30, 50].map(sz => (
-                  <li key={sz} className={`pill-item ${pageSize === sz ? 'active' : ''}`}
+                  <li key={sz} className={`page-size-item ${pageSize === sz ? 'active' : ''}`}
                       onClick={() => { setPageSize(sz); setPageNumber(1); setOpenPageSizeMenu(false); }}>
                     {sz}
                   </li>

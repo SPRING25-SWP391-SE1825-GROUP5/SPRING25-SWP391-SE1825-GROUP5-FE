@@ -152,3 +152,32 @@
   }
 }
 
+// Form input fields styles - đổi từ đen sang xám
+.promotion-form-modal__overlay {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    background-color: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border: 2px solid #d1d5db !important;
+
+    &::placeholder {
+      color: #9ca3af !important;
+    }
+
+    &:focus {
+      background-color: #fff !important;
+      border-color: #FFD875 !important;
+      outline: none !important;
+    }
+
+    &:disabled {
+      background-color: #f3f4f6 !important;
+      color: #6b7280 !important;
+      cursor: not-allowed;
+    }
+  }
+}
+

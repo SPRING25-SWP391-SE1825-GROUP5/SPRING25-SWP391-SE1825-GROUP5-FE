@@ -181,23 +181,6 @@ export default function BookingManagement() {
     }
   };
 
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-    setPageNumber(1);
-  };
-
-  const getSortIcon = (field: string) => {
-    if (sortBy !== field) {
-      return <ChevronUp size={14} style={{ opacity: 0.3 }} />;
-    }
-    return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
-  };
-
   const handleViewBooking = async (booking: AdminBookingSummary) => {
     try {
       setSelectedBooking(booking);

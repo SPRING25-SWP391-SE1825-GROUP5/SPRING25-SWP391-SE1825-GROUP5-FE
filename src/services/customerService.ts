@@ -69,17 +69,31 @@ export interface CustomerServicePackagesResponse {
   data: CustomerServicePackage[]
 }
 
+export interface CustomerBookingsResponse {
+  success: boolean
+  message: string
+  data: {
+    bookings: any[]
+    pagination?: {
+      pageNumber: number
+      pageSize: number
+      totalCount: number
+      totalPages: number
+    }
+  } | any[]
+}
+
 /**
  * Customer Service
  * Handles customer management operations
- * 
+ *
  * @class CustomerService
  * @description Service responsible for customer CRUD operations
  */
 export const CustomerService = {
   /**
    * Get current customer information (map from User)
-   * 
+   *
    * @returns Promise with current customer data
    * @throws {Error} When request fails
    */
@@ -90,7 +104,7 @@ export const CustomerService = {
 
   /**
    * Create new customer profile
-   * 
+   *
    * @param customerData - Customer creation data
    * @returns Promise with created customer
    * @throws {Error} When creation fails
@@ -102,7 +116,7 @@ export const CustomerService = {
 
   /**
    * Get customer vehicles
-   * 
+   *
    * @param customerId - Customer ID
    * @param params - Query parameters for pagination and search
    * @returns Promise with customer's vehicles
@@ -120,7 +134,7 @@ export const CustomerService = {
 
   /**
    * Update customer information
-   * 
+   *
    * @param customerId - Customer ID
    * @param customerData - Customer data to update
    * @returns Promise with updated customer
@@ -133,7 +147,7 @@ export const CustomerService = {
 
   /**
    * Quick create customer (for staff/technician/admin)
-   * 
+   *
    * @param customerData - Customer creation data
    * @returns Promise with created customer
    * @throws {Error} When creation fails
@@ -145,12 +159,18 @@ export const CustomerService = {
 
   /**
    * Get customer service packages
-   * 
+   *
    * @returns Promise with customer's service packages
    * @throws {Error} When request fails
    */
   async getCustomerServicePackages(): Promise<CustomerServicePackagesResponse> {
     const { data } = await api.get<CustomerServicePackagesResponse>('/Customer/service-packages')
+    return data
+  },
+
+  async getCustomerBookings(customerId: number, params: { pageNumber?: number; pageSize?: number } = {}): Promise<CustomerBookingsResponse> {
+    const defaultParams = { pageNumber: 1, pageSize: 10, ...params }
+    const { data } = await api.get<CustomerBookingsResponse>(`/Customer/${customerId}/bookings`, { params: defaultParams })
     return data
   }
 }

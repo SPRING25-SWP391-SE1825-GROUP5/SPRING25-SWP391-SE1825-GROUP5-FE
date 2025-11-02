@@ -7,13 +7,13 @@
   /* Font Family Stack - Modern System Fonts */
   --font-family-primary: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  
+
   /* Font Weights */
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  
+
   /* Font Sizes */
   --font-size-xs: 0.75rem;    /* 12px */
   --font-size-sm: 0.875rem;   /* 14px */
@@ -23,7 +23,7 @@
   --font-size-2xl: 1.5rem;    /* 24px */
   --font-size-3xl: 1.875rem;  /* 30px */
   --font-size-4xl: 2.25rem;   /* 36px */
-  
+
   /* Line Heights */
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
@@ -193,6 +193,12 @@ main, .main-content {
   --primary-700: #8B6914;
   --primary-800: #5D4A00;
   --primary-900: #2F2500;
+  /* Gold/White gradients */
+  --brand-gold: #FFD875;
+  --brand-gold-deep: #B8860B;
+  --brand-white: #FFFFFF;
+  --gradient-gold-white: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-white) 100%);
+  --gradient-gold-deep: linear-gradient(135deg, var(--brand-gold-deep) 0%, var(--brand-gold) 100%);
 
   /* Secondary */
   --secondary-50: #FFF9E5;
@@ -210,6 +216,7 @@ main, .main-content {
   --text-primary: #000000;
   --text-secondary: #6b7280;
   --text-inverse: #000000;
+  --text-deep: #1f2937; /* dark for readability on light gradients */
 
   /* Surfaces */
   --bg-primary: #FFD875;
@@ -239,16 +246,16 @@ main, .main-content {
   justify-content: center;
   gap: .5rem;
   padding: .75rem 1.25rem;
-  background: var(--primary-500);
-  color: #ffffff;
-  border: 1px solid var(--primary-500);
+  background: var(--gradient-gold-white);
+  color: var(--text-deep);
+  border: 1px solid transparent;
   border-radius: 12px;
   font-weight: 700;
   letter-spacing: .2px;
   cursor: pointer;
   transition: all .2s ease;
 }
-.btn-primary:hover { filter: brightness(1.05); box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.btn-primary:hover { background: var(--gradient-gold-deep); box-shadow: 0 6px 18px rgba(0,0,0,.12); }
 .btn-primary:active { transform: translateY(1px); }
 .btn-primary:disabled { background: #e5e7eb; border-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; box-shadow: none; }
 
@@ -259,16 +266,24 @@ main, .main-content {
   gap: .5rem;
   padding: .7rem 1.15rem;
   background: transparent;
-  color: var(--primary-500);
-  border: 2px solid var(--primary-500);
+  color: var(--text-deep);
+  border: 2px solid transparent;
+  border-image: var(--gradient-gold-white) 1;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all .2s ease;
 }
-.btn-secondary:hover { background: var(--primary-50); }
+.btn-secondary:hover { background: linear-gradient(135deg, rgba(255,216,117,0.15), rgba(255,255,255,0.5)); }
 .btn-secondary:active { transform: translateY(1px); }
 .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+/* Gold gradient text utility */
+.text-gold-gradient {
+  background: var(--gradient-gold-deep);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
 table, th, td, thead, tbody {
   border: none !important;
@@ -296,4 +311,73 @@ table thead tr:first-child th {
 
 /* Removed: table th:first-child:not(.cm-th) rule to allow border-right on first column */
 
+.pill-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.pill-select .pill-trigger {
+  display: flex;
+  align-items: center;
+  min-width: 84px;
+  height: 36px;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0 28px 0 12px;
+  cursor: pointer;
+  position: relative;
+}
+.pill-select .pill-trigger svg,
+.pill-select .pill-trigger .icon {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
 
+/* Filter pill nhỏ gọn */
+.pill-select.filter .pill-trigger,
+.pill-select.is-filter .pill-trigger {
+  min-width: 60px;
+  height: 32px;
+  font-size: 13px;
+  padding: 0 18px 0 8px;
+}
+/* Pagination pill giữ lớn như hiện tại */
+.pagination-info .pill-select {
+  width: 38px !important;
+  min-width: 0 !important;
+  max-width: 42px !important;
+}
+.pagination-info .pill-select .pill-trigger {
+  min-width: 0 !important;
+  width: 38px !important;
+  max-width: 42px !important;
+  padding: 0 2px !important;
+  font-size: 13px !important;
+  height: 26px !important;
+  text-align:center !important;
+}
+.pagination-info .pill-trigger .caret {
+  right: 2px !important;
+}
+/* Icon căn trong đúng chuẩn mũi tên cuối bên phải (auto fit) */
+.pill-trigger svg,
+.pill-trigger .icon {
+  margin-left: auto !important;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}

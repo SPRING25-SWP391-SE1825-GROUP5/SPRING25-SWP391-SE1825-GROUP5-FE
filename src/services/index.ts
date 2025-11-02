@@ -1,7 +1,7 @@
 /**
  * Services Index
  * Centralized export for all service modules
- * 
+ *
  * @description This file provides a single point of import for all services,
  * making it easier to import and manage service dependencies across the application.
  */
@@ -21,7 +21,7 @@ export type {
   ChangePasswordRequest
 } from './authService'
 
-// User Management Services  
+// User Management Services
 export { UserService } from './userService'
 export type {
   UpdateUserProfileRequest,
@@ -145,5 +145,12 @@ export type {
   BusinessRules,
   PublicSettings
 } from './configurationService'
+
+// Order Services
+export { OrderService } from './orderService'
+export type { QuickOrderRequest, QuickOrderResponse } from './orderService'
+
+// Promotion Services
+export { PromotionService } from './promotionService'
 
 // TODO: Add other services as they are created
