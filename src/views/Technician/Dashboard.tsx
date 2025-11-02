@@ -18,7 +18,8 @@ import {
   Calendar,
   FileText,
   Settings,
-  Activity
+  Activity,
+  LogOut
 } from 'lucide-react'
 import {
   WorkQueue,
@@ -479,107 +480,229 @@ export default function TechnicianDashboard() {
 
 
   return (
-    <div className="technician-dashboard">
-      {/* Sidebar */}
-      <div className={`technician-dashboard__sidebar ${sidebarCollapsed ? 'technician-dashboard__sidebar--collapsed' : ''}`}>
-          {/* Logo */}
-        <div className={`technician-dashboard__sidebar__logo ${sidebarCollapsed ? 'technician-dashboard__sidebar__logo--collapsed' : ''}`}>
-          <div className="technician-dashboard__sidebar__logo__image">
-             <img 
-               src="/src/assets/images/10.webp" 
-               alt="Logo" 
-               style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-             />
+    <div className="technician-dashboard" style={{ display: 'block', minHeight: '100vh', fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif', position: 'relative' }}>
+      {/* Header Fixed */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: sidebarCollapsed ? '80px' : '280px',
+        right: 0,
+        height: '64px',
+        background: 'var(--bg-card)',
+        borderBottom: '1px solid var(--border-primary)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+        zIndex: 1003,
+        transition: 'left 0.3s ease'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            style={{
+              display: 'none',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '4px',
+              color: 'var(--text-primary)'
+            }}
+            className="mobile-menu-btn"
+          >
+            <Menu size={20} />
+          </button>
+          <h1 style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            margin: 0
+          }}>
+            {getPageTitle()}
+          </h1>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ position: 'relative' }}>
+            <NotificationBell />
           </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            background: '#FFF6D1',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+          onClick={handleLogout}
+          >
+            <div style={{
+              width: '32px',
+              height: '32px',
+              background: '#FFD875',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#000',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              {technicianInfo?.technicianName ? technicianInfo.technicianName.charAt(0).toUpperCase() : 
+               user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'KT'}
+            </div>
+            <span style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: 'var(--text-primary)'
+            }}>
+              {technicianInfo?.technicianName || user?.fullName || 'Kỹ thuật viên'}
+            </span>
+            <LogOut size={16} style={{ color: 'var(--text-tertiary)' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar */}
+      <div
+        className={`technician-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
+        style={{
+          width: sidebarCollapsed ? '80px' : '280px',
+          background: 'var(--bg-card)',
+          borderRight: '1px solid var(--border-primary)',
+          transition: 'width 0.3s ease',
+          position: 'fixed',
+          height: '100vh',
+          zIndex: 1004,
+          top: 0
+        }}
+      >
+        <div style={{ padding: '24px' }}>
+          {/* Logo */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '32px',
+            justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
+          }}>
+            <img src="/src/assets/images/10.webp" alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: sidebarCollapsed ? '0' : '12px', boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)' }} />
+            {!sidebarCollapsed && (
+              <div>
+                <h1 style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  margin: '0'
+                }}>
+                  Technician Panel
+                </h1>
+                <p style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  margin: '0'
+                }}>
+                  Kỹ thuật viên
+                </p>
+          </div>
+            )}
           </div>
 
           {/* Navigation */}
-        <div className={`technician-dashboard__sidebar__nav ${sidebarCollapsed ? 'technician-dashboard__sidebar__nav--collapsed' : ''}`}>
-          <div className="technician-dashboard__sidebar__nav__section">
+          <nav>
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '12px',
+                fontWeight: '600',
+                color: 'var(--text-tertiary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                margin: '0 0 12px 0',
+                display: sidebarCollapsed ? 'none' : 'block'
+              }}>
+                Công việc
+              </h3>
             {[
-              { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
+              { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },  
               { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
               { icon: Settings, label: 'Thông tin cá nhân', page: 'profile' }
             ].map((item, index) => (
               <div 
                 key={index}
                 onClick={() => setActivePage(item.page)}
-                title={sidebarCollapsed ? item.label : ''}
-                className={`technician-dashboard__sidebar__nav__section__item ${
-                  sidebarCollapsed ? 'technician-dashboard__sidebar__nav__section__item--collapsed' : ''
-                } ${
-                  activePage === item.page ? 'technician-dashboard__sidebar__nav__section__item--active' : ''
-                }`}
-              >
-                <item.icon size={18} />
-                {!sidebarCollapsed && <span>{item.label}</span>}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    color: activePage === item.page ? 'var(--primary-500)' : 'var(--text-secondary)',
+                    background: activePage === item.page ? 'var(--primary-50)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                    marginBottom: '4px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activePage !== item.page) {
+                      e.currentTarget.style.background = 'var(--primary-50)'
+                      e.currentTarget.style.color = 'var(--primary-500)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activePage !== item.page) {
+                      e.currentTarget.style.background = 'transparent'
+                      e.currentTarget.style.color = 'var(--text-secondary)'
+                    }
+                  }}
+                >
+                  <item.icon size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
+                  {!sidebarCollapsed && item.label}
               </div>
             ))}
           </div>
+          </nav>
         </div>
 
-        {/* Sidebar Toggle */}
-        <div className={`technician-dashboard__sidebar__toggle ${sidebarCollapsed ? 'technician-dashboard__sidebar__toggle--collapsed' : ''}`}>
+        {/* Collapse Button */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="technician-dashboard__sidebar__toggle__button"
-          >
-            <Menu size={16} />
-            {!sidebarCollapsed && <span>Thu gọn</span>}
+          style={{
+            position: 'absolute',
+            top: '24px',
+            right: '-12px',
+            width: '24px',
+            height: '24px',
+            background: 'var(--primary-500)',
+            border: 'none',
+            borderRadius: '50%',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px'
+          }}
+        >
+          {sidebarCollapsed ? '→' : '←'}
         </button>
-        </div>
       </div>
 
       {/* Main Content */}
-      <div className="technician-dashboard__main">
-        {/* Header */}
-        <div className="technician-dashboard__main__header">
-          <div className="technician-dashboard__main__header__left">
-            <h2 className="technician-dashboard__main__header__title">
-              {getPageTitle()}
-            </h2>
-            {technicianInfo?.centerName && (
-              <div className="technician-dashboard__main__header__center">
-                <span className="technician-dashboard__main__header__center__name">
-                  {technicianInfo.centerName}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="technician-dashboard__main__header__actions">
-            {/* Notifications */}
-            <NotificationBell />
-
-            {/* User Profile */}
-            <div className="technician-dashboard__main__header__actions__profile" onClick={handleLogout} style={{ cursor: 'pointer' }}>
-              <div className="technician-dashboard__main__header__actions__profile__avatar">
-                {technicianInfo?.technicianName ? technicianInfo.technicianName.charAt(0).toUpperCase() : 
-                 user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'KT'}
-              </div>
-              <div className="technician-dashboard__main__header__actions__profile__info">
-                <span className="technician-dashboard__main__header__actions__profile__info__name">
-                  {technicianInfo?.technicianName || user?.fullName || 'Kỹ thuật viên'}
-                </span>
-                <span className="technician-dashboard__main__header__actions__profile__info__role">
-                  Technician
-                </span>
-              </div>
-              <div style={{ marginLeft: '8px', color: 'var(--text-tertiary)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16,17 21,12 16,7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Page Content */}
-        <div className="technician-dashboard__main__content">
+      <div
+        className="technician-main-content"
+        style={{
+          marginLeft: sidebarCollapsed ? '80px' : '280px',
+          padding: '0px',
+          paddingTop: '64px',
+          background: '#fff',
+          minHeight: '100vh',
+          transition: 'margin-left 0.3s ease',
+          width: sidebarCollapsed ? 'calc(100% - 80px)' : 'calc(100% - 280px)',
+          maxWidth: 'none',
+          position: 'relative'
+        }}
+      >
         {renderPageContent()}
-      </div>
       </div>
 
       {/* Work Detail Modal */}
