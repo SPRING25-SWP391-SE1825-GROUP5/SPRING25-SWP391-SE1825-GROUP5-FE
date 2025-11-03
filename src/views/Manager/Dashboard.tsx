@@ -42,22 +42,7 @@ export default function ManagerDashboard() {
         return <BookingManagement />
       case 'inventory':
         return <InventoryManagement />
-      case 'settings':
-        return (
-          <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Cài đặt Chi nhánh
-            </h2>
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Cài đặt chi nhánh và hệ thống sẽ được hiển thị tại đây...</p>
-            </div>
-          </div>
-        )
+      // settings tab removed
       default:
         return <DashboardOverview onNavigate={setActivePage} />
     }
@@ -72,7 +57,7 @@ export default function ManagerDashboard() {
         left: sidebarCollapsed ? '80px' : '280px',
         right: 0,
         height: '64px',
-        background: 'var(--bg-card)',
+        background: '#fff',
         borderBottom: '1px solid var(--border-primary)',
         display: 'flex',
         alignItems: 'center',
@@ -150,7 +135,7 @@ export default function ManagerDashboard() {
       <div 
         style={{
           width: sidebarCollapsed ? '80px' : '280px',
-          background: 'var(--bg-card)',
+          background: '#fff',
           borderRight: '1px solid var(--border-primary)',
           transition: 'width 0.3s ease',
           position: 'fixed',
@@ -256,11 +241,10 @@ export default function ManagerDashboard() {
               }}>
                 Quản lý
               </h3>
-              {[
+              {[ 
                 { icon: Users, label: 'Nhân viên', page: 'staff' },
                 { icon: Calendar, label: 'Quản lý đặt lịch', page: 'bookings' },
-                { icon: Target, label: 'Kho', page: 'inventory' },
-                { icon: Settings, label: 'Cài đặt', page: 'settings' }
+                { icon: Target, label: 'Kho', page: 'inventory' }
               ].map((item, index) => (
                 <div 
                   key={index}
@@ -330,7 +314,7 @@ export default function ManagerDashboard() {
           marginLeft: sidebarCollapsed ? '80px' : '280px',
           padding: '32px',
           paddingTop: '96px', // Add space for header
-          background: 'var(--bg-secondary)',
+          background: '#fff',
           minHeight: '100vh',
           transition: 'margin-left 0.3s ease',
           width: sidebarCollapsed ? 'calc(100% - 80px)' : 'calc(100% - 280px)',
