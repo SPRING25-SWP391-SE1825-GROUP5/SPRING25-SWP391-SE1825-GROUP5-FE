@@ -284,14 +284,14 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Parts/Checklist - Nếu có trong bookingDetail */}
-                  {bookingDetail && bookingDetail.parts && bookingDetail.parts.length > 0 && (
+                  {/* Parts - Nếu có trong bookingDetail (tùy theo BE trả về) */}
+                  {Array.isArray((bookingDetail as any)?.parts) && (bookingDetail as any).parts.length > 0 && (
                     <div className="booking-modal__section">
                       <h3 className="booking-modal__section-title">
                         Phụ tùng
                       </h3>
                       <div className="booking-modal__parts-list">
-                        {bookingDetail.parts.map((part: any, index: number) => (
+                        {(bookingDetail as any).parts.map((part: any, index: number) => (
                           <div key={index} className="booking-modal__part-item">
                             <span className="part-name">{part.partName || part.name}</span>
                             <span className="part-quantity">SL: {part.quantity || 1}</span>
@@ -304,14 +304,14 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                     </div>
                   )}
 
-                  {/* Checklist - Nếu có */}
-                  {bookingDetail && bookingDetail.checklist && bookingDetail.checklist.length > 0 && (
+                  {/* Checklist - Nếu có (tùy theo BE trả về) */}
+                  {Array.isArray((bookingDetail as any)?.checklist) && (bookingDetail as any).checklist.length > 0 && (
                     <div className="booking-modal__section">
                       <h3 className="booking-modal__section-title">
                         Checklist
                       </h3>
                       <div className="booking-modal__checklist">
-                        {bookingDetail.checklist.map((item: any, index: number) => (
+                        {(bookingDetail as any).checklist.map((item: any, index: number) => (
                           <div key={index} className="booking-modal__checklist-item">
                             <input
                               type="checkbox"
@@ -362,16 +362,16 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                         <label>Tên:</label>
                         <span>{booking.technicianInfo.technicianName || 'Chưa gán'}</span>
                 </div>
-                      {booking.technicianInfo.technicianPhone && (
+                      {booking.technicianInfo.phoneNumber && (
                 <div className="info-item">
                           <label>Số điện thoại:</label>
-                          <span>{booking.technicianInfo.technicianPhone}</span>
+                          <span>{booking.technicianInfo.phoneNumber}</span>
                 </div>
                       )}
-                      {booking.technicianInfo.technicianEmail && (
+                      {(booking as any).technicianInfo?.technicianEmail && (
                 <div className="info-item">
                           <label>Email:</label>
-                          <span>{booking.technicianInfo.technicianEmail}</span>
+                          <span>{(booking as any).technicianInfo.technicianEmail}</span>
                   </div>
                 )}
               </div>
@@ -394,14 +394,14 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
               </div>
             )}
 
-                  {/* Booking History - Nếu có */}
-                  {bookingDetail && bookingDetail.history && bookingDetail.history.length > 0 && (
+                  {/* Booking History - Nếu có (tùy theo BE trả về) */}
+                  {Array.isArray((bookingDetail as any)?.history) && (bookingDetail as any).history.length > 0 && (
                     <div className="booking-modal__section">
                       <h3 className="booking-modal__section-title">
                         Lịch sử thay đổi
                       </h3>
                       <div className="booking-modal__history">
-                        {bookingDetail.history.map((historyItem: any, index: number) => (
+                        {(bookingDetail as any).history.map((historyItem: any, index: number) => (
                           <div key={index} className="booking-modal__history-item">
                             <div className="history-time">
                               {historyItem.timestamp && formatDateTime(historyItem.timestamp)}
@@ -419,7 +419,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                   )}
 
                   {/* Notes - Nếu không có gì */}
-                  {!booking.specialRequests && (!bookingDetail || !bookingDetail.history || bookingDetail.history.length === 0) && (
+                  {!booking.specialRequests && (!Array.isArray((bookingDetail as any)?.history) || (bookingDetail as any).history.length === 0) && (
                     <div className="booking-modal__empty">
                       <p>Không có thông tin lịch sử hoặc ghi chú</p>
                     </div>
