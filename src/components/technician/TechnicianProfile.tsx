@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { updateUser } from '@/store/authSlice'
 import { AuthService } from '@/services/authService'
-import { Camera, Lock, X, Edit, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { TechnicianService } from '@/services/technicianService'
+import { CenterService, type Center } from '@/services/centerService'
+import { Camera, Lock, X, Edit, CheckCircle, AlertCircle, Eye, EyeOff, Building2 } from 'lucide-react'
 import './TechnicianProfile.scss'
 
 // Popup notification component
@@ -47,6 +49,9 @@ export default function TechnicianProfile() {
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [avatar, setAvatar] = useState<string | null>(null)
 
+  // Center information
+  const [centerInfo, setCenterInfo] = useState<Center | null>(null)
+
   // Password change
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -78,6 +83,7 @@ export default function TechnicianProfile() {
     try {
       setLoading(true)
 
+      // Load user profile
       const response = await AuthService.getProfile()
 
       if (response.success && response.data) {
@@ -89,6 +95,19 @@ export default function TechnicianProfile() {
         setDateOfBirth(userData.dateOfBirth || '')
         setGender(userData.gender as 'MALE' | 'FEMALE' || 'MALE')
         setAvatar(userData.avatar || null)
+
+        // Update user in store if center info exists
+        if (userData.centerId || userData.centerName) {
+          dispatch(updateUser({
+            centerId: userData.centerId,
+            centerName: userData.centerName
+          }))
+        }
+
+        // Load center information for technicians
+        if (user?.role === 'TECHNICIAN' || userData.role === 'TECHNICIAN') {
+          await loadCenterInfo(userData.id || user?.id)
+        }
       } else {
         setPopup({ message: response.message || 'Không thể tải thông tin cá nhân', type: 'error' })
       }
@@ -96,6 +115,57 @@ export default function TechnicianProfile() {
       setPopup({ message: 'Có lỗi xảy ra khi tải thông tin cá nhân', type: 'error' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCenterInfo = async (userId?: number | null) => {
+    try {
+      if (!userId) {
+        // Try using centerId from user store if userId not available
+        if (user?.centerId) {
+          await loadCenterById(user.centerId)
+        }
+        return
+      }
+
+      // Step 1: Get technicianId from userId to get centerId
+      const technicianResult = await TechnicianService.getTechnicianIdByUserId(userId)
+      
+      let centerId: number | null = null
+      
+      if (technicianResult.success && technicianResult.data?.centerId) {
+        centerId = technicianResult.data.centerId
+      } else if (user?.centerId) {
+        // Fallback to user store centerId
+        centerId = user.centerId
+      }
+
+      if (centerId) {
+        // Step 2: Get center information using CenterService (like Dashboard.tsx)
+        await loadCenterById(centerId)
+      }
+    } catch (err: unknown) {
+      console.error('Error loading center info:', err)
+      // Silent fail - don't show error for center info
+    }
+  }
+
+  const loadCenterById = async (centerId: number) => {
+    try {
+      // Use CenterService.getCenterById like Dashboard.tsx uses CenterService.getCenters
+      const center = await CenterService.getCenterById(centerId)
+      
+      setCenterInfo(center)
+      
+      // Update user in store with center info
+      dispatch(updateUser({
+        centerId: center.centerId,
+        centerName: center.centerName
+      }))
+    } catch (err: unknown) {
+      console.error('Error fetching center by id:', err)
+      // Set null on error
+      setCenterInfo(null)
     }
   }
 
@@ -220,14 +290,20 @@ export default function TechnicianProfile() {
   if (loading) {
     return (
       <div className="technician-profile">
-        <div className="loading-state">Đang tải thông tin cá nhân...</div>
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Đang tải thông tin cá nhân...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="technician-profile">
-      <h1 className="page-title">Thông tin cá nhân</h1>
+      <div className="profile-header">
+        <h1 className="page-title">Thông tin cá nhân</h1>
+        <p className="page-subtitle">Quản lý và cập nhật thông tin tài khoản của bạn</p>
+      </div>
 
       {/* Popup Notification */}
       {popup && (
@@ -239,7 +315,7 @@ export default function TechnicianProfile() {
       )}
 
       {/* Profile Summary Card */}
-      <div className="profile-card">
+      <div className="profile-card profile-card--hero">
         <div className="profile-summary">
           <div className="profile-avatar-section">
             <div className="profile-avatar">
@@ -250,8 +326,8 @@ export default function TechnicianProfile() {
                   {fullName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <label className="avatar-upload-btn">
-                <Camera size={16} />
+              <label className="avatar-upload-btn" title="Thay đổi ảnh đại diện">
+                <Camera size={18} />
                 <input
                   type="file"
                   accept="image/*"
@@ -262,11 +338,19 @@ export default function TechnicianProfile() {
             </div>
           </div>
           <div className="profile-info">
-            <h2 className="profile-name">{fullName}</h2>
-            <p className="profile-title">{getRole()}</p>
-            <p className="profile-location">
-              {user?.centerName || 'Chưa có thông tin'}
-            </p>
+            <h2 className="profile-name">{fullName || 'Người dùng'}</h2>
+            <div className="profile-meta">
+              <span className="profile-badge">{getRole()}</span>
+              {(centerInfo?.centerName || user?.centerName) && (
+                <>
+                  <span className="profile-divider">•</span>
+                  <p className="profile-location">
+                    <Building2 size={14} />
+                    <span>{centerInfo?.centerName || user?.centerName || 'Chưa có thông tin'}</span>
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -274,12 +358,16 @@ export default function TechnicianProfile() {
       {/* Personal Information Card */}
       <div className="profile-card">
         <div className="card-header">
-          <h3 className="card-title">Thông tin cá nhân</h3>
+          <div className="card-header-content">
+            <h3 className="card-title">Thông tin cá nhân</h3>
+            <p className="card-subtitle">Quản lý thông tin cá nhân và liên hệ</p>
+          </div>
           <button
-            className="btn-edit"
+            className={`btn-edit ${isEditingPersonal ? 'active' : ''}`}
             onClick={() => setIsEditingPersonal(!isEditingPersonal)}
+            title={isEditingPersonal ? 'Hủy chỉnh sửa' : 'Chỉnh sửa thông tin'}
           >
-            <Edit size={14} />
+            {isEditingPersonal ? <X size={14} /> : <Edit size={14} />}
           </button>
         </div>
         <div className="info-grid">
@@ -388,27 +476,79 @@ export default function TechnicianProfile() {
         )}
       </div>
 
+      {/* Center Information Card */}
+      {centerInfo && (
+        <div className="profile-card">
+          <div className="card-header">
+            <div className="card-header-content">
+              <h3 className="card-title">Thông tin trung tâm</h3>
+              <p className="card-subtitle">Trung tâm dịch vụ bạn đang làm việc</p>
+            </div>
+          </div>
+          <div className="info-grid">
+            {centerInfo.centerName && (
+              <div className="info-item">
+                <label>Tên trung tâm</label>
+                <span className="info-value">{centerInfo.centerName}</span>
+              </div>
+            )}
+            {centerInfo.address && (
+              <div className="info-item">
+                <label>Địa chỉ</label>
+                <span className="info-value">{centerInfo.address}</span>
+              </div>
+            )}
+            {centerInfo.phoneNumber && (
+              <div className="info-item">
+                <label>Số điện thoại</label>
+                <span className="info-value">{centerInfo.phoneNumber}</span>
+              </div>
+            )}
+            {centerInfo.email && (
+              <div className="info-item">
+                <label>Email</label>
+                <span className="info-value">{centerInfo.email}</span>
+              </div>
+            )}
+            {centerInfo.city && (
+              <div className="info-item">
+                <label>Thành phố</label>
+                <span className="info-value">{centerInfo.city}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Change Password Section */}
       <div className="profile-card">
         <div className="card-header">
-          <h3 className="card-title">Bảo mật</h3>
+          <div className="card-header-content">
+            <h3 className="card-title">Bảo mật</h3>
+            <p className="card-subtitle">Bảo vệ tài khoản của bạn bằng mật khẩu mạnh</p>
+          </div>
           <button
             className="btn-edit"
             onClick={() => setShowPasswordModal(true)}
+            title="Đổi mật khẩu"
           >
             <Lock size={14} />
           </button>
         </div>
-        <div className="info-grid">
-          <div className="info-item">
-            <label>Mật khẩu</label>
-            <span className="info-value">••••••••</span>
+        <div className="security-content">
+          <div className="security-info">
+            <Lock size={20} className="security-icon" />
+            <div className="security-details">
+              <label>Mật khẩu</label>
+              <span className="info-value">••••••••</span>
+            </div>
           </div>
           <button
             className="btn-change-password"
             onClick={() => setShowPasswordModal(true)}
           >
-            Đổi mật khẩu
+            <Lock size={16} />
+            <span>Đổi mật khẩu</span>
           </button>
         </div>
       </div>
@@ -418,8 +558,16 @@ export default function TechnicianProfile() {
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Đổi mật khẩu</h3>
-              <button className="close-btn" onClick={() => setShowPasswordModal(false)}>
+              <div className="modal-header-content">
+                <div className="modal-icon">
+                  <Lock size={24} />
+                </div>
+                <div>
+                  <h3>Đổi mật khẩu</h3>
+                  <p className="modal-subtitle">Vui lòng nhập mật khẩu hiện tại và mật khẩu mới</p>
+                </div>
+              </div>
+              <button className="close-btn" onClick={() => setShowPasswordModal(false)} title="Đóng">
                 <X size={20} />
               </button>
             </div>
