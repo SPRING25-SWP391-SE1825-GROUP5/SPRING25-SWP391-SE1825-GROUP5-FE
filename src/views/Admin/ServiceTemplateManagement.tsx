@@ -213,7 +213,7 @@ export default function ServiceTemplateManagement() {
       if (!templateItemsMap[templateId]) {
         try {
           setLoadingItems(prev => ({ ...prev, [templateId]: true }))
-          const itemsResponse = await ServiceChecklistTemplateService.getTemplateItems(templateId)
+          const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateId)
           setTemplateItemsMap(prev => ({ ...prev, [templateId]: itemsResponse }))
         } catch (err: any) {
           toast.error('Không thể tải danh sách phụ tùng: ' + (err.message || 'Unknown error'))
@@ -365,7 +365,7 @@ export default function ServiceTemplateManagement() {
         toast.success(`Đã thêm ${partIds.length} phụ tùng thành công`)
       }
 
-      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItems(templateId)
+      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateId)
       setTemplateItemsMap(prev => ({ ...prev, [templateId]: itemsResponse }))
 
       setShowAddRowForTemplate(null)
@@ -407,7 +407,7 @@ export default function ServiceTemplateManagement() {
       }
 
       // Refresh items
-      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItems(templateId)
+      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateId)
       setTemplateItemsMap(prev => ({ ...prev, [templateId]: itemsResponse }))
 
       setShowAddPartsModal(false)
@@ -441,7 +441,7 @@ export default function ServiceTemplateManagement() {
       }
 
       // Refresh items
-      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItems(templateId)
+      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateId)
       setTemplateItemsMap(prev => ({ ...prev, [templateId]: itemsResponse }))
 
       // Clear selections
@@ -488,7 +488,7 @@ export default function ServiceTemplateManagement() {
       toast.success('Đã cập nhật danh sách phụ tùng thành công')
 
       // Refresh items
-      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItems(templateId)
+      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateId)
       setTemplateItemsMap(prev => ({ ...prev, [templateId]: itemsResponse }))
     } catch (err: any) {
       toast.error('Không thể cập nhật danh sách phụ tùng: ' + (err.message || 'Unknown error'))

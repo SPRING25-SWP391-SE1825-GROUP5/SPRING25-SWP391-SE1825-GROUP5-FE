@@ -154,7 +154,7 @@ export class ServiceChecklistTemplateService {
     static async getTemplatesByService(serviceId: number, activeOnly: boolean = true): Promise<ServiceChecklistTemplate[]> {
         try {
             console.log('Fetching templates for service:', { serviceId, activeOnly })
-            
+
             // Thử endpoint 1: /service-templates/templates/{serviceId} (đúng route từ controller)
             try {
                 const response = await api.get(`/service-templates/templates/${serviceId}`, {
@@ -172,7 +172,7 @@ export class ServiceChecklistTemplateService {
                         return []
                     }
                 }
-                
+
                 // Fallback: kiểm tra các format khác
                 if (Array.isArray(response.data)) {
                     return response.data
@@ -180,11 +180,11 @@ export class ServiceChecklistTemplateService {
                 if (Array.isArray(response.data?.items)) {
                     return response.data.items
                 }
-                
+
                 return []
             } catch (endpoint1Error: any) {
                 console.log('Endpoint 1 failed, trying alternative:', endpoint1Error.message)
-                
+
                 // Thử endpoint 2: /service-templates/active?serviceId={serviceId} (alternative endpoint)
                 try {
                     const response = await api.get(`/service-templates/active`, {
@@ -212,13 +212,13 @@ export class ServiceChecklistTemplateService {
                 response: error.response?.data,
                 status: error.response?.status
             })
-            
+
             // Nếu là 404 hoặc không tìm thấy, trả về mảng rỗng thay vì throw error
             if (error.response?.status === 404 || error.response?.status === 400) {
                 console.log('Service không có checklist templates. Trả về mảng rỗng.')
                 return []
             }
-            
+
             // Với các lỗi khác, cũng trả về mảng rỗng để không block UI
             console.warn('Error fetching templates, returning empty array:', error.message)
             return []
@@ -243,7 +243,7 @@ export class ServiceChecklistTemplateService {
      */
     static async getActiveTemplates(serviceId?: number): Promise<{ items: ServiceChecklistTemplate[], total: number }> {
         try {
-            const url = serviceId 
+            const url = serviceId
                 ? `/service-templates/active?serviceId=${serviceId}`
                 : '/service-templates/active'
             const response = await api.get(url)
@@ -310,9 +310,9 @@ export class ServiceChecklistTemplateService {
     }
 
     /**
-     * Lấy items của template (public)
+     * Lấy items của template (public) – trả về raw response
      */
-    static async getTemplateItems(templateId: number): Promise<GetItemsResponse> {
+    static async getTemplateItemsResponse(templateId: number): Promise<GetItemsResponse> {
         try {
             const response = await api.get(`/service-templates/${templateId}/items`)
             return response.data
@@ -431,13 +431,13 @@ export class ServiceChecklistTemplateService {
                 response: error.response?.data,
                 status: error.response?.status
             })
-            
+
             // Nếu là 404, trả về mảng rỗng (template không có items)
             if (error.response?.status === 404) {
                 console.log('Template không có items. Trả về mảng rỗng.')
                 return []
             }
-            
+
             // Với các lỗi khác, cũng trả về mảng rỗng để không block UI
             console.warn('Error fetching template items, returning empty array:', error.message)
             return []
@@ -451,7 +451,7 @@ export class ServiceChecklistTemplateService {
         try {
             // Lấy templates trước
             const templates = await this.getTemplatesByService(serviceId, activeOnly)
-            
+
             if (templates.length === 0) {
                 return []
             }
