@@ -48,6 +48,8 @@ export interface TechnicianInfo {
   technicianName: string
   phoneNumber: string
   position: string
+  technicianPhone?: string
+  technicianEmail?: string
 }
 
 export interface TimeSlotInfo {
@@ -199,6 +201,9 @@ export interface BookingDetail {
   totalAmount: number
   paymentType: string
   services: BookingServiceDetail[]
+  parts?: BookingPart[]
+  checklist?: BookingChecklistItem[]
+  history?: BookingHistoryItem[]
 }
 
 export interface BookingServiceDetail {
@@ -207,6 +212,27 @@ export interface BookingServiceDetail {
   quantity: number
   unitPrice: number
   totalPrice: number
+}
+
+export interface BookingPart {
+  partId?: number
+  partName?: string
+  name?: string
+  quantity?: number
+  price?: number
+}
+
+export interface BookingChecklistItem {
+  completed?: boolean
+  taskName?: string
+  name?: string
+}
+
+export interface BookingHistoryItem {
+  timestamp?: string
+  action?: string
+  status?: string
+  note?: string
 }
 
 export interface BookingDetailResponse {

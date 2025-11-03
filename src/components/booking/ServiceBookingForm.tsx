@@ -87,9 +87,12 @@ interface ServiceBookingFormProps {
     promotionCode?: string
     discountAmount?: number
   }
+  showStepper?: boolean
+  externalStep?: number
+  onStateChange?: (state: { currentStep: number; completedSteps: number[]; isGuest: boolean }) => void
 }
 
-const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false }) => {
+const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false, showStepper = true, externalStep, onStateChange }) => {
   const [currentStep, setCurrentStep] = useState(1)
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
@@ -133,6 +136,21 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       discountAmount: 0
     }
   })
+  // Nhận điều hướng từ progressbar bên ngoài
+  useEffect(() => {
+    if (externalStep && externalStep !== currentStep) {
+      const maxSteps = isGuest ? 4 : 3
+      if (externalStep >= 1 && externalStep <= maxSteps) {
+        setCurrentStep(externalStep)
+      }
+    }
+  }, [externalStep, isGuest])
+
+  // Báo trạng thái ra ngoài để progressbar hiển thị đúng
+  useEffect(() => {
+    onStateChange?.({ currentStep, completedSteps, isGuest })
+  }, [currentStep, completedSteps, isGuest, onStateChange])
+
 
   // Đồng bộ trạng thái đăng nhập và tự điền thông tin khách hàng
   useEffect(() => {
@@ -683,7 +701,6 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       {/* Header */}
       <div className="booking-header">
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
-        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ xe điện</p>
       </div>
 
       {/* Error Display */}
@@ -705,32 +722,55 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         </div>
       )}
 
-      {/* Steps Progress Indicator */}
-      <StepsProgressIndicator
-        currentStep={currentStep}
-        completedSteps={completedSteps}
-        onStepClick={handleStepClick}
-        isGuest={isGuest}
-      />
-
-      {/* Current Step Content */}
-      <div className="booking-content">
-        {renderCurrentStep()}
-      </div>
+      {/* Layout: nếu showStepper = true thì vẫn hiển thị trong form; ngược lại form tự full-width để dùng stepper bên ngoài */}
+      {showStepper ? (
+        <div className="booking-body">
+          <aside className="booking-sidebar">
+            <StepsProgressIndicator
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={handleStepClick}
+              isGuest={isGuest}
+              orientation="vertical"
+              size="compact"
+            />
+          </aside>
+          <div className="booking-content">
+            {renderCurrentStep()}
+          </div>
+        </div>
+      ) : (
+        <div className="booking-content">
+          {renderCurrentStep()}
+        </div>
+      )}
 
       {/* CSS Styles */}
       <style>{`
         .service-booking-form {
           width: 100%;
-          max-width: 1000px;
-          margin: 0 auto;
-          padding: 1.5rem;
-          background: var(--bg-card);
+          max-width: 100%;
+          margin: 0;
+          padding: 1.25rem 1.25rem 2rem 1.25rem;
+          background: transparent;
           min-height: 100vh;
           box-sizing: border-box;
           position: relative;
           left: 0;
           right: 0;
+        }
+
+        .booking-body {
+          display: grid;
+          grid-template-columns: 280px 1fr;
+          gap: 1.25rem;
+          align-items: start;
+        }
+
+        .booking-sidebar {
+          position: sticky;
+          top: 16px;
+          align-self: start;
         }
 
         .booking-header {
@@ -805,11 +845,13 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         }
 
         .booking-content {
-          background: var(--bg-card);
-          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.18);
+          border-radius: 18px;
           padding: 2rem;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          border: 1px solid var(--border-primary);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.28);
+          backdrop-filter: blur(14px) saturate(160%);
+          -webkit-backdrop-filter: blur(14px) saturate(160%);
         }
 
         @media (max-width: 768px) {
@@ -819,6 +861,10 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
 
           .booking-title {
             font-size: 1.5rem;
+          }
+
+          .booking-body {
+            display: block;
           }
 
           .booking-content {
