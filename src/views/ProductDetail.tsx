@@ -51,7 +51,7 @@ const convertPartToProduct = (part: Part): Product => {
     // Add UI-specific properties
     description: `${part.partName} - ${part.brand}`,
     reviewCount: Math.floor(Math.random() * 200) + 50, // Mock review count
-    images: [`https://picsum.photos/seed/${part.partId}/400/400`],
+    images: [part.imageUrl || `https://picsum.photos/seed/${part.partId}/400/400`],
     features: ['Chất lượng cao', 'Bền bỉ', 'Đáng tin cậy'],
     specifications: {
       'Thương hiệu': part.brand,

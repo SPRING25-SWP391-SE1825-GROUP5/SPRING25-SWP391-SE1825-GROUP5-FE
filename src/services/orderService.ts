@@ -31,7 +31,18 @@ export const OrderService = {
     return data
   },
   async checkoutOnline(orderId: number): Promise<{ success: boolean; message?: string; checkoutUrl?: string }> {
-    const { data } = await api.post(`/Order/${orderId}/checkout/online`)
+    try {
+      const { data } = await api.post(`/Order/${orderId}/checkout/online`)
+      return data
+    } catch (e: any) {
+      // Trả về payload lỗi từ BE để FE có thể phân nhánh (ví dụ code 231: đã tồn tại)
+      const data = e?.response?.data
+      if (data) return data
+      throw e
+    }
+  },
+  async getPaymentLink(orderId: number): Promise<{ success: boolean; message?: string; checkoutUrl?: string }> {
+    const { data } = await api.get(`/Order/${orderId}/payment/link`)
     return data
   },
   // Ghi chú: Endpoint apply-coupon không tồn tại trong BE hiện tại. Chờ BE bổ sung.

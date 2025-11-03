@@ -19,6 +19,7 @@ const About = lazy(() => import('@/views/About'))
 const Services = lazy(() => import('@/views/Services'))
 const ProtectedContact = lazy(() => import('@/views/ProtectedContact'))
 const Products = lazy(() => import('@/views/Products'))
+const ProductDetail = lazy(() => import('@/views/ProductDetail'))
 const Promotions = lazy(() => import('@/views/Promotions'))
 const ServiceBookingView = lazy(() => import('@/views/ServiceBookingView'))
 const BookingSuccess = lazy(() => import('@/views/BookingSuccess'))
@@ -73,6 +74,7 @@ const router = createBrowserRouter([
       { path: 'about', element: suspense(<About />) },
       { path: 'services', element: suspense(<Services />) },
       { path: 'products', element: suspense(<Products />) },
+      { path: 'product/:id', element: suspense(<ProductDetail />) },
       { path: 'cart', element: suspense(<Cart />) },
       { path: 'promotions', element: suspense(<Promotions />) },
       { path: 'contact', element: suspense(<ProtectedContact />) },

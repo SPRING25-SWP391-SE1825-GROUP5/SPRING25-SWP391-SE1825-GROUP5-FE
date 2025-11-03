@@ -131,19 +131,20 @@
 }
 
 .nav-link:hover {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(255, 216, 117, 0.15);
+  color: #FFD875;
 }
 
 .nav-link.active {
-  color: #10b981;
+  background: rgba(255, 216, 117, 0.25);
+  color: #0f172a;
   font-weight: 600;
 }
 
 /* Ensure the services button looks like others even when active (has dropdown open) */
 .nav-item.open > .nav-link {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(255, 216, 117, 0.15);
+  color: #FFD875;
 }
 
 .nav-arrow {
@@ -312,10 +313,10 @@
 }
 
 .login-btn:hover {
-  color: white;
-  background: linear-gradient(90deg, #10b981, #059669);
-  box-shadow: 0 6px 14px rgba(16,185,129,.25);
-  transform: translateY(-1px);
+  color: #0f172a;
+  background: rgba(255, 216, 117, 0.4);
+  box-shadow: none;
+  transform: none;
 }
 
 .booking-btn {
@@ -339,11 +340,11 @@
 }
 
 .booking-btn:hover {
-  color: #10b981;
-  background: white;
+  color: #0f172a;
+  background: rgba(255, 216, 117, 0.4);
   border: none;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(16,185,129,.20);
+  transform: none;
+  box-shadow: none;
 }
 
 /* Dropdown Styles */
@@ -615,12 +616,37 @@
   border-radius: 0; /* bỏ bo góc item */
   margin: 0; /* phủ full bề ngang */
   box-sizing: border-box;
+  position: relative; /* để xử lý phủ border khi hover */
 }
 
 .dropdown-link:hover {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: #FFD875;
+  color: #0f172a;
   border-radius: 0; /* không bo góc khi hover */
+  /* che viền trái/phải của khung dropdown để không còn khoảng trắng */
+  box-shadow: inset 1px 0 0 #FFD875, inset -1px 0 0 #FFD875;
+}
+
+/* Loại bỏ viền trắng mỏng nhờ kéo nền hover chồng lên viền 1px của .dropdown */
+.dropdown .dropdown-item:not(:first-child):not(:last-child) .dropdown-link:hover {
+  margin: 0 -1px; /* phủ lên viền trái/phải */
+}
+
+.dropdown .dropdown-item:first-child .dropdown-link:hover {
+  margin: -1px -1px 0 -1px; /* phủ lên viền trên + hai bên */
+  background: #FFF6D1; /* vàng nhạt cho dòng profile */
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  /* che viền trên luôn */
+  box-shadow: inset 0 1px 0 #FFF6D1, inset 1px 0 0 #FFF6D1, inset -1px 0 0 #FFF6D1;
+}
+
+.dropdown .dropdown-item:last-child .dropdown-link:hover {
+  margin: 0 -1px -1px -1px; /* phủ lên viền dưới + hai bên */
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  /* che viền dưới luôn */
+  box-shadow: inset 0 -1px 0 #FFD875, inset 1px 0 0 #FFD875, inset -1px 0 0 #FFD875;
 }
 
 /* Logout button specific styling */
@@ -795,16 +821,16 @@
 
 .modern-header .nav-link:hover,
 .modern-header .nav-item.open > .nav-link {
-  background: rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  color: #10b981;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 216, 117, 0.25);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: #FFD875;
+  box-shadow: none;
 }
 
 .modern-header .nav-link.active {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  background: rgba(255, 216, 117, 0.25);
+  color: #0f172a;
   font-weight: 600;
 }
 
@@ -815,12 +841,12 @@
 }
 
 .modern-header .header-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  color: #059669;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  background: rgba(255, 216, 117, 0.25);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: #0f172a;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Nút Login/Booking phong cách designer (pill + shadow tinh tế) */
@@ -863,8 +889,8 @@
 }
 
 .modern-header .dropdown-link:hover {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  background: #FFD875;
+  color: #0f172a;
 }
 
 /* Mobile toggle glass hover */
