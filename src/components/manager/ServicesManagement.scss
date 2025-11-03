@@ -41,6 +41,62 @@
     align-items: center; 
     flex-wrap: wrap; 
   }
+
+  /* New filter pill to avoid global conflicts */
+  .svc-filter {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .svc-filter .svc-trigger {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 28px 0 12px;
+    background: #fff;
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    box-shadow: none;
+  }
+  .svc-filter .caret {
+    position: absolute;
+    right: 8px;
+    pointer-events: none;
+    color: var(--text-tertiary);
+  }
+  .svc-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 180px;
+    background: #fff;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 6px;
+    margin: 0;
+    list-style: none;
+    box-shadow: 0 8px 20px rgba(0,0,0,.08);
+    transform: translateY(8px);
+    transition: transform .2s ease;
+    z-index: 10;
+  }
+  .svc-menu.show { transform: translateY(0); }
+  .svc-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    list-style: none;
+    margin: 0;
+  }
+  .svc-item:hover { background: var(--primary-50); }
+  .svc-item.active { background: var(--primary-50); color: var(--primary-700); font-weight: 600; }
   .toolbar-sep { 
     width: 1px; 
     height: 24px; 
@@ -81,13 +137,17 @@
     box-shadow: none;
     border: none;
 
-    /* Header: bỏ nền vàng, dùng nền trắng + line phân cách */
-    thead tr { background: #fff; color: var(--text-secondary); }
+    /* Header: nền vàng nhạt giống Users */
+    thead tr { background: #FFF9E5; color: var(--text-secondary); box-shadow: inset 0 -1px 0 var(--border-primary); }
     th { height: 36px; padding: 6px 12px; font-size: 13px; font-weight: 500; border: none; text-align: left; }
     th.is-sortable { cursor: default; user-select: none; }
     thead th { border-top: 1px solid var(--border-primary); border-bottom: 1px solid var(--border-primary); }
     thead th + th, tbody td + td { border-left: 1px solid var(--border-primary); }
+    /* Khôi phục đường phân cách sau cột đầu (override global) */
+    thead th:first-child { border-right: 1px solid var(--border-primary) !important; }
+    tbody td:first-child { border-right: 1px solid var(--border-primary) !important; }
     .th-inner { display: flex; align-items: center; gap: 8px; }
+    .th-icon { color: var(--text-tertiary); flex-shrink: 0; }
     .th-inner.left { justify-content: flex-start; }
     .th-inner.right { justify-content: flex-end; }
     .th-inner.center { justify-content: center; }
@@ -176,36 +236,36 @@
     width: 100% !important; 
     padding: 10px 12px 10px 34px; 
     border: none; 
-    border-bottom: 1px solid transparent; 
+    border-bottom: 0; 
     border-radius: 0; 
     background: #fff !important; 
     color: var(--text-primary); 
     font-size: 13px; 
     outline: none; 
     box-shadow: none; 
+    position: relative; 
+    z-index: 1; 
   }
-  .toolbar-search .search-wrap::after { 
-    content: ''; 
-    position: absolute; 
-    left: 0; 
-    right: 0; 
-    bottom: -1px; 
-    height: 2px; 
-    width: auto; 
-    background: #FFD875; 
-    transform: scaleX(0); 
-    transform-origin: left; 
-    transition: transform .25s ease; 
-  }
-  .toolbar-search .search-wrap:focus-within::after { 
-    transform: scaleX(1); 
-  }
+  .toolbar-search .search-wrap::after { display: none !important; }
   .toolbar-search .icon { 
     position: absolute; 
     left: 10px; 
     top: 50%; 
     transform: translateY(-50%); 
     color: var(--text-tertiary); 
+    z-index: 5 !important; 
+    pointer-events: none; 
+  }
+
+  /* Pill-select: chỉ còn viền ngoài cùng, bỏ outline/box-shadow focus */
+  .pill-select .pill-trigger {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .pill-select .pill-trigger:focus,
+  .pill-select .pill-trigger:active {
+    outline: none !important;
+    box-shadow: none !important;
   }
   .toolbar-actions { 
     display: flex; 

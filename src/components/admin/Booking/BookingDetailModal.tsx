@@ -1,0 +1,302 @@
+import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { X, Settings, User, Car, MapPin, Wrench, Clock, Calendar, Phone, Mail, DollarSign } from 'lucide-react'
+import { BookingService, AdminBookingSummary, BookingDetail } from '@/services/bookingService'
+import toast from 'react-hot-toast'
+import './_booking-modal.scss'
+
+interface BookingDetailModalProps {
+  isOpen: boolean
+  booking: AdminBookingSummary
+  onClose: () => void
+  onChangeStatus: () => void
+}
+
+const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
+  isOpen,
+  booking,
+  onClose,
+  onChangeStatus
+}) => {
+  const [bookingDetail, setBookingDetail] = useState<BookingDetail | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isOpen && booking) {
+      fetchBookingDetail()
+    }
+  }, [isOpen, booking])
+
+  const fetchBookingDetail = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await BookingService.getBookingDetail(booking.bookingId)
+      if (response.success && response.data) {
+        setBookingDetail(response.data)
+      } else {
+        setError(response.message || 'Không thể tải chi tiết đặt lịch')
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Không thể tải chi tiết đặt lịch'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  }
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getStatusBadgeClass = (status: string) => {
+    const statusUpper = status.toUpperCase()
+    switch (statusUpper) {
+      case 'PENDING':
+        return 'status-badge status-badge--pending'
+      case 'CONFIRMED':
+        return 'status-badge status-badge--confirmed'
+      case 'IN_PROGRESS':
+        return 'status-badge status-badge--in-progress'
+      case 'COMPLETED':
+        return 'status-badge status-badge--completed'
+      case 'PAID':
+        return 'status-badge status-badge--paid'
+      case 'CANCELLED':
+        return 'status-badge status-badge--cancelled'
+      default:
+        return 'status-badge status-badge--default'
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    const statusUpper = status.toUpperCase()
+    switch (statusUpper) {
+      case 'PENDING':
+        return 'Chờ xác nhận'
+      case 'CONFIRMED':
+        return 'Đã xác nhận'
+      case 'IN_PROGRESS':
+        return 'Đang xử lý'
+      case 'COMPLETED':
+        return 'Hoàn thành'
+      case 'PAID':
+        return 'Đã thanh toán'
+      case 'CANCELLED':
+        return 'Đã hủy'
+      default:
+        return status
+    }
+  }
+
+  if (!isOpen || !booking) return null
+
+  const detail = bookingDetail || booking
+
+  return createPortal(
+    <div className="booking-modal-overlay" onClick={onClose}>
+      <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="booking-modal__header">
+          <div>
+            <h2 className="booking-modal__title">
+              Chi tiết Đặt lịch #{booking.bookingId}
+            </h2>
+            <p className="booking-modal__subtitle">
+              Ngày đặt: {formatDateTime(booking.createdAt)}
+            </p>
+          </div>
+          <button className="booking-modal__close" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="booking-modal__loading">
+            <div className="booking-modal__spinner" />
+            <p>Đang tải chi tiết...</p>
+          </div>
+        ) : error ? (
+          <div className="booking-modal__error">
+            <p>{error}</p>
+            <button onClick={fetchBookingDetail}>Thử lại</button>
+          </div>
+        ) : (
+          <div className="booking-modal__content">
+            {/* Status Badge */}
+            <div className="booking-modal__status">
+              <span className={getStatusBadgeClass(booking.status)}>
+                <span className="dot" />
+                {getStatusLabel(booking.status)}
+              </span>
+            </div>
+
+            {/* Customer Info */}
+            <div className="booking-modal__section">
+              <h3 className="booking-modal__section-title">
+                <User size={18} /> Thông tin khách hàng
+              </h3>
+              <div className="booking-modal__info-grid">
+                <div className="info-item">
+                  <label>Họ tên:</label>
+                  <span>{booking.customerInfo.fullName}</span>
+                </div>
+                <div className="info-item">
+                  <label>Email:</label>
+                  <span>{booking.customerInfo.email}</span>
+                </div>
+                <div className="info-item">
+                  <label>Số điện thoại:</label>
+                  <span>{booking.customerInfo.phoneNumber}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Vehicle Info */}
+            <div className="booking-modal__section">
+              <h3 className="booking-modal__section-title">
+                <Car size={18} /> Thông tin xe
+              </h3>
+              <div className="booking-modal__info-grid">
+                <div className="info-item">
+                  <label>Biển số:</label>
+                  <span>{booking.vehicleInfo.licensePlate}</span>
+                </div>
+                <div className="info-item">
+                  <label>Mẫu xe:</label>
+                  <span>{booking.vehicleInfo.modelName} {booking.vehicleInfo.version}</span>
+                </div>
+                <div className="info-item">
+                  <label>Số km:</label>
+                  <span>{booking.vehicleInfo.currentMileage.toLocaleString('vi-VN')} km</span>
+                </div>
+                <div className="info-item">
+                  <label>VIN:</label>
+                  <span>{booking.vehicleInfo.vin}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Center Info */}
+            <div className="booking-modal__section">
+              <h3 className="booking-modal__section-title">
+                <MapPin size={18} /> Trung tâm
+              </h3>
+              <div className="booking-modal__info-grid">
+                <div className="info-item">
+                  <label>Tên trung tâm:</label>
+                  <span>{booking.centerInfo.centerName}</span>
+                </div>
+                <div className="info-item">
+                  <label>Địa chỉ:</label>
+                  <span>{booking.centerInfo.centerAddress}</span>
+                </div>
+                <div className="info-item">
+                  <label>Số điện thoại:</label>
+                  <span>{booking.centerInfo.phoneNumber}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Service Info */}
+            <div className="booking-modal__section">
+              <h3 className="booking-modal__section-title">
+                <Wrench size={18} /> Dịch vụ
+              </h3>
+              <div className="booking-modal__info-grid">
+                <div className="info-item">
+                  <label>Tên dịch vụ:</label>
+                  <span>{booking.serviceInfo.serviceName}</span>
+                </div>
+                <div className="info-item">
+                  <label>Mô tả:</label>
+                  <span>{booking.serviceInfo.description || 'Không có'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Giá cơ bản:</label>
+                  <span>{formatCurrency(booking.serviceInfo.basePrice)}</span>
+                </div>
+                {bookingDetail && (
+                  <div className="info-item">
+                    <label>Tổng tiền:</label>
+                    <span className="text-primary-bold">{formatCurrency(bookingDetail.totalAmount)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Time Slot Info */}
+            <div className="booking-modal__section">
+              <h3 className="booking-modal__section-title">
+                <Clock size={18} /> Thời gian
+              </h3>
+              <div className="booking-modal__info-grid">
+                <div className="info-item">
+                  <label>Ngày:</label>
+                  <span>{formatDate(booking.timeSlotInfo.workDate)}</span>
+                </div>
+                <div className="info-item">
+                  <label>Giờ:</label>
+                  <span>{booking.timeSlotInfo.startTime} - {booking.timeSlotInfo.endTime}</span>
+                </div>
+                <div className="info-item">
+                  <label>Kỹ thuật viên:</label>
+                  <span>{booking.technicianInfo.technicianName || 'Chưa gán'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Special Requests */}
+            {booking.specialRequests && (
+              <div className="booking-modal__section">
+                <h3 className="booking-modal__section-title">
+                  Yêu cầu đặc biệt
+                </h3>
+                <div className="booking-modal__special-requests">
+                  {booking.specialRequests}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="booking-modal__actions">
+              <button className="btn-secondary" onClick={onClose}>
+                Đóng
+              </button>
+              {booking.status !== 'CANCELLED' && (
+                <button className="btn-primary" onClick={onChangeStatus}>
+                  <Settings size={16} /> Thay đổi trạng thái
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+export default BookingDetailModal
+

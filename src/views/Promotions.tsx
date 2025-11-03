@@ -2,100 +2,116 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PromotionService, type Promotion } from '@/services/promotionService'
 import { handleApiError } from '@/utils/errorHandler'
-import { 
-  Gift, 
-  Percent, 
-  DollarSign, 
-  Truck, 
-  Sparkles,
-  Clock,
-  Tag,
-  Star,
-  Calendar
-} from 'lucide-react'
-import './promotions.scss'
+import toast from 'react-hot-toast'
+import { Percent, DollarSign, Truck, Sparkles } from 'lucide-react'
+import TicketCard from '@/components/common/TicketCard'
+import PromotionBanner from '@/components/common/PromotionBanner'
+import type { Promotion as PromotionType } from '@/types/promotion'
+import styles from './Promotions.module.scss'
 
 export default function Promotions() {
+  // Redux and hooks must be declared first
+  const dispatch = useAppDispatch()
+  const auth = useAppSelector(state => state.auth)
+  const promo = useAppSelector(state => state.promo)
   const [searchParams] = useSearchParams()
-  const [activeFilter, setActiveFilter] = useState<string>('all')
-  const [promotions, setPromotions] = useState<Promotion[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Get URL parameters
   const categoryParam = searchParams.get('category')
   const typeParam = searchParams.get('type')
 
-  // Hàm kiểm tra promotion còn có thể sử dụng
-  const isPromotionUsable = (promotion: Promotion): boolean => {
-    // Kiểm tra trạng thái active
-    if (!promotion.isActive) return false
-    
-    // Kiểm tra đã hết hạn chưa
-    if (promotion.isExpired) return false
-    
-    // Kiểm tra đã đạt giới hạn sử dụng chưa
-    if (promotion.isUsageLimitReached) return false
-    
-    // Kiểm tra còn lượt sử dụng không (nếu có usageLimit)
-    if (promotion.usageLimit && promotion.remainingUsage <= 0) return false
-    
-    // Kiểm tra endDate (nếu có)
-    if (promotion.endDate) {
-      const endDate = new Date(promotion.endDate)
-      const now = new Date()
-      if (endDate < now) return false
-    }
-    
-    // Kiểm tra startDate đã đến chưa
-    if (promotion.startDate) {
-      const startDate = new Date(promotion.startDate)
-      const now = new Date()
-      if (startDate > now) return false
-    }
-    
-    // Kiểm tra status
-    if (promotion.status !== 'ACTIVE') return false
-    
-    return true
-  }
+  const [promotions, setPromotions] = useState<Promotion[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [savingPromotion, setSavingPromotion] = useState<string | null>(null)
+  const [customerId, setCustomerId] = useState<number | null>(null)
+  const [activeFilter, setActiveFilter] = useState('all')
 
-  // Load promotions from API
   useEffect(() => {
-    const loadPromotions = async () => {
-      setLoading(true)
-      setError(null)
-      
+    const load = async () => {
       try {
-        const result = await PromotionService.getActivePromotions()
-        
-        if (result.data && result.data.length > 0) {
-          // Lọc chỉ lấy những promotion còn có thể sử dụng
-          const usablePromotions = result.data.filter(isPromotionUsable)
-          
-          if (usablePromotions.length > 0) {
-            setPromotions(usablePromotions)
-          } else {
-            setPromotions([])
-            setError('Không có khuyến mãi nào còn khả dụng')
-          }
-        } else {
-          setPromotions([])
-          setError('Không có khuyến mãi nào')
-        }
-      } catch (error) {
-        const errorMessage = 'Không thể tải danh sách khuyến mãi'
-        setError(errorMessage)
-        handleApiError(error)
-        setPromotions([])
+      setLoading(true)
+        const res = await PromotionService.getActivePromotions()
+        const list = res?.data ?? []
+        setPromotions(list)
+      setError(null)
+      } catch (e) {
+        setError('Không thể tải khuyến mãi')
+        handleApiError(e)
       } finally {
         setLoading(false)
       }
     }
-
-    loadPromotions()
+    load()
   }, [])
 
+  // Load customerId when user is logged in
+  useEffect(() => {
+    const loadCustomerId = async () => {
+      if (!auth.user?.id) {
+        return
+      }
+
+      try {
+        const response = await CustomerService.getCurrentCustomer()
+        if (response.success && response.data) {
+          setCustomerId(response.data.customerId)
+        }
+      } catch (error) {
+        console.error('Error loading customerId:', error)
+      }
+    }
+
+    loadCustomerId()
+  }, [auth.user?.id])
+
+  // Load saved promotions from API when user is logged in
+  useEffect(() => {
+    const loadSavedPromotions = async () => {
+      if (!customerId) {
+        // Clear saved promotions if customerId is not available
+        return
+      }
+
+      try {
+        const savedPromotions = await PromotionBookingService.getSavedPromotions()
+
+        // Clear existing saved promotions first
+        dispatch(clearAllSavedPromotions())
+
+        // Convert API response to Redux format and dispatch
+        if (Array.isArray(savedPromotions) && savedPromotions.length > 0) {
+          savedPromotions.forEach((promo) => {
+
+            // Validate promotion data
+            if (!promo.code || !promo.description) {
+              console.warn('Invalid promotion data:', promo)
+              return
+            }
+
+            const promotionData = {
+              id: String(promo.code), // Use code as id for consistency with API
+              code: promo.code,
+              title: promo.description,
+              description: promo.description,
+              type: 'percentage' as const, // Default type, could be enhanced
+              value: promo.discountAmount || 0,
+              validFrom: new Date().toISOString(),
+              validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+              isActive: true,
+              usageLimit: 1,
+              usedCount: 0
+            }
+            dispatch(savePromotion(promotionData))
+          })
+        }
+      } catch (error) {
+        console.error('Error loading saved promotions:', error)
+        // Clear saved promotions on error
+        dispatch(clearAllSavedPromotions())
+      }
+    }
+
+    loadSavedPromotions()
+  }, [customerId, dispatch])
 
   // Update filter based on URL params
   useEffect(() => {
@@ -134,11 +150,129 @@ export default function Promotions() {
     })
   }
 
+  const handleSavePromotion = async (promotion: any) => {
+
+    if (!auth.user?.id) {
+      toast.error('Vui lòng đăng nhập để lưu khuyến mãi')
+      return
+    }
+
+    if (isPromotionSaved(promotion.code)) {
+      toast.error('Khuyến mãi này đã được lưu')
+      return
+    }
+
+    // Validate promotion before saving
+    const validationError = validatePromotionForSaving(promotion)
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
+    setSavingPromotion(promotion.code)
+
+    try {
+      // Get customerId if not available
+      let currentCustomerId = customerId
+      if (!currentCustomerId) {
+        const response = await CustomerService.getCurrentCustomer()
+        if (response.success && response.data) {
+          currentCustomerId = response.data.customerId
+          setCustomerId(currentCustomerId)
+        } else {
+          toast.error('Không thể xác định thông tin khách hàng')
+          setSavingPromotion(null)
+          return
+        }
+      }
+
+      if (!currentCustomerId) {
+        toast.error('Không thể xác định thông tin khách hàng')
+        setSavingPromotion(null)
+        return
+      }
+
+      // Call API to save promotion
+      await PromotionBookingService.saveCustomerPromotion(promotion.code)
+
+      // Convert promotion to Redux format
+      const promotionData = {
+        id: String(promotion.code), // Use code as id for consistency with API
+        code: promotion.code,
+        title: promotion.description,
+        description: promotion.description,
+        type: promotion.discountType === 'PERCENT' ? 'percentage' as const :
+              promotion.discountType === 'FIXED' ? 'fixed' as const : 'shipping' as const,
+        value: promotion.discountValue || promotion.discountAmount || 0,
+        minOrder: promotion.minOrderAmount,
+        validFrom: promotion.startDate || new Date().toISOString(),
+        validTo: promotion.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: promotion.isActive !== false,
+        usageLimit: promotion.usageLimit,
+        usedCount: promotion.usageCount || 0
+      }
+
+      // Update Redux store
+      dispatch(savePromotion(promotionData))
+
+      toast.success('Đã lưu khuyến mãi thành công!')
+    } catch (error: any) {
+      console.error('Error saving promotion:', error)
+      toast.error(error.message || 'Lỗi khi lưu khuyến mãi')
+    } finally {
+      setSavingPromotion(null)
+    }
+  }
+
+  // Validate promotion before saving
+  const validatePromotionForSaving = (promotion: any): string | null => {
+    const today = new Date()
+
+    // Check if promotion is active
+    if (promotion.isActive === false) {
+      return 'Khuyến mãi này không còn hoạt động'
+    }
+
+    // Check if promotion has started
+    if (promotion.startDate) {
+      const startDate = new Date(promotion.startDate)
+      if (startDate > today) {
+        return 'Khuyến mãi chưa có hiệu lực'
+      }
+    }
+
+    // Check if promotion has expired
+    if (promotion.endDate) {
+      const endDate = new Date(promotion.endDate)
+      if (endDate < today) {
+        return 'Khuyến mãi đã hết hạn'
+      }
+    }
+
+    // Check if usage limit exceeded
+    if (promotion.usageLimit && promotion.usageCount >= promotion.usageLimit) {
+      return 'Khuyến mãi đã hết lượt sử dụng'
+    }
+
+    return null // No validation errors
+  }
+
+  // Check if promotion can be saved
+  const canPromotionBeSaved = (promotion: any): boolean => {
+    const validationError = validatePromotionForSaving(promotion)
+    return validationError === null
+  }
+
+  const isPromotionSaved = (promotionId: string) => {
+    // Since we now use code as id consistently, check by code
+    const isSaved = promo?.savedPromotions?.some(p => p.code === promotionId) || false
+    return isSaved
+  }
 
   // Filter categories based on actual data
   const filterCategories = [
     { id: 'all', label: 'Tất cả', count: Array.isArray(promotions) ? promotions.length : 0 },
-    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENT').length : 0 },        
+    { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENT').length : 0 },
     { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'FIXED').length : 0 },
     { id: 'shipping', label: 'Free ship', count: 0 }
   ]
@@ -146,10 +280,10 @@ export default function Promotions() {
   // Filter promotions based on active filter
   const filteredPromotions = () => {
     if (!Array.isArray(promotions)) return []
-    
+
     switch (activeFilter) {
       case 'percentage':
-        return promotions.filter(p => p.discountType === 'PERCENT')        
+        return promotions.filter(p => p.discountType === 'PERCENT')
       case 'fixed':
         return promotions.filter(p => p.discountType === 'FIXED')
       case 'shipping':
@@ -159,36 +293,36 @@ export default function Promotions() {
     }
   }
 
-  const getPromotionBadge = (promotion: Promotion) => {
-    // Xử lý dựa trên discountType thay vì type
-    if (promotion.discountType === 'PERCENT') {
-      return { 
-        text: `${promotion.discountValue}%`, 
-        color: '#059669',
-        bgColor: 'rgba(16, 185, 129, 0.1)',
-        icon: <Percent size={16} />
-      }
-    } else if (promotion.discountType === 'FIXED') {
-      return { 
-        text: `${Math.round(promotion.discountValue / 1000)}K`, 
-        color: '#2563eb',
-        bgColor: 'rgba(59, 130, 246, 0.1)',
-        icon: <DollarSign size={16} />
-      }
-    } else if (promotion.discountType === 'SHIPPING') {
-      return { 
-        text: 'FREE', 
-        color: '#7c3aed',
-        bgColor: 'rgba(139, 92, 246, 0.1)',
-        icon: <Truck size={16} />
-      }
-    } else {
-      return { 
-        text: 'NEW', 
-        color: '#8B6914', // primary-700 từ color scheme
-        bgColor: 'rgba(255, 216, 117, 0.15)',
-        icon: <Sparkles size={16} />
-      }
+  const getPromotionBadge = (promotion: any) => {
+    switch (promotion.type) {
+      case 'percentage':
+        return {
+          text: `${promotion.value}%`,
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <Percent size={16} />
+        }
+      case 'fixed':
+        return {
+          text: `${(promotion.value / 1000)}K`,
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <DollarSign size={16} />
+        }
+      case 'shipping':
+        return {
+          text: 'FREE',
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <Truck size={16} />
+        }
+      default:
+        return {
+          text: 'NEW',
+          color: '#10b981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          icon: <Sparkles size={16} />
+        }
     }
   }
 
@@ -197,10 +331,10 @@ export default function Promotions() {
     if (categoryParam && typeParam) {
       const categoryNames: Record<string, string> = {
         'service': 'Khuyến mãi dịch vụ',
-        'products': 'Khuyến mãi sản phẩm', 
+        'products': 'Khuyến mãi sản phẩm',
         'special': 'Chương trình đặc biệt'
       }
-      
+
       const typeNames: Record<string, string> = {
         'monthly': 'Ưu đãi tháng',
         'seasonal': 'Ưu đãi mùa',
@@ -222,7 +356,7 @@ export default function Promotions() {
         showBreadcrumb: true
       }
     }
-    
+
     return {
       category: 'Ưu đãi & Khuyến mãi',
       type: '',
@@ -234,179 +368,38 @@ export default function Promotions() {
 
 
   return (
-    <div className="promotions-page">
-      <div className="promotions-page__container">
-        {/* Breadcrumb */}
-        {pageInfo.showBreadcrumb && (
-          <div className="promotions-page__breadcrumb">
-            <a 
-              href="/promotions" 
-              onClick={(e) => {
-                e.preventDefault()
-                window.location.href = '/promotions'
-              }}
-            >
-              Tất cả khuyến mãi
-            </a>
-            <span>/</span>
-            <span className="active">
-              {pageInfo.category}
-            </span>
-            {pageInfo.type && (
-              <>
-                <span>/</span>
-                <span className="active">
-                  {pageInfo.type}
-                </span>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="promotions-page__header">
-          <div className="promotions-page__header-icon">
-            <Gift size={28} />
-          </div>
-          <h1>
-            {pageInfo.showBreadcrumb ? pageInfo.type || pageInfo.category : pageInfo.category}
-          </h1>
-          <p>
-            {pageInfo.showBreadcrumb 
-              ? `Khám phá các ${pageInfo.type?.toLowerCase() || pageInfo.category.toLowerCase()} đặc biệt dành cho bạn`
-              : 'Lưu khuyến mãi yêu thích để sử dụng khi thanh toán'
-            }
-          </p>
+    <div className={styles.promotionsPage}>
+      {/* Promotion Banner - Full Width, sát header */}
+      <div className={styles.bannerWrapper}>
+        <PromotionBanner />
         </div>
 
-        {/* Category Info Banner */}
-        {pageInfo.showBreadcrumb && (
-          <div className="promotions-page__category-banner">
-            <div className="promotions-page__category-banner-icon">
-              ✓
-            </div>
-            <h3>
-              Bạn đang xem: {pageInfo.type || pageInfo.category}
-            </h3>
-            <p>
-              Tất cả khuyến mãi đều có sẵn để bạn lưu và sử dụng khi thanh toán
-            </p>
-          </div>
-        )}
-
-        {/* Loading State */}
+      <div className={styles.contentWrapper}>
+        <div className={styles.container}>
         {loading && (
-          <div className="promotions-page__loading">
-            Đang tải khuyến mãi...
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="promotions-page__error">
-            {error}
-          </div>
-        )}
-
-        {/* Filter Tabs - Only show when not loading and no error */}
-        {!loading && !error && (
-          <div className="promotions-page__filters">
-            <div className="promotions-page__filters-container">
-              {filterCategories.map(category => (
-                <button
-                  key={category.id}
-                  onClick={() => setActiveFilter(category.id)}
-                  className={`promotions-page__filters-button ${activeFilter === category.id ? 'active' : ''}`}
-                >
-                  {category.label}
-                  <span className="promotions-page__filters-button-badge">
-                    {category.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Promotions Grid - Only show when not loading and no error */}
-        {!loading && !error && (
-          <div className="promotions-page__grid">
-            {filteredPromotions().map(promotion => {
-              const badge = getPromotionBadge(promotion)
-              // Xác định loại badge để dùng class phù hợp
-              const badgeClass = promotion.discountType === 'PERCENT' ? 'promotions-page__card-badge--percent' :
-                               promotion.discountType === 'FIXED' ? 'promotions-page__card-badge--fixed' :
-                               promotion.discountType === 'SHIPPING' ? 'promotions-page__card-badge--shipping' : ''
-              
-              return (
-                <div key={promotion.promotionId} className="promotions-page__card">
-                  <div className="promotions-page__card-header">
-                    <div>
-                      {promotion.discountType === 'PERCENT' ? <Percent size={40} /> :
-                       promotion.discountType === 'FIXED' ? <DollarSign size={40} /> :
-                       promotion.discountType === 'SHIPPING' ? <Truck size={40} /> : <Sparkles size={40} />}
-                    </div>
-                    
-                    {/* Promotion Badge */}
-                    <div className={`promotions-page__card-badge ${badgeClass}`}>
-                      {badge.icon}
-                      {badge.text}
-                    </div>
-                  </div>
-                  
-                  <div className="promotions-page__card-body">
-                    <h3 className="promotions-page__card-title">
-                      {promotion.description}
-                    </h3>
-                    
-                    <div className="promotions-page__card-code">
-                      <Tag size={14} />
-                      Mã: {promotion.code}
-                    </div>
-
-                    <p className="promotions-page__card-description">
-                      {promotion.description}
-                    </p>
-
-                    <div className="promotions-page__card-info-row">
-                      <div className="promotions-page__card-info-box">
-                        <Clock size={14} />
-                        <span>
-                          {promotion.minOrderAmount ? `Tối thiểu ${formatPrice(promotion.minOrderAmount)}` : 'Không giới hạn'}
-                        </span>
-                      </div>
-                      <div className="promotions-page__card-info-box promotions-page__card-info-box--highlight">
-                        <Star size={14} />
-                        <span>
-                          Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usageCount : '∞'} lượt
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Date Range Display */}
-                    <div className="promotions-page__card-date-box">
-                      <div className="promotions-page__card-date-box-header">
-                        <Calendar size={14} />
-                        <span>Thời gian áp dụng</span>
-                      </div>
-                      <div className="promotions-page__card-date-box-dates">
-                        <div className="promotions-page__card-date-box-date-item">
-                          <span>Bắt đầu:</span>
-                          <span>{formatDate(promotion.startDate)}</span>
-                        </div>
-                        <div className="promotions-page__card-date-box-date-item">
-                          <span>Kết thúc:</span>
-                          <span>{formatDate(promotion.endDate)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <div className={styles.loading}>Đang tải...</div>
+          )}
+          {!loading && error && (
+            <div className={styles.error}>{error}</div>
+          )}
+          {!loading && !error && promotions.length === 0 && (
+            <div className={styles.empty}>Không có khuyến mãi nào</div>
+          )}
+          {!loading && !error && promotions.length > 0 && (
+            <div className={styles.grid}>
+              {promotions.map((promotion) => (
+                <div key={promotion.promotionId} className={styles.cardWrapper}>
+                  <TicketCard
+                    promotion={promotion}
+                    width={600}
+                    height={280}
+                  />
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-      </div>
+              ))}
+                    </div>
+                  )}
+                </div>
+              </div>
     </div>
   )
 }

@@ -59,7 +59,6 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         cancelUrl: `${window.location.origin}/booking/payment/cancel`
       }
 
-      console.log('Creating payment with method:', method, paymentRequest)
 
       if (method === 'VNPAY') {
         // Handle VNPay payment
@@ -72,7 +71,6 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         }
 
         const vnpayResponse = await PaymentService.createVNPayPayment(vnpayRequest)
-        console.log('VNPay payment created:', vnpayResponse)
         
         // Redirect to VNPay
         window.location.href = vnpayResponse.paymentUrl
@@ -80,7 +78,6 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       } else if (method === 'QR_CODE') {
         // Handle QR payment
         const paymentResponse = await PaymentService.createPayment(paymentRequest)
-        console.log('QR payment created:', paymentResponse)
         
         // This would typically show QR code modal
         // For now, we'll just show success
@@ -89,7 +86,6 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       } else if (method === 'CREDIT_CARD') {
         // Handle credit card payment
         const paymentResponse = await PaymentService.createPayment(paymentRequest)
-        console.log('Credit card payment created:', paymentResponse)
         
         // This would typically redirect to payment gateway
         // For now, we'll just show success
@@ -97,7 +93,6 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       }
 
     } catch (error: any) {
-      console.error('Error creating payment:', error)
       setError(error.message || 'Có lỗi xảy ra khi tạo thanh toán')
     } finally {
       setIsProcessing(false)

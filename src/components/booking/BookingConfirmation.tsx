@@ -47,12 +47,6 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const [showPaymentMethods, setShowPaymentMethods] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
 
-  // Debug: Log reservation data
-  console.log('BookingConfirmation - reservation:', reservation)
-  console.log('BookingConfirmation - reservation?.bookingId:', reservation?.bookingId)
-  console.log('BookingConfirmation - totalPrice:', totalPrice)
-  console.log('BookingConfirmation - showPaymentMethods:', showPaymentMethods)
-
   const handlePaymentSuccess = async () => {
     setShowQRPayment(false)
     setIsProcessingPayment(true)
@@ -60,7 +54,6 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     try {
       // If we have a reservation with booking ID, we can update payment status
       if (reservation?.bookingId) {
-        console.log('Payment successful for booking:', reservation.bookingId)
         // Here you could call an API to update booking status to 'PAID'
         // await BookingService.updateBookingStatus(reservation.bookingId, 'PAID')
       }
@@ -68,7 +61,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       // Call the original onConfirm to complete the booking process
       onConfirm()
     } catch (error) {
-      console.error('Error processing payment success:', error)
+      // Silently handle error
     } finally {
       setIsProcessingPayment(false)
     }
@@ -77,32 +70,12 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const handlePaymentCancel = () => {
     setShowQRPayment(false)
     setShowPaymentMethods(false)
-    console.log('Payment cancelled')
   }
 
   const handleShowPaymentMethods = () => {
-    console.log('handleShowPaymentMethods called')
-    console.log('reservation:', reservation)
-    console.log('reservation?.bookingId:', reservation?.bookingId)
-    console.log('totalPrice:', totalPrice)
-    
-    // Allow payment even without reservation (for testing)
+    // Require booking ID to proceed with payment
     if (!reservation?.bookingId) {
-      console.warn('No booking ID available, but allowing payment for testing')
-      // For testing purposes, create a mock booking ID
-      const mockReservation = {
-        bookingId: Date.now(), // Mock booking ID
-        reservationId: `BK${Date.now()}`,
-        totalAmount: totalPrice,
-        vehicle: selectedVehicle,
-        center: selectedCenter,
-        appointmentDate: selectedDate,
-        timeSlot: selectedTimeSlot?.slotTime,
-        services: selectedServices.map(id => services.find(s => s.id === id)).filter(Boolean)
-      }
-      
-      console.log('Using mock reservation:', mockReservation)
-      setShowPaymentMethods(true)
+      alert('Không tìm thấy thông tin đặt lịch. Vui lòng thử lại.')
       return
     }
     
@@ -111,7 +84,6 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
   const handleQRPayment = async () => {
     if (!reservation?.bookingId) {
-      console.error('No booking ID available for payment')
       return
     }
 
@@ -128,17 +100,14 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         cancelUrl: `${window.location.origin}/booking/payment/cancel`
       }
 
-      console.log('Creating payment:', paymentRequest)
-      
       // Create payment
       const paymentResponse = await PaymentService.createPayment(paymentRequest)
-      console.log('Payment created:', paymentResponse)
       
       // Show QR payment modal
       setShowQRPayment(true)
       
     } catch (error) {
-      console.error('Error creating payment:', error)
+      // Silently handle error
     } finally {
       setIsProcessingPayment(false)
     }

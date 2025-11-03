@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Eye, Edit, ToggleLeft, ToggleRight, CheckCircle, X } from 'lucide-react'
+import { Eye, Edit, CheckCircle, X, Wrench, FileText, Banknote, Calendar as CalendarIcon, Settings } from 'lucide-react'
 
 export type ServiceRow = {
   id: number
@@ -19,10 +19,9 @@ type Props = {
   onSort: (field: string) => void
   onView: (id: number) => void
   onEdit: (service: ServiceRow) => void
-  onToggle: (id: number, isActive: boolean) => void
 }
 
-export default function ServicesListTable({ services, sortBy, sortOrder, onSort, onView, onEdit, onToggle }: Props) {
+export default function ServicesListTable({ services, sortBy, sortOrder, onSort, onView, onEdit }: Props) {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   useEffect(() => {
     // reset selection when list changes
@@ -48,29 +47,41 @@ export default function ServicesListTable({ services, sortBy, sortOrder, onSort,
             <th>
               <div className="th-inner left">
                 <input type="checkbox" className="table-checkbox" checked={allSelected} onChange={toggleAll} />
+                <Wrench size={16} className="th-icon" />
                 <span>Tên dịch vụ</span>
               </div>
             </th>
             <th>
-              <div className="th-inner left">Mô tả</div>
+              <div className="th-inner left">
+                <FileText size={16} className="th-icon" />
+                Mô tả
+              </div>
             </th>
             <th className="is-sortable" onClick={() => onSort('price')}>
               <div className="th-inner left">
+                <Banknote size={16} className="th-icon" />
                 <span>Giá</span>
                 <SortIcon field="price" />
               </div>
             </th>
             <th>
-              <div className="th-inner left">Trạng thái</div>
+              <div className="th-inner left">
+                <CheckCircle size={16} className="th-icon" />
+                Trạng thái
+              </div>
             </th>
             <th className="is-sortable" onClick={() => onSort('createAt')}>
               <div className="th-inner left">
+                <CalendarIcon size={16} className="th-icon" />
                 <span>Ngày tạo</span>
                 <SortIcon field="createAt" />
               </div>
             </th>
             <th>
-              <div className="th-inner left">Thao tác</div>
+              <div className="th-inner left">
+                <Settings size={16} className="th-icon" />
+                Thao tác
+              </div>
             </th>
           </tr>
         </thead>
@@ -112,9 +123,6 @@ export default function ServicesListTable({ services, sortBy, sortOrder, onSort,
                   </button>
                   <button className="action-btn" title="Sửa dịch vụ" onClick={() => onEdit(service)}>
                     <Edit size={16} />
-                  </button>
-                  <button className="action-btn" title={service.isActive ? 'Vô hiệu hóa dịch vụ' : 'Kích hoạt dịch vụ'} onClick={() => onToggle(service.id, service.isActive)}>
-                    {service.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                   </button>
                 </div>
               </td>
