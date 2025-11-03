@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { addToCart } from '@/store/cartSlice'
-import { PartService, Part } from '@/services'
+import { PartService, Part, CartService } from '@/services'
 import {
   ShoppingCartIcon,
   HeartIcon,
@@ -123,7 +123,7 @@ export default function ProductDetail() {
       .map(convertPartToProduct)
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return
     
     dispatch(addToCart({
@@ -135,6 +135,14 @@ export default function ProductDetail() {
       category: product.category,
       inStock: product.inStock || true
     }))
+
+    // Best-effort sync to backend cart
+    try {
+      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem('cartId')) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cartId'))
+      let cartId = storedCartId ? Number(storedCartId) : null
+      if (!cartId) return
+      await CartService.addItem(cartId, { partId: product.partId, quantity: 1 })
+    } catch (_) { /* ignore */ }
   }
 
   const handleBuyNow = () => {

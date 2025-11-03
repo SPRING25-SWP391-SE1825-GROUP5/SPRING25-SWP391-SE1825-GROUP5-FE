@@ -12,7 +12,7 @@ import {
   BoltIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { PartService, Part, PartFilters, OrderService, CustomerService } from '@/services'
+import { PartService, Part, PartFilters, OrderService, CustomerService, CartService } from '@/services'
 import toast from 'react-hot-toast'
 import './products.scss'
 import { addToCart } from '@/store/cartSlice'
@@ -227,7 +227,7 @@ export default function Products() {
   }
 
   // Xử lý thêm vào giỏ hàng
-  const handleAddToCart = (part: Part, e: React.MouseEvent) => {
+  const handleAddToCart = async (part: Part, e: React.MouseEvent) => {
     e.stopPropagation()
     dispatch(addToCart({
       id: String(part.partId),
@@ -239,6 +239,27 @@ export default function Products() {
       inStock: !part.isOutOfStock
     }))
     toast.success(`Đã thêm ${part.partName} vào giỏ hàng`)
+
+    // Sync BE cart: lấy cartId theo customer -> thêm item
+    try {
+      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem('cartId')) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cartId'))
+      let cartId: number | null = storedCartId ? Number(storedCartId) : null
+
+      if (!cartId && user?.customerId) {
+        const resp = await CartService.getCartByCustomer(Number(user.customerId))
+        const id = (resp?.data as any)?.cartId
+        if (id) {
+          cartId = Number(id)
+          if (typeof localStorage !== 'undefined') localStorage.setItem('cartId', String(cartId))
+        }
+      }
+
+      if (cartId) {
+        await CartService.addItem(cartId, { partId: part.partId, quantity: 1 })
+      }
+    } catch (_) {
+      // Silently ignore BE sync errors to keep UX smooth
+    }
   }
 
   // Xử lý mua ngay
