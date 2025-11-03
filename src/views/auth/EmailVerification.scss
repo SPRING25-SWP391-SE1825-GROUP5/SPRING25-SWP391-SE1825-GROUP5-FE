@@ -1,0 +1,496 @@
+// EmailVerificationGlass.scss - Glassmorphism Email Verification với Workshop Background
+// Sử dụng hình workshop (Gemini_Generated_Image) làm background với hiệu ứng glass
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+// ==================== VARIABLES ====================
+$primary-gold: #C49D4B;
+$secondary-gold: #FFD875;
+$light-gold: #FFF6D1;
+$text-dark: #2d3748;
+$text-light: #ffffff;
+$glass-white: rgba(255, 255, 255, 0.15);
+$glass-border: rgba(255, 255, 255, 0.3);
+$shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1);
+$error-color: #f87171;
+$success-color: #10b981;
+
+// ==================== MAIN CONTAINER ====================
+.email-verification-glass {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  // Background với workshop image
+  &__background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    
+    background-image: url('/src/assets/images/Gemini_Generated_Image_nn6v31nn6v31nn6v.png');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    
+    // Overlay
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(196, 157, 75, 0.15) 50%,
+        rgba(255, 215, 117, 0.2) 100%
+      );
+      backdrop-filter: blur(2px);
+    }
+  }
+
+  // ==================== GLASS CARD ====================
+  &__card {
+    position: absolute;
+    top: 50%;
+    right: 8%;
+    transform: translateY(-50%);
+    width: 480px;
+    max-width: 90vw;
+    padding: 48px 40px;
+    
+    // Glassmorphism effect
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    
+    animation: slideInGlass 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 10;
+    
+    @media (max-width: 768px) {
+      right: 50%;
+      transform: translate(50%, -50%);
+      width: 420px;
+      padding: 40px 32px;
+    }
+    
+    @media (max-width: 480px) {
+      width: 90vw;
+      padding: 32px 24px;
+    }
+  }
+
+  // ==================== HEADER ====================
+  &__header {
+    margin-bottom: 32px;
+    text-align: left;
+  }
+
+  &__title {
+    font-size: 32px;
+    font-weight: 700;
+    color: $text-light;
+    margin: 0 0 16px 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    line-height: 1.2;
+    
+    @media (max-width: 480px) {
+      font-size: 28px;
+    }
+  }
+
+  &__subtitle {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    line-height: 1.6;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    
+    strong {
+      color: $secondary-gold;
+      font-weight: 600;
+    }
+  }
+
+  // ==================== FORM ====================
+  &__form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  &__form-group {
+    margin-bottom: 20px;
+  }
+
+  &__label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 12px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  // ==================== OTP CONTAINER ====================
+  &__otp-container {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+    
+    @media (max-width: 480px) {
+      gap: 8px;
+    }
+  }
+
+  &__otp-input {
+    width: 56px;
+    height: 56px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    color: $text-light;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.06),
+      0 1px 2px rgba(255, 255, 255, 0.1);
+    
+    &:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-color: $secondary-gold;
+      box-shadow: 
+        0 0 0 4px rgba(255, 215, 117, 0.15),
+        inset 0 2px 4px rgba(0, 0, 0, 0.06);
+      transform: scale(1.05);
+    }
+    
+    &:hover:not(:disabled) {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    &--valid {
+      border-color: $success-color;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+
+    &--error {
+      border-color: $error-color;
+      background: rgba(248, 113, 113, 0.2);
+      color: #fca5a5;
+      animation: shake 0.5s ease-in-out;
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+    }
+
+    &--validating {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 480px) {
+      width: 44px;
+      height: 44px;
+      font-size: 20px;
+    }
+  }
+
+  // ==================== OTP STATUS ====================
+  &__otp-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 12px;
+    animation: slideDown 0.3s ease-out;
+    
+    &--validating {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    &--success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    &--error {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+  }
+
+  &__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  // ==================== BUTTONS ====================
+  &__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    
+    &--submit {
+      background: linear-gradient(135deg, $primary-gold, $secondary-gold);
+      color: $text-light;
+      box-shadow: 
+        0 4px 16px rgba(196, 157, 75, 0.4),
+        0 2px 8px rgba(196, 157, 75, 0.2);
+      
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, $secondary-gold, $primary-gold);
+        box-shadow: 
+          0 6px 20px rgba(196, 157, 75, 0.5),
+          0 3px 10px rgba(196, 157, 75, 0.3);
+        transform: translateY(-2px);
+      }
+      
+      &:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+      }
+      
+      &:hover:not(:disabled)::before {
+        left: 100%;
+      }
+    }
+    
+    &--resend {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(10px);
+      color: rgba(255, 255, 255, 0.9);
+      border: 1.5px solid rgba(255, 255, 255, 0.3);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+      
+      &:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: $secondary-gold;
+        color: $secondary-gold;
+        transform: translateY(-1px);
+        box-shadow: 
+          0 2px 8px rgba(196, 157, 75, 0.2),
+          inset 0 1px 2px rgba(255, 255, 255, 0.1);
+      }
+      
+      &:active:not(:disabled) {
+        transform: translateY(0);
+      }
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    @media (max-width: 480px) {
+      padding: 14px 20px;
+      font-size: 15px;
+    }
+  }
+
+  &__button-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  // ==================== FOOTER ====================
+  &__footer {
+    margin-top: 24px;
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  &__back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 8px 12px;
+    border-radius: 8px;
+    
+    &:hover {
+      color: $secondary-gold;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+}
+
+// ==================== ANIMATIONS ====================
+@keyframes slideInGlass {
+  from {
+    opacity: 0;
+    transform: translateY(-45%) translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 100px;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+// ==================== RESPONSIVE ====================
+@media (max-width: 768px) {
+  .email-verification-glass {
+    &__card {
+      animation: slideInGlassMobile 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+}
+
+@keyframes slideInGlassMobile {
+  from {
+    opacity: 0;
+    transform: translate(50%, -45%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(50%, -50%) scale(1);
+  }
+}
+
+// ==================== ACCESSIBILITY ====================
+@media (prefers-reduced-motion: reduce) {
+  .email-verification-glass {
+    &__card {
+      animation: none;
+    }
+    
+    &__button {
+      &--submit::before {
+        display: none;
+      }
+    }
+    
+    &__otp-input {
+      &:focus {
+        transform: none;
+      }
+      
+      &--error {
+        animation: none;
+      }
+    }
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+// Focus visible states
+.email-verification-glass__button:focus-visible,
+.email-verification-glass__otp-input:focus-visible,
+.email-verification-glass__back-link:focus-visible {
+  outline: 2px solid $secondary-gold;
+  outline-offset: 2px;
+}

@@ -1,44 +1,64 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { savePromotion, clearAllSavedPromotions } from '@/store/promoSlice'
 import { PromotionService, type Promotion } from '@/services/promotionService'
-import { PromotionBookingService } from '@/services/promotionBookingService'
-import { CustomerService } from '@/services/customerService'
 import { handleApiError } from '@/utils/errorHandler'
-import toast from 'react-hot-toast'
 import { 
   Gift, 
   Percent, 
   DollarSign, 
   Truck, 
-  Bookmark, 
-  BookmarkCheck,
   Sparkles,
-  CheckCircle,
   Clock,
   Tag,
-  ShoppingCart,
-  Heart,
   Star,
   Calendar
 } from 'lucide-react'
+import './promotions.scss'
 
 export default function Promotions() {
-  const dispatch = useAppDispatch()
-  const promo = useAppSelector((state) => state.promo)
-  const auth = useAppSelector((state) => state.auth)
   const [searchParams] = useSearchParams()
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [savingPromotion, setSavingPromotion] = useState<string | null>(null)
-  const [customerId, setCustomerId] = useState<number | null>(null)
 
   // Get URL parameters
   const categoryParam = searchParams.get('category')
   const typeParam = searchParams.get('type')
+
+  // Hàm kiểm tra promotion còn có thể sử dụng
+  const isPromotionUsable = (promotion: Promotion): boolean => {
+    // Kiểm tra trạng thái active
+    if (!promotion.isActive) return false
+    
+    // Kiểm tra đã hết hạn chưa
+    if (promotion.isExpired) return false
+    
+    // Kiểm tra đã đạt giới hạn sử dụng chưa
+    if (promotion.isUsageLimitReached) return false
+    
+    // Kiểm tra còn lượt sử dụng không (nếu có usageLimit)
+    if (promotion.usageLimit && promotion.remainingUsage <= 0) return false
+    
+    // Kiểm tra endDate (nếu có)
+    if (promotion.endDate) {
+      const endDate = new Date(promotion.endDate)
+      const now = new Date()
+      if (endDate < now) return false
+    }
+    
+    // Kiểm tra startDate đã đến chưa
+    if (promotion.startDate) {
+      const startDate = new Date(promotion.startDate)
+      const now = new Date()
+      if (startDate > now) return false
+    }
+    
+    // Kiểm tra status
+    if (promotion.status !== 'ACTIVE') return false
+    
+    return true
+  }
 
   // Load promotions from API
   useEffect(() => {
@@ -50,14 +70,24 @@ export default function Promotions() {
         const result = await PromotionService.getActivePromotions()
         
         if (result.data && result.data.length > 0) {
-          setPromotions(result.data)
+          // Lọc chỉ lấy những promotion còn có thể sử dụng
+          const usablePromotions = result.data.filter(isPromotionUsable)
+          
+          if (usablePromotions.length > 0) {
+            setPromotions(usablePromotions)
+          } else {
+            setPromotions([])
+            setError('Không có khuyến mãi nào còn khả dụng')
+          }
         } else {
+          setPromotions([])
           setError('Không có khuyến mãi nào')
         }
       } catch (error) {
         const errorMessage = 'Không thể tải danh sách khuyến mãi'
         setError(errorMessage)
         handleApiError(error)
+        setPromotions([])
       } finally {
         setLoading(false)
       }
@@ -66,81 +96,6 @@ export default function Promotions() {
     loadPromotions()
   }, [])
 
-  // Load customerId when user is logged in
-  useEffect(() => {
-    const loadCustomerId = async () => {
-      if (!auth.user?.id) {
-        return
-      }
-
-      try {
-        const response = await CustomerService.getCurrentCustomer()
-        if (response.success && response.data) {
-          setCustomerId(response.data.customerId)
-        }
-      } catch (error) {
-        console.error('Error loading customerId:', error)
-      }
-    }
-
-    loadCustomerId()
-  }, [auth.user?.id])
-
-  // Load saved promotions from API when user is logged in
-  useEffect(() => {
-    const loadSavedPromotions = async () => {
-      if (!customerId) {
-        // Clear saved promotions if customerId is not available
-        return
-      }
-
-      try {
-        console.log('Loading saved promotions for customer:', customerId)
-        const savedPromotions = await PromotionBookingService.getCustomerPromotions(customerId)
-        console.log('API response:', savedPromotions)
-        
-        // Clear existing saved promotions first
-        dispatch(clearAllSavedPromotions())
-        
-        // Convert API response to Redux format and dispatch
-        if (Array.isArray(savedPromotions) && savedPromotions.length > 0) {
-          console.log('Processing', savedPromotions.length, 'saved promotions')
-          savedPromotions.forEach((promo, index) => {
-            console.log(`Processing promotion ${index + 1}:`, promo)
-            
-            // Validate promotion data
-            if (!promo.code || !promo.description) {
-              console.warn('Invalid promotion data:', promo)
-              return
-            }
-            
-            const promotionData = {
-              id: String(promo.code), // Use code as id for consistency with API
-              code: promo.code,
-              title: promo.description,
-              description: promo.description,
-              type: 'percentage' as const, // Default type, could be enhanced
-              value: promo.discountAmount || 0,
-              validFrom: new Date().toISOString(),
-              validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
-              isActive: true,
-              usageLimit: 1,
-              usedCount: 0
-            }
-            dispatch(savePromotion(promotionData))
-          })
-        } else {
-          console.log('No saved promotions found or empty response')
-        }
-      } catch (error) {
-        console.error('Error loading saved promotions:', error)
-        // Clear saved promotions on error
-        dispatch(clearAllSavedPromotions())
-      }
-    }
-
-    loadSavedPromotions()
-  }, [customerId, dispatch])
 
   // Update filter based on URL params
   useEffect(() => {
@@ -179,148 +134,14 @@ export default function Promotions() {
     })
   }
 
-  const handleSavePromotion = async (promotion: any) => {
-    console.log('handleSavePromotion called with:', promotion)
-    
-    if (!auth.user?.id) {
-      toast.error('Vui lòng đăng nhập để lưu khuyến mãi')
-      return
-    }
-
-    if (isPromotionSaved(promotion.code)) {
-      toast.error('Khuyến mãi này đã được lưu')
-      return
-    }
-
-    // Validate promotion before saving
-    const validationError = validatePromotionForSaving(promotion)
-    if (validationError) {
-      console.log('Validation failed:', validationError)
-      toast.error(validationError)
-      return
-    }
-
-    setSavingPromotion(promotion.code)
-    
-    try {
-      // Get customerId if not available
-      let currentCustomerId = customerId
-      if (!currentCustomerId) {
-        const response = await CustomerService.getCurrentCustomer()
-        if (response.success && response.data) {
-          currentCustomerId = response.data.customerId
-          setCustomerId(currentCustomerId)
-        } else {
-          toast.error('Không thể xác định thông tin khách hàng')
-          setSavingPromotion(null)
-          return
-        }
-      }
-
-      if (!currentCustomerId) {
-        toast.error('Không thể xác định thông tin khách hàng')
-        setSavingPromotion(null)
-        return
-      }
-
-      console.log('Calling API to save promotion:', promotion.code, 'for customerId:', currentCustomerId)
-      // Call API to save promotion
-      await PromotionBookingService.saveCustomerPromotion(currentCustomerId, promotion.code)
-      
-      // Convert promotion to Redux format
-      const promotionData = {
-        id: String(promotion.code), // Use code as id for consistency with API
-        code: promotion.code,
-        title: promotion.description,
-        description: promotion.description,
-        type: promotion.discountType === 'PERCENT' ? 'percentage' as const : 
-              promotion.discountType === 'FIXED' ? 'fixed' as const : 'shipping' as const,
-        value: promotion.discountValue || promotion.discountAmount || 0,
-        minOrder: promotion.minOrderAmount,
-        validFrom: promotion.startDate || new Date().toISOString(),
-        validTo: promotion.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        isActive: promotion.isActive !== false,
-        usageLimit: promotion.usageLimit,
-        usedCount: promotion.usageCount || 0
-      }
-      
-      // Update Redux store
-      dispatch(savePromotion(promotionData))
-      
-      toast.success('Đã lưu khuyến mãi thành công!')
-    } catch (error: any) {
-      console.error('Error saving promotion:', error)
-      toast.error(error.message || 'Lỗi khi lưu khuyến mãi')
-    } finally {
-      setSavingPromotion(null)
-    }
-  }
-
-  // Validate promotion before saving
-  const validatePromotionForSaving = (promotion: any): string | null => {
-    console.log('Validating promotion:', promotion)
-    const today = new Date()
-    
-    // Check if promotion is active
-    if (promotion.isActive === false) {
-      console.log('Promotion is inactive')
-      return 'Khuyến mãi này không còn hoạt động'
-    }
-    
-    // Check if promotion has started
-    if (promotion.startDate) {
-      const startDate = new Date(promotion.startDate)
-      console.log('Start date:', startDate, 'Today:', today, 'Started?', startDate <= today)
-      if (startDate > today) {
-        return 'Khuyến mãi chưa có hiệu lực'
-      }
-    }
-    
-    // Check if promotion has expired
-    if (promotion.endDate) {
-      const endDate = new Date(promotion.endDate)
-      console.log('End date:', endDate, 'Today:', today, 'Expired?', endDate < today)
-      if (endDate < today) {
-        return 'Khuyến mãi đã hết hạn'
-      }
-    }
-    
-    // Check if usage limit exceeded
-    if (promotion.usageLimit && promotion.usageCount >= promotion.usageLimit) {
-      console.log('Usage limit exceeded:', promotion.usageCount, '/', promotion.usageLimit)
-      return 'Khuyến mãi đã hết lượt sử dụng'
-    }
-    
-    console.log('Promotion validation passed')
-    return null // No validation errors
-  }
-
-  // Check if promotion can be saved
-  const canPromotionBeSaved = (promotion: any): boolean => {
-    const validationError = validatePromotionForSaving(promotion)
-    return validationError === null
-  }
-
-  const isPromotionSaved = (promotionId: string) => {
-    // Since we now use code as id consistently, check by code
-    const isSaved = promo?.savedPromotions?.some(p => p.code === promotionId) || false
-    
-    console.log(`Checking if promotion ${promotionId} is saved:`, isSaved)
-    return isSaved
-  }
 
   // Filter categories based on actual data
   const filterCategories = [
     { id: 'all', label: 'Tất cả', count: Array.isArray(promotions) ? promotions.length : 0 },
     { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENT').length : 0 },        
     { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'FIXED').length : 0 },
-    { id: 'shipping', label: 'Free ship', count: 0 },
-    { id: 'saved', label: 'Đã lưu', count: promo?.savedPromotions?.length || 0 }
+    { id: 'shipping', label: 'Free ship', count: 0 }
   ]
-
-  // Debug: Log saved promotions count
-  console.log('Current saved promotions count:', promo?.savedPromotions?.length || 0)
-  console.log('Saved promotions:', promo?.savedPromotions)
 
   // Filter promotions based on active filter
   const filteredPromotions = () => {
@@ -333,43 +154,41 @@ export default function Promotions() {
         return promotions.filter(p => p.discountType === 'FIXED')
       case 'shipping':
         return promotions.filter(p => p.discountType === 'FIXED') // Fallback since SHIPPING doesn't exist
-      case 'saved':
-        return promotions.filter(p => isPromotionSaved(p.code))
       default:
         return promotions
     }
   }
 
-  const getPromotionBadge = (promotion: any) => {
-    switch (promotion.type) {
-      case 'percentage':
-        return { 
-          text: `${promotion.value}%`, 
-          color: '#10b981',
-          bgColor: 'rgba(16, 185, 129, 0.1)',
-          icon: <Percent size={16} />
-        }
-      case 'fixed':
-        return { 
-          text: `${(promotion.value / 1000)}K`, 
-          color: '#10b981',
-          bgColor: 'rgba(16, 185, 129, 0.1)',
-          icon: <DollarSign size={16} />
-        }
-      case 'shipping':
-        return { 
-          text: 'FREE', 
-          color: '#10b981',
-          bgColor: 'rgba(16, 185, 129, 0.1)',
-          icon: <Truck size={16} />
-        }
-      default:
-        return { 
-          text: 'NEW', 
-          color: '#10b981',
-          bgColor: 'rgba(16, 185, 129, 0.1)',
-          icon: <Sparkles size={16} />
-        }
+  const getPromotionBadge = (promotion: Promotion) => {
+    // Xử lý dựa trên discountType thay vì type
+    if (promotion.discountType === 'PERCENT') {
+      return { 
+        text: `${promotion.discountValue}%`, 
+        color: '#059669',
+        bgColor: 'rgba(16, 185, 129, 0.1)',
+        icon: <Percent size={16} />
+      }
+    } else if (promotion.discountType === 'FIXED') {
+      return { 
+        text: `${Math.round(promotion.discountValue / 1000)}K`, 
+        color: '#2563eb',
+        bgColor: 'rgba(59, 130, 246, 0.1)',
+        icon: <DollarSign size={16} />
+      }
+    } else if (promotion.discountType === 'SHIPPING') {
+      return { 
+        text: 'FREE', 
+        color: '#7c3aed',
+        bgColor: 'rgba(139, 92, 246, 0.1)',
+        icon: <Truck size={16} />
+      }
+    } else {
+      return { 
+        text: 'NEW', 
+        color: '#8B6914', // primary-700 từ color scheme
+        bgColor: 'rgba(255, 216, 117, 0.15)',
+        icon: <Sparkles size={16} />
+      }
     }
   }
 
@@ -415,34 +234,13 @@ export default function Promotions() {
 
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-      minHeight: 'calc(100vh - 64px)',
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
-      marginTop: '64px'
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '32px 24px 64px'
-      }}>
+    <div className="promotions-page">
+      <div className="promotions-page__container">
         {/* Breadcrumb */}
         {pageInfo.showBreadcrumb && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '24px',
-            fontSize: '14px',
-            color: '#757575'
-          }}>
+          <div className="promotions-page__breadcrumb">
             <a 
               href="/promotions" 
-              style={{ 
-                color: '#757575', 
-                textDecoration: 'none',
-                cursor: 'pointer'
-              }}
               onClick={(e) => {
                 e.preventDefault()
                 window.location.href = '/promotions'
@@ -451,13 +249,13 @@ export default function Promotions() {
               Tất cả khuyến mãi
             </a>
             <span>/</span>
-            <span style={{ color: '#111111', fontWeight: '500' }}>
+            <span className="active">
               {pageInfo.category}
             </span>
             {pageInfo.type && (
               <>
                 <span>/</span>
-                <span style={{ color: '#111111', fontWeight: '500' }}>
+                <span className="active">
                   {pageInfo.type}
                 </span>
               </>
@@ -465,49 +263,14 @@ export default function Promotions() {
           </div>
         )}
 
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '16px',
-            marginBottom: '20px'
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-            }}>
-              <Gift size={24} />
-            </div>
-            <h1 style={{
-              fontSize: '40px',
-              fontWeight: '700',
-              color: '#1e293b',
-              margin: '0',
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              {pageInfo.showBreadcrumb ? pageInfo.type || pageInfo.category : pageInfo.category}
-            </h1>
+        <div className="promotions-page__header">
+          <div className="promotions-page__header-icon">
+            <Gift size={28} />
           </div>
-          <p style={{
-            fontSize: '18px',
-            color: '#64748b',
-            margin: '0',
-            maxWidth: '600px',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            lineHeight: '1.6'
-          }}>
+          <h1>
+            {pageInfo.showBreadcrumb ? pageInfo.type || pageInfo.category : pageInfo.category}
+          </h1>
+          <p>
             {pageInfo.showBreadcrumb 
               ? `Khám phá các ${pageInfo.type?.toLowerCase() || pageInfo.category.toLowerCase()} đặc biệt dành cho bạn`
               : 'Lưu khuyến mãi yêu thích để sử dụng khi thanh toán'
@@ -517,42 +280,14 @@ export default function Promotions() {
 
         {/* Category Info Banner */}
         {pageInfo.showBreadcrumb && (
-          <div style={{
-            background: '#ffffff',
-            border: '2px solid #000000',
-            borderRadius: '8px',
-            padding: '24px',
-            marginBottom: '32px',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              background: '#000000',
-              width: '48px',
-              height: '48px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px',
-              fontSize: '20px',
-              color: '#ffffff',
-              fontWeight: 'bold'
-            }}>
+          <div className="promotions-page__category-banner">
+            <div className="promotions-page__category-banner-icon">
               ✓
             </div>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#000000',
-              margin: '0 0 8px 0'
-            }}>
+            <h3>
               Bạn đang xem: {pageInfo.type || pageInfo.category}
             </h3>
-            <p style={{
-              fontSize: '14px',
-              color: '#666666',
-              margin: '0'
-            }}>
+            <p>
               Tất cả khuyến mãi đều có sẵn để bạn lưu và sử dụng khi thanh toán
             </p>
           </div>
@@ -560,405 +295,118 @@ export default function Promotions() {
 
         {/* Loading State */}
         {loading && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '200px',
-            fontSize: '18px',
-            color: '#666666'
-          }}>
+          <div className="promotions-page__loading">
             Đang tải khuyến mãi...
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '200px',
-            fontSize: '18px',
-            color: '#ef4444',
-            textAlign: 'center'
-          }}>
+          <div className="promotions-page__error">
             {error}
           </div>
         )}
 
         {/* Filter Tabs - Only show when not loading and no error */}
         {!loading && !error && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-            marginBottom: '48px'
-        }}>
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            padding: '6px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
-          }}>
-            {filterCategories.map(category => (
-              <button
-                key={category.id}
-                onClick={() => setActiveFilter(category.id)}
-                style={{
-                  padding: '12px 20px',
-                  border: 'none',
-                  background: activeFilter === category.id ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
-                  color: activeFilter === category.id ? '#ffffff' : '#64748b',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: activeFilter === category.id ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
-                }}
-              >
-                {category.label}
-                <span style={{
-                  background: activeFilter === category.id ? 'rgba(255, 255, 255, 0.2)' : 'rgba(16, 185, 129, 0.1)',
-                  color: activeFilter === category.id ? '#ffffff' : '#10b981',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600'
-                }}>
-                  {category.count}
-                </span>
-              </button>
-            ))}
+          <div className="promotions-page__filters">
+            <div className="promotions-page__filters-container">
+              {filterCategories.map(category => (
+                <button
+                  key={category.id}
+                  onClick={() => setActiveFilter(category.id)}
+                  className={`promotions-page__filters-button ${activeFilter === category.id ? 'active' : ''}`}
+                >
+                  {category.label}
+                  <span className="promotions-page__filters-button-badge">
+                    {category.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
         )}
 
         {/* Promotions Grid - Only show when not loading and no error */}
         {!loading && !error && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-          gap: '24px'
-        }}>
-          {filteredPromotions().map(promotion => {
-            const badge = getPromotionBadge(promotion)
-            return (
-            <div key={promotion.promotionId} style={{
-              background: '#ffffff',
-              border: '2px solid #cbd5e1',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              transition: 'all 0.3s ease',
-              position: 'relative',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)'
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.15)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)'
-            }}>
-              <div style={{
-                width: '100%',
-                height: '120px',
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.2))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                borderBottom: '2px solid #cbd5e1'
-              }}>
-                {/* Large promotion icon */}
-                <div style={{
-                  color: '#10b981',
-                  opacity: 0.8
-                }}>
-                  {promotion.discountType === 'PERCENT' ? <Percent size={48} /> :
-                   promotion.discountType === 'FIXED' ? <DollarSign size={48} /> :
-                   promotion.discountType === 'SHIPPING' ? <Truck size={48} /> : <Sparkles size={48} />}
-                </div>
-                
-                {/* Promotion Badge */}
-                <div style={{
-                  position: 'absolute',
-                  top: '12px',
-                  left: '12px',
-                  background: badge.bgColor,
-                  color: badge.color,
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  border: `1px solid ${badge.color}20`
-                }}>
-                  {badge.icon}
-                  {badge.text}
-                </div>
-                
-                {/* Saved Badge */}
-                {isPromotionSaved(promotion.code) && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '12px',
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#ffffff',
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                  }}>
-                    <BookmarkCheck size={12} />
-                    LƯU
-                  </div>
-                )}
-              </div>
+          <div className="promotions-page__grid">
+            {filteredPromotions().map(promotion => {
+              const badge = getPromotionBadge(promotion)
+              // Xác định loại badge để dùng class phù hợp
+              const badgeClass = promotion.discountType === 'PERCENT' ? 'promotions-page__card-badge--percent' :
+                               promotion.discountType === 'FIXED' ? 'promotions-page__card-badge--fixed' :
+                               promotion.discountType === 'SHIPPING' ? 'promotions-page__card-badge--shipping' : ''
               
-              <div style={{ padding: '24px' }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: '16px'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{
-                      fontSize: '18px',
-                      fontWeight: '600',
-                      color: '#1e293b',
-                      margin: '0 0 8px 0',
-                      lineHeight: '1.4'
-                    }}>
-                      {promotion.description}
-                    </h3>
-                    <div style={{
-                      fontSize: '14px',
-                      color: '#10b981',
-                      fontFamily: 'monospace',
-                      marginBottom: '8px',
-                      fontWeight: '600',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      <Tag size={14} />
-                      Mã: {promotion.code}
+              return (
+                <div key={promotion.promotionId} className="promotions-page__card">
+                  <div className="promotions-page__card-header">
+                    <div>
+                      {promotion.discountType === 'PERCENT' ? <Percent size={40} /> :
+                       promotion.discountType === 'FIXED' ? <DollarSign size={40} /> :
+                       promotion.discountType === 'SHIPPING' ? <Truck size={40} /> : <Sparkles size={40} />}
+                    </div>
+                    
+                    {/* Promotion Badge */}
+                    <div className={`promotions-page__card-badge ${badgeClass}`}>
+                      {badge.icon}
+                      {badge.text}
                     </div>
                   </div>
                   
-                  {/* Save Button - Only show if not saved */}
-                  {!isPromotionSaved(promotion.code) ? (
-                    <button
-                      onClick={() => handleSavePromotion(promotion)}
-                      disabled={savingPromotion === promotion.code}
-                      style={{
-                        background: 'transparent',
-                        border: '2px solid #e2e8f0',
-                        borderRadius: '8px',
-                        width: '40px',
-                        height: '40px',
-                        cursor: savingPromotion === promotion.code ? 'not-allowed' : 'pointer',
-                        color: '#10b981',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: 'none',
-                        opacity: savingPromotion === promotion.code ? 0.6 : 1
-                      }}
-                      title={!canPromotionBeSaved(promotion) ? validatePromotionForSaving(promotion) || 'Không thể lưu' : 'Lưu khuyến mãi'}
-                    >
-                      {savingPromotion === promotion.code ? (
-                        <div style={{
-                          width: '18px',
-                          height: '18px',
-                          border: '2px solid currentColor',
-                          borderTop: '2px solid transparent',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite'
-                        }} />
-                      ) : (
-                        <Bookmark size={18} />
-                      )}
-                    </button>
-                  ) : (
-                    <div style={{
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
-                      border: '2px solid #10b981',
-                      borderRadius: '8px',
-                      width: '40px',
-                      height: '40px',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                    }}>
-                      <BookmarkCheck size={18} />
+                  <div className="promotions-page__card-body">
+                    <h3 className="promotions-page__card-title">
+                      {promotion.description}
+                    </h3>
+                    
+                    <div className="promotions-page__card-code">
+                      <Tag size={14} />
+                      Mã: {promotion.code}
                     </div>
-                  )}
-                </div>
 
-                <p style={{
-                  fontSize: '14px',
-                  color: '#64748b',
-                  lineHeight: '1.6',
-                  marginBottom: '20px'
-                }}>
-                  {promotion.description}
-                </p>
+                    <p className="promotions-page__card-description">
+                      {promotion.description}
+                    </p>
 
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '16px'
-                }}>
-                  <div style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    flex: 1
-                  }}>
-                    <Clock size={14} color="#10b981" />
-                    <span style={{
-                  fontSize: '12px',
-                      color: '#10b981',
-                  fontWeight: '600'
-                  }}>
-                    {promotion.minOrderAmount ? `Tối thiểu ${formatPrice(promotion.minOrderAmount)}` : 'Không giới hạn'}
-                  </span>
-                  </div>
-                  <div style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#ffffff',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                  }}>
-                    <Star size={14} />
-                  <span style={{
-                      fontSize: '12px',
-                      fontWeight: '600'
-                  }}>
-                    Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usageCount : '∞'} lượt
-                  </span>
-                  </div>
-                </div>
-
-                {/* Date Range Display */}
-                <div style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  marginBottom: '16px'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '8px'
-                  }}>
-                    <Calendar size={14} color="#10b981" />
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: '#10b981'
-                    }}>
-                      Thời gian áp dụng
-                    </span>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <span style={{
-                        fontSize: '11px',
-                        color: '#6b7280',
-                        fontWeight: '500'
-                      }}>
-                        Bắt đầu:
-                      </span>
-                      <span style={{
-                        fontSize: '11px',
-                        color: '#1f2937',
-                        fontWeight: '600'
-                      }}>
-                        {formatDate(promotion.startDate)}
-                      </span>
+                    <div className="promotions-page__card-info-row">
+                      <div className="promotions-page__card-info-box">
+                        <Clock size={14} />
+                        <span>
+                          {promotion.minOrderAmount ? `Tối thiểu ${formatPrice(promotion.minOrderAmount)}` : 'Không giới hạn'}
+                        </span>
+                      </div>
+                      <div className="promotions-page__card-info-box promotions-page__card-info-box--highlight">
+                        <Star size={14} />
+                        <span>
+                          Còn {promotion.usageLimit ? promotion.usageLimit - promotion.usageCount : '∞'} lượt
+                        </span>
+                      </div>
                     </div>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <span style={{
-                        fontSize: '11px',
-                        color: '#6b7280',
-                        fontWeight: '500'
-                      }}>
-                        Kết thúc:
-                      </span>
-                      <span style={{
-                        fontSize: '11px',
-                        color: '#1f2937',
-                        fontWeight: '600'
-                      }}>
-                        {formatDate(promotion.endDate)}
-                      </span>
+
+                    {/* Date Range Display */}
+                    <div className="promotions-page__card-date-box">
+                      <div className="promotions-page__card-date-box-header">
+                        <Calendar size={14} />
+                        <span>Thời gian áp dụng</span>
+                      </div>
+                      <div className="promotions-page__card-date-box-dates">
+                        <div className="promotions-page__card-date-box-date-item">
+                          <span>Bắt đầu:</span>
+                          <span>{formatDate(promotion.startDate)}</span>
+                        </div>
+                        <div className="promotions-page__card-date-box-date-item">
+                          <span>Kết thúc:</span>
+                          <span>{formatDate(promotion.endDate)}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
         )}
 
       </div>
-      
-      {/* CSS Animation for loading spinner */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   )
 }

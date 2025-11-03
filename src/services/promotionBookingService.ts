@@ -113,10 +113,13 @@ export const PromotionBookingService = {
     /**
      * Get customer's saved promotions
      * Requires authentication (customer must be logged in)
+     * Backend tự động lấy customerId từ JWT token, không cần truyền trong URL
      */
-    async getCustomerPromotions(customerId: number): Promise<BookingPromotionInfo[]> {
+    async getCustomerPromotions(customerId?: number): Promise<BookingPromotionInfo[]> {
         try {
-            const { data } = await api.get(`/promotion/customers/${customerId}/promotions`)
+            // Backend endpoint: GET /api/promotion/promotions
+            // Backend tự lấy customerId từ JWT token claim, không cần trong URL
+            const { data } = await api.get(`/promotion/promotions`)
 
             if (!data.success) {
                 throw new Error('Failed to get customer promotions')
@@ -132,10 +135,13 @@ export const PromotionBookingService = {
     /**
      * Save a promotion for customer (without applying to booking)
      * Requires authentication (customer must be logged in)
+     * Backend tự động lấy customerId từ JWT token, không cần truyền trong URL
      */
     async saveCustomerPromotion(customerId: number, code: string): Promise<{ success: boolean; message: string }> {
         try {
-            const { data } = await api.post(`/promotion/customers/${customerId}/promotions`, {
+            // Backend endpoint: POST /api/promotion/promotions
+            // Backend tự lấy customerId từ JWT token claim, không cần trong URL
+            const { data } = await api.post(`/promotion/promotions`, {
                 code: code.trim().toUpperCase()
             })
 
@@ -143,6 +149,24 @@ export const PromotionBookingService = {
         } catch (error: any) {
             console.error('Error saving customer promotion:', error)
             throw new Error(error.response?.data?.message || 'Lỗi lưu mã khuyến mãi')
+        }
+    },
+
+    /**
+     * Delete/unsave a saved promotion for customer (without applying to booking)
+     * Requires authentication (customer must be logged in)
+     * Backend tự động lấy customerId từ JWT token, không cần truyền trong URL
+     */
+    async unsaveCustomerPromotion(customerId: number, code: string): Promise<{ success: boolean; message: string }> {
+        try {
+            // Backend endpoint: DELETE /api/promotion/promotions/{promotionCode}
+            // Backend tự lấy customerId từ JWT token claim, không cần trong URL
+            const { data } = await api.delete(`/promotion/promotions/${code.trim().toUpperCase()}`)
+
+            return data
+        } catch (error: any) {
+            console.error('Error unsaving customer promotion:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi xóa mã khuyến mãi đã lưu')
         }
     }
 }
