@@ -370,58 +370,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
             background: 'linear-gradient(135deg, #FFF6D1 0%, #FFE9A8 100%)',
             borderBottom: '2px solid #FFD875'
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '16px',
-              background: '#fff',
-              borderRadius: '12px',
-              border: '2px solid #FFD875',
-              boxShadow: '0 2px 8px rgba(255, 216, 117, 0.2)',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 216, 117, 0.3)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(255, 216, 117, 0.2)'
-            }}
-            >
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #FFD875, #FFE9A8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#000',
-                flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(255, 216, 117, 0.4)'
-              }}>
-                <Hash size={20} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '20px',
-                  fontWeight: '700',
-                  color: '#000',
-                  marginBottom: '4px'
-                }}>
-                  #{bookingData.bookingId}
-                </div>
-                <div style={{
-                  fontSize: '12px',
-                  color: '#64748B',
-                  fontWeight: '500'
-                }}>
-                  Mã đơn
-                </div>
-              </div>
-            </div>
+            
             
             <div style={{
               display: 'flex',

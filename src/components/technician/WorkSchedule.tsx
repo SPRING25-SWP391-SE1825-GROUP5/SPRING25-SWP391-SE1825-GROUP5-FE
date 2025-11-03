@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Calendar as CalendarIcon } from 'lucide-react'
 import WorkScheduleCalendar from './WorkScheduleCalendar'
 import WorkScheduleCalendarNew from './WorkScheduleCalendarNew'
 import { useAppSelector } from '@/store/hooks'
@@ -73,6 +74,7 @@ export default function WorkSchedule({}: WorkScheduleProps) {
 
   return (
     <div className="work-schedule">
+      
       {/* Loading State */}
       {loading && (
         <div className="work-schedule__loading">

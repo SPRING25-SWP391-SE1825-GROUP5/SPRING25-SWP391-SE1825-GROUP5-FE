@@ -38,6 +38,25 @@
       border-color: #FFD875;
       color: #000000;
     }
+
+    &--today {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: linear-gradient(180deg, #FFE694 0%, #FFD875 100%);
+      border-color: #FFD875;
+      color: #111827;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.04), inset 0 -1px 0 rgba(0,0,0,0.06);
+
+      &:hover {
+        filter: brightness(0.98);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+    }
   }
 
   &__date-nav {
