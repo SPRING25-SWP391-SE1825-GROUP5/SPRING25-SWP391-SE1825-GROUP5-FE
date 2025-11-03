@@ -300,7 +300,27 @@ export default function Register() {
        // Check if registration was successful
        if (result.success) {
          toast.success('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
-         navigate(redirect, { replace: true })
+         
+         // Check if backend returned token/user (auto-login)
+         const responseData = result.data as any
+         if (responseData?.token || responseData?.accessToken) {
+           // If backend auto-login, save token and user
+           const token = responseData.accessToken || responseData.token
+           const userData = responseData.user || responseData
+           
+           if (token) {
+             localStorage.setItem('token', token)
+             if (userData) {
+               localStorage.setItem('user', JSON.stringify(userData))
+             }
+             dispatch(syncFromLocalStorage())
+           }
+         }
+         
+         // Always redirect to email verification page regardless of auto-login
+         setTimeout(() => {
+           navigate(`/auth/verify-email?email=${encodeURIComponent(email)}`, { replace: true })
+         }, 100)
        } else {
          // Handle registration failure
          console.log('Registration failed:', result)

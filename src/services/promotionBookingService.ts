@@ -192,6 +192,24 @@ export const PromotionBookingService = {
             
             throw new Error(errorMessage)
         }
+    },
+
+    /**
+     * Delete/unsave a saved promotion for customer (without applying to booking)
+     * Requires authentication (customer must be logged in)
+     * Backend tự động lấy customerId từ JWT token, không cần truyền trong URL
+     */
+    async unsaveCustomerPromotion(customerId: number, code: string): Promise<{ success: boolean; message: string }> {
+        try {
+            // Backend endpoint: DELETE /api/promotion/promotions/{promotionCode}
+            // Backend tự lấy customerId từ JWT token claim, không cần trong URL
+            const { data } = await api.delete(`/promotion/promotions/${code.trim().toUpperCase()}`)
+
+            return data
+        } catch (error: any) {
+            console.error('Error unsaving customer promotion:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi xóa mã khuyến mãi đã lưu')
+        }
     }
 }
 

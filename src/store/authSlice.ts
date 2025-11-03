@@ -252,7 +252,13 @@ const slice = createSlice({
       })
       .addCase(getCurrentUser.fulfilled, (state, action: PayloadAction<User | null>) => {
         state.loading = false
-        if (action.payload) state.user = action.payload
+        if (action.payload) {
+          state.user = action.payload
+          // Update localStorage to keep it in sync
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('user', JSON.stringify(action.payload))
+          }
+        }
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.loading = false

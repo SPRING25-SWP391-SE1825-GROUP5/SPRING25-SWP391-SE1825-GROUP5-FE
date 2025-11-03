@@ -98,7 +98,29 @@ export default function LoginPage() {
           localStorage.setItem("token", result.data.token)
           localStorage.setItem("user", JSON.stringify(result.data.user))
           dispatch(syncFromLocalStorage())
-          const userRole = result.data.user?.role || "customer"
+          
+          // Check if email is verified - for customers, redirect to verification if not verified
+          const user = result.data.user;
+          const userRole = (user?.role || 'customer').toLowerCase();
+          const isCustomer = userRole === 'customer';
+          
+          // If customer and email not verified, redirect to email verification
+          if (isCustomer && user && !user.emailVerified) {
+            const emailParam = user.email ? `?email=${encodeURIComponent(user.email)}` : '';
+            const target = new URLSearchParams(location.search).get('redirect')
+            // If redirecting from verification page, keep redirect param
+            if (target && target.includes('/auth/verify-email')) {
+              setTimeout(() => {
+                navigate(target, { replace: true });
+              }, 100);
+            } else {
+              setTimeout(() => {
+                navigate(`/auth/verify-email${emailParam}`, { replace: true });
+              }, 100);
+            }
+            return;
+          }
+          
           const redirectPath = getRedirectPath(userRole)
           
           // Small delay to ensure state is fully synced
@@ -167,8 +189,22 @@ export default function LoginPage() {
         // Sync Redux state with localStorage
         dispatch(syncFromLocalStorage());
 
+        // Check if email is verified - for customers, redirect to verification if not verified
+        const user = result.data.user;
+        const userRole = (user?.role || 'customer').toLowerCase();
+        const isCustomer = userRole === 'customer';
+        
+        // If customer and email not verified, redirect to email verification
+        if (isCustomer && user && !user.emailVerified) {
+          const emailParam = user.email ? `?email=${encodeURIComponent(user.email)}` : '';
+          setTimeout(() => {
+            navigate(`/auth/verify-email${emailParam}`, { replace: true });
+          }, 100);
+          return;
+        }
+        
         // Navigate based on user role with small delay to ensure state sync
-        const redirectPath = getRedirectPath(result.data.user?.role);
+        const redirectPath = getRedirectPath(userRole);
         
         // Small delay to ensure state is fully synced
         setTimeout(() => {

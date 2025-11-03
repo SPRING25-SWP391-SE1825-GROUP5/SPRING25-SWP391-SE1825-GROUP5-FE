@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { savePromotion, clearAllSavedPromotions } from '@/store/promoSlice'
-import { PromotionService, type Promotion } from '@/services/promotionService'
-import { PromotionBookingService } from '@/services/promotionBookingService'
 import { CustomerService } from '@/services/customerService'
+import { PromotionBookingService } from '@/services/promotionBookingService'
+import { PromotionService, type Promotion } from '@/services/promotionService'
 import { handleApiError } from '@/utils/errorHandler'
 import toast from 'react-hot-toast'
 import { Percent, DollarSign, Truck, Sparkles } from 'lucide-react'
@@ -278,8 +278,7 @@ export default function Promotions() {
     { id: 'all', label: 'Tất cả', count: Array.isArray(promotions) ? promotions.length : 0 },
     { id: 'percentage', label: 'Giảm %', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'PERCENT').length : 0 },
     { id: 'fixed', label: 'Giảm tiền', count: Array.isArray(promotions) ? promotions.filter(p => p.discountType === 'FIXED').length : 0 },
-    { id: 'shipping', label: 'Free ship', count: 0 },
-    { id: 'saved', label: 'Đã lưu', count: promo?.savedPromotions?.length || 0 }
+    { id: 'shipping', label: 'Free ship', count: 0 }
   ]
 
   // Filter promotions based on active filter
@@ -293,8 +292,6 @@ export default function Promotions() {
         return promotions.filter(p => p.discountType === 'FIXED')
       case 'shipping':
         return promotions.filter(p => p.discountType === 'FIXED') // Fallback since SHIPPING doesn't exist
-      case 'saved':
-        return promotions.filter(p => isPromotionSaved(p.code))
       default:
         return promotions
     }

@@ -9,7 +9,8 @@ import TechnicianLayout from '@/components/layout/TechnicianLayout'
 import StaffLayout from '@/components/layout/StaffLayout'
 import ManagerLayout from '@/components/layout/ManagerLayout'
 import RequireAuth from '@/components/routes/RequireAuth'
-import TimeSlotManagement from '../views/Admin/TimeSlotManagement'
+import RequireEmailVerified from '@/components/routes/RequireEmailVerified'
+import TimeSlotManagement from '../views/Admin/TimeSlotManagement';
 import Cart from '@/views/Cart'
 
 // Lazy pages
@@ -29,6 +30,7 @@ const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
 const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
 const ForgotPasswordConfirm = lazy(() => import('../views/auth/ForgotPasswordConfirm'))
+const EmailVerification = lazy(() => import('../views/auth/EmailVerification'))
 const Dashboard = lazy(() => import('@/views/Dashboard'))
 const Profile = lazy(() => import('@/views/Profile'))
 const Users = lazy(() => import('@/views/Users'))
@@ -91,12 +93,12 @@ const router = createBrowserRouter([
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
       { path: 'map-demo', element: suspense(<MapDemo />) },
 
-      { path: 'dashboard', element: <RequireAuth>{suspense(<Dashboard />)}</RequireAuth> },
-      { path: 'profile', element: suspense(<Profile />) },
+      { path: 'dashboard', element: <RequireEmailVerified>{suspense(<Dashboard />)}</RequireEmailVerified> },
+      { path: 'profile', element: <RequireEmailVerified>{suspense(<Profile />)}</RequireEmailVerified> },
 
       // Customer
-      { path: 'my-vehicles', element: <RequireAuth>{suspense(<MyVehicles />)}</RequireAuth> },
-      { path: 'maintenance-history', element: <RequireAuth>{suspense(<MaintenanceHistory />)}</RequireAuth> },
+      { path: 'my-vehicles', element: <RequireEmailVerified>{suspense(<MyVehicles />)}</RequireEmailVerified> },
+      { path: 'maintenance-history', element: <RequireEmailVerified>{suspense(<MaintenanceHistory />)}</RequireEmailVerified> },
 
       { path: '*', element: suspense(<NotFound />) },
     ],
@@ -165,6 +167,7 @@ const router = createBrowserRouter([
     children: [
       { path: 'login', element: suspense(<Login />) },
       { path: 'register', element: suspense(<Register />) },
+      { path: 'verify-email', element: suspense(<EmailVerification />) },
       { path: 'forgot-password', element: suspense(<ForgotPasswordRequest />) },
       { path: 'forgot-password/confirm', element: suspense(<ForgotPasswordConfirm />) },
     ],

@@ -159,11 +159,6 @@ export default function Profile() {
 
   // Vehicle loading useEffect removed - using ProfileVehicles component instead
 
-  useEffect(() => {
-    if (activeTab === 'promo-codes' && customerId) {
-      loadSavedPromotions()
-    }
-  }, [activeTab, customerId])
 
   // Load customerId when component mounts
   useEffect(() => {

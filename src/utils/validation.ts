@@ -366,8 +366,8 @@ export const validateEmailNotExists = async (email: string, checkEmailExists: (e
     return { isValid: true } // Let required validation handle empty values
   }
 
-  // First check format
-  const formatValidation = validateGmail(email)
+  // First check format - allow all email domains
+  const formatValidation = validateEmail(email)
   if (!formatValidation.isValid) {
     return formatValidation
   }
@@ -506,7 +506,7 @@ export const validateRegisterFormStrict = (data: {
 }): ValidationResult => {
   const errors: Record<string, string> = {}
   const nameV = validateFullName(data.fullName); if (!nameV.isValid) errors.fullName = nameV.error!
-  const emailV = validateGmail(data.email); if (!emailV.isValid) errors.email = emailV.error!
+  const emailV = validateEmail(data.email); if (!emailV.isValid) errors.email = emailV.error!
   const passV = validatePassword(data.password); if (!passV.isValid) errors.password = passV.error!
   const cpassV = validateConfirmPassword(data.password, data.confirmPassword); if (!cpassV.isValid) errors.confirmPassword = cpassV.error!
   const phoneV = validateVNPhone10(data.phoneNumber); if (!phoneV.isValid) errors.phoneNumber = phoneV.error!

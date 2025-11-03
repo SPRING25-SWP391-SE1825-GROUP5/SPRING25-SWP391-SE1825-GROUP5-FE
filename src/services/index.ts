@@ -51,6 +51,7 @@ export type {
 export { ServiceChecklistTemplateService } from './serviceChecklistTemplateService'
 export type {
   ServiceChecklistTemplate,
+  ServiceChecklistTemplateItem,
   TemplateItemDto,
   TemplateCreateRequest,
   TemplateUpdateRequest,
