@@ -1,5 +1,5 @@
 .booking-page {
-  background: var(--bg-primary);
+  background: #fff9e514;
   padding-top: 80px;
   width: 100%;
   min-height: 100vh;
@@ -15,10 +15,14 @@
   }
 
   .booking-content {
-    background: var(--bg-card);
-    border: 1px solid var(--border-primary);
-    border-radius: 16px;
-    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
+    background: rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 18px;
+    box-shadow:
+      0 12px 28px rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
   }
 }
 
@@ -546,15 +550,15 @@
 
   /* Fix layout centering */
   .service-booking-form {
-    width: 100% !important;
-    max-width: 1000px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
-    box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+  box-sizing: border-box !important;
   }
-}
+
 
 /* Location Service Enhancements */
 .address-input-container {

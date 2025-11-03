@@ -74,6 +74,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(serviceData.categoryId)
+  const [expandedCategoryId, setExpandedCategoryId] = useState<number | undefined>(serviceData.categoryId)
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(undefined)
   
   // Recommendation states
@@ -184,6 +185,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     // Reset recommendations when category changes
     setRecommendedServices([])
     setShowRecommendations(false)
+    setExpandedCategoryId(undefined)
   }
 
   // Function to get recommended services
@@ -253,28 +255,230 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       <h2 className="csv-title">Dịch vụ & Thông tin xe</h2>
       <p className="csv-subheading">Chọn dịch vụ hoặc gói dịch vụ và cung cấp thông tin xe để tiếp tục đặt lịch</p>
       <form onSubmit={handleSubmit} className="csv-grid">
+      <div className="csv-section card">
+          <div className="form-group">
+            <label>Chọn xe<span className="required-star">*</span></label>
+            <select
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+              borderRadius: '12px',
+              fontSize: '16px',
+              background: '#ffffff',
+              color: '#111827',
+              transition: 'all 0.2s ease',
+              boxSizing: 'border-box'
+            }}
+              value={selectedVehicleId || ''}
+              onChange={(e) => {
+                const vid = Number(e.target.value)
+                const v = vehicles.find(x => x.vehicleId === vid)
+                if (v) {
+                  setSelectedVehicleId(vid)
+                  onUpdateVehicle({ 
+                    licensePlate: v.licensePlate, 
+                    carModel: v.vin,
+                    mileage: v.currentMileage?.toString() || ''
+                  })
+                } else {
+                  setSelectedVehicleId(undefined)
+                  onUpdateVehicle({ licensePlate: '', carModel: '', mileage: '' })
+                }
+              }}
+            >
+              <option value="">—</option>
+              {vehiclesLoading && <option value="" disabled>Đang tải...</option>}
+              {!vehiclesLoading && vehicles.map(v => (
+                <option key={v.vehicleId} value={v.vehicleId}>{v.licensePlate} — {v.vin}</option>
+              ))}
+            </select>
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={() => {
+                setOpenCreate(true)
+                // Reset selected vehicle khi tạo xe mới
+                setSelectedVehicleId(undefined)
+              }} 
+              style={{ marginTop: 8 }}
+            >
+              + Tạo xe mới
+            </button>
+          </div>
+          {/* Model selection moved to CreateVehicleModal */}
+          <div className="form-group">
+            <label>Số Km hiện tại<span className="required-star">*</span></label>
+            <input
+              type="text"
+              value={vehicleData.mileage}
+              onChange={(e) => onUpdateVehicle({ mileage: e.target.value })}
+              disabled={isVehicleSelected}
+              style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white' }}
+            />
+          </div>
+          {/* Km gần đây: chỉ hiển thị khi chọn xe có sẵn, dùng để cập nhật km hiện tại */}
+          {isVehicleSelected && (
+            <div className="form-group">
+              <label>Số Km gần đây khi mang xe đến (tùy chọn)</label>
+              <input
+                type="number"
+                value={vehicleData.recentMileage || ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  onUpdateVehicle({ recentMileage: val })
+                  const base = Number(vehicleData.mileage || 0)
+                  const num = Number(val)
+                  if (val && !isNaN(num) && num < base) {
+                    setRecentMileageError(`Km gần đây không được nhỏ hơn km hiện tại (${base.toLocaleString()} km).`)
+                  } else {
+                    setRecentMileageError(null)
+                  }
+                }}
+                min={Number(vehicleData.mileage || 0)}
+                aria-invalid={!!recentMileageError}
+                placeholder="Nhập km khi mang xe đến"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  background: '#ffffff',
+                  color: '#111827',
+                  transition: 'all 0.2s ease',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {recentMileageError && (
+                <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>{recentMileageError}</div>
+              )}
+            </div>
+          )}
+          <div className="form-group">
+            <label>Biển số xe <span className="required-star">*</span></label>
+            <input
+              type="text"
+              value={vehicleData.licensePlate}
+              onChange={(e) => onUpdateVehicle({ licensePlate: e.target.value })}
+              required
+              disabled={isVehicleSelected}
+              style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white', cursor: isVehicleSelected ? 'not-allowed' : 'auto' , pointerEvents: isVehicleSelected ? 'none' : 'auto' , opacity: isVehicleSelected ? 0.5 : 1 , borderColor: isVehicleSelected ? '#e5e7eb' : 'var(--csv-border)' , borderStyle: isVehicleSelected ? 'dashed' : 'solid' , borderWidth: isVehicleSelected ? '1px' : '1px' , borderRadius: isVehicleSelected ? '10px' : '10px' , padding: isVehicleSelected ? '0.7rem .85rem' : '0.7rem .85rem' , maxWidth: isVehicleSelected ? '100%' : '100%' , transition: 'all 0.2s ease' ,}}
+            />
+          </div>
+
+          {/* Fields riêng cho Bảo dưỡng */}
+          {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && (
+            <div className="form-group">
+              <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
+              {(() => {
+                const todayStr = new Date().toISOString().split('T')[0]
+                const selectedDate = vehicleData.lastMaintenanceDate || ''
+                const isFuture = !!selectedDate && selectedDate > todayStr
+                return (
+                  <>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
+                      max={todayStr}
+                      required
+                      aria-invalid={isFuture}
+                      style={{
+                        width: '100%',
+                        padding: '14px 16px',
+                        border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        background: '#ffffff',
+                        color: '#111827',
+                        transition: 'all 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    {isFuture && (
+                      <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
+                        Ngày này không thể chọn trong tương lai
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Fields riêng cho Sửa chữa */}
+          {selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') && (
+            <>
+              <div className="form-group">
+                <label>Checklist sửa chữa (mỗi mục một dòng)</label>
+                <textarea
+                  value={vehicleData.repairChecklist?.join('\n') || ''}
+                  onChange={(e) => {
+                    const items = e.target.value.split('\n').filter(item => item.trim())
+                    onUpdateVehicle({ repairChecklist: items })
+                  }}
+                  rows={4}
+                  placeholder="Ví dụ:&#10;Kiểm tra hệ thống pin&#10;Kiểm tra hệ thống phanh&#10;Kiểm tra hệ thống điện"
+                />
+              </div>
+              <div className="form-group">
+                <label>Hình ảnh xe (tùy chọn)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || [])
+                    onUpdateVehicle({ repairImages: files })
+                  }}
+                />
+                {vehicleData.repairImages && vehicleData.repairImages.length > 0 && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--csv-muted)' }}>
+                    Đã chọn {vehicleData.repairImages.length} ảnh
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         <div className="csv-section card">
           <div className="form-group">
             <label>Loại dịch vụ <span className="required-star">*</span></label>
             {categoriesLoading ? (
               <div>Đang tải...</div>
             ) : (
-              <select
-                value={selectedCategoryId || ''}
-                onChange={(e) => handleCategoryChange(e.target.value ? Number(e.target.value) : undefined)}
-                required
-              >
-                <option value="">-- Chọn loại dịch vụ --</option>
-                {categories.map(cat => (
-                  <option key={cat.categoryId} value={cat.categoryId}>
-                    {cat.categoryName}
-                  </option>
-                ))}
-              </select>
+              <div className="category-grid">
+                {categories.map(cat => {
+                  const active = selectedCategoryId === cat.categoryId
+                  return (
+                    <div key={cat.categoryId} className={`category-card ${active ? 'active' : ''}`}>
+                      <button
+                        type="button"
+                        className="category-main"
+                        onClick={() => handleCategoryChange(cat.categoryId)}
+                      >
+                        <span className="category-name">{cat.categoryName}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="category-detail"
+                        onClick={() => {
+                          const next = expandedCategoryId === cat.categoryId ? undefined : cat.categoryId
+                          setSelectedCategoryId(cat.categoryId)
+                          setExpandedCategoryId(next)
+                        }}
+                      >
+                        {expandedCategoryId === cat.categoryId ? 'Ẩn chi tiết' : 'Xem chi tiết'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
 
-          {selectedCategoryId && (
+          {expandedCategoryId && selectedCategoryId === expandedCategoryId && (
             <>
           <h3 className="csv-section-title">Chọn dịch vụ</h3>
               {servicesLoading && <div>Đang tải dịch vụ...</div>}
@@ -463,184 +667,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           </div>
         </div>
 
-        <div className="csv-section card">
-          <h3 className="csv-section-title">Thông tin xe</h3>
-          {/* Select existing vehicle to autofill */}
-          <div className="form-group">
-            <label>Chọn xe có sẵn<span className="required-star">*</span></label>
-            <select
-              value={selectedVehicleId || ''}
-              onChange={(e) => {
-                const vid = Number(e.target.value)
-                const v = vehicles.find(x => x.vehicleId === vid)
-                if (v) {
-                  setSelectedVehicleId(vid)
-                  onUpdateVehicle({ 
-                    licensePlate: v.licensePlate, 
-                    carModel: v.vin,
-                    mileage: v.currentMileage?.toString() || ''
-                  })
-                } else {
-                  setSelectedVehicleId(undefined)
-                  onUpdateVehicle({ licensePlate: '', carModel: '', mileage: '' })
-                }
-              }}
-            >
-              <option value="">—</option>
-              {vehiclesLoading && <option value="" disabled>Đang tải...</option>}
-              {!vehiclesLoading && vehicles.map(v => (
-                <option key={v.vehicleId} value={v.vehicleId}>{v.licensePlate} — {v.vin}</option>
-              ))}
-            </select>
-            <button 
-              type="button" 
-              className="btn-secondary" 
-              onClick={() => {
-                setOpenCreate(true)
-                // Reset selected vehicle khi tạo xe mới
-                setSelectedVehicleId(undefined)
-              }} 
-              style={{ marginTop: 8 }}
-            >
-              + Tạo xe mới
-            </button>
-          </div>
-          {/* Model selection moved to CreateVehicleModal */}
-          <div className="form-group">
-            <label>Số km đã đi<span className="required-star">*</span></label>
-            <input
-              type="text"
-              value={vehicleData.mileage}
-              onChange={(e) => onUpdateVehicle({ mileage: e.target.value })}
-              disabled={isVehicleSelected}
-              style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white' }}
-            />
-          </div>
-          {/* Km gần đây: chỉ hiển thị khi chọn xe có sẵn, dùng để cập nhật km hiện tại */}
-          {isVehicleSelected && (
-            <div className="form-group">
-              <label>Km gần đây (tùy chọn)</label>
-              <input
-                type="number"
-                value={vehicleData.recentMileage || ''}
-                onChange={(e) => {
-                  const val = e.target.value
-                  onUpdateVehicle({ recentMileage: val })
-                  const base = Number(vehicleData.mileage || 0)
-                  const num = Number(val)
-                  if (val && !isNaN(num) && num < base) {
-                    setRecentMileageError(`Km gần đây không được nhỏ hơn km hiện tại (${base.toLocaleString()} km).`)
-                  } else {
-                    setRecentMileageError(null)
-                  }
-                }}
-                min={Number(vehicleData.mileage || 0)}
-                aria-invalid={!!recentMileageError}
-                placeholder="Nhập km khi mang xe đến"
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
-                  borderRadius: '12px',
-                  fontSize: '16px',
-                  background: '#ffffff',
-                  color: '#111827',
-                  transition: 'all 0.2s ease',
-                  boxSizing: 'border-box'
-                }}
-              />
-              {recentMileageError && (
-                <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>{recentMileageError}</div>
-              )}
-            </div>
-          )}
-          <div className="form-group">
-            <label>Biển số xe <span className="required-star">*</span></label>
-            <input
-              type="text"
-              value={vehicleData.licensePlate}
-              onChange={(e) => onUpdateVehicle({ licensePlate: e.target.value })}
-              required
-              disabled={isVehicleSelected}
-              style={{ backgroundColor: isVehicleSelected ? '#f5f5f5' : 'white', cursor: isVehicleSelected ? 'not-allowed' : 'auto' , pointerEvents: isVehicleSelected ? 'none' : 'auto' , opacity: isVehicleSelected ? 0.5 : 1 , borderColor: isVehicleSelected ? '#e5e7eb' : 'var(--csv-border)' , borderStyle: isVehicleSelected ? 'dashed' : 'solid' , borderWidth: isVehicleSelected ? '1px' : '1px' , borderRadius: isVehicleSelected ? '10px' : '10px' , padding: isVehicleSelected ? '0.7rem .85rem' : '0.7rem .85rem' , maxWidth: isVehicleSelected ? '100%' : '100%' , transition: 'all 0.2s ease' ,}}
-            />
-          </div>
-
-          {/* Fields riêng cho Bảo dưỡng */}
-          {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && (
-            <div className="form-group">
-              <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
-              {(() => {
-                const todayStr = new Date().toISOString().split('T')[0]
-                const selectedDate = vehicleData.lastMaintenanceDate || ''
-                const isFuture = !!selectedDate && selectedDate > todayStr
-                return (
-                  <>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
-                      max={todayStr}
-                      required
-                      aria-invalid={isFuture}
-                      style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
-                        borderRadius: '12px',
-                        fontSize: '16px',
-                        background: '#ffffff',
-                        color: '#111827',
-                        transition: 'all 0.2s ease',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    {isFuture && (
-                      <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
-                        Ngày này không thể chọn trong tương lai
-                      </div>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
-          )}
-
-          {/* Fields riêng cho Sửa chữa */}
-          {selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') && (
-            <>
-              <div className="form-group">
-                <label>Checklist sửa chữa (mỗi mục một dòng)</label>
-                <textarea
-                  value={vehicleData.repairChecklist?.join('\n') || ''}
-                  onChange={(e) => {
-                    const items = e.target.value.split('\n').filter(item => item.trim())
-                    onUpdateVehicle({ repairChecklist: items })
-                  }}
-                  rows={4}
-                  placeholder="Ví dụ:&#10;Kiểm tra hệ thống pin&#10;Kiểm tra hệ thống phanh&#10;Kiểm tra hệ thống điện"
-                />
-              </div>
-              <div className="form-group">
-                <label>Hình ảnh xe (tùy chọn)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || [])
-                    onUpdateVehicle({ repairImages: files })
-                  }}
-                />
-                {vehicleData.repairImages && vehicleData.repairImages.length > 0 && (
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--csv-muted)' }}>
-                    Đã chọn {vehicleData.repairImages.length} ảnh
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        
 
         <CreateVehicleModal
           open={openCreate}
@@ -694,25 +721,32 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           --csv-text: #0f172a;
           --csv-muted: #64748b;
         }
-        .combined-service-vehicle-step { background: linear-gradient(180deg, #ffffff 0%, #f6fbf8 100%); padding-bottom: .5rem; }
+        .combined-service-vehicle-step { background: transparent; padding-bottom: .5rem; }
         .csv-title { font-size: 1.75rem; font-weight: 800; color: var(--csv-text); margin: 0 0 .25rem 0; letter-spacing: .2px; }
         .csv-subheading { margin: 0 0 1rem 0; color: var(--csv-muted); }
-        .csv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
+        .csv-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1.25rem; align-items: start; }
         .card { 
-          background: var(--csv-surface); 
-          border: 1px solid var(--csv-border); 
-          border-radius: 14px; 
+          background: rgba(255, 255, 255, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.45);
+          border-radius: 16px; 
           padding: 1.25rem; 
-          box-shadow: var(--csv-shadow);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
+          backdrop-filter: blur(18px) saturate(160%);
+          -webkit-backdrop-filter: blur(18px) saturate(160%);
           box-sizing: border-box;
           /* Cho phép menu dropdown render ra ngoài card */
           overflow: visible;
         }
-        .card:hover { box-shadow: var(--csv-shadow-hover); transform: translateY(-1px); border-color: #dbe1e8; }
+        .card:hover { box-shadow: 0 22px 48px rgba(0, 0, 0, 0.18); transform: translateY(-1px); border-color: rgba(255,255,255,0.6); }
         .csv-section-title { margin: 0 0 .75rem 0; font-size: 1.1rem; font-weight: 700; color: var(--csv-text); }
         .csv-subtitle { margin: .5rem 0 .5rem; font-size: .95rem; font-weight: 700; color: var(--csv-muted); }
         .service-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin-bottom: 1rem; }
         .pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: .5rem; }
+        .category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+        .category-card { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid var(--border-primary); border-radius: 12px; padding: .5rem; background: #fff; }
+        .category-card.active { border-color: var(--progress-current); box-shadow: 0 2px 10px rgba(0,64,48,.12); }
+        .category-main { flex: 1; text-align: left; background: transparent; border: none; color: var(--text-primary); font-weight: 700; padding: .5rem .75rem; border-radius: 10px; cursor: pointer; }
+        .category-detail { background: var(--primary-50); color: var(--progress-current); border: 1px solid var(--progress-current); border-radius: 10px; padding: .45rem .7rem; font-weight: 700; cursor: pointer; }
         .service-item { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
         .service-item input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
         .service-item span { display: inline-block; padding: .5rem .75rem; border: 1px solid var(--border-primary); border-radius: 999px; background: #fff; color: var(--text-primary); transition: all .2s ease; user-select: none; }
@@ -733,7 +767,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .pkg-card.selected { border-color: var(--progress-current); box-shadow: 0 10px 20px rgba(28, 199, 116, .18); }
         .pkg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .pkg-name { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); }
-        .pkg-badge { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 700; }
+        .pkg-badge { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 700; }
         .pkg-meta { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: .9rem; }
         .pkg-dot { color: #cbd5e1; }
         .pkg-price { margin-top: 4px; font-weight: 800; color: var(--progress-current); letter-spacing: .2px; }
@@ -760,10 +794,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-secondary { background: #fff; color: var(--csv-text); border: 1px solid var(--csv-border); border-radius: 10px; padding: .75rem 1.1rem; font-weight: 700; }
         
         /* Recommendation Instruction Styles */
-        .recommendation-instruction { margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 12px; }
-        .instruction-content h4 { margin: 0 0 0.75rem 0; color: #92400e; }
-        .instruction-content p { margin: 0.5rem 0; color: #a16207; font-size: 0.9rem; }
-        .instruction-content ul { margin: 0.5rem 0; padding-left: 1.5rem; color: #a16207; }
+        .recommendation-instruction { margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; }
+        .instruction-content h4 { margin: 0 0 0.75rem 0; color: var(--text-primary); }
+        .instruction-content p { margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem; }
+        .instruction-content ul { margin: 0.5rem 0; padding-left: 1.5rem; color: var(--text-secondary); }
         .instruction-content li { margin: 0.25rem 0; font-size: 0.9rem; }
         
         /* Recommendation Styles */
