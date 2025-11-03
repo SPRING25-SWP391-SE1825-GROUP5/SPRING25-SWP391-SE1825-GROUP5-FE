@@ -58,11 +58,18 @@ interface TechnicianBooking {
   slotId: number
   technicianSlotId: number
   slotTime: string
+  slotLabel?: string
+  date?: string
   customerName: string
   customerPhone: string
   vehiclePlate: string
   workStartTime: string | null
   workEndTime: string | null
+  createdAt?: string
+  createdDate?: string
+  created_at?: string
+  bookingDate?: string
+  updatedAt?: string
 }
 
 interface WorkOrder {
@@ -81,6 +88,7 @@ interface WorkOrder {
   description: string
   scheduledDate: string
   scheduledTime: string
+  createdAt: string
   serviceType: string
   assignedTechnician?: string
   parts: string[]
@@ -100,6 +108,7 @@ interface WorkQueueProps {
 export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQueueProps) {
   // Removed old search state - using searchTerm instead
   const [statusFilter, setStatusFilter] = useState('all')
+  
   // Initialize with current date in local timezone
   const getCurrentDateString = () => {
     const now = new Date()
@@ -110,6 +119,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   }
   
   const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
+  const [dateFilterType, setDateFilterType] = useState<'custom' | 'today' | 'thisWeek' | 'all'>('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set())
@@ -121,8 +131,11 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Sort state
-  const [sortBy, setSortBy] = useState<'bookingId' | 'customer' | 'serviceName' | 'status' | 'scheduledTime' | 'scheduledDate'>('bookingId')
+  // Additional filters
+  const [serviceTypeFilter, setServiceTypeFilter] = useState('all')
+
+  // Sort state - Default: bookingId desc (mới nhất)
+  const [sortBy, setSortBy] = useState<'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate'>('bookingId')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // Lấy thông tin user từ store và resolve đúng technicianId
@@ -215,34 +228,72 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         bookingsData = response.bookings
       }
       
+      // Helper: chuẩn hóa giờ phút từ slot
+      const normalizeTime = (raw?: string): string => {
+        if (!raw) return '00:00'
+        let s = String(raw).trim()
+        // Lấy phần đầu nếu là khoảng "hh:mm-hh:mm"
+        if (s.includes('-')) s = s.split('-')[0].trim()
+        // Loại bỏ ký hiệu SA/CH (vi) hoặc AM/PM
+        s = s.replace(/\bSA\b|\bCH\b|am|pm|AM|PM/gi, '').trim()
+        // Lấy nhóm giờ:phút
+        const match = s.match(/(\d{1,2}):(\d{2})/)
+        if (!match) return '00:00'
+        let hour = Number(match[1])
+        const minute = match[2]
+        // Nếu > 23 thì đưa về 00
+        if (!Number.isFinite(hour) || hour < 0 || hour > 23) hour = 0
+        return `${String(hour).padStart(2, '0')}:${minute}`
+      }
+
+      const buildCreatedAt = (b: TechnicianBooking, fallbackDate?: string): string => {
+        const raw = b.createdAt || b.createdDate || b.created_at || b.bookingDate
+        // Nếu backend trả 0001-01-01... thì coi như invalid
+        if (raw && !raw.startsWith('0001-01-01')) return raw
+        const datePart = (b.date && !b.date.startsWith('0001-01-01')) ? b.date : (fallbackDate || getCurrentDateString())
+        const timePart = normalizeTime(b.slotLabel || b.slotTime)
+        try {
+          const iso = new Date(`${datePart}T${timePart}:00`).toISOString()
+          return iso
+        } catch {
+          return new Date().toISOString()
+        }
+      }
+
       // Kiểm tra nếu bookingsData là array và có length > 0
       if (Array.isArray(bookingsData) && bookingsData.length > 0) {
         // Transform API data to WorkOrder format
-        const transformedData: WorkOrder[] = bookingsData.map((booking: TechnicianBooking) => ({
-          id: booking.bookingId,
-          bookingId: booking.bookingId,
-          title: booking.serviceName,
-          customer: booking.customerName,
-          customerPhone: booking.customerPhone,
-          licensePlate: booking.vehiclePlate,
-          bikeBrand: '', // Không có trong API
-          bikeModel: '', // Không có trong API
-          status: mapBookingStatus(booking.status) as 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled',
-          priority: 'medium' as 'low' | 'medium' | 'high', // Default priority
-          estimatedTime: '1 giờ', // Default time
-          description: `Dịch vụ: ${booking.serviceName}`, // Tạo description từ serviceName
-          scheduledDate: date || new Date().toISOString().split('T')[0],
-          scheduledTime: booking.slotTime.replace(' SA', '').replace(' CH', ''),
-          serviceType: 'maintenance', // Default service type
-          assignedTechnician: '', // Không có trong API
-          parts: [], // Không có trong API
-          workDate: date || new Date().toISOString().split('T')[0],
-          startTime: booking.workStartTime || '',
-          endTime: booking.workEndTime || '',
-          serviceName: booking.serviceName,
-          vehicleId: undefined, // Không có trong API
-          centerId: booking.centerId
-        }))
+        const transformedData: WorkOrder[] = bookingsData.map((booking: TechnicianBooking) => {
+          // Ưu tiên createdAt hợp lệ; nếu không, dựng từ date + slot
+          const createdAt = buildCreatedAt(booking, date)
+          
+          return {
+            id: booking.bookingId,
+            bookingId: booking.bookingId,
+            title: booking.serviceName,
+            customer: booking.customerName,
+            customerPhone: booking.customerPhone,
+            licensePlate: booking.vehiclePlate,
+            bikeBrand: '', // Không có trong API
+            bikeModel: '', // Không có trong API
+            status: mapBookingStatus(booking.status) as 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled',
+            priority: 'medium' as 'low' | 'medium' | 'high', // Default priority
+            estimatedTime: '1 giờ', // Default time
+            description: `Dịch vụ: ${booking.serviceName}`, // Tạo description từ serviceName
+            scheduledDate: date || new Date().toISOString().split('T')[0],
+            scheduledTime: booking.slotTime.replace(' SA', '').replace(' CH', ''),
+            createdAt: createdAt, // Thời gian tạo booking
+            serviceType: 'maintenance', // Default service type
+            assignedTechnician: '', // Không có trong API
+            parts: [], // Không có trong API
+            workDate: date || new Date().toISOString().split('T')[0],
+            startTime: booking.workStartTime || '',
+            endTime: booking.workEndTime || '',
+            serviceName: booking.serviceName,
+            vehicleId: undefined, // Không có trong API
+            centerId: booking.centerId
+          }
+        })
         
         setWorkQueue(transformedData)
       } else {
@@ -291,28 +342,116 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     return priorityMap[priority?.toLowerCase()] || 'medium'
   }
 
-  // Load data khi component mount và khi date thay đổi
+  // Load data khi component mount và khi date filter thay đổi
   useEffect(() => {
-    fetchTechnicianBookings(selectedDate, true) // Preserve current page
-  }, [fetchTechnicianBookings, selectedDate])
+    // Khi dateFilterType là 'today', 'custom' thì fetch data theo ngày cụ thể
+    // Còn 'thisWeek', 'all' thì chỉ filter ở client-side (data đã có)
+    if (dateFilterType === 'today') {
+      const today = getCurrentDateString()
+      fetchTechnicianBookings(today, true)
+    } else if (dateFilterType === 'custom') {
+      fetchTechnicianBookings(selectedDate, true)
+    }
+    // 'thisWeek', 'all' không fetch, chỉ filter client-side với data đã có
+  }, [fetchTechnicianBookings, dateFilterType, selectedDate])
+
+  // Initial load: when technicianId is resolved, fetch without date to get all
+  useEffect(() => {
+    if (technicianId && workQueue.length === 0) {
+      fetchTechnicianBookings(undefined, true)
+    }
+  }, [technicianId])
+
+  // Helper function để lấy date range từ dateFilterType
+  const getDateRange = (filterType: typeof dateFilterType): { startDate?: string; endDate?: string } | null => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    switch (filterType) {
+      case 'today':
+        const todayStr = getCurrentDateString()
+        return { startDate: todayStr, endDate: todayStr }
+      case 'thisWeek':
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay()) // Chủ nhật đầu tuần
+        const weekEnd = new Date(today)
+        weekEnd.setDate(weekStart.getDate() + 6) // Thứ bảy cuối tuần
+        return {
+          startDate: `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`,
+          endDate: `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`
+        }
+      case 'all':
+        return null // Không filter theo ngày
+      case 'custom':
+        return { startDate: selectedDate, endDate: selectedDate }
+      default:
+        return null
+    }
+  }
 
   const filteredWork = workQueue
     .filter(work => {
+      // Search filter
       const matchesSearch = work.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            work.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            work.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           work.customerPhone.includes(searchTerm)
+                           work.customerPhone.includes(searchTerm) ||
+                           (work.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())
     
-    // Sửa logic filter status - map từ uppercase sang lowercase
-    let matchesStatus = true
-    if (statusFilter && statusFilter !== '' && statusFilter !== 'all') {
-      // Map status filter từ uppercase sang lowercase để so sánh
-      const mappedStatus = mapBookingStatus(statusFilter)
-      matchesStatus = work.status === mappedStatus
-    }
+      // Status filter
+      let matchesStatus = true
+      if (statusFilter && statusFilter !== '' && statusFilter !== 'all') {
+        const mappedStatus = mapBookingStatus(statusFilter)
+        matchesStatus = work.status === mappedStatus
+      }
+      
+      // Service type filter
+      let matchesServiceType = true
+      if (serviceTypeFilter && serviceTypeFilter !== 'all') {
+        matchesServiceType = work.serviceType === serviceTypeFilter
+      }
+      
+      // Date filter - filter theo createdAt (thời gian tạo booking)
+      let matchesDate = true
+      if (dateFilterType !== 'all') {
+        const dateRange = getDateRange(dateFilterType)
+        
+        // Extract date từ createdAt (format: YYYY-MM-DD)
+        const getDateFromCreatedAt = (createdAt: string): string | null => {
+          if (!createdAt) return null
+          try {
+            const date = new Date(createdAt)
+            if (isNaN(date.getTime())) return null
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            return `${year}-${month}-${day}`
+          } catch {
+            return null
+          }
+        }
+        
+        const workCreatedDate = work.createdAt ? getDateFromCreatedAt(work.createdAt) : null
+        
+        if (dateRange && workCreatedDate) {
+          if (dateRange.startDate && dateRange.endDate) {
+            // Range filter (tuần này)
+            matchesDate = workCreatedDate >= dateRange.startDate && workCreatedDate <= dateRange.endDate
+          } else if (dateRange.startDate) {
+            // Single date filter (hôm nay)
+            matchesDate = workCreatedDate === dateRange.startDate
+          }
+        } else if (dateFilterType === 'custom' && workCreatedDate) {
+          // Custom date filter
+          matchesDate = workCreatedDate === selectedDate
+        } else if (!workCreatedDate) {
+          // Nếu không có createdAt, không match (trừ khi là 'all')
+          matchesDate = false
+        }
+      }
     
-    return matchesSearch && matchesStatus
-  })
+      return matchesSearch && matchesStatus && matchesServiceType && matchesDate
+    })
     .sort((a, b) => {
       // Quick sort functionality
       let aValue: any
@@ -335,9 +474,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
           aValue = (a.status || '').toLowerCase()
           bValue = (b.status || '').toLowerCase()
           break
-        case 'scheduledTime':
-          aValue = (a.scheduledTime || '').toLowerCase()
-          bValue = (b.scheduledTime || '').toLowerCase()
+        case 'createdAt':
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0
           break
         case 'scheduledDate':
           aValue = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0
@@ -362,13 +501,13 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   const paginatedWork = filteredWork.slice(startIndex, endIndex)
 
 
-  // Reset to first page only when search or status filter changes (not date)
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, sortBy, sortOrder])
+  }, [searchTerm, statusFilter, serviceTypeFilter, dateFilterType, selectedDate, sortBy, sortOrder])
 
   // Sort handlers
-  const handleSort = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'scheduledTime' | 'scheduledDate') => {
+  const handleSort = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate') => {
     if (sortBy === field) {
       setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -377,12 +516,24 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     }
   }
 
-  const getSortIcon = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'scheduledTime' | 'scheduledDate') => {
+  const getSortIcon = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate') => {
     if (sortBy !== field) {
       return <ChevronUp size={14} style={{ opacity: 0.3 }} />
     }
     return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
   }
+
+  // Làm mới: reset tất cả filter về mặc định và refetch theo hôm nay
+  const handleRefreshFilters = useCallback(() => {
+    setSearchTerm('')
+    setStatusFilter('all')
+    setServiceTypeFilter('all')
+    setDateFilterType('all') // Hiển thị tất cả trong dataset hiện có
+    setSortBy('bookingId')
+    setSortOrder('desc')
+    setCurrentPage(1)
+    // Không refetch để giữ "tất cả" theo dataset hiện tại
+  }, [])
 
   // Ensure selectedDate is always current date on mount
   useEffect(() => {
@@ -411,7 +562,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       case 'confirmed': return '#F97316' // Cam
       case 'in_progress': return '#3B82F6' // Xanh dương
       case 'completed': return '#10B981' // Xanh lá
-      case 'paid': return '#059669' // Xanh lá đậm
+      case 'paid': return '#3B82F6' // Xanh dương
       case 'cancelled': return '#EF4444' // Đỏ
       default: return '#6B7280' // Xám
     }
@@ -734,7 +885,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
             flex: 1,
             justifyContent: 'flex-end'
           }}>
-            <div className="toolbar-search" style={{ flex: 1, maxWidth: '400px' }}>
+            <div className="toolbar-search" style={{ flex: 1, maxWidth: 'none', minWidth: '400px' }}>
               <div className="search-wrap" style={{
                 position: 'relative',
                 display: 'flex',
@@ -775,7 +926,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
               <button 
                 type="button" 
                 className="toolbar-btn"
-                onClick={() => fetchTechnicianBookings(selectedDate, true)}
+                onClick={handleRefreshFilters}
                 disabled={loading}
                 style={{
                   padding: '10px 16px',
@@ -819,6 +970,98 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
           gap: '12px',
           flexWrap: 'wrap'
         }}>
+          {/* Quick Date Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500', marginRight: '4px' }}>Ngày:</span>
+            {[
+              { value: 'all', label: 'Tất cả', icon: Calendar },
+              { value: 'today', label: 'Hôm nay', icon: Calendar },
+              { value: 'thisWeek', label: 'Tuần này', icon: Calendar },
+              { value: 'custom', label: 'Chọn ngày', icon: Calendar },
+              
+            ].map((option) => {
+              const Icon = option.icon
+              const isActive = dateFilterType === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    const newFilterType = option.value as typeof dateFilterType
+                    setDateFilterType(newFilterType)
+                    
+                    // Auto set selectedDate khi chọn quick option
+                    if (option.value === 'today') {
+                      setSelectedDate(getCurrentDateString())
+                    }
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    border: `1px solid ${isActive ? '#FFD875' : 'var(--border-primary)'}`,
+                    borderRadius: '8px',
+                    background: isActive ? '#FFF6D1' : '#fff',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: isActive ? '600' : '400',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease',
+                    height: '32px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = '#f6f7f9'
+                      e.currentTarget.style.borderColor = 'var(--border-primary)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = '#fff'
+                      e.currentTarget.style.borderColor = 'var(--border-primary)'
+                    }
+                  }}
+                >
+                  <Icon size={14} />
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Custom Date Input */}
+          {dateFilterType === 'custom' && (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value)
+                setDateFilterType('custom')
+              }}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '8px',
+                background: '#fff',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                height: '36px'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#FFD875'
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.1)'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-primary)'
+                e.currentTarget.style.boxShadow = 'none'
+              }}
+            />
+          )}
+
+          {/* Status Filter */}
           <div className="pill-select" style={{
             position: 'relative',
             height: '36px',
@@ -833,7 +1076,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
             transition: 'all 0.2s ease'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--primary-500)'
+            e.currentTarget.style.borderColor = '#FFD875'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.borderColor = 'var(--border-primary)'
@@ -859,7 +1102,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                 paddingRight: '20px'
               }}
             >
-              <option value="">Tất cả trạng thái</option>
+              <option value="all">Tất cả trạng thái</option>
               <option value="PENDING">Chờ xác nhận</option>
               <option value="CONFIRMED">Đã xác nhận</option>
               <option value="IN_PROGRESS">Đang làm việc</option>
@@ -867,39 +1110,56 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
               <option value="PAID">Đã thanh toán</option>
               <option value="CANCELLED">Đã hủy</option>
             </select>
-            <ChevronDown size={14} style={{
-              position: 'absolute',
-              right: '12px',
-              color: 'var(--text-tertiary)',
-              pointerEvents: 'none',
-              flexShrink: 0
-            }} />
-                                </div>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: '#fff',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              height: '36px'
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--primary-500)'
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-primary)'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
-          />
-                              </div>
+          </div>
+
+          {/* Service Type Filter */}
+          <div className="pill-select" style={{
+            position: 'relative',
+            height: '36px',
+            border: '1px solid var(--border-primary)',
+            borderRadius: '8px',
+            padding: '0 12px',
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#FFD875'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-primary)'
+          }}
+          >
+            <Wrench size={14} className="icon" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <select
+              value={serviceTypeFilter}
+              onChange={(e) => setServiceTypeFilter(e.target.value)}
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                cursor: 'pointer',
+                lineHeight: '1',
+                height: '100%',
+                flex: 1,
+                paddingRight: '20px'
+              }}
+            >
+              <option value="all">Tất cả dịch vụ</option>
+              <option value="maintenance">Bảo dưỡng</option>
+              <option value="repair">Sửa chữa</option>
+              <option value="inspection">Kiểm tra</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Work Table */}
@@ -998,7 +1258,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                       <span className="th-inner">Trạng thái</span>
                     </th>
                     <th 
-                      onClick={() => handleSort('scheduledTime')}
+                      onClick={() => handleSort('createdAt')}
                                   style={{ 
                         padding: '16px 20px', 
                         textAlign: 'left', 
@@ -1010,9 +1270,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                       }}
                     >
                       <span className="th-inner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        Thời gian
-                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'scheduledTime' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
-                          {getSortIcon('scheduledTime')}
+                        Thời gian tạo
+                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'createdAt' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
+                          {getSortIcon('createdAt')}
                                 </div>
                       </span>
                     </th>
@@ -1153,8 +1413,26 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                         )}
                       </td>
                       <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
-                        <div style={{ fontWeight: '500' }}>{work.scheduledTime}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.scheduledDate}</div>
+                        {work.createdAt ? (
+                          <>
+                            <div style={{ fontWeight: '500' }}>
+                              {new Date(work.createdAt).toLocaleTimeString('vi-VN', { 
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                second: '2-digit'
+                              })}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                              {new Date(work.createdAt).toLocaleDateString('vi-VN', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>N/A</div>
+                        )}
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'left' }}>
                         <div style={{ 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings, Filter, CheckCircle, Clock, User, XCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, CheckCircle, Clock, User, XCircle, Calendar as CalendarIcon } from 'lucide-react'
 import { useAppSelector } from '@/store/hooks'
 import { TechnicianTimeSlotService, type TechnicianTimeSlotData } from '@/services/technicianTimeSlotService'
 import { TechnicianService } from '@/services/technicianService'
@@ -35,6 +35,8 @@ export default function WorkScheduleCalendarNew({
   const [showModal, setShowModal] = useState(false)
   const [bookingDetail, setBookingDetail] = useState<any>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled'>('all')
 
   const user = useAppSelector((state) => state.auth.user)
   const [technicianId, setTechnicianId] = useState<number | null>(null)
@@ -138,12 +140,24 @@ export default function WorkScheduleCalendarNew({
             endTime = `${String(endHour).padStart(2, '0')}:${minute}`
           }
 
-          // Map status
-          let status = 'scheduled'
-          if (booking.status === 'CONFIRMED') status = 'scheduled'
-          else if (booking.status === 'CANCELLED') status = 'cancelled'
-          else if (booking.status === 'PAID') status = 'completed'
-          else if (booking.status === 'IN_PROGRESS') status = 'waiting'
+          // Map status to align with WorkQueue.tsx
+          const statusMap: Record<string, string> = {
+            PENDING: 'pending',
+            CONFIRMED: 'confirmed',
+            IN_PROGRESS: 'in_progress',
+            COMPLETED: 'completed',
+            PAID: 'paid',
+            CANCELLED: 'cancelled',
+            pending: 'pending',
+            confirmed: 'confirmed',
+            in_progress: 'in_progress',
+            processing: 'in_progress',
+            completed: 'completed',
+            done: 'completed',
+            paid: 'paid',
+            cancelled: 'cancelled'
+          }
+          const status = statusMap[booking.status] || 'pending'
 
           return {
             bookingId: booking.bookingId,
@@ -175,6 +189,11 @@ export default function WorkScheduleCalendarNew({
     }
   }, [loadWorkSchedule, currentDate.getMonth(), currentDate.getFullYear(), user?.id])
 
+  // Keep internal selectedDate in sync with prop changes
+  useEffect(() => {
+    setSelectedDate(currentDate)
+  }, [currentDate])
+
   // Get current week range (Monday to Friday only)
   const getWeekRange = () => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 })
@@ -187,61 +206,93 @@ export default function WorkScheduleCalendarNew({
   // Get appointments for a specific day
   const getAppointmentsForDay = (date: Date): Booking[] => {
     const dateString = format(date, 'yyyy-MM-dd')
-    const dayBookings = bookings.filter(booking => booking.date === dateString)
+    const dayBookings = bookings.filter(booking => {
+      const matchesDate = booking.date === dateString
+      const matchesStatus = filterStatus === 'all' ? true : booking.status === filterStatus
+      return matchesDate && matchesStatus
+    })
     return dayBookings
   }
 
-  // Get status color and icon
+  // Get status color and icon aligned with WorkQueue.tsx
   const getStatusStyle = (status: string) => {
     switch (status) {
+      case 'pending':
+        return {
+          borderColor: '#8b5cf6',
+          bgColor: 'rgba(139, 92, 246, 0.1)',
+          textColor: '#6D28D9',
+          icon: Clock,
+          label: 'Chờ xác nhận'
+        }
+      case 'confirmed':
+        return {
+          borderColor: '#F97316',
+          bgColor: 'rgba(249, 115, 22, 0.1)',
+          textColor: '#C2410C',
+          icon: CheckCircle,
+          label: 'Đã xác nhận'
+        }
+      case 'in_progress':
+        return {
+          borderColor: '#3B82F6',
+          bgColor: 'rgba(59, 130, 246, 0.1)',
+          textColor: '#1D4ED8',
+          icon: User,
+          label: 'Đang làm việc'
+        }
       case 'completed':
         return {
-          borderColor: '#4CAF50',
-          bgColor: '#E8F5E8',
-          textColor: '#2E7D32',
+          borderColor: '#10B981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          textColor: '#047857',
           icon: CheckCircle,
           label: 'Hoàn thành'
         }
+      case 'paid':
+        return {
+          borderColor: '#3B82F6',
+          bgColor: 'rgba(59, 130, 246, 0.1)',
+          textColor: '#1D4ED8',
+          icon: CheckCircle,
+          label: 'Đã thanh toán'
+        }
       case 'cancelled':
         return {
-          borderColor: '#F44336',
-          bgColor: '#FFEBEE',
-          textColor: '#C62828',
+          borderColor: '#EF4444',
+          bgColor: 'rgba(239, 68, 68, 0.1)',
+          textColor: '#B91C1C',
           icon: XCircle,
           label: 'Đã hủy'
         }
-      case 'waiting':
-        return {
-          borderColor: '#FF9800',
-          bgColor: '#FFF3E0',
-          textColor: '#E65100',
-          icon: User,
-          label: 'Đang chờ'
-        }
-      case 'scheduled':
       default:
         return {
-          borderColor: '#2196F3',
-          bgColor: '#E3F2FD',
-          textColor: '#1565C0',
+          borderColor: '#6B7280',
+          bgColor: 'rgba(107, 114, 128, 0.1)',
+          textColor: '#374151',
           icon: Clock,
-          label: 'Đã lên lịch'
+          label: 'Trạng thái'
         }
     }
   }
 
   // Navigation
   const goToPreviousWeek = () => {
-    setSelectedDate(subDays(selectedDate, 7))
+    const newDate = subDays(selectedDate, 7)
+    setSelectedDate(newDate)
+    onDateChange(newDate)
   }
 
   const goToNextWeek = () => {
-    setSelectedDate(addDays(selectedDate, 7))
+    const newDate = addDays(selectedDate, 7)
+    setSelectedDate(newDate)
+    onDateChange(newDate)
   }
 
   const goToToday = () => {
     const today = new Date()
     setSelectedDate(today)
+    onDateChange(today)
   }
 
   const today = new Date()
@@ -253,8 +304,14 @@ export default function WorkScheduleCalendarNew({
       {/* Compact Header */}
       <div className="work-schedule-calendar-new__header">
         <div className="work-schedule-calendar-new__view-toggle">
-          <button className="work-schedule-calendar-new__view-btn active">
-            Lịch
+          <button 
+            className="work-schedule-calendar-new__view-btn work-schedule-calendar-new__view-btn--today"
+            onClick={goToToday}
+            disabled={isSameDay(selectedDate, today)}
+            title="Chuyển đến hôm nay"
+          >
+            <CalendarIcon size={14} />
+            Hôm nay
           </button>
         </div>
 
@@ -276,13 +333,69 @@ export default function WorkScheduleCalendarNew({
           </button>
         </div>
 
-        <div className="work-schedule-calendar-new__actions">
-          <button className="work-schedule-calendar-new__action-btn">
+        <div className="work-schedule-calendar-new__actions" style={{ position: 'relative' }}>
+          <button 
+            className="work-schedule-calendar-new__action-btn"
+            onClick={() => setShowFilterMenu(v => !v)}
+            title="Lọc theo trạng thái"
+          >
             <Filter size={16} />
           </button>
-          <button className="work-schedule-calendar-new__action-btn">
-            <Settings size={16} />
-          </button>
+          {showFilterMenu && (
+            <div 
+              className="work-schedule-calendar-new__filter-menu"
+              style={{
+                position: 'absolute',
+                top: '120%',
+                right: 0,
+                background: '#fff',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                boxShadow: '0 8px 16px rgba(0,0,0,0.08)',
+                padding: 8,
+                zIndex: 30,
+                minWidth: 180
+              }}
+            >
+              {[
+                { value: 'all', label: 'Tất cả' },
+                { value: 'pending', label: 'Chờ xác nhận' },
+                { value: 'confirmed', label: 'Đã xác nhận' },
+                { value: 'in_progress', label: 'Đang làm việc' },
+                { value: 'completed', label: 'Hoàn thành' },
+                { value: 'paid', label: 'Đã thanh toán' },
+                { value: 'cancelled', label: 'Đã hủy' }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setFilterStatus(opt.value as any); setShowFilterMenu(false) }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    border: '1px solid transparent',
+                    background: filterStatus === (opt.value as any) ? '#FFF6D1' : '#fff',
+                    color: '#1F2937',
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (filterStatus !== (opt.value as any)) {
+                      e.currentTarget.style.background = '#F9FAFB'
+                      e.currentTarget.style.borderColor = '#E5E7EB'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = filterStatus === (opt.value as any) ? '#FFF6D1' : '#fff'
+                    e.currentTarget.style.borderColor = 'transparent'
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
