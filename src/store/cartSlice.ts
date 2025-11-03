@@ -17,13 +17,41 @@ interface CartState {
   isOpen: boolean
   total: number
   itemCount: number
+  cartId?: number | null
 }
 
-const initialState: CartState = {
-  items: [],
-  isOpen: false,
-  total: 0,
-  itemCount: 0
+const loadCartFromStorage = (): CartState => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return { items: [], isOpen: false, total: 0, itemCount: 0, cartId: undefined }
+    }
+    const raw = localStorage.getItem('cartItems')
+    const storedItems: CartItem[] = raw ? JSON.parse(raw) : []
+    const totals = calculateCartTotals(storedItems)
+    const storedCartId = localStorage.getItem('cartId')
+    return {
+      items: storedItems || [],
+      isOpen: false,
+      total: totals.total,
+      itemCount: totals.itemCount,
+      cartId: storedCartId ? Number(storedCartId) : undefined,
+    }
+  } catch {
+    return { items: [], isOpen: false, total: 0, itemCount: 0, cartId: undefined }
+  }
+}
+
+const initialState: CartState = loadCartFromStorage()
+
+const persistCart = (state: CartState) => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('cartItems', JSON.stringify(state.items))
+      if (state.cartId !== undefined) {
+        localStorage.setItem('cartId', String(state.cartId ?? ''))
+      }
+    }
+  } catch { /* ignore */ }
 }
 
 const calculateCartTotals = (items: CartItem[]) => {
@@ -48,6 +76,7 @@ const cartSlice = createSlice({
       const totals = calculateCartTotals(state.items)
       state.itemCount = totals.itemCount
       state.total = totals.total
+      persistCart(state)
     },
     
     removeFromCart: (state, action: PayloadAction<string>) => {
@@ -56,6 +85,7 @@ const cartSlice = createSlice({
       const totals = calculateCartTotals(state.items)
       state.itemCount = totals.itemCount
       state.total = totals.total
+      persistCart(state)
     },
     
     updateQuantity: (state, action: PayloadAction<{ id: string; quantity: number }>) => {
@@ -71,6 +101,7 @@ const cartSlice = createSlice({
         const totals = calculateCartTotals(state.items)
         state.itemCount = totals.itemCount
         state.total = totals.total
+        persistCart(state)
       }
     },
     
@@ -78,6 +109,7 @@ const cartSlice = createSlice({
       state.items = []
       state.itemCount = 0
       state.total = 0
+      persistCart(state)
     },
     
     toggleCart: (state) => {
@@ -86,6 +118,19 @@ const cartSlice = createSlice({
     
     setCartOpen: (state, action: PayloadAction<boolean>) => {
       state.isOpen = action.payload
+    },
+
+    setCartItems: (state, action: PayloadAction<CartItem[]>) => {
+      state.items = action.payload || []
+      const totals = calculateCartTotals(state.items)
+      state.itemCount = totals.itemCount
+      state.total = totals.total
+      persistCart(state)
+    },
+
+    setCartId: (state, action: PayloadAction<number | null | undefined>) => {
+      state.cartId = action.payload ?? null
+      persistCart(state)
     }
   }
 })

@@ -191,12 +191,38 @@ export default function OrderConfirmationPage() {
     }
   }
 
-  const goToPayment = () => {
+  const goToPayment = async () => {
     const id = order?.orderId || Number(sessionStorage.getItem('currentOrderId'))
     if (!id) return
-    // Giữ mã đã validate để trang payment xử lý (apply hoặc gửi kèm khi tạo link thanh toán)
-    if (order?.couponCode) sessionStorage.setItem('pendingCouponCode', order.couponCode)
-    navigate(`/payment/${id}`)
+
+    try {
+      // Ưu tiên dùng checkoutUrl đã cache trong session để đi nhanh
+      const cached = sessionStorage.getItem(`checkoutUrl_${id}`)
+      if (cached) {
+        window.location.href = cached
+        return
+      }
+
+      // Gọi tạo link thanh toán PayOS
+      const createResp = await OrderService.checkoutOnline(Number(id))
+      let checkoutUrl = (createResp as any)?.checkoutUrl
+
+      // Nếu BE trả báo đã tồn tại/không có link, thử lấy link hiện có
+      if (!checkoutUrl) {
+        const linkResp = await OrderService.getPaymentLink(Number(id))
+        checkoutUrl = (linkResp as any)?.checkoutUrl
+      }
+
+      if (checkoutUrl) {
+        sessionStorage.setItem(`checkoutUrl_${id}`, checkoutUrl)
+        window.location.href = checkoutUrl
+        return
+      }
+
+      toast.error(createResp?.message || 'Không lấy được link thanh toán')
+    } catch (e: any) {
+      toast.error(e?.userMessage || e?.message || 'Lỗi chuyển hướng thanh toán')
+    }
   }
 
   // Luôn render layout cố định để tránh layout shift khi reload

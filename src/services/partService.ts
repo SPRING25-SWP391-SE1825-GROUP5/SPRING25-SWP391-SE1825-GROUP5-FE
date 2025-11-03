@@ -6,6 +6,7 @@ export interface Part {
   partNumber: string
   partName: string
   brand: string
+  imageUrl?: string
   totalStock: number
   minimumStock: number
   isLowStock: boolean
@@ -59,7 +60,6 @@ export const PartService = {
       const { data } = await api.get(url)
       return data
     } catch (error) {
-      console.error('Error fetching part availability:', error)
       return {
         success: false,
         message: 'Không thể tải danh sách phụ tùng',
@@ -74,7 +74,6 @@ export const PartService = {
       const { data } = await api.get(`/part/${partId}`)
       return data
     } catch (error) {
-      console.error('Error fetching part details:', error)
       return {
         success: false,
         message: 'Không thể tải chi tiết phụ tùng'
@@ -89,7 +88,6 @@ export const PartService = {
       const { data } = await api.get(`/part/${partId}/availability?quantity=${quantity}`)
       return data
     } catch (error) {
-      console.error('Error checking part availability:', error)
       return {
         success: false,
         message: 'Không thể kiểm tra tính khả dụng',

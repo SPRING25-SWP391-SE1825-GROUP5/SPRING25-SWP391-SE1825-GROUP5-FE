@@ -93,6 +93,14 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
     return () => window.removeEventListener('resize', checkMobile)
   }, [mobileBreakpoint])
 
+  // Đảm bảo đóng menu mobile khi chuyển sang desktop
+  useEffect(() => {
+    if (!isMobile && showMobileMenu) {
+      onMobileMenuToggle?.(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile])
+
   const handleMouseEnter = (itemId: string) => {
     if (isMobile) return
     
@@ -410,77 +418,81 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({
           </div>
         )}
 
-        {/* Mobile Menu Toggle */}
-        <button
-          className="mobile-menu-toggle"
-          onClick={handleMobileMenuToggle}
-          aria-expanded={showMobileMenu ? 'true' : 'false'}
-          aria-label="Toggle mobile menu"
-        >
-          {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Mobile Menu Toggle - chỉ hiển thị khi isMobile */}
+        {isMobile && (
+          <button
+            className="mobile-menu-toggle"
+            onClick={handleMobileMenuToggle}
+            aria-expanded={showMobileMenu ? 'true' : 'false'}
+            aria-label="Toggle mobile menu"
+          >
+            {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        )}
       </div>
 
-      {/* Mobile Navigation */}
-      <nav 
-        className={`header-nav mobile-nav ${showMobileMenu ? 'active' : ''}`}
-        role="navigation" 
-        aria-label="Mobile navigation"
-        aria-hidden={!showMobileMenu}
-      >
-        <ul className="nav-list">
-          {menuItems.map(item => (
-            <li key={item.id} className="nav-item">
-              {item.href ? (
-                <NavLink
-                  to={item.href}
-                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                  onClick={() => onMobileMenuToggle?.(false)}
-                >
-                  {item.icon && <span className="nav-icon">{item.icon}</span>}
-                  <span className="nav-label">{item.label}</span>
-                  {item.badge && <span className="nav-badge">{item.badge}</span>}
-                </NavLink>
-              ) : (
-                <button className="nav-button">
-                  {item.icon && <span className="nav-icon">{item.icon}</span>}
-                  <span className="nav-label">{item.label}</span>
-                  {item.badge && <span className="nav-badge">{item.badge}</span>}
-                </button>
-              )}
-              
-              {/* Mobile dropdown items */}
-              {item.dropdown?.sections?.map(section => 
-                section.items.map(dropdownItem => (
-                  <div key={dropdownItem.id} className="mobile-dropdown-item">
-                    {dropdownItem.href ? (
-                      <NavLink
-                        to={dropdownItem.href}
-                        className="mobile-dropdown-link"
-                        onClick={() => onMobileMenuToggle?.(false)}
-                      >
-                        {dropdownItem.icon && <span className="dropdown-icon">{dropdownItem.icon}</span>}
-                        <span className="dropdown-label">{dropdownItem.label}</span>
-                      </NavLink>
-                    ) : (
-                      <button
-                        className="mobile-dropdown-button"
-                        onClick={() => {
-                          dropdownItem.onClick?.()
-                          onMobileMenuToggle?.(false)
-                        }}
-                      >
-                        {dropdownItem.icon && <span className="dropdown-icon">{dropdownItem.icon}</span>}
-                        <span className="dropdown-label">{dropdownItem.label}</span>
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-            </li>
-          ))}
-        </ul>
-      </nav>
+      {/* Mobile Navigation - chỉ render khi isMobile */}
+      {isMobile && (
+        <nav 
+          className={`header-nav mobile-nav ${showMobileMenu ? 'active' : ''}`}
+          role="navigation" 
+          aria-label="Mobile navigation"
+          aria-hidden={!showMobileMenu}
+        >
+          <ul className="nav-list">
+            {menuItems.map(item => (
+              <li key={item.id} className="nav-item">
+                {item.href ? (
+                  <NavLink
+                    to={item.href}
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                    onClick={() => onMobileMenuToggle?.(false)}
+                  >
+                    {item.icon && <span className="nav-icon">{item.icon}</span>}
+                    <span className="nav-label">{item.label}</span>
+                    {item.badge && <span className="nav-badge">{item.badge}</span>}
+                  </NavLink>
+                ) : (
+                  <button className="nav-button">
+                    {item.icon && <span className="nav-icon">{item.icon}</span>}
+                    <span className="nav-label">{item.label}</span>
+                    {item.badge && <span className="nav-badge">{item.badge}</span>}
+                  </button>
+                )}
+                
+                {/* Mobile dropdown items */}
+                {item.dropdown?.sections?.map(section => 
+                  section.items.map(dropdownItem => (
+                    <div key={dropdownItem.id} className="mobile-dropdown-item">
+                      {dropdownItem.href ? (
+                        <NavLink
+                          to={dropdownItem.href}
+                          className="mobile-dropdown-link"
+                          onClick={() => onMobileMenuToggle?.(false)}
+                        >
+                          {dropdownItem.icon && <span className="dropdown-icon">{dropdownItem.icon}</span>}
+                          <span className="dropdown-label">{dropdownItem.label}</span>
+                        </NavLink>
+                      ) : (
+                        <button
+                          className="mobile-dropdown-button"
+                          onClick={() => {
+                            dropdownItem.onClick?.()
+                            onMobileMenuToggle?.(false)
+                          }}
+                        >
+                          {dropdownItem.icon && <span className="dropdown-icon">{dropdownItem.icon}</span>}
+                          <span className="dropdown-label">{dropdownItem.label}</span>
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
         </div>
       </header>
     </>
