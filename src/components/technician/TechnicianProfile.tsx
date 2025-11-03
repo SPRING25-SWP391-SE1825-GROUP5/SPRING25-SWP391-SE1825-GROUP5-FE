@@ -63,11 +63,11 @@ export default function TechnicianProfile() {
 
   // Helper functions for notifications
   const setSuccessMessage = (message: string) => {
-    setSuccess(message)
+    setPopup({ message, type: 'success' })
   }
 
   const setErrorMessage = (message: string) => {
-    setError(message)
+    setPopup({ message, type: 'error' })
   }
 
   useEffect(() => {
@@ -137,13 +137,13 @@ export default function TechnicianProfile() {
       
       if (response.success && response.data) {
         dispatch(updateUser(response.data))
-        setSuccess('Cập nhật thông tin thành công!')
+        setPopup({ message: 'Cập nhật thông tin thành công!', type: 'success' })
         setIsEditingPersonal(false)
       } else {
-        setError(response.message || 'Cập nhật thông tin thất bại')
+        setPopup({ message: response.message || 'Cập nhật thông tin thất bại', type: 'error' })
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật')
+      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -162,16 +162,16 @@ export default function TechnicianProfile() {
       })
       
       if (response.success) {
-        setSuccess('Đổi mật khẩu thành công!')
+        setPopup({ message: 'Đổi mật khẩu thành công!', type: 'success' })
         setShowPasswordModal(false)
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       } else {
-        setError(response.message || 'Đổi mật khẩu thất bại')
+        setPopup({ message: response.message || 'Đổi mật khẩu thất bại', type: 'error' })
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu')
+      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu', type: 'error' })
     } finally {
       setSaving(false)
     }
