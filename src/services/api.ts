@@ -1,5 +1,4 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
-import { HealthService } from './healthService'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://localhost:5001/api',
@@ -16,15 +15,10 @@ let unauthorizedHandler: (() => void) | null = null
 
 // Retry configuration
 const MAX_RETRIES = 3
-const RETRY_DELAY = 2000 // 2 seconds
+const RETRY_DELAY = 5000 // 5 seconds - wait longer for backend to fully initialize
 const BACKEND_RESTART_ERROR_CODES = [404, 500, 502, 503, 504]
 const AUTH_ERROR_CODES = [401, 403]
 
-// Request queue to prevent duplicate requests
-const pendingRequests = new Map<string, Promise<any>>()
-
-// Track if backend health check is in progress
-let healthCheckInProgress = false
 
 export function attachTokenGetter(getter: () => string | null) {
   tokenGetter = getter
@@ -39,42 +33,73 @@ export function attachUnauthorizedHandler(handler: () => void) {
  */
 function isBackendRestartError(error: AxiosError): boolean {
   if (!error.response) {
-    // Network error - could be backend restart
-    return error.code === 'ECONNREFUSED' || 
+    return error.code === 'ECONNREFUSED' ||
            error.code === 'ETIMEDOUT' ||
            error.message.includes('ERR_CONNECTION_REFUSED') ||
            error.message.includes('timeout')
   }
 
   const status = error.response.status
-  
-  // 404 with specific error codes might indicate backend issue
+
+  // 401/403 with valid token might be backend restart
+  if (AUTH_ERROR_CODES.includes(status)) {
+    const token = tokenGetter ? tokenGetter() : null
+    if (token) {
+      // Check if it's a generic auth error (likely restart) vs specific (token expired)
+      const errorData = error.response.data as any
+      const errorMessage = (errorData?.message || errorData?.error || '').toLowerCase()
+
+      // Real auth errors have specific messages
+      const realAuthMessages = [
+        'token expired',
+        'token không hợp lệ',
+        'token invalid',
+        'phiên đăng nhập đã kết thúc'
+      ]
+
+      // If not a real auth error message, likely backend restart
+      return !realAuthMessages.some(msg => errorMessage.includes(msg))
+    }
+  }
+
   if (status === 404) {
     const errorData = error.response.data as any
-    // Check if it's a generic "not found" vs specific resource not found
-    const errorMessage = errorData?.message || errorData?.error || ''
-    // If message is generic, might be backend restart
-    const genericMessages = [
-      'không tìm thấy',
-      'not found',
-      'not found resource',
-      'tài nguyên yêu cầu'
-    ]
-    return genericMessages.some(msg => 
-      errorMessage.toLowerCase().includes(msg.toLowerCase())
-    )
+    const errorMessage = (errorData?.message || errorData?.error || '').toLowerCase()
+    const genericMessages = ['không tìm thấy', 'not found', 'tài nguyên yêu cầu']
+    return genericMessages.some(msg => errorMessage.includes(msg))
   }
 
   return BACKEND_RESTART_ERROR_CODES.includes(status)
 }
 
 /**
- * Check if error is authentication related
+ * Check if error is real authentication error (not backend restart)
  */
 function isAuthError(error: AxiosError): boolean {
   if (!error.response) return false
+
   const status = error.response.status
-  return AUTH_ERROR_CODES.includes(status)
+  if (!AUTH_ERROR_CODES.includes(status)) return false
+
+  const token = tokenGetter ? tokenGetter() : null
+
+  // No token + 401 = real auth error
+  if (!token && status === 401) return true
+
+  // With token, check error message for real auth errors
+  if (token) {
+    const errorData = error.response.data as any
+    const errorMessage = (errorData?.message || errorData?.error || '').toLowerCase()
+    const realAuthMessages = [
+      'token expired',
+      'token không hợp lệ',
+      'token invalid',
+      'phiên đăng nhập đã kết thúc'
+    ]
+    return realAuthMessages.some(msg => errorMessage.includes(msg))
+  }
+
+  return false
 }
 
 /**
@@ -92,12 +117,34 @@ function sleep(ms: number): Promise<void> {
 }
 
 api.interceptors.request.use((config) => {
-  const token = tokenGetter ? tokenGetter() : null
-  if (token) {
-    if (!config.headers) {
-      config.headers = {} as any
+  // Try to get token - if tokenGetter is not ready, try localStorage directly
+  let token: string | null = null
+
+  try {
+    if (tokenGetter) {
+      token = tokenGetter()
     }
-    config.headers.Authorization = `Bearer ${token}`
+
+    // Fallback: if tokenGetter returns null but we might have token in localStorage
+    // This can happen during app initialization before Redux store is ready
+    if (!token && typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    }
+
+    if (token) {
+      if (!config.headers) {
+        config.headers = {} as any
+      }
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  } catch (error) {
+    // If tokenGetter throws, try localStorage as fallback
+    if (typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('authToken') || localStorage.getItem('token')
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
   }
 
   // Add retry count to config if not present
@@ -115,16 +162,14 @@ api.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { __retryCount?: number }
     const retryCount = originalRequest?.__retryCount || 0
 
-    // Handle authentication errors - don't retry, logout immediately
+    // Check if it's a real auth error (don't retry, logout immediately)
     if (isAuthError(error)) {
-      console.warn('[AUTH_ERROR] Authentication failed - logging out user')
-      
-    if (status === 401) {
-      if (unauthorizedHandler) unauthorizedHandler()
+      if (status === 401 && unauthorizedHandler) {
+        unauthorizedHandler()
       }
 
       const errorData = error.response?.data as any
-      const errorMessage = errorData?.message || 
+      const errorMessage = errorData?.message ||
                           (status === 401 ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : 'Bạn không có quyền thực hiện hành động này.')
 
       return Promise.reject({
@@ -135,42 +180,21 @@ api.interceptors.response.use(
       })
     }
 
-    // Check if error might be due to backend restart
+    // Check if error is due to backend restart
     const mightBeBackendRestart = isBackendRestartError(error)
 
     // Retry logic for backend restart scenarios
     if (mightBeBackendRestart && retryCount < MAX_RETRIES && originalRequest) {
-      console.log(`[RETRY] Backend might be restarting. Retry ${retryCount + 1}/${MAX_RETRIES}`)
+      // Simple approach: just wait longer and retry
+      // For auth errors with valid token, wait longer (backend needs time to initialize auth)
+      const waitTime = AUTH_ERROR_CODES.includes(status || 0) && tokenGetter && tokenGetter()
+        ? RETRY_DELAY * (retryCount + 2) // Longer wait for auth initialization
+        : RETRY_DELAY * Math.pow(1.5, retryCount) // Exponential backoff for others
 
-      // Wait for backend to be ready before retrying
-      if (!healthCheckInProgress) {
-        healthCheckInProgress = true
-        try {
-          const isReady = await HealthService.waitForBackendReady(
-            MAX_RETRIES,
-            RETRY_DELAY,
-            3000
-          )
-          if (!isReady) {
-            console.warn('[HEALTH_CHECK] Backend not ready after retries')
-          }
-        } catch (healthError) {
-          console.error('[HEALTH_CHECK] Error checking backend health:', healthError)
-        } finally {
-          healthCheckInProgress = false
-        }
-      } else {
-        // If health check is in progress, wait a bit
-        await sleep(RETRY_DELAY)
-      }
+      await sleep(waitTime)
 
-      // Increment retry count and retry the request
+      // Increment retry count and retry
       originalRequest.__retryCount = retryCount + 1
-      
-      // Exponential backoff
-      const delay = RETRY_DELAY * Math.pow(1.5, retryCount)
-      await sleep(delay)
-
       return api(originalRequest)
     }
 
@@ -223,10 +247,6 @@ api.interceptors.response.use(
       errorMessages[status] ||
       'Đã xảy ra lỗi. Vui lòng thử lại sau.'
 
-    // Log error for debugging
-    if (mightBeBackendRestart) {
-      console.warn(`[BACKEND_RESTART_DETECTED] Status ${status}: ${userMessage}`)
-    }
 
     return Promise.reject({
       ...error,

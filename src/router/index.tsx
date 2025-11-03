@@ -156,7 +156,6 @@ const router = createBrowserRouter([
       { path: 'maintenance-checklist', element: suspense(<AdminDashboard />) },
       { path: 'promotions', element: suspense(<AdminDashboard />) },
       { path: 'reports', element: suspense(<AdminDashboard />) },
-      { path: 'account-settings', element: suspense(<AdminDashboard />) },
       { path: 'settings', element: suspense(<AdminDashboard />) },
     ],
   },

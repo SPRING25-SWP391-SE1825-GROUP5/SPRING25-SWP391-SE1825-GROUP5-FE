@@ -903,7 +903,6 @@ export default function AdminDashboard() {
       '/admin/maintenance-checklist': 'maintenance-checklist',
       '/admin/promotions': 'promotions',
       '/admin/reports': 'reports',
-      '/admin/account-settings': 'account-settings',
       '/admin/settings': 'settings'
     }
 
@@ -931,7 +930,6 @@ export default function AdminDashboard() {
           'maintenance-checklist': 'maintenance-checklist',
           'promotions': 'promotions',
           'reports': 'reports',
-          'account-settings': 'account-settings',
           'settings': 'settings'
         }
         if (routeToPage[routeName]) {
@@ -1275,22 +1273,6 @@ export default function AdminDashboard() {
         return <SystemSettings />
       case 'maintenance-checklist':
         return <ServiceTemplateManagement />
-      case 'account-settings':
-        return (
-          <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Cài đặt tài khoản
-            </h2>
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Cài đặt tài khoản sẽ được hiển thị ở đây...</p>
-            </div>
-          </div>
-        )
       case 'dashboard':
         return renderDashboardContent()
       default:
@@ -2336,7 +2318,6 @@ export default function AdminDashboard() {
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
                 // Báo cáo & Cài đặt
                 { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' },
-                { icon: Settings, label: 'Cài đặt tài khoản', page: 'account-settings', route: '/admin/account-settings' },
                 { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (
                 <div

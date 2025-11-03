@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Settings, User, Car, MapPin, Wrench, Clock, Calendar, Phone, Mail, DollarSign } from 'lucide-react'
+import { X, Settings, User, Car, MapPin, Wrench, Clock, Calendar, Phone, Mail, DollarSign, FileText, History } from 'lucide-react'
 import { BookingService, AdminBookingSummary, BookingDetail } from '@/services/bookingService'
 import toast from 'react-hot-toast'
 import './_booking-modal.scss'
@@ -12,6 +12,8 @@ interface BookingDetailModalProps {
   onChangeStatus: () => void
 }
 
+type TabType = 'overview' | 'service' | 'center' | 'history'
+
 const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   isOpen,
   booking,
@@ -21,10 +23,12 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   const [bookingDetail, setBookingDetail] = useState<BookingDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
 
   useEffect(() => {
     if (isOpen && booking) {
       fetchBookingDetail()
+      setActiveTab('overview') // Reset tab khi mở modal mới
     }
   }, [isOpen, booking])
 
@@ -32,7 +36,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await BookingService.getBookingDetail(booking.bookingId)
       if (response.success && response.data) {
         setBookingDetail(response.data)
@@ -114,6 +118,13 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
 
   const detail = bookingDetail || booking
 
+  const tabs = [
+    { id: 'overview' as TabType, label: 'Tổng quan', icon: FileText },
+    { id: 'service' as TabType, label: 'Chi tiết dịch vụ', icon: Wrench },
+    { id: 'center' as TabType, label: 'Trung tâm & Kỹ thuật viên', icon: MapPin },
+    { id: 'history' as TabType, label: 'Lịch sử & Ghi chú', icon: History }
+  ]
+
   return createPortal(
     <div className="booking-modal-overlay" onClick={onClose}>
       <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
@@ -143,13 +154,56 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
             <button onClick={fetchBookingDetail}>Thử lại</button>
           </div>
         ) : (
-          <div className="booking-modal__content">
+          <>
             {/* Status Badge */}
             <div className="booking-modal__status">
               <span className={getStatusBadgeClass(booking.status)}>
                 <span className="dot" />
                 {getStatusLabel(booking.status)}
               </span>
+            </div>
+
+            {/* Tabs */}
+            <div className="booking-modal__tabs">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    className={`booking-modal__tab ${activeTab === tab.id ? 'active' : ''}`}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    <Icon size={16} />
+                    <span>{tab.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Tab Content */}
+            <div className="booking-modal__content">
+              {/* Tab: Tổng quan */}
+              {activeTab === 'overview' && (
+                <div className="booking-modal__tab-content">
+                  {/* Time Slot Info */}
+                  <div className="booking-modal__section">
+                    <h3 className="booking-modal__section-title">
+                      <Clock size={18} /> Thời gian
+                    </h3>
+                    <div className="booking-modal__info-grid">
+                      <div className="info-item">
+                        <label>Ngày:</label>
+                        <span>{formatDate(booking.timeSlotInfo.workDate)}</span>
+                      </div>
+                      <div className="info-item">
+                        <label>Giờ:</label>
+                        <span>{booking.timeSlotInfo.startTime} - {booking.timeSlotInfo.endTime}</span>
+                      </div>
+                      <div className="info-item">
+                        <label>Kỹ thuật viên:</label>
+                        <span>{booking.technicianInfo.technicianName || 'Chưa gán'}</span>
+                      </div>
+                    </div>
             </div>
 
             {/* Customer Info */}
@@ -197,7 +251,86 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                 </div>
               </div>
             </div>
+                </div>
+              )}
 
+              {/* Tab: Chi tiết dịch vụ */}
+              {activeTab === 'service' && (
+                <div className="booking-modal__tab-content">
+                  {/* Service Info */}
+                  <div className="booking-modal__section">
+                    <h3 className="booking-modal__section-title">
+                      <Wrench size={18} /> Dịch vụ
+                    </h3>
+                    <div className="booking-modal__info-grid">
+                      <div className="info-item">
+                        <label>Tên dịch vụ:</label>
+                        <span>{booking.serviceInfo.serviceName}</span>
+                      </div>
+                      <div className="info-item">
+                        <label>Mô tả:</label>
+                        <span>{booking.serviceInfo.description || 'Không có'}</span>
+                      </div>
+                      <div className="info-item">
+                        <label>Giá cơ bản:</label>
+                        <span>{formatCurrency(booking.serviceInfo.basePrice)}</span>
+                      </div>
+                      {bookingDetail && bookingDetail.totalAmount && (
+                        <div className="info-item">
+                          <label>Tổng tiền:</label>
+                          <span className="text-primary-bold">{formatCurrency(bookingDetail.totalAmount)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Parts/Checklist - Nếu có trong bookingDetail */}
+                  {bookingDetail && bookingDetail.parts && bookingDetail.parts.length > 0 && (
+                    <div className="booking-modal__section">
+                      <h3 className="booking-modal__section-title">
+                        Phụ tùng
+                      </h3>
+                      <div className="booking-modal__parts-list">
+                        {bookingDetail.parts.map((part: any, index: number) => (
+                          <div key={index} className="booking-modal__part-item">
+                            <span className="part-name">{part.partName || part.name}</span>
+                            <span className="part-quantity">SL: {part.quantity || 1}</span>
+                            {part.price && (
+                              <span className="part-price">{formatCurrency(part.price)}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Checklist - Nếu có */}
+                  {bookingDetail && bookingDetail.checklist && bookingDetail.checklist.length > 0 && (
+                    <div className="booking-modal__section">
+                      <h3 className="booking-modal__section-title">
+                        Checklist
+                      </h3>
+                      <div className="booking-modal__checklist">
+                        {bookingDetail.checklist.map((item: any, index: number) => (
+                          <div key={index} className="booking-modal__checklist-item">
+                            <input
+                              type="checkbox"
+                              checked={item.completed || false}
+                              readOnly
+                              className="checklist-checkbox"
+                            />
+                            <span>{item.taskName || item.name || `Hạng mục ${index + 1}`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab: Trung tâm & Kỹ thuật viên */}
+              {activeTab === 'center' && (
+                <div className="booking-modal__tab-content">
             {/* Center Info */}
             <div className="booking-modal__section">
               <h3 className="booking-modal__section-title">
@@ -219,54 +352,36 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Service Info */}
+                  {/* Technician Info */}
             <div className="booking-modal__section">
               <h3 className="booking-modal__section-title">
-                <Wrench size={18} /> Dịch vụ
+                      <User size={18} /> Kỹ thuật viên
               </h3>
               <div className="booking-modal__info-grid">
                 <div className="info-item">
-                  <label>Tên dịch vụ:</label>
-                  <span>{booking.serviceInfo.serviceName}</span>
+                        <label>Tên:</label>
+                        <span>{booking.technicianInfo.technicianName || 'Chưa gán'}</span>
                 </div>
+                      {booking.technicianInfo.technicianPhone && (
                 <div className="info-item">
-                  <label>Mô tả:</label>
-                  <span>{booking.serviceInfo.description || 'Không có'}</span>
+                          <label>Số điện thoại:</label>
+                          <span>{booking.technicianInfo.technicianPhone}</span>
                 </div>
+                      )}
+                      {booking.technicianInfo.technicianEmail && (
                 <div className="info-item">
-                  <label>Giá cơ bản:</label>
-                  <span>{formatCurrency(booking.serviceInfo.basePrice)}</span>
-                </div>
-                {bookingDetail && (
-                  <div className="info-item">
-                    <label>Tổng tiền:</label>
-                    <span className="text-primary-bold">{formatCurrency(bookingDetail.totalAmount)}</span>
+                          <label>Email:</label>
+                          <span>{booking.technicianInfo.technicianEmail}</span>
                   </div>
                 )}
               </div>
             </div>
+                </div>
+              )}
 
-            {/* Time Slot Info */}
-            <div className="booking-modal__section">
-              <h3 className="booking-modal__section-title">
-                <Clock size={18} /> Thời gian
-              </h3>
-              <div className="booking-modal__info-grid">
-                <div className="info-item">
-                  <label>Ngày:</label>
-                  <span>{formatDate(booking.timeSlotInfo.workDate)}</span>
-                </div>
-                <div className="info-item">
-                  <label>Giờ:</label>
-                  <span>{booking.timeSlotInfo.startTime} - {booking.timeSlotInfo.endTime}</span>
-                </div>
-                <div className="info-item">
-                  <label>Kỹ thuật viên:</label>
-                  <span>{booking.technicianInfo.technicianName || 'Chưa gán'}</span>
-                </div>
-              </div>
-            </div>
-
+              {/* Tab: Lịch sử & Ghi chú */}
+              {activeTab === 'history' && (
+                <div className="booking-modal__tab-content">
             {/* Special Requests */}
             {booking.specialRequests && (
               <div className="booking-modal__section">
@@ -279,6 +394,40 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
               </div>
             )}
 
+                  {/* Booking History - Nếu có */}
+                  {bookingDetail && bookingDetail.history && bookingDetail.history.length > 0 && (
+                    <div className="booking-modal__section">
+                      <h3 className="booking-modal__section-title">
+                        Lịch sử thay đổi
+                      </h3>
+                      <div className="booking-modal__history">
+                        {bookingDetail.history.map((historyItem: any, index: number) => (
+                          <div key={index} className="booking-modal__history-item">
+                            <div className="history-time">
+                              {historyItem.timestamp && formatDateTime(historyItem.timestamp)}
+                            </div>
+                            <div className="history-content">
+                              <span className="history-action">{historyItem.action || historyItem.status}</span>
+                              {historyItem.note && (
+                                <span className="history-note"> - {historyItem.note}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes - Nếu không có gì */}
+                  {!booking.specialRequests && (!bookingDetail || !bookingDetail.history || bookingDetail.history.length === 0) && (
+                    <div className="booking-modal__empty">
+                      <p>Không có thông tin lịch sử hoặc ghi chú</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Actions */}
             <div className="booking-modal__actions">
               <button className="btn-secondary" onClick={onClose}>
@@ -290,7 +439,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                 </button>
               )}
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>,

@@ -131,16 +131,16 @@ export default function BookingManagement() {
         response = await BookingService.getAllBookingsForAdmin(params);
       } else {
         // Nếu chọn center cụ thể, dùng API center/{centerId}
-        const params: GetBookingsByCenterParams = {
-          centerId: filterCenter,
-          page: pageNumber,
-          pageSize: pageSize,
-          status: filterStatus !== 'all' ? filterStatus : null,
-          fromDate: filterFromDate || null,
-          toDate: filterToDate || null,
-          sortBy: sortBy,
-          sortOrder: sortOrder
-        };
+      const params: GetBookingsByCenterParams = {
+        centerId: filterCenter,
+        page: pageNumber,
+        pageSize: pageSize,
+        status: filterStatus !== 'all' ? filterStatus : null,
+        fromDate: filterFromDate || null,
+        toDate: filterToDate || null,
+        sortBy: sortBy,
+        sortOrder: sortOrder
+      };
 
         response = await BookingService.getBookingsByCenterAdmin(params);
       }
@@ -545,9 +545,6 @@ export default function BookingManagement() {
                             onChange={(e) => handleToggleOne(booking.bookingId, e.target.checked)}
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <div className="booking-id-cell__avatar users-avatar users-avatar--fallback">
-                            {booking.bookingId}
-                          </div>
                           <span className="booking-id-cell__text">#{booking.bookingId}</span>
                         </div>
                       </td>

@@ -34,7 +34,7 @@
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
   }
-  
+
   tbody td:first-child {
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
@@ -52,7 +52,7 @@
       border-top: 1px solid #e5e7eb;
       color: var(--text-secondary);
       font-weight: 400;
-      padding: 6px;
+      padding: 4px 6px;
       text-align: left;
       font-size: 14px;
       border-radius: 0;
@@ -60,6 +60,9 @@
       &:first-child {
         border-left: 1px solid #e5e7eb !important;
         border-right: 1px solid #e5e7eb !important;
+        width: 140px !important;
+        min-width: 140px !important;
+        max-width: 140px !important;
       }
 
       // Đảm bảo border-right không bị override
@@ -73,14 +76,21 @@
 
       // Giảm width cho cột "Mô tả" (cột thứ 2)
       &:nth-child(2) {
-        max-width: 200px;
-        width: 200px;
+        max-width: 160px;
+        width: 160px;
       }
 
       // Tăng width cho cột "% Loại"
       &:nth-child(4) {
         min-width: 120px;
         width: 120px;
+      }
+
+      // Thu nhỏ cột "Số lượt sử dụng" (cột thứ 8)
+      &:nth-child(8) {
+        max-width: 120px;
+        width: 120px;
+        min-width: 100px;
       }
 
       .th-inner {
@@ -133,7 +143,7 @@
       }
 
       td {
-        padding: 6px;
+        padding: 4px 6px;
         font-size: 14px;
         color: var(--text-primary);
         font-weight: 400;
@@ -145,6 +155,10 @@
         &:first-child {
           border-left: 1px solid #e5e7eb !important;
           border-right: 1px solid #e5e7eb !important;
+          width: 140px !important;
+          min-width: 140px !important;
+          max-width: 140px !important;
+          padding: 4px 10px !important;
         }
 
         &:last-child {
@@ -158,14 +172,32 @@
 
         // Giảm width cho cột "Mô tả" (cột thứ 2)
         &:nth-child(2) {
-          max-width: 200px;
-          width: 200px;
+          max-width: 160px;
+          width: 160px;
         }
 
         // Tăng width cho cột "% Loại" (cột thứ 4)
         &:nth-child(4) {
           min-width: 120px;
           width: 120px;
+          text-align: center;
+          vertical-align: middle;
+
+          // Đảm bảo badge được căn giữa hoàn toàn
+          .promotion-discount-badge {
+            margin: 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+        }
+
+        // Thu nhỏ cột "Số lượt sử dụng" (cột thứ 8)
+        &:nth-child(8) {
+          max-width: 120px;
+          width: 120px;
+          min-width: 100px;
+          text-align: center;
         }
 
         &.text-secondary {
@@ -190,15 +222,15 @@
 .promotion-code-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 
   &__avatar {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
     background: #FFD875;
     color: #111;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -208,6 +240,16 @@
 
   &__text {
     font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: var(--primary-600);
+      text-decoration: underline;
+    }
   }
 }
 
@@ -221,8 +263,12 @@
   align-items: center;
   justify-content: center;
   min-height: 24px;
-  line-height: 1;
+  min-width: 80px;
+  line-height: 1.2;
   vertical-align: middle;
+  text-align: center;
+  box-sizing: border-box;
+  margin: 0;
 
   &.percent {
     background: #dbeafe;
@@ -230,7 +276,9 @@
     border: 1px solid #3b82f6;
   }
 
-  &.fixed {
+  &.fixed,
+  &.fixed-amount {
+    // Giống hoàn toàn percent, chỉ khác màu
     background: #fef3c7;
     color: #92400e;
     border: 1px solid #f59e0b;

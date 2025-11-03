@@ -88,7 +88,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
     }
 
     if (!formData.discountValue || parseFloat(formData.discountValue) <= 0) {
-      newErrors.discountValue = 'Giá trị giảm giá phải lớn hơn 0'
+      newErrors.discountValue = 'Giá trị giảm giá là bắt buộc và phải lớn hơn 0'
     }
 
     if (formData.discountType === 'PERCENT') {
@@ -96,20 +96,22 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
       if (discountValue > 100) {
         newErrors.discountValue = 'Giảm giá phần trăm không được vượt quá 100%'
       }
-      if (formData.maxDiscount && parseFloat(formData.maxDiscount) <= 0) {
-        newErrors.maxDiscount = 'Giảm giá tối đa phải lớn hơn 0'
+      if (!formData.maxDiscount || parseFloat(formData.maxDiscount) <= 0) {
+        newErrors.maxDiscount = 'Giảm giá tối đa là bắt buộc và phải lớn hơn 0'
       }
     }
 
-    if (formData.minOrderAmount && parseFloat(formData.minOrderAmount) < 0) {
-      newErrors.minOrderAmount = 'Đơn tối thiểu phải lớn hơn hoặc bằng 0'
+    if (!formData.minOrderAmount || parseFloat(formData.minOrderAmount) < 0) {
+      newErrors.minOrderAmount = 'Đơn tối thiểu là bắt buộc và phải lớn hơn hoặc bằng 0'
     }
 
     if (!formData.startDate) {
       newErrors.startDate = 'Ngày bắt đầu là bắt buộc'
     }
 
-    if (formData.endDate && formData.startDate) {
+    if (!formData.endDate) {
+      newErrors.endDate = 'Ngày kết thúc là bắt buộc'
+    } else if (formData.startDate) {
       const start = new Date(formData.startDate)
       const end = new Date(formData.endDate)
       if (end < start) {
@@ -117,8 +119,8 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
       }
     }
 
-    if (formData.usageLimit && parseInt(formData.usageLimit) <= 0) {
-      newErrors.usageLimit = 'Giới hạn lượt sử dụng phải lớn hơn 0'
+    if (!formData.usageLimit || parseInt(formData.usageLimit) <= 0) {
+      newErrors.usageLimit = 'Giới hạn lượt sử dụng là bắt buộc và phải lớn hơn 0'
     }
 
     setErrors(newErrors)
@@ -274,6 +276,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 onChange={(e) => handleChange('code', e.target.value.toUpperCase())}
                 placeholder="Nhập mã khuyến mãi"
                 disabled={!!editingPromotion}
+                className={errors.code ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -283,8 +286,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.code ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.code && (
@@ -308,6 +312,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 onChange={(e) => handleChange('description', e.target.value)}
                 placeholder="Nhập mô tả khuyến mãi"
                 rows={3}
+                className={errors.description ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -319,8 +324,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   boxSizing: 'border-box',
                   resize: 'vertical',
                   fontFamily: 'inherit',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.description ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.description && (
@@ -342,6 +348,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
               <select
                 value={formData.discountType}
                 onChange={(e) => handleChange('discountType', e.target.value as 'PERCENT' | 'FIXED')}
+                className={errors.discountType ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -351,9 +358,10 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
+                  backgroundColor: errors.discountType ? '#fef2f2' : '#f3f4f6',
                   color: '#1f2937',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 <option value="PERCENT">Phần trăm (%)</option>
@@ -382,6 +390,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 placeholder={formData.discountType === 'PERCENT' ? 'Nhập % giảm giá' : 'Nhập số tiền giảm'}
                 min="0"
                 step={formData.discountType === 'PERCENT' ? '0.01' : '1000'}
+                className={errors.discountValue ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -391,8 +400,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.discountValue ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.discountValue && (
@@ -410,15 +420,16 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   fontWeight: '600',
                   color: '#374151'
                 }}>
-                  Giảm giá tối đa (VND)
+                  Giảm giá tối đa (VND) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="number"
                   value={formData.maxDiscount}
                   onChange={(e) => handleChange('maxDiscount', e.target.value)}
-                  placeholder="Nhập giảm giá tối đa (tùy chọn)"
+                  placeholder="Nhập giảm giá tối đa"
                   min="0"
                   step="1000"
+                  className={errors.maxDiscount ? 'promotion-form-modal__input--error' : ''}
                   style={{
                     width: '420px',
                     minWidth: '420px',
@@ -428,8 +439,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                     borderRadius: '0',
                     fontSize: '15px',
                     boxSizing: 'border-box',
-                    backgroundColor: '#f3f4f6',
-                    color: '#1f2937'
+                    backgroundColor: errors.maxDiscount ? '#fef2f2' : '#f3f4f6',
+                    color: '#1f2937',
+                    transition: 'all 0.2s ease'
                   }}
                 />
                 {errors.maxDiscount && (
@@ -447,15 +459,16 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 fontWeight: '600',
                 color: '#374151'
               }}>
-                Đơn tối thiểu (VND)
+                Đơn tối thiểu (VND) <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="number"
                 value={formData.minOrderAmount}
                 onChange={(e) => handleChange('minOrderAmount', e.target.value)}
-                placeholder="Nhập đơn tối thiểu (tùy chọn)"
+                placeholder="Nhập đơn tối thiểu"
                 min="0"
                 step="1000"
+                className={errors.minOrderAmount ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -465,8 +478,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.minOrderAmount ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.minOrderAmount && (
@@ -489,6 +503,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 type="date"
                 value={formData.startDate}
                 onChange={(e) => handleChange('startDate', e.target.value)}
+                className={errors.startDate ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -498,8 +513,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.startDate ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.startDate && (
@@ -516,13 +532,14 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 fontWeight: '600',
                 color: '#374151'
               }}>
-                Ngày kết thúc
+                Ngày kết thúc <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="date"
                 value={formData.endDate}
                 onChange={(e) => handleChange('endDate', e.target.value)}
                 min={formData.startDate}
+                className={errors.endDate ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -532,8 +549,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.endDate ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.endDate && (
@@ -550,14 +568,15 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                 fontWeight: '600',
                 color: '#374151'
               }}>
-                Giới hạn lượt sử dụng
+                Giới hạn lượt sử dụng <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="number"
                 value={formData.usageLimit}
                 onChange={(e) => handleChange('usageLimit', e.target.value)}
-                placeholder="Nhập giới hạn lượt sử dụng (tùy chọn)"
+                placeholder="Nhập giới hạn lượt sử dụng"
                 min="1"
+                className={errors.usageLimit ? 'promotion-form-modal__input--error' : ''}
                 style={{
                   width: '420px',
                   minWidth: '420px',
@@ -567,8 +586,9 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   borderRadius: '0',
                   fontSize: '15px',
                   boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937'
+                  backgroundColor: errors.usageLimit ? '#fef2f2' : '#f3f4f6',
+                  color: '#1f2937',
+                  transition: 'all 0.2s ease'
                 }}
               />
               {errors.usageLimit && (
