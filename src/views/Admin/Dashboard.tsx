@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
-import api from '../../services/api'
 import toast from 'react-hot-toast'
 import {
   Users,
@@ -10,42 +9,34 @@ import {
   Package2,
   FileText,
   Settings,
-  TrendingUp,
   Calendar,
-  DollarSign,
-  Activity,
   ChevronRight,
   BarChart3,
-  UserCheck,
   Wrench,
   Bell,
-  Search,
   Menu,
   LogOut,
   Globe,
   Gift,
-  Edit,
-  X,
-  Plus,
-  CheckCircle,
+  ShoppingCart,
+  CalendarCheck,
+  MessageSquare,
+  Warehouse,
+  Car,
   Shield,
-  Mail,
-  Smartphone,
-  Eye,
-  Save,
-  RefreshCw,
-  AlertTriangle,
-  Info,
-  Key,
   Server,
   Palette,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  User,
-  Car,
-  Download,
-  Trash2
+  AlertTriangle,
+  Key,
+  Info,
+  Mail,
+  Smartphone,
+  RefreshCw,
+  CheckCircle,
+  Save,
+  UserCheck,
+  DollarSign,
+  Activity
 } from 'lucide-react'
 import {
   AreaChart,
@@ -72,7 +63,12 @@ import PromotionManagement from '../../components/admin/PromotionManagement'
 import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import PartManagement from '../../components/admin/PartManagement'
 import { useAppSelector } from '@/store/hooks'
-import TimeSlotManagement from './TimeSlotManagement';
+import TimeSlotManagement from './TimeSlotManagement'
+import SystemSettings from './SystemSettings'
+import ServiceTemplateManagement from './ServiceTemplateManagement'
+import InventoryManagement from '../../components/admin/InventoryManagement'
+import BookingManagement from '../../components/admin/BookingManagement'
+import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
 import { CenterService, type Center } from '../../services/centerService'
 import { ReportsService } from '../../services/reportsService'
 
@@ -809,15 +805,142 @@ function SystemSettingsContent() {
   )
 }
 
-
-
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const role = useAppSelector(s => s.auth.user?.role)
+
+  // Empty data arrays - to be populated from API
+  const revenueData: Array<{ month: string; revenue: number; orders: number }> = []
+  const serviceData: Array<{ name: string; value: number; color: string }> = []
+  const customerGrowthData: Array<{ month: string; newCustomers: number; returningCustomers: number }> = []
+  const partsInventoryData: Array<{ name: string; stock: number; minStock: number; color: string }> = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stats: Array<{ title: string; value: string; unit: string; change: string; changeType: string; icon: any; color: string }> = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const quickActions: Array<{ title: string; description: string; icon: any; page: string; route: string; color: string }> = [
+    {
+      title: 'Quản lý nhân sự',
+      description: 'Thêm, sửa, xóa nhân viên',
+      icon: Users,
+      page: 'staff',
+      route: '/admin/staff',
+      color: 'var(--primary-500)'
+    },
+    {
+      title: 'Quản lý dịch vụ',
+      description: 'Thêm, sửa, xóa dịch vụ',
+      icon: Wrench,
+      page: 'services',
+      route: '/admin/services',
+      color: 'var(--success-500)'
+    },
+    {
+      title: 'Quản lý phụ tùng',
+      description: 'Kiểm tra tồn kho, nhập hàng',
+      icon: Package,
+      page: 'parts',
+      route: '/admin/parts-management',
+      color: 'var(--success-500)'
+    },
+    {
+      title: 'Cài đặt hệ thống',
+      description: 'Cấu hình và tùy chỉnh hệ thống',
+      icon: Settings,
+      page: 'settings',
+      route: '/admin/settings',
+      color: '#6366f1'
+    },
+    {
+      title: 'Báo cáo',
+      description: 'Xem báo cáo doanh thu, thống kê',
+      icon: BarChart3,
+      page: 'reports',
+      route: '/admin/reports',
+      color: 'var(--info-500)'
+    },
+    {
+      title: 'Quản lý người dùng',
+      description: 'Quản lý tài khoản khách hàng',
+      icon: Users,
+      page: 'users',
+      route: '/admin/users',
+      color: 'var(--warning-500)'
+    },
+    {
+      title: 'Mẫu Checklist bảo trì',
+      description: 'Quản lý mẫu checklist bảo trì',
+      icon: FileText,
+      page: 'maintenance-checklist',
+      route: '/admin/maintenance-checklist',
+      color: 'var(--info-500)'
+    }
+  ]
+  const recentActivities: Array<{ id: number; action: string; description: string; time: string; type: string }> = []
+
+  // Sync activePage with current route
+  useEffect(() => {
+    const pathname = location.pathname
+    const routeMap: Record<string, string> = {
+      '/admin': 'dashboard',
+      '/admin/': 'dashboard',
+      '/admin/orders': 'orders',
+      '/admin/bookings': 'bookings',
+      '/admin/feedback': 'feedback',
+      '/admin/users': 'users',
+      '/admin/staff': 'staff',
+      '/admin/services': 'services',
+      '/admin/service-packages': 'service-packages',
+      '/admin/parts-management': 'parts',
+      '/admin/inventory': 'inventory',
+      '/admin/service-centers': 'service-centers',
+      '/admin/vehicle-models': 'vehicle-models',
+      '/admin/time-slots': 'time-slots',
+      '/admin/maintenance-checklist': 'maintenance-checklist',
+      '/admin/promotions': 'promotions',
+      '/admin/reports': 'reports',
+      '/admin/account-settings': 'account-settings',
+      '/admin/settings': 'settings'
+    }
+
+    if (routeMap[pathname]) {
+      setActivePage(routeMap[pathname])
+    } else if (pathname.startsWith('/admin/')) {
+      // Extract route name from path
+      const routeMatch = pathname.match(/\/admin\/([^/]+)/)
+      if (routeMatch) {
+        const routeName = routeMatch[1]
+        // Map route names to page names
+        const routeToPage: Record<string, string> = {
+          'orders': 'orders',
+          'bookings': 'bookings',
+          'feedback': 'feedback',
+          'users': 'users',
+          'staff': 'staff',
+          'services': 'services',
+          'service-packages': 'service-packages',
+          'parts-management': 'parts',
+          'inventory': 'inventory',
+          'service-centers': 'service-centers',
+          'vehicle-models': 'vehicle-models',
+          'time-slots': 'time-slots',
+          'maintenance-checklist': 'maintenance-checklist',
+          'promotions': 'promotions',
+          'reports': 'reports',
+          'account-settings': 'account-settings',
+          'settings': 'settings'
+        }
+        if (routeToPage[routeName]) {
+          setActivePage(routeToPage[routeName])
+        }
+      }
+    }
+  }, [location.pathname])
+
   const isAdmin = (() => {
     const r = (role || '').toString().toLowerCase()
     // Robust: treat any role containing 'admin' as admin, but exclude manager
@@ -924,11 +1047,11 @@ export default function AdminDashboard() {
         console.log('Revenue data from API:', revenueDataArray)
         const aggregatedRevenue = aggregateRevenueData(revenueDataArray)
         console.log('Aggregated revenue:', aggregatedRevenue)
-        
+
         // Aggregate bookings data from bookings report
         const bookingsDataArray = validBookingsResponses.map(r => r!.data)
         const aggregatedBookings = aggregateBookingsData(bookingsDataArray)
-        
+
         // Use totalBookings from revenue report if available (more accurate for the time period)
         if (aggregatedRevenue.summary.totalBookings > 0) {
           aggregatedBookings.totalBookings = aggregatedRevenue.summary.totalBookings
@@ -951,7 +1074,7 @@ export default function AdminDashboard() {
 
         console.log('Single center revenue response:', revenueResponse.data)
         console.log('Single center booking response:', bookingResponse.data)
-        
+
         setDashboardData({
           revenue: revenueResponse.data,
           bookings: bookingResponse.data
@@ -1076,20 +1199,56 @@ export default function AdminDashboard() {
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
+      case 'orders':
+        return (
+      <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
+              Đơn hàng
+            </h2>
+      <div style={{
+              background: 'var(--bg-card)',
+              padding: '24px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)' }}>Quản lý đơn hàng sẽ được hiển thị ở đây...</p>
+      </div>
+    </div>
+  )
+      case 'bookings':
+        return <BookingManagement />
+      case 'feedback':
+        return (
+        <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
+              Phản hồi
+            </h2>
+            <div style={{
+              background: 'var(--bg-card)',
+              padding: '24px',
+            borderRadius: '12px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)' }}>Quản lý phản hồi sẽ được hiển thị ở đây...</p>
+      </div>
+    </div>
+  )
       case 'users':
         return <UsersComponent />
       case 'staff':
         return <StaffManagement />
       case 'parts':
         return <PartManagement />
+      case 'inventory':
+        return <InventoryManagement />
+      case 'vehicle-models':
+        return <VehicleModelManagement />
       case 'services':
         return isAdmin
           ? <ServicesManagementAdmin />
           : <ServicesManagement />
       case 'service-centers':
         return <CenterManagement />
-      case 'settings':
-        return <SystemSettingsContent />
       case 'promotions':
         return <PromotionManagement />
       case 'service-packages':
@@ -1111,7 +1270,29 @@ export default function AdminDashboard() {
           </div>
         )
       case 'time-slots':
-        return <TimeSlotManagement />;
+        return <TimeSlotManagement />
+      case 'settings':
+        return <SystemSettings />
+      case 'maintenance-checklist':
+        return <ServiceTemplateManagement />
+      case 'account-settings':
+        return (
+          <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
+              Cài đặt tài khoản
+            </h2>
+            <div style={{
+              background: 'var(--bg-card)',
+              padding: '24px',
+              borderRadius: '12px',
+              border: '1px solid var(--border-primary)'
+            }}>
+              <p style={{ color: 'var(--text-secondary)' }}>Cài đặt tài khoản sẽ được hiển thị ở đây...</p>
+            </div>
+          </div>
+        )
+      case 'dashboard':
+        return renderDashboardContent()
       default:
         return renderDashboardContent()
     }
@@ -1134,7 +1315,7 @@ export default function AdminDashboard() {
     }))
 
     // Prepare service data for pie chart
-    const serviceData = byService.length > 0 
+    const serviceData = byService.length > 0
       ? byService.slice(0, 4).map((item: any, index: number) => {
           const colors = ['var(--primary-500)', 'var(--success-500)', 'var(--warning-500)', 'var(--info-500)']
           const totalRevenue = Number(summary?.totalRevenue || summary?.TotalRevenue || 0)
@@ -1183,12 +1364,13 @@ export default function AdminDashboard() {
       { name: 'Đèn LED', stock: 35, minStock: 25, color: 'var(--success-500)' }
     ]
 
-    const quickActions = [
+    const quickActions: Array<{ title: string; description: string; icon: any; page: string; route?: string; color: string }> = [
       {
         title: 'Quản lý nhân sự',
         description: 'Thêm, sửa, xóa nhân viên',
         icon: UserCheck,
         page: 'staff',
+        route: '/admin/staff',
         color: 'var(--primary-500)'
       },
       {
@@ -1196,6 +1378,7 @@ export default function AdminDashboard() {
         description: 'Thêm, sửa, xóa dịch vụ',
         icon: Wrench,
         page: 'services',
+        route: '/admin/services',
         color: 'var(--success-500)'
       },
       {
@@ -1203,6 +1386,7 @@ export default function AdminDashboard() {
         description: 'Kiểm tra tồn kho, nhập hàng',
         icon: Package,
         page: 'parts',
+        route: '/admin/parts-management',
         color: 'var(--success-500)'
       },
       {
@@ -1210,6 +1394,7 @@ export default function AdminDashboard() {
         description: 'Cấu hình và tùy chỉnh hệ thống',
         icon: Settings,
         page: 'settings',
+        route: '/admin/settings',
         color: '#6366f1'
       },
       {
@@ -1418,7 +1603,8 @@ export default function AdminDashboard() {
           width: '100%'
         }}
       >
-        {stats.map((stat, index) => (
+        {stats.length > 0 ? (
+          stats.map((stat, index) => (
           <div
             key={index}
             style={{
@@ -1486,7 +1672,20 @@ export default function AdminDashboard() {
               </span>
             </div>
           </div>
-        ))}
+        ))
+        ) : (
+          <div style={{
+            gridColumn: '1 / -1',
+            background: 'var(--bg-card)',
+            padding: '48px 24px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-primary)',
+            textAlign: 'center',
+            color: 'var(--text-secondary)'
+          }}>
+            <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu thống kê</p>
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}
@@ -1517,6 +1716,7 @@ export default function AdminDashboard() {
           }}>
             Doanh thu theo tháng
           </h3>
+          {revenueData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
@@ -1551,6 +1751,15 @@ export default function AdminDashboard() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          ) : (
+            <div style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)'
+            }}>
+              <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu doanh thu</p>
+            </div>
+          )}
         </div>
 
         {/* Charts Grid */}
@@ -1571,6 +1780,7 @@ export default function AdminDashboard() {
             }}>
               Phân bố dịch vụ
             </h3>
+            {serviceData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
@@ -1598,6 +1808,15 @@ export default function AdminDashboard() {
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
+            ) : (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu phân bố dịch vụ</p>
+              </div>
+            )}
           </div>
 
           {/* Customer Growth Chart */}
@@ -1616,6 +1835,7 @@ export default function AdminDashboard() {
             }}>
               Tăng trưởng khách hàng
             </h3>
+            {customerGrowthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={customerGrowthData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
@@ -1641,6 +1861,15 @@ export default function AdminDashboard() {
                 <Bar dataKey="returningCustomers" fill="var(--primary-500)" name="Khách hàng cũ" />
               </BarChart>
             </ResponsiveContainer>
+            ) : (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu tăng trưởng khách hàng</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1661,6 +1890,7 @@ export default function AdminDashboard() {
           }}>
             Tình trạng tồn kho phụ tùng
           </h3>
+          {partsInventoryData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={partsInventoryData} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
@@ -1692,6 +1922,15 @@ export default function AdminDashboard() {
               <Bar dataKey="minStock" fill="var(--border-secondary)" name="Tồn kho tối thiểu" />
             </BarChart>
           </ResponsiveContainer>
+          ) : (
+            <div style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)'
+            }}>
+              <p style={{ margin: 0, fontSize: '16px' }}>Chưa có dữ liệu tồn kho</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1708,10 +1947,17 @@ export default function AdminDashboard() {
             Thao tác nhanh
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            {quickActions.map((action, index) => (
+            {quickActions.length > 0 ? (
+              quickActions.map((action, index) => (
               <div
                 key={index}
-                onClick={() => setActivePage(action.page)}
+                onClick={() => {
+                  if (action.route) {
+                    navigate(action.route)
+                  } else {
+                    setActivePage(action.page)
+                  }
+                }}
                 style={{
                   background: 'var(--bg-card)',
                   padding: '20px',
@@ -1766,7 +2012,20 @@ export default function AdminDashboard() {
                 </div>
                 <ChevronRight size={16} style={{ color: 'var(--text-tertiary)' }} />
               </div>
-            ))}
+            ))
+            ) : (
+              <div style={{
+                gridColumn: '1 / -1',
+                background: 'var(--bg-card)',
+                padding: '48px 24px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-primary)',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có thao tác nhanh</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1786,7 +2045,8 @@ export default function AdminDashboard() {
             border: '1px solid var(--border-primary)',
             overflow: 'hidden'
           }}>
-            {recentActivities.map((activity, index) => (
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity, index) => (
               <div
                 key={activity.id}
                 style={{
@@ -1831,7 +2091,16 @@ export default function AdminDashboard() {
                   {activity.time}
                 </span>
               </div>
-            ))}
+            ))
+            ) : (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px' }}>Chưa có hoạt động gần đây</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1944,10 +2213,19 @@ export default function AdminDashboard() {
           position: 'fixed',
           height: '100vh',
           zIndex: 1004,
-          top: 0
+          top: 0,
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        <div style={{ padding: '24px' }}>
+        {/* Scrollable Content */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '24px',
+          paddingBottom: '24px'
+        }}>
           {/* Logo */}
           <div style={{
             display: 'flex',
@@ -2036,22 +2314,40 @@ export default function AdminDashboard() {
                 Quản lý
               </h3>
               {[
+                // Quản lý đơn hàng & lịch hẹn
+                { icon: ShoppingCart, label: 'Đơn hàng', page: 'orders', route: '/admin/orders' },
+                { icon: CalendarCheck, label: 'Đặt lịch', page: 'bookings', route: '/admin/bookings' },
+                { icon: MessageSquare, label: 'Phản hồi', page: 'feedback', route: '/admin/feedback' },
+                // Quản lý người dùng
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff' },
+                // Quản lý dịch vụ
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
                 { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
+                // Quản lý sản phẩm & kho
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
+                { icon: Warehouse, label: 'Kho hàng', page: 'inventory', route: '/admin/inventory' },
+                // Quản lý địa điểm & thời gian
                 { icon: Globe, label: 'Trung tâm', page: 'service-centers', route: '/admin/service-centers' },
+                { icon: Car, label: 'Mẫu xe', page: 'vehicle-models', route: '/admin/vehicle-models' },
                 { icon: Calendar, label: 'Khung giờ làm việc', page: 'time-slots', route: '/admin/time-slots' },
+                // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
-                { icon: Settings, label: 'Cài đặt tài khoản', page: 'account-settings', route: '/admin/account-settings' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' },
-                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' }
+                // Báo cáo & Cài đặt
+                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' },
+                { icon: Settings, label: 'Cài đặt tài khoản', page: 'account-settings', route: '/admin/account-settings' },
+                { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (
                 <div
                   key={index}
-                  onClick={() => setActivePage(item.page)}
+                  onClick={() => {
+                    if (item.route) {
+                      navigate(item.route)
+                    } else {
+                      setActivePage(item.page)
+                    }
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -2084,7 +2380,7 @@ export default function AdminDashboard() {
           </nav>
         </div>
 
-        {/* Collapse Button */}
+        {/* Collapse Button - Fixed position */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           style={{
@@ -2101,7 +2397,9 @@ export default function AdminDashboard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px'
+            fontSize: '12px',
+            zIndex: 1005,
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
           }}
         >
           {sidebarCollapsed ? '→' : '←'}
@@ -2114,7 +2412,7 @@ export default function AdminDashboard() {
         style={{
           marginLeft: sidebarCollapsed ? '80px' : '280px',
           padding: '0px',
-          paddingTop: '96px', // giữ khoảng trống cho header fixed
+          paddingTop: '96px',
           background: '#fff',
           minHeight: '100vh',
           transition: 'margin-left 0.3s ease',

@@ -1,0 +1,18 @@
+// Import all Inventory Management partials
+@use './Inventory/_inventory-base' as *;
+@use './Inventory/_inventory-animations' as *;
+@use './Inventory/_inventory-header' as *;
+@use './Inventory/_inventory-empty' as *;
+@use './Inventory/_inventory-table' as *;
+@use './Inventory/_inventory-pagination' as *;
+@use './Inventory/_inventory-parts-modal' as *;
+
+// Override for inventory table to ensure borders
+.admin-inventory .inventory-table.users-table {
+  thead th:first-child,
+  tbody td:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+}
+

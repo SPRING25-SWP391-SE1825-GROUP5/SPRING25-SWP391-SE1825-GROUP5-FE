@@ -130,8 +130,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       const lat = position.coords.latitude
       const lng = position.coords.longitude
       
-      console.log('Current position:', { lat, lng })
-      
       // Gọi API tìm trung tâm gần nhất
       const nearbyCenters = await CenterService.getNearbyCenters({
         lat: lat,
@@ -140,11 +138,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         limit: 10, // Tối đa 10 trung tâm
         serviceId: serviceId // Nếu có serviceId
       })
-      
-      console.log('Nearby centers API response:', nearbyCenters)
-      console.log('Response type:', typeof nearbyCenters)
-      console.log('Response length:', nearbyCenters?.length)
-      console.log('Response keys:', nearbyCenters ? Object.keys(nearbyCenters) : 'null')
       
       // Handle different response formats
       let centersData: any[] = []
@@ -155,8 +148,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       } else if (nearbyCenters && (nearbyCenters as any).centers && Array.isArray((nearbyCenters as any).centers)) {
         centersData = (nearbyCenters as any).centers
       }
-      
-      console.log('Processed centers data:', centersData)
       
       if (centersData && centersData.length > 0) {
         // Cập nhật danh sách trung tâm với khoảng cách
@@ -185,20 +176,16 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           if (geocodingData && geocodingData.display_name) {
             const address = geocodingData.display_name
             onUpdate({ address: address })
-            console.log('Reverse geocoded address:', address)
           }
         } catch (geocodingError) {
-          console.warn('Reverse geocoding failed:', geocodingError)
           // Fallback: sử dụng tọa độ làm địa chỉ
           onUpdate({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` })
         }
         
       } else {
-        console.log('No nearby centers found, loading all centers as fallback')
         // Fallback: Load all centers if no nearby centers found
         try {
           const allCentersResponse = await CenterService.getActiveCenters()
-          console.log('Fallback centers response:', allCentersResponse)
           
           if (allCentersResponse.centers && allCentersResponse.centers.length > 0) {
             // Calculate distance for each center (approximate)
@@ -216,7 +203,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             // Sort by distance (closest first)
             fallbackCenters.sort((a, b) => a.distance - b.distance)
             
-            console.log('Fallback centers processed:', fallbackCenters)
             setCenters(fallbackCenters)
             
             // Auto-select the first (closest) center
@@ -233,14 +219,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             setLocationError('Không tìm thấy trung tâm nào trong hệ thống')
           }
         } catch (fallbackError) {
-          console.error('Fallback error:', fallbackError)
           setLocationError('Không thể tải danh sách trung tâm')
         }
       }
       
-    } catch (error: any) {
-      console.error('Location error:', error)
-      setLocationError(error.message || 'Không thể lấy vị trí hiện tại')
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      setLocationError(err.message || 'Không thể lấy vị trí hiện tại')
     } finally {
       setLoadingLocation(false)
     }
@@ -259,7 +244,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       setAddressSuggestions(suggestions)
       setShowSuggestions(true)
     } catch (error) {
-      console.warn('Address search failed:', error)
       setAddressSuggestions([])
     }
   }
@@ -292,7 +276,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         }
       }
     } catch (error) {
-      console.warn('Failed to find nearby centers:', error)
+      // Silently handle error
     }
   }
 
@@ -318,25 +302,18 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         // Nếu đã chọn kỹ thuật viên cụ thể, truyền technicianId
         if (data.technicianId && data.technicianId !== '') {
           params.technicianId = data.technicianId
-          console.log('Truyền technicianId vào API:', data.technicianId)
-        } else {
-          console.log('Không có technicianId, API sẽ trả về tất cả timeslots của center')
         }
         
         let response
         
         // Nếu đã chọn kỹ thuật viên cụ thể, sử dụng API TechnicianTimeSlot
         if (data.technicianId && data.technicianId !== '') {
-          console.log('Sử dụng API TechnicianTimeSlot cho technician:', data.technicianId)
           response = await api.get(`/TechnicianTimeSlot/technician/${data.technicianId}/center/${data.centerId}`)
         } else {
-          console.log('Sử dụng API Booking available-times (tất cả technicians)')
           response = await api.get(`/Booking/available-times`, {
             params: params
           })
         }
-        
-        console.log('API response:', response.data)
         
         if (response.data && response.data.success) {
           let responseData
@@ -352,11 +329,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               availableTimeSlots: response.data.data || [],
               availableServices: [] // Sẽ lấy từ API khác nếu cần
             }
-            console.log('TechnicianTimeSlot response processed:', responseData)
           } else {
             // API Booking available-times
             responseData = response.data.data
-            console.log('Booking available-times response:', responseData)
           }
           
           // Tìm timeslots trong response data
@@ -365,7 +340,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           if (data.technicianId && data.technicianId !== '') {
             // API TechnicianTimeSlot trả về array trực tiếp
             allSlots = responseData.availableTimeSlots || []
-            console.log('TechnicianTimeSlot slots found:', allSlots.length)
           } else {
             // API Booking available-times
             if (responseData.timeslots && Array.isArray(responseData.timeslots)) {
@@ -378,18 +352,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               allSlots = responseData.availableSlots
             } else if (responseData.technicianSlots && Array.isArray(responseData.technicianSlots)) {
               allSlots = responseData.technicianSlots
-            } else {
-              console.log('No timeslots found in response, checking if data is array...')
-              if (Array.isArray(responseData)) {
-                allSlots = responseData
-              } else {
-                console.log('Available keys in responseData:', Object.keys(responseData))
-                console.log('Full responseData:', responseData)
-              }
+            } else if (Array.isArray(responseData)) {
+              allSlots = responseData
             }
           }
-          
-          console.log('Found timeslots:', allSlots.length, allSlots)
           setAllTechnicianSlots(allSlots)
           
           // Tính toán các ngày có timeslots available
@@ -421,7 +387,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           })
           
           setAvailableDates(dates)
-          console.log('Available dates:', Array.from(dates))
           
           // Filter timeslots cho ngày đã chọn
           const slotsForDate = allSlots
@@ -500,16 +465,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         }
             })
           
-          console.log('Timeslots for selected date:', data.date, slotsForDate)
           setSlots(slotsForDate)
         } else {
-          console.warn('No timeslots data received from API', response.data)
           setAllTechnicianSlots([])
           setAvailableDates(new Set())
           setSlots([])
         }
       } catch (error) {
-        console.error('Error loading available timeslots:', error)
         setAllTechnicianSlots([])
         setAvailableDates(new Set())
         setSlots([])
@@ -582,7 +544,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         }
       })
       
-      console.log('Timeslots for selected date and technician:', data.date, data.technicianId, slotsForDate)
       setSlots(slotsForDate)
     } else if (!data.date) {
       setSlots([])
@@ -1104,13 +1065,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                   className={`time-slot ${isSelected ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
                   onClick={() => {
                     if (s.isAvailable) {
-                      console.log('Selecting timeslot:', s)
-                      console.log('Current data.time:', data.time)
-                      console.log('Slot time:', s.slotTime)
-                      console.log('SlotId from slot:', s.slotId)
-                      console.log('TechnicianSlotId from slot:', s.technicianSlotId)
-                      console.log('TechnicianId from slot:', s.technicianId)
-                      
                       // Use the correct TechnicianSlotId from the API response
                       onUpdate({ 
                         time: s.slotTime,

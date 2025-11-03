@@ -1,0 +1,22 @@
+// Header styles
+.vehicle-model-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #FFD875;
+    margin: 0 0 8px 0;
+  }
+
+  &__subtitle {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+}

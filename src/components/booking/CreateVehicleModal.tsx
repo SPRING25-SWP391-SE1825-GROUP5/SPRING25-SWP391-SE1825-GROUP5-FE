@@ -64,12 +64,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
     const loadVehicleModels = async () => {
       setModelsLoading(true)
       try {
-        console.log('Fetching vehicle models from /VehicleModel/active...')
         const response = await api.get('/VehicleModel/active')
-        console.log('Vehicle models response:', response)
-
-        console.log('Response type:', typeof response.data)
-        console.log('Is array:', Array.isArray(response.data))
         
         // API trả về trực tiếp array của VehicleModelResponse
         let models = response.data
@@ -77,29 +72,10 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         // Nếu response.data không phải array, có thể bị wrap trong object
         if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
           models = response.data.data || response.data.models || response.data.items || response.data
-          console.log('Extracted models from nested structure:', models)
-        }
-        
-        console.log('Final models array:', models)
-        console.log('Models length:', models?.length)
-        
-        // Kiểm tra format của từng model
-        if (models && models.length > 0) {
-          console.log('First model structure:', models[0])
-          console.log('Model keys:', Object.keys(models[0] || {}))
         }
         
         setVehicleModels(models || [])
-      } catch (error: any) {
-        console.error('Error fetching vehicle models:', error)
-        console.error('Error details:', {
-          status: error?.response?.status,
-          statusText: error?.response?.statusText,
-          data: error?.response?.data,
-          message: error?.message,
-          url: error?.config?.url
-        })
-        
+      } catch (error: unknown) {
         // Fallback: không cần gọi lại cùng endpoint; giữ rỗng nếu lỗi
         setVehicleModels([])
       } finally {
@@ -114,7 +90,6 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
       try {
         // Nếu có thông tin khách vãng lai, tạo customer mới cho họ
         if (guestCustomerInfo) {
-          console.log('Creating customer for guest:', guestCustomerInfo)
           try {
             const createCustomerResp = await CustomerService.quickCreateCustomer({
               fullName: guestCustomerInfo.fullName,
@@ -125,14 +100,10 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
             if (createCustomerResp?.data?.customerId) {
               setCustomerId(createCustomerResp.data.customerId)
               setCustomerCreated(true)
-              console.log('Created guest customer ID:', createCustomerResp.data.customerId)
-              console.log('Customer data:', createCustomerResp.data)
             } else {
-              console.error('Failed to create guest customer:', createCustomerResp)
               setCustomerId(null)
             }
           } catch (error) {
-            console.error('Error creating guest customer:', error)
             // Fallback: thử tạo customer đơn giản hơn
             try {
               const simpleCustomerResp = await CustomerService.createCustomer({
@@ -142,33 +113,24 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
               if (simpleCustomerResp?.data?.customerId) {
                 setCustomerId(simpleCustomerResp.data.customerId)
                 setCustomerCreated(true)
-                console.log('Created simple guest customer ID:', simpleCustomerResp.data.customerId)
               } else {
                 setCustomerId(null)
               }
             } catch (fallbackError) {
-              console.error('Fallback customer creation also failed:', fallbackError)
               setCustomerId(null)
             }
           }
         } else {
           // Nếu không có thông tin guest, lấy customer hiện tại (cho trường hợp customer đã đăng nhập)
-          console.log('Getting current customer for logged-in user...')
           try {
             const me = await CustomerService.getCurrentCustomer()
-            console.log('Current customer response:', me)
-            console.log('Current customer ID:', me?.data?.customerId)
             
             if (me?.data?.customerId) {
               setCustomerId(me.data.customerId)
-              console.log('✅ Set customer ID for logged-in user:', me.data.customerId)
             } else {
-              console.error('No customer ID found for logged-in user')
               setCustomerId(null)
             }
           } catch (error) {
-            console.error('Error getting current customer for logged-in user:', error)
-            console.log('Customer not found, trying to create customer for logged-in user...')
             
             // Fallback: Tạo customer record cho user đã đăng nhập
             try {
@@ -178,23 +140,18 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
                 isGuest: false
               })
               
-              console.log('Created customer for logged-in user:', createCustomerResp)
               if (createCustomerResp?.data?.customerId) {
                 setCustomerId(createCustomerResp.data.customerId)
                 setCustomerCreated(true)
-                console.log('✅ Created customer ID for logged-in user:', createCustomerResp.data.customerId)
               } else {
-                console.error('Failed to create customer for logged-in user')
                 setCustomerId(null)
               }
             } catch (createError) {
-              console.error('Error creating customer for logged-in user:', createError)
               setCustomerId(null)
             }
           }
         }
       } catch (error) {
-        console.error('Error getting customer ID:', error)
         setCustomerId(null)
       }
     }
@@ -236,14 +193,13 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         modelId: Number(form.modelId)
       })
       if (resp?.data) {
-        console.log('Passing customerId to onCreated:', customerId)
         onCreated(resp.data as Vehicle, customerId ?? undefined)
         onClose()
       }
-    } catch (err: any) {
-      console.error('Create vehicle error', err)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: any } }
       let message = 'Tạo xe thất bại, vui lòng kiểm tra lại thông tin.'
-      const resp = err?.response?.data
+      const resp = error?.response?.data
 
       // Map server-side field errors to UI fields
       const fieldErrs: Record<string, string> = {}
@@ -275,7 +231,9 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
         if (resp?.message) message = resp.message
         else if (resp?.error) message = resp.error
         else if (resp?.title) message = resp.title
-        else if (err?.userMessage) message = err.userMessage
+        else if (err && typeof err === 'object' && 'userMessage' in err && typeof err.userMessage === 'string') {
+          message = err.userMessage
+        }
       }
 
       // Apply field errors if any; otherwise show general
@@ -375,7 +333,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({ open, onClose, 
       </div>
       <style>{`
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 50; }
-        .modal { background: #fff; border-radius: 12px; padding: 20px; width: 520px; max-width: calc(100% - 24px); box-shadow: 0 10px 30px rgba(0,0,0,.15); border: 1px solid #e5e7eb; }
+        .modal { background: #fff; border-radius: 12px; padding: 16px; width: 450px; max-width: calc(100% - 24px); box-shadow: 0 10px 30px rgba(0,0,0,.15); border: 1px solid #e5e7eb; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
         label { display: flex; flex-direction: column; gap: 6px; font-size: .9rem; color: #374151; }
         input, select { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 14px; }

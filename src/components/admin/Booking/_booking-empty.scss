@@ -1,0 +1,133 @@
+// Empty states and loading
+.booking-empty {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+
+  &__icon {
+    width: 64px;
+    height: 64px;
+    background: var(--bg-secondary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    color: var(--text-tertiary);
+  }
+
+  &__title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+.booking-loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+
+  &__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-primary);
+    border-top: 3px solid var(--primary-500);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+.booking-error {
+  padding: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  background: var(--bg-secondary);
+
+  &__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    background: var(--error-50);
+    border-radius: 12px;
+    border: 1px solid var(--error-200);
+    color: var(--error-700);
+  }
+
+  &__icon {
+    font-size: 24px;
+  }
+
+  &__message {
+    margin: 0;
+    text-align: center;
+  }
+
+  &__retry {
+    padding: 8px 16px;
+    background: var(--error-500);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.2s;
+
+    &:hover {
+      background: var(--error-600);
+    }
+  }
+}
+
+.booking-total-count {
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+}
+
+// Date filters
+.date-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .date-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-500);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+}
+

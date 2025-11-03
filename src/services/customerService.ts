@@ -45,6 +45,30 @@ export interface VehicleListResponse {
   }
 }
 
+export interface CustomerServicePackage {
+  creditId: number
+  packageId: number
+  packageName: string
+  packageDescription: string
+  originalPrice: number
+  discountPercent: number
+  finalPrice: number
+  totalCredits: number
+  usedCredits: number
+  remainingCredits: number
+  status: string
+  purchaseDate: string
+  expiryDate: string
+  serviceName: string
+  serviceDescription: string
+}
+
+export interface CustomerServicePackagesResponse {
+  success: boolean
+  message: string
+  data: CustomerServicePackage[]
+}
+
 export interface CustomerBookingsResponse {
   success: boolean
   message: string
@@ -62,14 +86,14 @@ export interface CustomerBookingsResponse {
 /**
  * Customer Service
  * Handles customer management operations
- * 
+ *
  * @class CustomerService
  * @description Service responsible for customer CRUD operations
  */
 export const CustomerService = {
   /**
    * Get current customer information (map from User)
-   * 
+   *
    * @returns Promise with current customer data
    * @throws {Error} When request fails
    */
@@ -80,7 +104,7 @@ export const CustomerService = {
 
   /**
    * Create new customer profile
-   * 
+   *
    * @param customerData - Customer creation data
    * @returns Promise with created customer
    * @throws {Error} When creation fails
@@ -92,7 +116,7 @@ export const CustomerService = {
 
   /**
    * Get customer vehicles
-   * 
+   *
    * @param customerId - Customer ID
    * @param params - Query parameters for pagination and search
    * @returns Promise with customer's vehicles
@@ -110,7 +134,7 @@ export const CustomerService = {
 
   /**
    * Update customer information
-   * 
+   *
    * @param customerId - Customer ID
    * @param customerData - Customer data to update
    * @returns Promise with updated customer
@@ -123,13 +147,24 @@ export const CustomerService = {
 
   /**
    * Quick create customer (for staff/technician/admin)
-   * 
+   *
    * @param customerData - Customer creation data
    * @returns Promise with created customer
    * @throws {Error} When creation fails
    */
   async quickCreateCustomer(customerData: QuickCreateCustomerRequest): Promise<CustomerResponse> {
     const { data } = await api.post<CustomerResponse>('/Customer/quick-create', customerData)
+    return data
+  },
+
+  /**
+   * Get customer service packages
+   *
+   * @returns Promise with customer's service packages
+   * @throws {Error} When request fails
+   */
+  async getCustomerServicePackages(): Promise<CustomerServicePackagesResponse> {
+    const { data } = await api.get<CustomerServicePackagesResponse>('/Customer/service-packages')
     return data
   },
 

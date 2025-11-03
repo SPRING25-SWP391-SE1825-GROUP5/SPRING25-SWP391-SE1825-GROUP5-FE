@@ -1,4 +1,4 @@
-@import '../admin-common';
+@use '../admin-common' as *;
 
 .staff-stats {
   display: grid;

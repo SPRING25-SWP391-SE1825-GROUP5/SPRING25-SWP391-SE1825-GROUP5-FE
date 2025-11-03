@@ -75,8 +75,14 @@ export type AuthSuccess = {
   data: {
     token: string
     refreshToken?: string | null
+    userId?: number | null
+    customerId?: number | null
+    staffId?: number | null
+    technicianId?: number | null
     user: {
       id: number
+      userId?: number
+      customerId?: number | null
       fullName: string
       email: string
       role: string
@@ -163,12 +169,14 @@ export const AuthService = {
       const refreshToken = d.refreshToken ?? null
 
       const user = {
-        id: d.userId ?? d.user?.id ?? d.id ?? null,
+        id: d.userId ?? d.user?.id ?? d.user?.userId ?? d.id ?? null,
+        userId: d.userId ?? d.user?.userId ?? d.user?.id ?? d.id ?? null,
+        customerId: d.customerId ?? d.user?.customerId ?? d.customer?.id ?? null,
         fullName: d.fullName ?? d.user?.fullName ?? '',
         email: d.email ?? d.user?.email ?? '',
         role: (d.role ?? d.user?.role ?? 'customer'),
         emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
-        avatar: d.avatar ?? d.user?.avatar ?? null,
+        avatar: d.avatar ?? d.user?.avatar ?? d.user?.avatarUrl ?? null,
       }
 
       return {
@@ -195,8 +203,45 @@ export const AuthService = {
   },
 
   async loginWithGoogle(payload: GoogleLoginRequest) {
-    const response = await api.post<AuthSuccess>('/auth/login-google', payload)
-    return response.data
+    try {
+      const response = await api.post<any>('/auth/login-google', payload)
+      
+      // Normalize backend response (similar to login method)
+      const src = response.data || {}
+      const d = src.data ?? src
+      
+      const token = d.accessToken ?? d.token ?? null
+      const refreshToken = d.refreshToken ?? null
+      
+      const user = {
+        id: d.userId ?? d.user?.id ?? d.user?.userId ?? d.id ?? null,
+        userId: d.userId ?? d.user?.userId ?? d.user?.id ?? d.id ?? null,
+        customerId: d.customerId ?? d.user?.customerId ?? d.customer?.id ?? null,
+        fullName: d.fullName ?? d.user?.fullName ?? '',
+        email: d.email ?? d.user?.email ?? '',
+        role: (d.role ?? d.user?.role ?? 'customer'),
+        emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
+        avatar: d.avatar ?? d.user?.avatar ?? d.user?.avatarUrl ?? null,
+      }
+      
+      return {
+        success: src.success !== false,
+        message: src.message ?? 'Đăng nhập thành công',
+        data: {
+          token,
+          refreshToken,
+          user,
+        },
+      }
+    } catch (error: any) {
+      console.error('Google login error:', error)
+      return {
+        success: false,
+        message: error?.userMessage || error?.message || 'Đăng nhập Google thất bại. Vui lòng thử lại.',
+        errors: error?.response?.data?.errors || [error?.userMessage || error?.message || 'Đăng nhập Google thất bại. Vui lòng thử lại.'],
+        data: null
+      }
+    }
   },
 
   async logout(): Promise<void> {
@@ -209,6 +254,7 @@ export const AuthService = {
     const d = src.data ?? src
     const user: User = {
       id: d.userId ?? d.id ?? null,
+      customerId: d.customerId ?? d.customer?.id ?? null,
       fullName: d.fullName ?? '',
       email: d.email ?? '',
       role: d.role ?? 'customer',

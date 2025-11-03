@@ -13,8 +13,10 @@ export interface ServiceChecklistTemplateItem {
 }
 
 export interface ServiceChecklistTemplate {
-    templateId: number
-    serviceId: number
+    templateID?: number
+    templateId?: number
+    serviceID?: number
+    serviceId?: number
     templateName: string
     description?: string
     serviceName?: string
@@ -25,12 +27,60 @@ export interface ServiceChecklistTemplate {
     intervalKm?: number
     intervalDays?: number
     maxOverdueDays?: number
+    isActive?: boolean
     createdAt: string
     updatedAt?: string
     recommendationRank?: number
     recommendationReason?: string
     warnings?: string[]
     items?: ServiceChecklistTemplateItem[] // Parts trong template
+}
+
+export interface TemplateItemDto {
+    itemId?: number
+    partId: number
+    defaultQuantity?: number
+}
+
+export interface TemplateCreateRequest {
+    serviceId: number
+    templateName: string
+    description?: string
+    isActive?: boolean
+    items?: TemplateItemDto[]
+}
+
+export interface TemplateUpdateRequest {
+    templateName?: string
+    description?: string
+}
+
+export interface UpsertItemsRequest {
+    items: TemplateItemDto[]
+}
+
+export interface ActivateRequest {
+    isActive: boolean
+}
+
+export interface BatchPartsRequest {
+    partIds: number[]
+}
+
+export interface TemplateItemResponse {
+    itemId: number
+    partId: number
+    partName?: string
+    partNumber?: string
+    brand?: string
+    price?: number
+    createdAt: string
+}
+
+export interface GetItemsResponse {
+    templateId: number
+    templateName: string
+    items: TemplateItemResponse[]
 }
 
 export interface RecommendationRequest {
@@ -74,13 +124,27 @@ export class ServiceChecklistTemplateService {
     /**
      * Lấy tất cả templates (cho admin)
      */
-    static async getAllTemplates(): Promise<ServiceChecklistTemplate[]> {
+    static async getAllTemplates(): Promise<{ items: ServiceChecklistTemplate[], total: number }> {
         try {
             const response = await api.get('/service-templates/all')
-            return response.data.items || []
+            // Xử lý cả 2 trường hợp: { items: [...], total: N } hoặc trực tiếp array
+            if (response.data && typeof response.data === 'object') {
+                if (Array.isArray(response.data.items)) {
+                    return {
+                        items: response.data.items,
+                        total: response.data.total ?? response.data.items.length
+                    }
+                } else if (Array.isArray(response.data)) {
+                    return {
+                        items: response.data,
+                        total: response.data.length
+                    }
+                }
+            }
+            return { items: [], total: 0 }
         } catch (error: any) {
             console.error('Error getting all templates:', error)
-            throw new Error(error.response?.data?.message || 'Lỗi khi lấy danh sách templates')
+            return { items: [], total: 0 }
         }
     }
 
@@ -175,19 +239,28 @@ export class ServiceChecklistTemplateService {
     }
 
     /**
+     * Lấy danh sách templates active (public)
+     */
+    static async getActiveTemplates(serviceId?: number): Promise<{ items: ServiceChecklistTemplate[], total: number }> {
+        try {
+            const url = serviceId 
+                ? `/service-templates/active?serviceId=${serviceId}`
+                : '/service-templates/active'
+            const response = await api.get(url)
+            return {
+                items: response.data.items || [],
+                total: response.data.total || 0
+            }
+        } catch (error: any) {
+            console.error('Error getting active templates:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi lấy danh sách templates active')
+        }
+    }
+
+    /**
      * Tạo template mới (admin only)
      */
-    static async createTemplate(templateData: {
-        serviceId: number
-        templateName: string
-        description?: string
-        isActive?: boolean
-        minKm?: number
-        maxDate?: number
-        intervalKm?: number
-        intervalDays?: number
-        maxOverdueDays?: number
-    }): Promise<{ templateId: number }> {
+    static async createTemplate(templateData: TemplateCreateRequest): Promise<{ templateId: number }> {
         try {
             const response = await api.post('/service-templates', templateData)
             return response.data
@@ -200,21 +273,115 @@ export class ServiceChecklistTemplateService {
     /**
      * Cập nhật template (admin only)
      */
-    static async updateTemplate(templateId: number, updateData: {
-        templateName?: string
-        description?: string
-        minKm?: number
-        maxDate?: number
-        intervalKm?: number
-        intervalDays?: number
-        maxOverdueDays?: number
-    }): Promise<{ templateId: number }> {
+    static async updateTemplate(templateId: number, updateData: TemplateUpdateRequest): Promise<{ templateId: number }> {
         try {
             const response = await api.put(`/service-templates/${templateId}`, updateData)
             return response.data
         } catch (error: any) {
             console.error('Error updating template:', error)
             throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật template')
+        }
+    }
+
+    /**
+     * Upsert items cho template (admin only)
+     */
+    static async upsertItems(templateId: number, items: TemplateItemDto[]): Promise<{ updated: boolean }> {
+        try {
+            const response = await api.put(`/service-templates/${templateId}/items`, { items })
+            return response.data
+        } catch (error: any) {
+            console.error('Error upserting items:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật items')
+        }
+    }
+
+    /**
+     * Activate/Deactivate template (admin only)
+     */
+    static async activateTemplate(templateId: number, isActive: boolean): Promise<{ templateId: number, isActive: boolean }> {
+        try {
+            const response = await api.put(`/service-templates/${templateId}/activate`, { isActive })
+            return response.data
+        } catch (error: any) {
+            console.error('Error activating template:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi kích hoạt/vô hiệu hóa template')
+        }
+    }
+
+    /**
+     * Lấy items của template (public)
+     */
+    static async getTemplateItems(templateId: number): Promise<GetItemsResponse> {
+        try {
+            const response = await api.get(`/service-templates/${templateId}/items`)
+            return response.data
+        } catch (error: any) {
+            console.error('Error getting template items:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi lấy items của template')
+        }
+    }
+
+    /**
+     * Thêm part vào template (admin only)
+     */
+    static async addPartToTemplate(templateId: number, partId: number): Promise<{ message: string, templateId: number, partId: number }> {
+        try {
+            const response = await api.post(`/service-templates/${templateId}/parts/${partId}`)
+            return response.data
+        } catch (error: any) {
+            console.error('Error adding part to template:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi thêm part vào template')
+        }
+    }
+
+    /**
+     * Xóa part khỏi template (admin only)
+     */
+    static async removePartFromTemplate(templateId: number, partId: number): Promise<{ message: string, templateId: number, partId: number }> {
+        try {
+            const response = await api.delete(`/service-templates/${templateId}/parts/${partId}`)
+            return response.data
+        } catch (error: any) {
+            console.error('Error removing part from template:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi xóa part khỏi template')
+        }
+    }
+
+    /**
+     * Thêm nhiều part vào template cùng lúc (admin only)
+     */
+    static async addPartsBatch(templateId: number, partIds: number[]): Promise<{
+        message: string
+        templateId: number
+        results: Array<{ partId: number, success: boolean, message: string }>
+        errors?: string[]
+    }> {
+        try {
+            const response = await api.post(`/service-templates/${templateId}/parts/batch`, { partIds })
+            return response.data
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || error.message || 'Lỗi khi thêm nhiều part vào template'
+            const innerException = error.response?.data?.innerException || error.response?.data?.innerExceptionMessage
+            throw new Error(innerException ? `${errorMessage}: ${innerException}` : errorMessage)
+        }
+    }
+
+    /**
+     * Xóa nhiều part khỏi template cùng lúc (admin only)
+     */
+    static async removePartsBatch(templateId: number, partIds: number[]): Promise<{
+        message: string
+        templateId: number
+        results: Array<{ partId: number, success: boolean, message: string }>
+        errors?: string[]
+    }> {
+        try {
+            const response = await api.delete(`/service-templates/${templateId}/parts/batch`, { data: { partIds } })
+            return response.data
+        } catch (error: any) {
+            console.error('Error removing parts batch:', error)
+            throw new Error(error.response?.data?.message || 'Lỗi khi xóa nhiều part khỏi template')
         }
     }
 

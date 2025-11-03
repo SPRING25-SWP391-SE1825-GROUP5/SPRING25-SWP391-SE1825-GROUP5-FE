@@ -126,9 +126,9 @@ const TimeSlotManagement = () => {
           </div>
           <div className="toolbar-search">
             <span className="icon"><Search size={16}/></span>
-            <input
+          <input
               placeholder="Tìm nhãn khung giờ..."
-              value={filters.search}
+            value={filters.search}
               onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
               onFocus={e => e.target.classList.add('search-input-focus')}
               onBlur={e => e.target.classList.remove('search-input-focus')}
@@ -153,19 +153,19 @@ const TimeSlotManagement = () => {
         </div>
       </div>
       <div className="admin-table-wrapper">
-        <table className="admin-table">
-          <thead>
-            <tr>
+          <table className="admin-table">
+            <thead>
+              <tr>
               <th style={{ width: 48 }}><input type="checkbox" className="table-checkbox" disabled /></th>
-              <th>Nhãn khung giờ</th>
-              <th>Từ giờ</th>
-              <th>Đến giờ</th>
-              <th>Trạng thái</th>
-              <th>Ngày tạo</th>
-              <th>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
+                <th>Nhãn khung giờ</th>
+                <th>Từ giờ</th>
+                <th>Đến giờ</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
             {loading ? (
               <tr><td colSpan={7} style={{ textAlign: 'center' }}>Đang tải...</td></tr>
             ) : error ? (
@@ -192,8 +192,8 @@ const TimeSlotManagement = () => {
                 </tr>
               )})
             )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
         <div className="pagination-controls-bottom">
           <div className="pagination-info">
             <span className="pagination-label">Hàng mỗi trang</span>
@@ -242,19 +242,19 @@ const TimeSlotManagement = () => {
       {/* Modal nhập/xoá giống cũ, chỉ sửa class hoặc style nhỏ nếu cần */}
       {showModal && (
         <div className="admin-modal-backdrop">
-          <div className="admin-modal">
+        <div className="admin-modal">
             <div className="modal-header">{editId ? 'Sửa khung giờ' : 'Thêm khung giờ'}</div>
-            <div className="modal-body">
-              <label>Nhãn khung giờ</label>
+          <div className="modal-body">
+            <label>Nhãn khung giờ</label>
               <input value={form.slotLabel} onChange={e => setForm(f => ({ ...f, slotLabel: e.target.value }))} />
-              <label>Từ giờ</label>
+            <label>Từ giờ</label>
               <input type="time" value={form.slotTimeStart} onChange={e => setForm(f => ({ ...f, slotTimeStart: e.target.value }))} />
-              <label>Đến giờ</label>
+            <label>Đến giờ</label>
               <input type="time" value={form.slotTimeEnd} onChange={e => setForm(f => ({ ...f, slotTimeEnd: e.target.value }))} />
               <label style={{ marginTop: 12 }}><input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} /> Đang dùng</label>
               {modalError && <div style={{ marginTop: 8, color: 'red' }}>{modalError}</div>}
-            </div>
-            <div className="modal-footer">
+          </div>
+          <div className="modal-footer">
               <button onClick={() => setShowModal(false)}>Đóng</button>
               <button onClick={handleSave} style={{ marginLeft: 8 }}>Lưu</button>
             </div>
@@ -263,12 +263,12 @@ const TimeSlotManagement = () => {
       )}
       {showDelete && (
         <div className="admin-modal-backdrop">
-          <div className="admin-modal">
-            <div className="modal-header">Xác nhận xoá</div>
-            <div className="modal-body">
+        <div className="admin-modal">
+          <div className="modal-header">Xác nhận xoá</div>
+          <div className="modal-body">
               Bạn có chắc chắn muốn xoá <b>{showDelete.label}</b>?<br />Thao tác này không thể hoàn tác!
-            </div>
-            <div className="modal-footer">
+          </div>
+          <div className="modal-footer">
               <button onClick={() => setShowDelete(null)}>Huỷ</button>
               <button style={{ marginLeft: 8, background: '#DC2626', color: '#fff' }} onClick={() => handleDelete(showDelete.id)}>Xoá</button>
             </div>
