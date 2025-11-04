@@ -3,8 +3,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { updateUser } from '@/store/authSlice'
 import { AuthService } from '@/services/authService'
 import { TechnicianService } from '@/services/technicianService'
-import { CenterService, type Center } from '@/services/centerService'
-import { Camera, Lock, X, Edit, CheckCircle, AlertCircle, Eye, EyeOff, Building2 } from 'lucide-react'
+import { Camera, Lock, X, Edit, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import './TechnicianProfile.scss'
 
 // Popup notification component
@@ -49,8 +48,7 @@ export default function TechnicianProfile() {
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [avatar, setAvatar] = useState<string | null>(null)
 
-  // Center information
-  const [centerInfo, setCenterInfo] = useState<Center | null>(null)
+  // Center information removed
 
   // Password change
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -96,18 +94,7 @@ export default function TechnicianProfile() {
         setGender(userData.gender as 'MALE' | 'FEMALE' || 'MALE')
         setAvatar(userData.avatar || null)
 
-        // Update user in store if center info exists
-        if (userData.centerId || userData.centerName) {
-          dispatch(updateUser({
-            centerId: userData.centerId,
-            centerName: userData.centerName
-          }))
-        }
-
-        // Load center information for technicians
-        if (user?.role === 'TECHNICIAN' || userData.role === 'TECHNICIAN') {
-          await loadCenterInfo(userData.id || user?.id)
-        }
+        // Center info removed
       } else {
         setPopup({ message: response.message || 'Không thể tải thông tin cá nhân', type: 'error' })
       }
@@ -118,56 +105,7 @@ export default function TechnicianProfile() {
     }
   }
 
-  const loadCenterInfo = async (userId?: number | null) => {
-    try {
-      if (!userId) {
-        // Try using centerId from user store if userId not available
-        if (user?.centerId) {
-          await loadCenterById(user.centerId)
-        }
-        return
-      }
-
-      // Step 1: Get technicianId from userId to get centerId
-      const technicianResult = await TechnicianService.getTechnicianIdByUserId(userId)
-      
-      let centerId: number | null = null
-      
-      if (technicianResult.success && technicianResult.data?.centerId) {
-        centerId = technicianResult.data.centerId
-      } else if (user?.centerId) {
-        // Fallback to user store centerId
-        centerId = user.centerId
-      }
-
-      if (centerId) {
-        // Step 2: Get center information using CenterService (like Dashboard.tsx)
-        await loadCenterById(centerId)
-      }
-    } catch (err: unknown) {
-      console.error('Error loading center info:', err)
-      // Silent fail - don't show error for center info
-    }
-  }
-
-  const loadCenterById = async (centerId: number) => {
-    try {
-      // Use CenterService.getCenterById like Dashboard.tsx uses CenterService.getCenters
-      const center = await CenterService.getCenterById(centerId)
-      
-      setCenterInfo(center)
-      
-      // Update user in store with center info
-      dispatch(updateUser({
-        centerId: center.centerId,
-        centerName: center.centerName
-      }))
-    } catch (err: unknown) {
-      console.error('Error fetching center by id:', err)
-      // Set null on error
-      setCenterInfo(null)
-    }
-  }
+  // Center info functions removed
 
   const validatePassword = () => {
     const errors: { [key: string]: string } = {}
@@ -341,15 +279,6 @@ export default function TechnicianProfile() {
             <h2 className="profile-name">{fullName || 'Người dùng'}</h2>
             <div className="profile-meta">
               <span className="profile-badge">{getRole()}</span>
-              {(centerInfo?.centerName || user?.centerName) && (
-                <>
-                  <span className="profile-divider">•</span>
-                  <p className="profile-location">
-                    <Building2 size={14} />
-                    <span>{centerInfo?.centerName || user?.centerName || 'Chưa có thông tin'}</span>
-                  </p>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -476,49 +405,7 @@ export default function TechnicianProfile() {
         )}
       </div>
 
-      {/* Center Information Card */}
-      {centerInfo && (
-        <div className="profile-card">
-          <div className="card-header">
-            <div className="card-header-content">
-              <h3 className="card-title">Thông tin trung tâm</h3>
-              <p className="card-subtitle">Trung tâm dịch vụ bạn đang làm việc</p>
-            </div>
-          </div>
-          <div className="info-grid">
-            {centerInfo.centerName && (
-              <div className="info-item">
-                <label>Tên trung tâm</label>
-                <span className="info-value">{centerInfo.centerName}</span>
-              </div>
-            )}
-            {centerInfo.address && (
-              <div className="info-item">
-                <label>Địa chỉ</label>
-                <span className="info-value">{centerInfo.address}</span>
-              </div>
-            )}
-            {centerInfo.phoneNumber && (
-              <div className="info-item">
-                <label>Số điện thoại</label>
-                <span className="info-value">{centerInfo.phoneNumber}</span>
-              </div>
-            )}
-            {centerInfo.email && (
-              <div className="info-item">
-                <label>Email</label>
-                <span className="info-value">{centerInfo.email}</span>
-              </div>
-            )}
-            {centerInfo.city && (
-              <div className="info-item">
-                <label>Thành phố</label>
-                <span className="info-value">{centerInfo.city}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Center Information removed */}
 
       {/* Change Password Section */}
       <div className="profile-card">

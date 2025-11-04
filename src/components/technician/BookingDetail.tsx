@@ -73,23 +73,23 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
   const fetchBookingDetail = useCallback(async (bookingId: number) => {
     try {
       setLoading(true)
-      
+
       // Lấy technicianId từ user info
       const technicianInfo = await TechnicianService.getTechnicianIdByUserId(user?.id || 0)
-      
+
       if (technicianInfo.success && technicianInfo.data) {
         const response = await TechnicianService.getBookingDetail(technicianInfo.data.technicianId, bookingId)
-        
+
         if (response.success && response.data) {
           setBookingData(response.data)
-          
+
           // Maintenance checklist đã có trong response.data.maintenanceChecklists
           if (response.data.maintenanceChecklists && response.data.maintenanceChecklists.length > 0) {
             setMaintenanceChecklist(response.data.maintenanceChecklists[0])
           }
         }
       }
-      
+
     } catch (error) {
       // Error handled by state
     } finally {
@@ -108,7 +108,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
 
     try {
       setUpdating(true)
-      
+
       // Tìm partId từ resultId
       const checklistItem = maintenanceChecklist.results.find(item => item.resultId === resultId)
       if (!checklistItem) {
@@ -118,18 +118,18 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
 
       // Gọi API mới với partId
       const response = await TechnicianService.updateMaintenanceChecklistItem(
-        bookingId, 
-        checklistItem.partId, 
+        bookingId,
+        checklistItem.partId,
         result
       )
 
       if (response.success) {
         // Cập nhật local state
-        const updatedResults = maintenanceChecklist.results.map(item => 
-          item.resultId === resultId ? { 
-            ...item, 
-            result, 
-            status: result === 'PASS' ? 'completed' : result === 'FAIL' ? 'failed' : 'pending' 
+        const updatedResults = maintenanceChecklist.results.map(item =>
+          item.resultId === resultId ? {
+            ...item,
+            result,
+            status: result === 'PASS' ? 'completed' : result === 'FAIL' ? 'failed' : 'pending'
           } : item
         )
 
@@ -150,9 +150,9 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
 
   const canConfirmChecklist = () => {
     if (!maintenanceChecklist) return false
-    
+
     // Kiểm tra xem tất cả items đã được đánh giá chưa
-    return maintenanceChecklist.results.every(item => 
+    return maintenanceChecklist.results.every(item =>
       item.result === 'PASS' || item.result === 'FAIL'
     )
   }
@@ -165,12 +165,12 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
 
     try {
       setUpdating(true)
-      
+
       const response = await TechnicianService.confirmMaintenanceChecklist(bookingId)
 
       if (response.success) {
         toast.success('Xác nhận hoàn thành kiểm tra thành công')
-        
+
         // Cập nhật trạng thái checklist
         setMaintenanceChecklist({
           ...maintenanceChecklist,
@@ -197,7 +197,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
     return (
       <div style={{
         padding: '24px',
-        background: '#F8FAFC',
+        background: '#fff',
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
@@ -232,7 +232,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
     return (
       <div style={{
         padding: '24px',
-        background: '#F8FAFC',
+        background: '#fff',
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
@@ -245,7 +245,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
           <p style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: '600' }}>
             Không thể tải thông tin booking
           </p>
-          <button 
+          <button
             onClick={onBack}
             style={{
               display: 'inline-flex',
@@ -281,7 +281,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
   return (
     <div className="booking-detail" style={{
       padding: '24px',
-      background: '#F8FAFC',
+      background: '#fff',
       minHeight: '100vh'
     }}>
       <style>{`
@@ -307,8 +307,8 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
           gap: '16px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button 
-              onClick={onBack} 
+            <button
+              onClick={onBack}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -367,11 +367,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '16px',
             padding: '24px',
-            background: 'linear-gradient(135deg, #FFF6D1 0%, #FFE9A8 100%)',
-            borderBottom: '2px solid #FFD875'
+            background: '#fff',
+            borderBottom: '1px solid var(--border-primary)'
           }}>
-            
-            
+
+
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -396,11 +396,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                background: '#F1F5F9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--text-secondary)',
                 flexShrink: 0
               }}>
                 <User size={20} />
@@ -451,11 +451,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                background: '#F1F5F9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--text-secondary)',
                 flexShrink: 0
               }}>
                 <Car size={20} />
@@ -503,11 +503,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #10B981, #059669)',
+                background: '#F1F5F9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--text-secondary)',
                 flexShrink: 0
               }}>
                 <Wrench size={20} />
@@ -558,11 +558,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #F97316, #EA580C)',
+                background: '#F1F5F9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--text-secondary)',
                 flexShrink: 0
               }}>
                 <Clock size={20} />
@@ -610,11 +610,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #059669, #047857)',
+                background: '#F1F5F9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--text-secondary)',
                 flexShrink: 0
               }}>
                 <DollarSign size={20} />
@@ -650,7 +650,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
               overflow: 'hidden',
               transition: 'all 0.3s ease'
             }}>
-              <div 
+              <div
                 onClick={() => toggleSection('customerInfo')}
                 style={{
                   display: 'flex',
@@ -677,11 +677,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                   width: '40px',
                   height: '40px',
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                  background: '#F1F5F9',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
+                  color: 'var(--text-secondary)',
                   flexShrink: 0
                 }}>
                   <User size={18} />
@@ -695,8 +695,8 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 }}>
                   Thông tin khách hàng
                 </h3>
-              <ChevronDown 
-                size={20} 
+              <ChevronDown
+                size={20}
                   style={{
                     color: 'var(--text-secondary)',
                     transition: 'transform 0.3s ease',
@@ -939,7 +939,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 overflow: 'hidden',
                 transition: 'all 0.3s ease'
               }}>
-                <div 
+                <div
                   onClick={() => toggleSection('specialRequests')}
                   style={{
                     display: 'flex',
@@ -966,11 +966,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                     width: '40px',
                     height: '40px',
                     borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #F97316, #EA580C)',
+                    background: '#F1F5F9',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
+                    color: 'var(--text-secondary)',
                     flexShrink: 0
                   }}>
                     <FileText size={18} />
@@ -984,8 +984,8 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                   }}>
                     Yêu cầu đặc biệt
                   </h3>
-                  <ChevronDown 
-                    size={20} 
+                  <ChevronDown
+                    size={20}
                     style={{
                       color: 'var(--text-secondary)',
                       transition: 'transform 0.3s ease',
@@ -1024,7 +1024,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                 overflow: 'hidden',
                 transition: 'all 0.3s ease'
               }}>
-                <div 
+                <div
                   onClick={() => toggleSection('maintenanceChecklist')}
                   style={{
                     display: 'flex',
@@ -1051,11 +1051,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                     width: '40px',
                     height: '40px',
                     borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #10B981, #059669)',
+                    background: '#F1F5F9',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
+                    color: 'var(--text-secondary)',
                     flexShrink: 0
                   }}>
                     <CheckCircle size={18} />
@@ -1069,8 +1069,8 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                   }}>
                     Danh sách kiểm tra bảo dưỡng
                   </h3>
-                  <ChevronDown 
-                    size={20} 
+                  <ChevronDown
+                    size={20}
                     style={{
                       color: 'var(--text-secondary)',
                       transition: 'transform 0.3s ease',
@@ -1078,7 +1078,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                     }}
                   />
                 </div>
-                
+
                 {expandedSections.maintenanceChecklist && (
                 <div style={{ padding: '20px' }}>
                   {/* Checklist Items - 2 columns */}
@@ -1089,8 +1089,8 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
                     marginBottom: '20px'
                   }}>
                     {maintenanceChecklist.results.map((item, index) => (
-                      <div 
-                        key={item.resultId} 
+                      <div
+                        key={item.resultId}
                         style={{
                           display: 'flex',
                           alignItems: 'flex-start',

@@ -16,13 +16,13 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const callbacksRegistered = useRef(false)
-  
+
   const { user, token } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     // Lấy token từ Redux hoặc localStorage
     const authToken = token || localStorage.getItem('token') || ''
-    
+
     if (token) {
       loadNotifications()
       loadUnreadCount()
@@ -66,7 +66,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
       const response = await NotificationService.getMyNotifications()
       if (response.success) {
         setNotifications(response.data)
-        
+
         // Tính unread count từ notifications array
         setUnreadCount(calculateUnreadCount(response.data))
       }
@@ -92,7 +92,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
     try {
       // Tìm notification để kiểm tra trạng thái
       const notification = notifications.find(n => n.notificationId === notificationId)
-      
+
       // Chỉ gọi API nếu notification chưa đọc
       if (!notification || notification.status !== 'NEW') {
         return
@@ -101,7 +101,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
       const response = await NotificationService.markAsRead(notificationId)
       if (response.success) {
         // Cập nhật notifications và unread count
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(n => {
             if (n.notificationId === notificationId && n.status === 'NEW') {
               return { ...n, readAt: new Date().toISOString(), status: 'READ' }
@@ -109,7 +109,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
             return n
           })
         )
-        
+
         // Giảm unread count một cách an toàn
         setUnreadCount(prev => Math.max(0, prev - 1))
       }
@@ -122,7 +122,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
     const date = new Date(dateString)
     const now = new Date()
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-    
+
     if (diffInMinutes < 1) return 'Vừa xong'
     if (diffInMinutes < 60) return `${diffInMinutes} phút trước`
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`
@@ -152,7 +152,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
 
   return (
     <div className={`notification-bell ${className}`} ref={dropdownRef}>
-      <button 
+      <button
         className="notification-bell__trigger"
         onClick={toggleDropdown}
         aria-label="Thông báo"
@@ -169,7 +169,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
         <div className="notification-bell__dropdown">
           <div className="notification-bell__header">
             <h3>Thông báo</h3>
-            <button 
+            <button
               className="notification-bell__refresh"
               onClick={loadNotifications}
               disabled={loading}
@@ -189,7 +189,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
               </div>
             ) : (
               <div className="notification-bell__list">
-                {notifications.map((notification) => (
+                {notifications.slice(0, 3).map((notification) => (
                   <div
                     key={notification.notificationId}
                     className={`notification-bell__item ${
