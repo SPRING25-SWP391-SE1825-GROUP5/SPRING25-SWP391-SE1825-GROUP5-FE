@@ -81,7 +81,7 @@
   padding: 32px;
   max-width: 1400px;
   margin: 0 auto;
-  background: #F8FAFC;
+  background: #ffffff; // set white background
   min-height: calc(100vh - 48px);
   width: 100%;
   box-sizing: border-box;
@@ -93,14 +93,14 @@
 
     .page-title {
       font-size: 32px;
-      font-weight: 700;
-      color: #1a1a1a;
+      font-weight: 500; // less bold
+      color: #111827; // solid color, no gradient
       margin: 0 0 8px 0;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #1a1a1a 0%, #4A9782 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      letter-spacing: -0.2px;
+      background: none;
+      -webkit-background-clip: initial;
+      -webkit-text-fill-color: initial;
+      background-clip: initial;
     }
 
     .page-subtitle {
@@ -248,10 +248,10 @@
 
         .profile-name {
           font-size: 28px;
-          font-weight: 700;
-          color: #1a1a1a;
+          font-weight: 500; // less bold
+          color: #111827;
           margin: 0 0 12px 0;
-          letter-spacing: -0.5px;
+          letter-spacing: -0.2px;
         }
 
         .profile-meta {
@@ -268,7 +268,7 @@
             color: #1a1a1a;
             border-radius: 20px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
             box-shadow: 0 2px 8px rgba(255, 216, 117, 0.3);
           }
 
@@ -339,10 +339,10 @@
 
         .card-title {
           font-size: 20px;
-          font-weight: 700;
-          color: #1a1a1a;
+          font-weight: 500; // less bold
+          color: #111827;
           margin: 0 0 6px 0;
-          letter-spacing: -0.3px;
+          letter-spacing: -0.2px;
         }
 
         .card-subtitle {
@@ -418,7 +418,7 @@
         label {
           display: block;
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 500; // less bold
           color: #374151;
           margin-bottom: 8px;
           letter-spacing: -0.2px;
@@ -434,7 +434,7 @@
           display: block;
           font-size: 15px;
           color: #1a1a1a;
-          font-weight: 500;
+          font-weight: 400; // normal weight
           min-height: 24px;
           line-height: 1.5;
         }

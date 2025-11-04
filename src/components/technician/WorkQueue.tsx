@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { 
-  Plus, 
-  Clock, 
-  Wrench, 
-  Package, 
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import {
+  Plus,
+  Clock,
+  Wrench,
+  Package,
   CheckCircle,
   Eye,
   Edit,
@@ -23,18 +23,26 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  LayoutGrid,
+  List,
+  EyeOff,
+  Sliders,
   Calendar,
   Filter,
   ChevronUp,
   ChevronDown
 } from 'lucide-react'
 import { TechnicianService } from '@/services/technicianService'
+import { WorkOrderPartService } from '@/services/workOrderPartService'
 import { BookingService } from '@/services/bookingService'
 import { useAppSelector } from '@/store/hooks'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import WorkQueueRowExpansion from './WorkQueueRowExpansion'
 import './WorkQueue.scss'
 import './DatePicker.scss'
+import bookingRealtimeService from '@/services/bookingRealtimeService'
+import WorkQueueSlotHeader from './WorkQueueSlotHeader'
 
 // API Response Interfaces
 interface TechnicianBookingResponse {
@@ -108,7 +116,7 @@ interface WorkQueueProps {
 export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQueueProps) {
   // Removed old search state - using searchTerm instead
   const [statusFilter, setStatusFilter] = useState('all')
-  
+
   // Initialize with current date in local timezone
   const getCurrentDateString = () => {
     const now = new Date()
@@ -117,26 +125,77 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     const day = String(now.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   }
-  
+
   const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
   const [dateFilterType, setDateFilterType] = useState<'custom' | 'today' | 'thisWeek' | 'all'>('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set())
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10 // Hiển thị 10 kết quả 1 trang
-  
+  const [itemsPerPage, setItemsPerPage] = useState(10) // Hàng mỗi trang
+
+  // Virtualization state (windowed rows)
+  const ROW_HEIGHT = 64 // px, ước lượng chiều cao mỗi hàng (bao gồm border)
+  const VIEWPORT_HEIGHT = 520 // px
+  const BUFFER_ROWS = 6
+  const [virtStart, setVirtStart] = useState(0)
+  const [virtEnd, setVirtEnd] = useState(20)
+  const virtContainerRef = React.useRef<HTMLDivElement | null>(null)
+
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
   // Additional filters
   const [serviceTypeFilter, setServiceTypeFilter] = useState('all')
+  const [showRoleMenu, setShowRoleMenu] = useState(false)
+  const [showStatusMenu, setShowStatusMenu] = useState(false)
+  const [showAddFilterMenu, setShowAddFilterMenu] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  // Show only key statuses by default (set true to show all by default)
+  const [showAllStatusesToggle, setShowAllStatusesToggle] = useState(true)
+
+  const getServiceTypeLabel = (val: string) => {
+    if (val === 'maintenance') return 'Bảo dưỡng'
+    if (val === 'repair') return 'Sửa chữa'
+    if (val === 'inspection') return 'Kiểm tra'
+    return 'Tất cả vai trò'
+  }
+  const getStatusLabel = (val: string) => {
+    if (val === 'PENDING') return 'Chờ xác nhận'
+    if (val === 'CONFIRMED') return 'Đã xác nhận'
+    if (val === 'IN_PROGRESS') return 'Đang làm việc'
+    if (val === 'COMPLETED') return 'Hoàn thành'
+    if (val === 'PAID') return 'Đã thanh toán'
+    if (val === 'CANCELLED') return 'Đã hủy'
+    return 'Tất cả trạng thái'
+  }
+
+  const toggleAllSelected = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(paginatedWork.map(w => w.id))
+      setSelectedIds(allIds)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const toggleRowSelected = (id: number, checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (checked) next.add(id); else next.delete(id)
+      return next
+    })
+  }
 
   // Sort state - Default: bookingId desc (mới nhất)
   const [sortBy, setSortBy] = useState<'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate'>('bookingId')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  // Expandable checklist & rating
+  const [expandedRowId, setExpandedRowId] = useState<number | null>(null)
+  const [workIdToChecklist, setWorkIdToChecklist] = useState<Record<number, { resultId: number; partId: number; partName?: string; description?: string; result?: string; notes?: string }[]>>({})
+  const [workIdToRating, setWorkIdToRating] = useState<Record<number, number>>({})
 
   // Lấy thông tin user từ store và resolve đúng technicianId
   const user = useAppSelector((state) => state.auth.user)
@@ -149,7 +208,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       setTechnicianId(null)
       setWorkQueue([])
       setCurrentPage(1)
-      
+
       // 1) Thử lấy từ localStorage trước (đã lưu trước đó) - cache theo userId
       const userId = user?.id
       if (userId) {
@@ -166,16 +225,16 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         } catch {}
 
         // 2) Gọi API để lấy technicianId chính xác từ userId
-        if (Number.isFinite(Number(userId))) {        
+        if (Number.isFinite(Number(userId))) {
           try {
             const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
-            
+
             if (result?.success && result?.data?.technicianId) {
               setTechnicianId(result.data.technicianId)
               // Cache lại để lần sau nhanh hơn - cache theo userId
-              try { 
+              try {
                 const cacheKey = `technicianId_${userId}`
-                localStorage.setItem(cacheKey, String(result.data.technicianId)) 
+                localStorage.setItem(cacheKey, String(result.data.technicianId))
               } catch {}
               return
             }
@@ -200,20 +259,20 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     try {
       setLoading(true)
       setError(null)
-      
+
       // Clear work queue trước khi fetch data mới
       setWorkQueue([])
-      
+
       if (!technicianId) {
         setWorkQueue([])
         return
       }
-      
+
       const response: TechnicianBookingResponse = await TechnicianService.getTechnicianBookings(technicianId, date)
-      
+
       // Lấy bookings từ response - xử lý nhiều format khác nhau
       let bookingsData: TechnicianBooking[] = []
-      
+
       if (response?.success && response?.data?.bookings) {
         // Format: {success: true, data: {bookings: [...]}}
         bookingsData = response.data.bookings
@@ -227,7 +286,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         // Format: {bookings: [...]}
         bookingsData = response.bookings
       }
-      
+
       // Helper: chuẩn hóa giờ phút từ slot
       const normalizeTime = (raw?: string): string => {
         if (!raw) return '00:00'
@@ -266,7 +325,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         const transformedData: WorkOrder[] = bookingsData.map((booking: TechnicianBooking) => {
           // Ưu tiên createdAt hợp lệ; nếu không, dựng từ date + slot
           const createdAt = buildCreatedAt(booking, date)
-          
+
           return {
             id: booking.bookingId,
             bookingId: booking.bookingId,
@@ -294,7 +353,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
             centerId: booking.centerId
           }
         })
-        
+
         setWorkQueue(transformedData)
       } else {
         setWorkQueue([])
@@ -313,14 +372,14 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     const statusMap: { [key: string]: string } = {
       // Uppercase status từ dropdown
       'PENDING': 'pending',
-      'CONFIRMED': 'confirmed', 
+      'CONFIRMED': 'confirmed',
       'IN_PROGRESS': 'in_progress',
       'COMPLETED': 'completed',
       'PAID': 'paid',
       'CANCELLED': 'cancelled',
       // Lowercase status từ API
       'pending': 'pending',
-      'confirmed': 'confirmed', 
+      'confirmed': 'confirmed',
       'in_progress': 'in_progress',
       'processing': 'in_progress',
       'completed': 'completed',
@@ -362,11 +421,27 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     }
   }, [technicianId])
 
+  // Realtime: join center-date group and refresh on booking.updated
+  useEffect(() => {
+    (async () => {
+      try {
+        const today = getCurrentDateString()
+        const firstCenterId = workQueue[0]?.centerId
+        if (firstCenterId) await bookingRealtimeService.joinCenterDate(firstCenterId, today)
+      } catch {}
+    })()
+    bookingRealtimeService.setOnBookingUpdated(() => {
+      // lightweight refresh
+      fetchTechnicianBookings(selectedDate, true)
+    })
+    return () => { /* no-op cleanup */ }
+  }, [workQueue.length, selectedDate])
+
   // Helper function để lấy date range từ dateFilterType
   const getDateRange = (filterType: typeof dateFilterType): { startDate?: string; endDate?: string } | null => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    
+
     switch (filterType) {
       case 'today':
         const todayStr = getCurrentDateString()
@@ -397,25 +472,30 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                            work.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            work.customerPhone.includes(searchTerm) ||
                            (work.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())
-    
+
       // Status filter
       let matchesStatus = true
       if (statusFilter && statusFilter !== '' && statusFilter !== 'all') {
         const mappedStatus = mapBookingStatus(statusFilter)
         matchesStatus = work.status === mappedStatus
       }
-      
+      // Toggle to hide less-important statuses by default
+      if (!showAllStatusesToggle) {
+        const keep = work.status === 'in_progress' || work.status === 'confirmed'
+        matchesStatus = matchesStatus && keep
+      }
+
       // Service type filter
       let matchesServiceType = true
       if (serviceTypeFilter && serviceTypeFilter !== 'all') {
         matchesServiceType = work.serviceType === serviceTypeFilter
       }
-      
+
       // Date filter - filter theo createdAt (thời gian tạo booking)
       let matchesDate = true
       if (dateFilterType !== 'all') {
         const dateRange = getDateRange(dateFilterType)
-        
+
         // Extract date từ createdAt (format: YYYY-MM-DD)
         const getDateFromCreatedAt = (createdAt: string): string | null => {
           if (!createdAt) return null
@@ -430,9 +510,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
             return null
           }
         }
-        
+
         const workCreatedDate = work.createdAt ? getDateFromCreatedAt(work.createdAt) : null
-        
+
         if (dateRange && workCreatedDate) {
           if (dateRange.startDate && dateRange.endDate) {
             // Range filter (tuần này)
@@ -449,14 +529,14 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
           matchesDate = false
         }
       }
-    
+
       return matchesSearch && matchesStatus && matchesServiceType && matchesDate
     })
     .sort((a, b) => {
       // Quick sort functionality
       let aValue: any
       let bValue: any
-      
+
       switch (sortBy) {
         case 'bookingId':
           aValue = a.bookingId || 0
@@ -499,6 +579,46 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedWork = filteredWork.slice(startIndex, endIndex)
+
+  // Determine virtualization usage
+  // Disable virtualization when grouping by slot for simpler UX
+  const useGrouping = true
+  const useVirtualization = !useGrouping && filteredWork.length > 50
+  const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + BUFFER_ROWS
+  const totalRows = useVirtualization ? filteredWork.length : paginatedWork.length
+  const displayRows = useVirtualization ? filteredWork.slice(virtStart, Math.min(virtEnd, filteredWork.length)) : paginatedWork
+
+  // Handle scroll to compute virtual window
+  const handleVirtScroll = useCallback(() => {
+    if (!virtContainerRef.current) return
+    const scrollTop = virtContainerRef.current.scrollTop
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - Math.floor(BUFFER_ROWS / 2))
+    const end = start + visibleCount
+    setVirtStart(start)
+    setVirtEnd(end)
+  }, [])
+
+  // Initialize virtual window when data changes
+  useEffect(() => {
+    if (useVirtualization) {
+      setVirtStart(0)
+      setVirtEnd(visibleCount)
+    }
+  }, [useVirtualization, filteredWork.length])
+
+  // Group by slot key for UI grouping
+  const groupedSlots = useMemo(() => {
+    const groups = new Map<string, WorkOrder[]>()
+    filteredWork.forEach(w => {
+      const key = (w.scheduledTime || '').trim()
+      const k = key || '—'
+      if (!groups.has(k)) groups.set(k, [])
+      groups.get(k)!.push(w)
+    })
+    return Array.from(groups.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([slotKey, items]) => ({ slotKey, items }))
+  }, [filteredWork])
 
 
   // Reset to first page when filters change
@@ -648,10 +768,19 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     e.stopPropagation()
       setUpdatingStatus(prev => new Set(prev).add(workId))
     try {
-      const response = await api.put(`/Booking/${workId}/status`, { 
-        status: mapStatusToApi(newStatus) 
+      if (newStatus === 'in_progress') {
+        if (!window.confirm('Bắt đầu làm việc cho booking này?')) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+      }
+      if (newStatus === 'completed') {
+        if (!window.confirm('Hoàn thành công việc? Hãy đảm bảo checklist và phụ tùng đã được xác nhận.')) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+      }
+      if (newStatus === 'cancelled') {
+        if (!window.confirm('Hủy booking này? Hành động không thể hoàn tác.')) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+      }
+      const response = await api.put(`/Booking/${workId}/status`, {
+        status: mapStatusToApi(newStatus)
       })
-      
+
       if (response.data) {
         toast.success(`Cập nhật trạng thái thành công!`)
         // Refresh the list after successful update
@@ -673,7 +802,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     setUpdatingStatus(prev => new Set(prev).add(workId))
     try {
       const response = await api.put(`/Booking/${workId}/cancel`)
-      
+
       if (response.data) {
         toast.success(`Hủy booking thành công!`)
         // Refresh the list after successful update
@@ -701,7 +830,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     const statusMap: { [key: string]: string } = {
       'pending': 'PENDING',
       'confirmed': 'CONFIRMED',
-      'in_progress': 'IN_PROGRESS', 
+      'in_progress': 'IN_PROGRESS',
       'completed': 'COMPLETED',
       'paid': 'PAID',
       'cancelled': 'CANCELLED'
@@ -719,18 +848,18 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       'paid': [], // Terminal state
       'cancelled': [] // Terminal state
     }
-    
+
     const currentApiStatus = mapStatusToApi(currentStatus)
     const targetApiStatus = mapStatusToApi(targetStatus)
-    
+
     return validTransitions[currentApiStatus]?.includes(targetApiStatus) || false
   }
 
 
   return (
-    <div className="work-queue" style={{ 
-      padding: '0px 16px 16px 16px', 
-      background: '#fff', 
+    <div className="work-queue" style={{
+      padding: '0px 16px 16px 16px',
+      background: '#fff',
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -744,20 +873,20 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
           to { transform: rotate(360deg); }
         }
       `}</style>
-      
+
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '32px',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
         <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '600', 
+          <h2 style={{
+            fontSize: '28px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 8px 0',
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -766,8 +895,8 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
           }}>
             Hàng đợi công việc
           </h2>
-          <p style={{ 
-            fontSize: '16px', 
+          <p style={{
+            fontSize: '16px',
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
@@ -779,9 +908,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       {/* Stats Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: '12px',
+        marginBottom: '16px'
       }}>
         {stats.map((stat, index) => {
           const Icon = stat.icon
@@ -790,12 +919,12 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
               key={index}
               style={{
                 background: '#fff',
-                border: `2px solid ${stat.color}20`,
-                borderRadius: '12px',
-                padding: '16px',
+                border: `1px solid ${stat.color}20`,
+                borderRadius: '8px',
+                padding: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
+                gap: '10px',
                 transition: 'all 0.3s ease',
                 cursor: 'default',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
@@ -810,9 +939,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
               }}
             >
               <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
                 background: stat.bgColor || 'rgba(139, 92, 246, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
@@ -820,20 +949,20 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                 color: stat.color,
                 flexShrink: 0
               }}>
-                <Icon size={24} />
+                <Icon size={16} />
                 </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontSize: '24px',
+                  fontSize: '20px',
                   fontWeight: '700',
                   color: 'var(--text-primary)',
                   lineHeight: '1.2',
-                  marginBottom: '4px'
+                  marginBottom: '2px'
                 }}>
                   {stat.value}
                     </div>
                 <div style={{
-                  fontSize: '13px',
+                  fontSize: '12px',
                   color: 'var(--text-secondary)',
                   fontWeight: '500'
                 }}>
@@ -845,319 +974,123 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         })}
                     </div>
 
-      {/* Toolbar */}
-      <div className="work-queue-toolbar" style={{
+      {/* Toolbar giống Admin Users */}
+      <div className="users-toolbar" style={{
         background: 'var(--bg-card)',
-        padding: '16px',
+        padding: '12px 16px',
         borderRadius: '12px',
-        border: '1px solid var(--border-primary)',
-        marginBottom: '24px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+        border: 'none',
+        marginBottom: '16px'
       }}>
-        <div className="toolbar-top" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '12px',
-          flexWrap: 'wrap'
-        }}>
-          <div className="toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 12px',
-              background: '#FFF6D1',
-              borderRadius: '8px',
-              border: '1px solid #FFD875',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: 'var(--text-primary)'
-            }}>
-              <Calendar size={14} />
-              {new Date(selectedDate).toLocaleDateString('vi-VN')}
+        {/* Row 1: Tabs + Search + Actions */}
+        <div className="toolbar-top" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Tabs with icons */}
+            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid transparent', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <LayoutGrid size={14} /> Bảng
+            </button>
+            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid transparent', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <ChevronsRight size={14} /> Bảng điều khiển
+            </button>
+            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-primary)', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <List size={14} /> Danh sách
+            </button>
+          </div>
+          {/* Middle: Search */}
+          <div className="toolbar-search" style={{ flex: 1, minWidth: '320px' }}>
+            <div className="search-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Search size={14} className="icon" style={{ position: 'absolute', left: '12px', color: '#9CA3AF', pointerEvents: 'none' }} />
+              <input
+                placeholder="Tìm kiếm theo tên, biển số, SĐT..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px 8px 36px', border: 'none', borderBottom: '1px solid transparent', background: 'transparent', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s ease' }}
+                onFocus={(e) => { e.currentTarget.style.borderBottomColor = '#FFD875' }}
+                onBlur={(e) => { e.currentTarget.style.borderBottomColor = 'transparent' }}
+              />
             </div>
           </div>
-          <div className="toolbar-right" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '12px', 
-            flex: 1,
-            justifyContent: 'flex-end'
-          }}>
-            <div className="toolbar-search" style={{ flex: 1, maxWidth: 'none', minWidth: '400px' }}>
-              <div className="search-wrap" style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <Search size={14} className="icon" style={{
-                  position: 'absolute',
-                  left: '12px',
-                  color: 'var(--text-tertiary)',
-                  pointerEvents: 'none'
-                }} />
-                <input
-                  placeholder="Tìm kiếm theo tên, biển số, SĐT..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ 
-                    width: '100%',
-                    padding: '10px 12px 10px 36px',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    background: '#fff',
-                    fontSize: '13px',
-                    outline: 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--primary-500)'
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                />
-              </div>
-            </div>
-            <div className="toolbar-actions">
-              <button 
-                type="button" 
-                className="toolbar-btn"
-                onClick={handleRefreshFilters}
-                disabled={loading}
-                style={{
-                  padding: '10px 16px',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '8px',
-                  background: '#fff',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease',
-                  opacity: loading ? 0.6 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.background = 'var(--primary-50)'
-                    e.currentTarget.style.borderColor = 'var(--primary-500)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.background = '#fff'
-                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                  }
-                }}
-              >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{
-                  animation: loading ? 'spin 1s linear infinite' : 'none'
-                }} /> 
-                {loading ? 'Đang tải...' : 'Làm mới'}
-              </button>
-                                </div>
+          {/* Right: Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button type="button" style={{ height: '32px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <EyeOff size={14} /> Ẩn
+            </button>
+            <button type="button" style={{ height: '32px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Sliders size={14} /> Tùy chỉnh
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAllStatusesToggle(v => !v)}
+              style={{ height: '32px', padding: '0 12px', border: '1px solid #FFD875', borderRadius: '8px', background: showAllStatusesToggle ? '#FFF6D1' : '#FFFFFF', color: '#111827', fontSize: '13px' }}
+            >{showAllStatusesToggle ? 'Hiển thị: Tất cả' : 'Hiển thị: Quan trọng'}</button>
           </div>
         </div>
-        <div className="toolbar-filters" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          flexWrap: 'wrap'
-        }}>
-          {/* Quick Date Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500', marginRight: '4px' }}>Ngày:</span>
-            {[
-              { value: 'all', label: 'Tất cả', icon: Calendar },
-              { value: 'today', label: 'Hôm nay', icon: Calendar },
-              { value: 'thisWeek', label: 'Tuần này', icon: Calendar },
-              { value: 'custom', label: 'Chọn ngày', icon: Calendar },
-              
-            ].map((option) => {
-              const Icon = option.icon
-              const isActive = dateFilterType === option.value
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    const newFilterType = option.value as typeof dateFilterType
-                    setDateFilterType(newFilterType)
-                    
-                    // Auto set selectedDate khi chọn quick option
-                    if (option.value === 'today') {
-                      setSelectedDate(getCurrentDateString())
-                    }
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    border: `1px solid ${isActive ? '#FFD875' : 'var(--border-primary)'}`,
-                    borderRadius: '8px',
-                    background: isActive ? '#FFF6D1' : '#fff',
-                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: '12px',
-                    fontWeight: isActive ? '600' : '400',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s ease',
-                    height: '32px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = '#f6f7f9'
-                      e.currentTarget.style.borderColor = 'var(--border-primary)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = '#fff'
-                      e.currentTarget.style.borderColor = 'var(--border-primary)'
-                    }
-                  }}
-                >
-                  <Icon size={14} />
-                  {option.label}
-                </button>
-              )
-            })}
+        {/* Row 2: Filters */}
+        <div className="toolbar-filters" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Custom dropdown: Vai trò (dịch vụ) */}
+          <div style={{ position: 'relative' }}>
+            <button type="button" onClick={() => { setShowRoleMenu(!showRoleMenu); if (!showRoleMenu) setShowStatusMenu(false) }}
+              style={{ height: '36px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <Wrench size={14} /> {getServiceTypeLabel(serviceTypeFilter)}
+              <ChevronDown size={14} />
+            </button>
+            {showRoleMenu && (
+              <div style={{ position: 'absolute', zIndex: 20, marginTop: '6px', minWidth: '200px', background: '#fff', border: '1px solid var(--border-primary)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+                {[
+                  { value: 'all', label: 'Tất cả vai trò' },
+                  { value: 'maintenance', label: 'Bảo dưỡng' },
+                  { value: 'repair', label: 'Sửa chữa' },
+                  { value: 'inspection', label: 'Kiểm tra' }
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => { setServiceTypeFilter(opt.value); setShowRoleMenu(false) }}
+                    style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Custom Date Input */}
-          {dateFilterType === 'custom' && (
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value)
-                setDateFilterType('custom')
-              }}
-              style={{
-                padding: '8px 12px',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '8px',
-                background: '#fff',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                height: '36px'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#FFD875'
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.1)'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-primary)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            />
-          )}
-
-          {/* Status Filter */}
-          <div className="pill-select" style={{
-            position: 'relative',
-            height: '36px',
-            border: '1px solid var(--border-primary)',
-            borderRadius: '8px',
-            padding: '0 12px',
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#FFD875'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-          }}
-          >
-            <Filter size={14} className="icon" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                cursor: 'pointer',
-                lineHeight: '1',
-                height: '100%',
-                flex: 1,
-                paddingRight: '20px'
-              }}
-            >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="PENDING">Chờ xác nhận</option>
-              <option value="CONFIRMED">Đã xác nhận</option>
-              <option value="IN_PROGRESS">Đang làm việc</option>
-              <option value="COMPLETED">Hoàn thành</option>
-              <option value="PAID">Đã thanh toán</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
+          {/* Custom dropdown: Trạng thái */}
+          <div style={{ position: 'relative' }}>
+            <button type="button" onClick={() => { setShowStatusMenu(!showStatusMenu); if (!showStatusMenu) setShowRoleMenu(false) }}
+              style={{ height: '36px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <Filter size={14} /> {getStatusLabel(statusFilter)}
+              <ChevronDown size={14} />
+            </button>
+            {showStatusMenu && (
+              <div style={{ position: 'absolute', zIndex: 20, marginTop: '6px', minWidth: '220px', background: '#fff', border: '1px solid var(--border-primary)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+                {[
+                  { value: 'all', label: 'Tất cả trạng thái' },
+                  { value: 'PENDING', label: 'Chờ xác nhận' },
+                  { value: 'CONFIRMED', label: 'Đã xác nhận' },
+                  { value: 'IN_PROGRESS', label: 'Đang làm việc' },
+                  { value: 'COMPLETED', label: 'Hoàn thành' },
+                  { value: 'PAID', label: 'Đã thanh toán' },
+                  { value: 'CANCELLED', label: 'Đã hủy' }
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => { setStatusFilter(opt.value); setShowStatusMenu(false) }}
+                    style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Service Type Filter */}
-          <div className="pill-select" style={{
-            position: 'relative',
-            height: '36px',
-            border: '1px solid var(--border-primary)',
-            borderRadius: '8px',
-            padding: '0 12px',
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#FFD875'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-primary)'
-          }}
-          >
-            <Wrench size={14} className="icon" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-            <select
-              value={serviceTypeFilter}
-              onChange={(e) => setServiceTypeFilter(e.target.value)}
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                cursor: 'pointer',
-                lineHeight: '1',
-                height: '100%',
-                flex: 1,
-                paddingRight: '20px'
-              }}
-            >
-              <option value="all">Tất cả dịch vụ</option>
-              <option value="maintenance">Bảo dưỡng</option>
-              <option value="repair">Sửa chữa</option>
-              <option value="inspection">Kiểm tra</option>
-            </select>
+          {/* Add filter (like Admin) */}
+          <div style={{ position: 'relative' }}>
+            <button type="button"
+              onClick={() => setShowAddFilterMenu((v) => !v)}
+              style={{ height: '36px', padding: '0 12px', border: '1px dashed var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-secondary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Plus size={14} /> Thêm bộ lọc
+            </button>
+            {showAddFilterMenu && (
+              <div style={{ position: 'absolute', zIndex: 25, marginTop: '6px', minWidth: '180px', background: '#fff', border: '1px solid var(--border-primary)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+                <button type="button" onClick={() => { setShowAddFilterMenu(false); setShowRoleMenu(true); setShowStatusMenu(false) }}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>Dịch vụ</button>
+                <button type="button" onClick={() => { setShowAddFilterMenu(false); setShowStatusMenu(true); setShowRoleMenu(false) }}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>Trạng thái</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1171,19 +1104,19 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         boxShadow: 'none'
       }}>
               {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <RefreshCw size={48} className="animate-spin" style={{ margin: '0 auto 16px', display: 'block' }} />
             <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Đang tải dữ liệu...</p>
                     </div>
         ) : paginatedWork.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <Clock size={64} style={{ margin: '0 auto 16px', display: 'block', opacity: 0.5 }} />
             <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
@@ -1198,10 +1131,15 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
             <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
               Tổng số công việc: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{filteredWork.length}</strong>
                     </div>
-            <div style={{ overflow: 'auto' }}>
+      <div
+        ref={virtContainerRef}
+        onScroll={useVirtualization ? handleVirtScroll : undefined}
+        style={{ overflow: 'auto', maxHeight: useVirtualization ? `${VIEWPORT_HEIGHT}px` : undefined }}
+      >
               <table className="work-queue-table" style={{
                 width: '100%',
-                borderCollapse: 'collapse',
+                borderCollapse: 'separate',
+                borderSpacing: 0,
                 background: 'var(--bg-card)',
                 borderRadius: '12px',
                 overflow: 'hidden',
@@ -1210,31 +1148,46 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
               }}>
                 <thead>
                   <tr className="table-header-yellow" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
-                    <th 
-                      onClick={() => handleSort('bookingId')}
-                                  style={{ 
-                        padding: '16px 20px', 
-                        textAlign: 'left', 
-                        fontSize: '14px', 
+                    <th className="tq-id-col"
+                                  style={{
+                        padding: '16px 20px',
+                        textAlign: 'left',
+                        fontSize: '14px',
                         fontWeight: '500',
-                        cursor: 'pointer',
+                        cursor: 'default',
                         userSelect: 'none',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        width: '165px',
+                        minWidth: '165px',
+                        maxWidth: '165px',
+                        boxSizing: 'border-box',
+                        whiteSpace: 'nowrap'
                       }}
                     >
-                      <span className="th-inner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        ID
-                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'bookingId' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
-                          {getSortIcon('bookingId')}
-                                </div>
-                      </span>
+                      <div className="tq-id-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {(() => {
+                          const allSel = paginatedWork.length > 0 && selectedIds.size === paginatedWork.length
+                          return (
+                            <span className="tq-id-checkbox" style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <input
+                                type="checkbox"
+                                className="tq-id-checkbox-input"
+                                checked={allSel}
+                                onChange={(e) => toggleAllSelected(e.target.checked)}
+                                style={{ width: 16, height: 16, appearance: 'auto', accentColor: '#9CA3AF', margin: 0 }}
+                              />
+                            </span>
+                          )
+                        })()}
+                        <span>ID</span>
+                      </div>
                     </th>
-                    <th 
+                    <th
                       onClick={() => handleSort('customer')}
-                      style={{ 
-                        padding: '16px 20px', 
-                        textAlign: 'left', 
-                        fontSize: '14px', 
+                      style={{
+                        padding: '16px 20px',
+                        textAlign: 'left',
+                        fontSize: '14px',
                         fontWeight: '500',
                         cursor: 'pointer',
                         userSelect: 'none',
@@ -1257,23 +1210,20 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                     <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '500' }}>
                       <span className="th-inner">Trạng thái</span>
                     </th>
-                    <th 
-                      onClick={() => handleSort('createdAt')}
-                                  style={{ 
-                        padding: '16px 20px', 
-                        textAlign: 'left', 
-                        fontSize: '14px', 
+                    <th
+                                  style={{
+                        padding: '16px 20px',
+                        textAlign: 'left',
+                        fontSize: '14px',
                         fontWeight: '500',
-                        cursor: 'pointer',
+                        cursor: 'default',
                         userSelect: 'none',
                         transition: 'all 0.2s ease'
                       }}
                     >
                       <span className="th-inner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         Thời gian tạo
-                        <div style={{ display: 'flex', alignItems: 'center', opacity: sortBy === 'createdAt' ? 1 : 0.4, transition: 'opacity 0.2s ease' }}>
-                          {getSortIcon('createdAt')}
-                                </div>
+                        {/* sort removed */}
                       </span>
                     </th>
                     <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: '500' }}>
@@ -1282,300 +1232,583 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedWork.map((work, i) => (
-                    <tr 
-                      key={work.id}
-                      onClick={() => handleViewBookingDetail(work.bookingId)}
-                                  style={{ 
-                        borderBottom: i < paginatedWork.length - 1 ? '1px solid var(--border-primary)' : 'none',
-                        transition: 'all 0.3s ease',
-                        background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
-                        transform: 'translateY(0)',
-                        boxShadow: 'none',
-                        cursor: 'pointer',
-                        animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards`,
-                        opacity: 0
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(255, 216, 117, 0.15)'
-                        e.currentTarget.style.transform = 'translateY(-2px)'
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
-                        e.currentTarget.style.transform = 'translateY(0)'
-                        e.currentTarget.style.boxShadow = 'none'
-                      }}
-                    >
-                      <td style={{ padding: '8px 12px', fontSize: '14px', color: '#FFD875', fontWeight: '600' }}>
-                        #{work.bookingId}
-                      </td>
-                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
-                        <div style={{ fontWeight: '500' }}>{work.customer}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.customerPhone}</div>
-                      </td>
-                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
-                        <div style={{ fontWeight: '500' }}>{work.licensePlate}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.bikeBrand} {work.bikeModel}</div>
-                      </td>
-                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
-                        <div style={{ fontWeight: '500' }}>{work.title}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {work.serviceType === 'repair' ? 'Sửa chữa' : 
-                         work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
-                              </div>
-                      </td>
-                      <td style={{ padding: '8px 12px', textAlign: 'left' }}>
-                      {!['completed', 'paid', 'cancelled'].includes(work.status) ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <span className="status-badge" style={{ 
-                              backgroundColor: getStatusColor(work.status) + '15',
-                              color: getStatusColor(work.status),
-                              borderColor: getStatusColor(work.status),
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: '500',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              width: 'fit-content'
-                            }}>
-                              {work.status === 'pending' && <Clock size={12} />}
-                              {work.status === 'confirmed' && <CheckCircle2 size={12} />}
-                              {work.status === 'in_progress' && <Wrench size={12} />}
+                  {useVirtualization && (
+                    <tr>
+                      <td colSpan={7} style={{ height: Math.max(virtStart * ROW_HEIGHT, 0), padding: 0, border: 'none' }} />
+                    </tr>
+                  )}
+                  {/* Group by scheduled time (slot) */}
+                  {useGrouping && (
+                    <>
+                      {groupedSlots.map(({ slotKey, items }) => (
+                        <React.Fragment key={`slot-${slotKey}`}>
+                          <WorkQueueSlotHeader slotKey={slotKey} count={items.length} />
+                          {items.map((work, i) => (
+                            <React.Fragment key={work.id}>
+                              <tr
+                                onClick={() => {
+                                  setExpandedRowId(prev => (prev === work.id ? null : work.id))
+                                  ;(async () => {
+                                    if (expandedRowId === work.id) return
+                                    if (!technicianId || !work.bookingId) return
+                                    try {
+                                      const detail = await TechnicianService.getBookingDetail(technicianId, work.bookingId)
+                                      if (detail?.success && detail?.data?.maintenanceChecklists?.length > 0) {
+                                        const results = detail.data.maintenanceChecklists[0].results || []
+                                        const mapped = results.map((r: any) => ({
+                                          resultId: r.resultId,
+                                          partId: r.partId,
+                                          partName: r.partName,
+                                          description: r.description,
+                                          result: r.result,
+                                          notes: r.notes
+                                        }))
+                                        setWorkIdToChecklist(prev => ({ ...prev, [work.id]: mapped }))
+                                      } else {
+                                        setWorkIdToChecklist(prev => ({ ...prev, [work.id]: [] }))
+                                      }
+                                    } catch (e) {
+                                      setWorkIdToChecklist(prev => ({ ...prev, [work.id]: [] }))
+                                    }
+                                  })()
+                                  setWorkIdToRating(prev => ({ ...prev, [work.id]: prev[work.id] || 0 }))
+                                }}
+                                style={{
+                                  borderBottom: '1px solid var(--border-primary)',
+                                  transition: 'background-color 0.2s ease',
+                                  background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                                  cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'rgba(255, 216, 117, 0.12)'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                                }}
+                              >
+                                <td className="tq-id-col" style={{ padding: '8px 12px', fontSize: '14px', color: '#FFD875', fontWeight: '600', width: '165px', minWidth: '165px', maxWidth: '165px', boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
+                                  <div className="tq-id-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span className="tq-id-checkbox" style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <input
+                                        type="checkbox"
+                                        className="tq-id-checkbox-input"
+                                        checked={selectedIds.has(work.id)}
+                                        onChange={(e) => toggleRowSelected(work.id, e.target.checked)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ width: 16, height: 16, appearance: 'auto', accentColor: '#9CA3AF', margin: 0 }}
+                                      />
+                                    </span>
+                                    <span>#{work.bookingId}</span>
+                                  </div>
+                                </td>
+                                <td onClick={(e) => e.stopPropagation()} style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                                  <div style={{ fontWeight: '500' }}>{work.customer}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.customerPhone}</div>
+                                </td>
+                                <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                                  <div style={{ fontWeight: '500' }}>{work.licensePlate}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.bikeBrand} {work.bikeModel}</div>
+                                </td>
+                                <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                                  <div style={{ fontWeight: '500' }}>{work.title}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                  {work.serviceType === 'repair' ? 'Sửa chữa' :
+                                   work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
+                                    </div>
+                                </td>
+                                <td style={{ padding: '8px 12px', textAlign: 'left' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <span className="status-badge" style={{
+                                    backgroundColor: getStatusColor(work.status) + '15',
+                                    color: getStatusColor(work.status),
+                                    borderColor: getStatusColor(work.status),
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    width: 'fit-content'
+                                  }}>
+                                    {work.status === 'pending' && <Clock size={12} />}
+                                    {work.status === 'confirmed' && <CheckCircle2 size={12} />}
+                                    {work.status === 'in_progress' && <Wrench size={12} />}
+                                    {work.status === 'completed' && <CheckCircle size={12} />}
+                                    {work.status === 'paid' && <Package size={12} />}
+                                    {work.status === 'cancelled' && <XCircle size={12} />}
                                     {getStatusText(work.status)}
                                   </span>
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {work.status === 'confirmed' && canTransitionTo(work.status, 'in_progress') && (
-                              <button
-                                  className="work-queue-action-btn work-queue-action-btn--start"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleStatusUpdate(e, work.id, 'in_progress')
-                                }}
-                                disabled={updatingStatus.has(work.id)}
-                                title="Bắt đầu làm việc"
-                                  style={{ padding: '4px 8px', fontSize: '11px' }}
-                                >
-                                  {updatingStatus.has(work.id) ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
-                              </button>
-                            )}
-                            {work.status === 'in_progress' && canTransitionTo(work.status, 'completed') && (
-                              <button
-                                  className="work-queue-action-btn work-queue-action-btn--complete"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleStatusUpdate(e, work.id, 'completed')
-                                }}
-                                disabled={updatingStatus.has(work.id)}
-                                title="Hoàn thành công việc"
-                                  style={{ padding: '4px 8px', fontSize: '11px' }}
-                                >
-                                  {updatingStatus.has(work.id) ? <RefreshCw size={12} className="animate-spin" /> : <Flag size={12} />}
-                              </button>
-                            )}
-                            {!['paid', 'cancelled'].includes(work.status) && canTransitionTo(work.status, 'cancelled') && (
-                              <button
-                                  className="work-queue-action-btn work-queue-action-btn--cancel"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleCancelBooking(e, work.id)
-                                }}
-                                disabled={updatingStatus.has(work.id)}
-                                title="Hủy booking"
-                                  style={{ padding: '4px 8px', fontSize: '11px' }}
-                                >
-                                  {updatingStatus.has(work.id) ? <RefreshCw size={12} className="animate-spin" /> : <XCircle size={12} />}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                          <span className="status-badge" style={{ 
-                                backgroundColor: getStatusColor(work.status) + '15',
-                                  color: getStatusColor(work.status),
-                            borderColor: getStatusColor(work.status),
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '500',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            width: 'fit-content'
-                          }}>
-                            {work.status === 'completed' && <CheckCircle size={12} />}
-                            {work.status === 'paid' && <Package size={12} />}
-                            {work.status === 'cancelled' && <XCircle size={12} />}
-                                {getStatusText(work.status)}
-                              </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
-                        {work.createdAt ? (
-                          <>
-                            <div style={{ fontWeight: '500' }}>
-                              {new Date(work.createdAt).toLocaleTimeString('vi-VN', { 
-                                hour: '2-digit', 
-                                minute: '2-digit',
-                                second: '2-digit'
-                              })}
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                              {new Date(work.createdAt).toLocaleDateString('vi-VN', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric'
-                              })}
-                            </div>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>N/A</div>
-                        )}
-                      </td>
-                      <td style={{ padding: '8px 12px', textAlign: 'left' }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          gap: '8px', 
-                          justifyContent: 'flex-start',
-                          alignItems: 'center'
-                        }}>
-                          <button type="button"
-                            onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
-                            style={{
-                              padding: '8px',
-                              border: '2px solid var(--border-primary)',
-                              borderRadius: '8px',
-                              background: '#FFD875',
-                              color: '#000000',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.2s ease',
-                              width: '36px',
-                              height: '36px'
+                                </div>
+                                </td>
+                                <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                                  {work.createdAt ? (
+                                    <>
+                                      <div style={{ fontWeight: '500' }}>
+                                        {new Date(work.createdAt).toLocaleTimeString('vi-VN', {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          second: '2-digit'
+                                        })}
+                                      </div>
+                                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        {new Date(work.createdAt).toLocaleDateString('vi-VN', {
+                                          day: '2-digit',
+                                          month: '2-digit',
+                                          year: 'numeric'
+                                        })}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>N/A</div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 12px', textAlign: 'left' }}>
+                                  <div style={{
+                                    display: 'flex',
+                                    gap: '8px',
+                                    justifyContent: 'flex-start',
+                                    alignItems: 'center'
+                                  }}>
+                                    <button type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
+                                      style={{
+                                        padding: '8px',
+                                        border: '2px solid var(--border-primary)',
+                                        borderRadius: '8px',
+                                        background: '#FFF6D1',
+                                        color: '#111827',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s ease',
+                                        width: '36px',
+                                        height: '36px'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = '#FFD875'
+                                        e.currentTarget.style.background = '#FFEDB3'
+                                        e.currentTarget.style.transform = 'translateY(-2px)'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = 'var(--border-primary)'
+                                        e.currentTarget.style.background = '#FFF6D1'
+                                        e.currentTarget.style.transform = 'translateY(0)'
+                                    }}
+                                    title="Xem chi tiết"
+                                  >
+                                    <Eye size={16} color="#111827" />
+                                  </button>
+                                  {/* Bắt đầu */}
+                                  <button type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
+                                    disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')}
+                                    style={{
+                                      padding: '8px',
+                                      border: '2px solid var(--border-primary)',
+                                      borderRadius: '8px',
+                                      background: '#6D28D9',
+                                      color: '#ffffff',
+                                      cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')) ? 'not-allowed' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.2s ease',
+                                      width: '36px',
+                                      height: '36px',
+                                      opacity: !canTransitionTo(work.status, 'in_progress') ? 0.5 : 1
+                                    }}
+                                    title={canTransitionTo(work.status, 'in_progress') ? 'Bắt đầu làm việc' : 'Không khả dụng'}
+                                  >
+                                    {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                                  </button>
+                                  {/* Hoàn thành */}
+                                  <button type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'completed'); }}
+                                    disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'completed')}
+                                    style={{
+                                      padding: '8px',
+                                      border: '2px solid var(--border-primary)',
+                                      borderRadius: '8px',
+                                      background: '#059669',
+                                      color: '#ffffff',
+                                      cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'completed')) ? 'not-allowed' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.2s ease',
+                                      width: '36px',
+                                      height: '36px',
+                                      opacity: !canTransitionTo(work.status, 'completed') ? 0.5 : 1
+                                    }}
+                                    title={canTransitionTo(work.status, 'completed') ? 'Hoàn thành công việc' : 'Không khả dụng'}
+                                  >
+                                    {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
+                                  </button>
+                                  {/* Hủy */}
+                                  <button type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleCancelBooking(e, work.id); }}
+                                    disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'cancelled')}
+                                    style={{
+                                      padding: '8px',
+                                      border: '2px solid var(--border-primary)',
+                                      borderRadius: '8px',
+                                      background: '#DC2626',
+                                      color: '#ffffff',
+                                      cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'cancelled')) ? 'not-allowed' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.2s ease',
+                                      width: '36px',
+                                      height: '36px',
+                                      opacity: !canTransitionTo(work.status, 'cancelled') ? 0.5 : 1
+                                    }}
+                                    title={canTransitionTo(work.status, 'cancelled') ? 'Hủy booking' : 'Không khả dụng'}
+                                  >
+                                    {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                                  </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {expandedRowId === work.id && (
+                                <WorkQueueRowExpansion
+                                  workId={work.id}
+                                  bookingId={work.bookingId || work.id}
+                                  centerId={work.centerId}
+                                  status={work.status}
+                                  items={workIdToChecklist[work.id] || []}
+                                  onSetItemResult={async (resultId, partId, newResult, notes) => {
+                                    try {
+                                      const response = await TechnicianService.updateMaintenanceChecklistItem(work.bookingId || work.id, partId, newResult, notes)
+                                      if (response?.success) {
+                                        setWorkIdToChecklist(prev => {
+                                          const arr = (prev[work.id] || []).map((it) => it.resultId === resultId ? { ...it, result: newResult, notes: notes ?? it.notes } : it)
+                                          return { ...prev, [work.id]: arr }
+                                        })
+                                        toast.success('Cập nhật đánh giá thành công')
+                                      } else {
+                                        toast.error(response?.message || 'Cập nhật đánh giá thất bại')
+                                      }
+                                    } catch (err: any) {
+                                      toast.error('Lỗi khi cập nhật đánh giá')
+                                    }
+                                  }}
+                                  onConfirmChecklist={async () => {
+                                    try {
+                                      const res = await TechnicianService.confirmMaintenanceChecklist(work.bookingId || work.id)
+                                      if (res?.success) toast.success('Đã xác nhận checklist')
+                                      else toast.error(res?.message || 'Xác nhận checklist thất bại')
+                                    } catch { toast.error('Lỗi khi xác nhận checklist') }
+                                  }}
+                                  onConfirmParts={async () => {
+                                    try {
+                                      const res = await WorkOrderPartService.confirm(work.bookingId || work.id)
+                                      if ((res as any)?.success === false) toast.error((res as any)?.message || 'Xác nhận phụ tùng phát sinh thất bại')
+                                      else toast.success('Đã xác nhận phụ tùng phát sinh')
+                                    } catch { toast.error('Lỗi khi xác nhận phụ tùng phát sinh') }
+                                  }}
+                                />
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </>
+                  )}
+                  {!useGrouping && (
+                    <>
+                      {displayRows.map((work, idx) => (
+                        <React.Fragment key={work.id}>
+                          <tr
+                            onClick={() => {
+                              setExpandedRowId(prev => (prev === work.id ? null : work.id))
+                              // Load checklist from booking detail API when expanding the row (lazy)
+                              ;(async () => {
+                                if (expandedRowId === work.id) return
+                                if (!technicianId || !work.bookingId) return
+                                try {
+                                  const detail = await TechnicianService.getBookingDetail(technicianId, work.bookingId)
+                                  if (detail?.success && detail?.data?.maintenanceChecklists?.length > 0) {
+                                    const results = detail.data.maintenanceChecklists[0].results || []
+                                    const mapped = results.map((r: any) => ({
+                                      resultId: r.resultId,
+                                      partId: r.partId,
+                                      partName: r.partName,
+                                      description: r.description,
+                                      result: r.result,
+                                      notes: r.notes
+                                    }))
+                                    setWorkIdToChecklist(prev => ({ ...prev, [work.id]: mapped }))
+                                  } else {
+                                    // No checklist -> empty
+                                    setWorkIdToChecklist(prev => ({ ...prev, [work.id]: [] }))
+                                  }
+                                } catch (e) {
+                                  setWorkIdToChecklist(prev => ({ ...prev, [work.id]: [] }))
+                                }
+                              })()
+                              setWorkIdToRating(prev => ({ ...prev, [work.id]: prev[work.id] || 0 }))
+                            }}
+                                    style={{
+                              borderBottom: '1px solid var(--border-primary)',
+                              transition: 'background-color 0.2s ease',
+                              background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                              cursor: 'pointer'
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = '#FFD875'
-                              e.currentTarget.style.background = '#FFF6D1'
-                              e.currentTarget.style.transform = 'translateY(-2px)'
+                              e.currentTarget.style.background = 'rgba(255, 216, 117, 0.12)'
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = 'var(--border-primary)'
-                              e.currentTarget.style.background = '#FFD875'
-                              e.currentTarget.style.transform = 'translateY(0)'
-                          }}
-                          title="Xem chi tiết"
-                        >
-                          <Eye size={16} />
-                        </button>
-                          {work.status === 'pending' && (
-                            <button type="button"
-                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'confirmed'); }}
-                              disabled={updatingStatus.has(work.id)}
-                          style={{ 
-                                padding: '8px',
-                                border: '2px solid var(--border-primary)',
-                                borderRadius: '8px',
-                            background: work.status === 'pending' ? '#3b82f6' : '#e5e7eb',
-                            color: work.status === 'pending' ? '#ffffff' : '#9ca3af',
-                                cursor: work.status === 'pending' ? 'pointer' : 'not-allowed',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s ease',
-                                width: '36px',
-                                height: '36px'
-                              }}
-                              title="Xác nhận"
+                              e.currentTarget.style.background = idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                            }}
                           >
-                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                          </button>
-                          )}
-                          {work.status === 'confirmed' && (
-                            <button type="button"
-                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
-                              disabled={updatingStatus.has(work.id)}
-                          style={{ 
-                                padding: '8px',
-                                border: '2px solid var(--border-primary)',
-                                borderRadius: '8px',
-                                background: '#8b5cf6',
-                                color: '#ffffff',
-                                cursor: 'pointer',
-                                display: 'flex',
+                            <td className="tq-id-col" style={{ padding: '8px 12px', fontSize: '14px', color: '#FFD875', fontWeight: '600', width: '165px', minWidth: '165px', maxWidth: '165px', boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
+                              <div className="tq-id-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span className="tq-id-checkbox" style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <input
+                                    type="checkbox"
+                                    className="tq-id-checkbox-input"
+                                    checked={selectedIds.has(work.id)}
+                                    onChange={(e) => toggleRowSelected(work.id, e.target.checked)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ width: 16, height: 16, appearance: 'auto', accentColor: '#9CA3AF', margin: 0 }}
+                                  />
+                                </span>
+                                <span>#{work.bookingId}</span>
+                              </div>
+                            </td>
+                            <td onClick={(e) => e.stopPropagation()} style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                              <div style={{ fontWeight: '500' }}>{work.customer}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.customerPhone}</div>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                              <div style={{ fontWeight: '500' }}>{work.licensePlate}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{work.bikeBrand} {work.bikeModel}</div>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                              <div style={{ fontWeight: '500' }}>{work.title}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                              {work.serviceType === 'repair' ? 'Sửa chữa' :
+                               work.serviceType === 'maintenance' ? 'Bảo dưỡng' : 'Kiểm tra'}
+                                </div>
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'left' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <span className="status-badge" style={{
+                                backgroundColor: getStatusColor(work.status) + '15',
+                                color: getStatusColor(work.status),
+                                borderColor: getStatusColor(work.status),
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                display: 'inline-flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s ease',
-                                width: '36px',
-                                height: '36px'
-                              }}
-                              title="Bắt đầu làm việc"
-                          >
-                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                          </button>
-                          )}
-                          {work.status === 'in_progress' && (
-                            <button type="button"
-                              onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'completed'); }}
-                              disabled={updatingStatus.has(work.id)}
-                          style={{ 
-                                padding: '8px',
-                                border: '2px solid var(--border-primary)',
-                                borderRadius: '8px',
-                                background: '#10b981',
-                                color: '#ffffff',
-                                cursor: 'pointer',
+                                gap: '4px',
+                                width: 'fit-content'
+                              }}>
+                                {work.status === 'pending' && <Clock size={12} />}
+                                {work.status === 'confirmed' && <CheckCircle2 size={12} />}
+                                {work.status === 'in_progress' && <Wrench size={12} />}
+                                {work.status === 'completed' && <CheckCircle size={12} />}
+                                {work.status === 'paid' && <Package size={12} />}
+                                {work.status === 'cancelled' && <XCircle size={12} />}
+                                {getStatusText(work.status)}
+                              </span>
+                              {/* action buttons removed from status column */}
+                            </div>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '14px', color: 'var(--text-primary)' }}>
+                              {work.createdAt ? (
+                                <>
+                                  <div style={{ fontWeight: '500' }}>
+                                    {new Date(work.createdAt).toLocaleTimeString('vi-VN', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit'
+                                    })}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                    {new Date(work.createdAt).toLocaleDateString('vi-VN', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                </>
+                              ) : (
+                                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>N/A</div>
+                              )}
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'left' }}>
+                              <div style={{
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s ease',
-                                width: '36px',
-                                height: '36px'
+                                gap: '8px',
+                                justifyContent: 'flex-start',
+                                alignItems: 'center'
+                              }}>
+                                <button type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
+                                  style={{
+                                    padding: '8px',
+                                    border: '2px solid var(--border-primary)',
+                                    borderRadius: '8px',
+                                    background: '#FFF6D1',
+                                    color: '#111827',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s ease',
+                                    width: '36px',
+                                    height: '36px'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = '#FFD875'
+                                    e.currentTarget.style.background = '#FFEDB3'
+                                    e.currentTarget.style.transform = 'translateY(-2px)'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--border-primary)'
+                                    e.currentTarget.style.background = '#FFF6D1'
+                                    e.currentTarget.style.transform = 'translateY(0)'
+                                }}
+                                title="Xem chi tiết"
+                              >
+                                <Eye size={16} color="#111827" />
+                              </button>
+                                {/* Bắt đầu */}
+                                <button type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
+                                  disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')}
+                                  style={{
+                                    padding: '8px',
+                                    border: '2px solid var(--border-primary)',
+                                    borderRadius: '8px',
+                                    background: '#6D28D9',
+                                    color: '#ffffff',
+                                    cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')) ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s ease',
+                                    width: '36px',
+                                    height: '36px',
+                                    opacity: !canTransitionTo(work.status, 'in_progress') ? 0.5 : 1
+                                  }}
+                                  title={canTransitionTo(work.status, 'in_progress') ? 'Bắt đầu làm việc' : 'Không khả dụng'}
+                                >
+                                  {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                                </button>
+                                {/* Hoàn thành */}
+                                <button type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'completed'); }}
+                                  disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'completed')}
+                                  style={{
+                                    padding: '8px',
+                                    border: '2px solid var(--border-primary)',
+                                    borderRadius: '8px',
+                                    background: '#059669',
+                                    color: '#ffffff',
+                                    cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'completed')) ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s ease',
+                                    width: '36px',
+                                    height: '36px',
+                                    opacity: !canTransitionTo(work.status, 'completed') ? 0.5 : 1
+                                  }}
+                                  title={canTransitionTo(work.status, 'completed') ? 'Hoàn thành công việc' : 'Không khả dụng'}
+                                >
+                                  {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
+                                </button>
+                                {/* Hủy */}
+                                <button type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleCancelBooking(e, work.id); }}
+                                  disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'cancelled')}
+                                  style={{
+                                    padding: '8px',
+                                    border: '2px solid var(--border-primary)',
+                                    borderRadius: '8px',
+                                    background: '#DC2626',
+                                    color: '#ffffff',
+                                    cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'cancelled')) ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s ease',
+                                    width: '36px',
+                                    height: '36px',
+                                    opacity: !canTransitionTo(work.status, 'cancelled') ? 0.5 : 1
+                                  }}
+                                  title={canTransitionTo(work.status, 'cancelled') ? 'Hủy booking' : 'Không khả dụng'}
+                                >
+                                  {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                                </button>
+                            </div>
+                            </td>
+                          </tr>
+                          {expandedRowId === work.id && (
+                            <WorkQueueRowExpansion
+                              workId={work.id}
+                              bookingId={work.bookingId || work.id}
+                              centerId={work.centerId}
+                              status={work.status}
+                              items={workIdToChecklist[work.id] || []}
+                              onSetItemResult={async (resultId, partId, newResult, notes) => {
+                                try {
+                                  const response = await TechnicianService.updateMaintenanceChecklistItem(work.bookingId || work.id, partId, newResult, notes)
+                                  if (response?.success) {
+                                    setWorkIdToChecklist(prev => {
+                                      const arr = (prev[work.id] || []).map((it) => it.resultId === resultId ? { ...it, result: newResult, notes: notes ?? it.notes } : it)
+                                      return { ...prev, [work.id]: arr }
+                                    })
+                                    toast.success('Cập nhật đánh giá thành công')
+                                  } else {
+                                    toast.error(response?.message || 'Cập nhật đánh giá thất bại')
+                                  }
+                                } catch (err: any) {
+                                  toast.error('Lỗi khi cập nhật đánh giá')
+                                }
                               }}
-                              title="Hoàn thành công việc"
-                          >
-                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
-                          </button>
-                          )}
-                          {!['completed', 'paid', 'cancelled'].includes(work.status) && (
-                            <button type="button"
-                              onClick={(e) => { e.stopPropagation(); handleCancelBooking(e, work.id); }}
-                              disabled={updatingStatus.has(work.id)}
-                          style={{ 
-                                padding: '8px',
-                                border: '2px solid var(--border-primary)',
-                                borderRadius: '8px',
-                                background: '#ef4444',
-                                color: '#ffffff',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s ease',
-                                width: '36px',
-                                height: '36px'
+                              onConfirmChecklist={async () => {
+                                try {
+                                  const res = await TechnicianService.confirmMaintenanceChecklist(work.bookingId || work.id)
+                                  if (res?.success) toast.success('Đã xác nhận checklist')
+                                  else toast.error(res?.message || 'Xác nhận checklist thất bại')
+                                } catch { toast.error('Lỗi khi xác nhận checklist') }
                               }}
-                              title="Hủy booking"
-                          >
-                            {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
-                          </button>
+                              onConfirmParts={async () => {
+                                try {
+                                  const res = await WorkOrderPartService.confirm(work.bookingId || work.id)
+                                  if ((res as any)?.success === false) toast.error((res as any)?.message || 'Xác nhận phụ tùng phát sinh thất bại')
+                                  else toast.success('Đã xác nhận phụ tùng phát sinh')
+                                } catch { toast.error('Lỗi khi xác nhận phụ tùng phát sinh') }
+                              }}
+                            />
                           )}
-                      </div>
-                      </td>
+                        </React.Fragment>
+                      ))}
+                    </>
+                  )}
+                  {useVirtualization && (
+                    <tr>
+                      <td colSpan={7} style={{ height: Math.max((totalRows - (virtEnd)) * ROW_HEIGHT, 0), padding: 0, border: 'none' }} />
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
+            {/* footer removed as requested */}
                     </div>
           </>
         )}
           </div>
 
-      {/* Pagination */}
-      {!loading && filteredWork.length > 0 && (
+      {/* Pagination (ẩn khi dùng virtualization) */}
+      {!loading && filteredWork.length > 0 && !useVirtualization && (
         <div style={{
           marginTop: '16px',
             display: 'flex',

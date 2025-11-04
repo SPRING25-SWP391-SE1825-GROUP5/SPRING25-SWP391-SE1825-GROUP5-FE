@@ -23,20 +23,20 @@ export const TechnicianService = {
     // Lấy technicianId từ userId bằng cách gọi API Technician list
     async getTechnicianIdByUserId(userId: number) {
         try {
-            const response = await api.get('/Technician', { 
-                params: { 
+            const response = await api.get('/Technician', {
+                params: {
                     pageSize: 1000,
-                } 
+                }
             })
-            
+
             if (response?.data?.success && response.data.data) {
                 const technicians = response.data.data.technicians || response.data.data
-                
+
                 if (Array.isArray(technicians)) {
                     const technician = technicians.find((t: any) => {
                         return t.userId === userId || t.user?.id === userId
                     })
-                    
+
                     if (technician && technician.technicianId) {
                         return {
                             success: true,
@@ -49,7 +49,7 @@ export const TechnicianService = {
                     }
                 }
             }
-            
+
             return {
                 success: false,
                 data: null,
@@ -167,7 +167,7 @@ export const TechnicianService = {
       if (date) {
         params.date = date
       }
-      
+
       const { data } = await api.get(`/Technician/${technicianId}/bookings`, { params })
       return data
     } catch (error) {
@@ -194,9 +194,9 @@ export const TechnicianService = {
   },
 
   // Cập nhật maintenance checklist item
-  async updateMaintenanceChecklistItem(bookingId: number, partId: number, result: string) {
+  async updateMaintenanceChecklistItem(bookingId: number, partId: number, result: string, notes?: string) {
     try {
-      const { data } = await api.put(`/maintenance-checklist/${bookingId}/parts/${partId}`, { result })
+      const { data } = await api.put(`/maintenance-checklist/${bookingId}/parts/${partId}`, { result, notes })
       return data
     } catch (error) {
       return {

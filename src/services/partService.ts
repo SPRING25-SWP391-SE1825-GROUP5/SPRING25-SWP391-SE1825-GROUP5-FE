@@ -28,6 +28,7 @@ export interface PartAvailabilityResponse {
 }
 
 export interface PartFilters {
+  centerId?: number
   category?: string
   brand?: string
   minPrice?: number
@@ -43,7 +44,8 @@ export const PartService = {
   async getPartAvailability(filters?: PartFilters): Promise<PartAvailabilityResponse> {
     try {
       const params = new URLSearchParams()
-      
+      if (filters?.centerId) params.append('centerId', filters.centerId.toString())
+
       if (filters?.category) params.append('category', filters.category)
       if (filters?.brand) params.append('brand', filters.brand)
       if (filters?.minPrice) params.append('minPrice', filters.minPrice.toString())
@@ -55,7 +57,7 @@ export const PartService = {
 
       const queryString = params.toString()
       const url = queryString ? `/part/availability?${queryString}` : '/part/availability'
-      
+
       const { data } = await api.get(url)
       return data
     } catch (error) {
