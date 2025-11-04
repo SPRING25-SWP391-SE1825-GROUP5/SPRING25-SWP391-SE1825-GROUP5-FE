@@ -82,6 +82,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [recommendedServices, setRecommendedServices] = useState<ServiceChecklistTemplate[]>([])
   const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
+  const [selectedServiceDetail, setSelectedServiceDetail] = useState<ServiceChecklistTemplate | null>(null)
   // Ràng buộc nhập liệu cho Km gần đây
   const [recentMileageError, setRecentMileageError] = useState<string | null>(null)
   
@@ -611,7 +612,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           {/* Hiển thị phần chọn dịch vụ và gói dịch vụ khi đã chọn loại dịch vụ */}
           {selectedCategoryId && (
             <>
-              <h3 className="csv-section-title">3. Chi tiết dịch vụ</h3>
+              <h3 className="csv-section-title">3. Chi tiết dịch vụ <span className="required-star">*</span></h3>
               {servicesLoading && <div>Đang tải dịch vụ...</div>}
               {!servicesLoading && (
                 <div className="service-list">
@@ -676,53 +677,43 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                                 #{index + 1} Phù hợp nhất
                               </div>
                               <div className="recommended-service-content">
-                                <h5>{template.serviceName}</h5>
-                                <p className="template-name">{template.templateName}</p>
-                                {template.description && (
-                                  <p className="template-description">{template.description}</p>
-                                )}
-                                <div className="recommendation-criteria">
+                                <div className="recommended-service-header">
+                                  <div>
+                                    <h5>{template.serviceName}</h5>
+                                    <p className="template-name">{template.templateName}</p>
+                                  </div>
+                                </div>
+                                
+                                {/* Thông tin tóm tắt - luôn hiển thị */}
+                                <div className="recommendation-summary">
                                   {template.minKm && (
-                                    <span className="criteria-item">
-                                      📏 Km tối thiểu: {template.minKm.toLocaleString()}
+                                    <span className="summary-item">
+                                      📏 {template.minKm.toLocaleString()} km
                                     </span>
                                   )}
                                   {template.maxDate && (
-                                    <span className="criteria-item">
-                                      📅 Ngày tối đa: {template.maxDate} ngày
-                                    </span>
-                                  )}
-                                  {template.maxOverdueDays && (
-                                    <span className="criteria-item">
-                                      ⏰ Trễ tối đa: {template.maxOverdueDays} ngày
+                                    <span className="summary-item">
+                                      📅 {template.maxDate} ngày
                                     </span>
                                   )}
                                 </div>
                                 
-                                {/* Warnings */}
-                                {template.warnings && template.warnings.length > 0 && (
-                                  <div className="recommendation-warnings">
-                                    {template.warnings.map((warning, warningIndex) => (
-                                      <div key={warningIndex} className="warning-item">
-                                        {warning}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                
-                                {/* Recommendation Reason */}
-                                {template.recommendationReason && (
-                                  <div className="recommendation-reason">
-                                    <strong>Lý do:</strong> {template.recommendationReason}
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  className="btn-select-recommended"
-                                  onClick={() => handleServiceToggle(String(template.serviceId))}
-                                >
-                                  Chọn dịch vụ này
-                                </button>
+                                <div className="recommended-service-actions">
+                                  <button
+                                    type="button"
+                                    className="btn-toggle-details"
+                                    onClick={() => setSelectedServiceDetail(template)}
+                                  >
+                                    Xem chi tiết
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-select-recommended"
+                                    onClick={() => handleServiceToggle(String(template.serviceId))}
+                                  >
+                                    Chọn dịch vụ
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -850,6 +841,100 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         </div>
       </form>
 
+      {/* Modal chi tiết dịch vụ */}
+      {selectedServiceDetail && (
+        <div className="service-detail-modal-overlay" onClick={() => setSelectedServiceDetail(null)}>
+          <div className="service-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Chi tiết dịch vụ</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setSelectedServiceDetail(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-service-info">
+                <h4>{selectedServiceDetail.serviceName}</h4>
+                <p className="modal-template-name">{selectedServiceDetail.templateName}</p>
+              </div>
+              
+              {selectedServiceDetail.description && (
+                <div className="modal-section">
+                  <h5>Mô tả</h5>
+                  <p className="modal-description">{selectedServiceDetail.description}</p>
+                </div>
+              )}
+              
+              <div className="modal-section">
+                <h5>Tiêu chí</h5>
+                <div className="modal-criteria">
+                  {selectedServiceDetail.minKm && (
+                    <div className="modal-criteria-item">
+                      <span className="criteria-label">📏 Km tối thiểu:</span>
+                      <span className="criteria-value">{selectedServiceDetail.minKm.toLocaleString()} km</span>
+                    </div>
+                  )}
+                  {selectedServiceDetail.maxDate && (
+                    <div className="modal-criteria-item">
+                      <span className="criteria-label">📅 Ngày tối đa:</span>
+                      <span className="criteria-value">{selectedServiceDetail.maxDate} ngày</span>
+                    </div>
+                  )}
+                  {selectedServiceDetail.maxOverdueDays && (
+                    <div className="modal-criteria-item">
+                      <span className="criteria-label">⏰ Trễ tối đa:</span>
+                      <span className="criteria-value">{selectedServiceDetail.maxOverdueDays} ngày</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {selectedServiceDetail.warnings && selectedServiceDetail.warnings.length > 0 && (
+                <div className="modal-section">
+                  <h5>Cảnh báo</h5>
+                  <div className="modal-warnings">
+                    {selectedServiceDetail.warnings.map((warning, warningIndex) => (
+                      <div key={warningIndex} className="modal-warning-item">
+                        {warning}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {selectedServiceDetail.recommendationReason && (
+                <div className="modal-section">
+                  <h5>Lý do gợi ý</h5>
+                  <p className="modal-reason">{selectedServiceDetail.recommendationReason}</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-secondary"
+                onClick={() => setSelectedServiceDetail(null)}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={() => {
+                  handleServiceToggle(String(selectedServiceDetail.serviceId))
+                  setSelectedServiceDetail(null)
+                }}
+              >
+                Chọn dịch vụ này
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         :root {
           --csv-surface: #ffffff;
@@ -948,20 +1033,54 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-recommend:disabled { opacity: 0.6; cursor: not-allowed; }
         .recommendation-results { margin-top: 1rem; }
         .no-recommendations { text-align: center; padding: 1rem; color: var(--csv-muted); }
-        .recommended-services { display: flex; flex-direction: column; gap: 1rem; }
-        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 10px; padding: 1rem; position: relative; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1); }
-        .recommendation-badge { position: absolute; top: -8px; right: 12px; background: #0ea5e9; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
-        .recommended-service-content h5 { margin: 0 0 0.5rem 0; color: var(--csv-text); font-size: 1rem; font-weight: 700; }
-        .template-name { margin: 0 0 0.5rem 0; color: var(--csv-primary); font-weight: 600; font-size: 0.9rem; }
-        .template-description { margin: 0 0 0.75rem 0; color: var(--csv-muted); font-size: 0.875rem; line-height: 1.4; }
-        .recommendation-criteria { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-        .criteria-item { background: #f0f9ff; color: #0369a1; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.8rem; font-weight: 500; }
-        .btn-select-recommended { background: var(--csv-primary); color: white; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .recommended-services { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.08); }
+        .recommendation-badge { position: absolute; top: -6px; right: 8px; background: #0ea5e9; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; }
+        .recommended-service-content h5 { margin: 0 0 0.25rem 0; color: var(--csv-text); font-size: 0.875rem; font-weight: 700; line-height: 1.2; }
+        .template-name { margin: 0 0 0.5rem 0; color: var(--csv-primary); font-weight: 600; font-size: 0.8rem; line-height: 1.2; }
+        .recommended-service-header { margin-bottom: 0.5rem; }
+        .recommendation-summary { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+        .summary-item { background: #f0f9ff; color: #0369a1; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; }
+        .recommended-service-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .btn-toggle-details { background: #f0f9ff; color: #0ea5e9; border: 1px solid #bae6fd; border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; }
+        .btn-toggle-details:hover { background: #e0f2fe; border-color: #0ea5e9; }
+        .btn-select-recommended { background: var(--csv-primary); color: white; border: none; border-radius: 6px; padding: 0.4rem 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; font-size: 0.75rem; }
         .btn-select-recommended:hover { background: #16a34a; transform: translateY(-1px); }
+        
+        /* Modal Styles */
+        .service-detail-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+        .service-detail-modal { background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; }
+        .modal-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--csv-text); }
+        .modal-close { background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s ease; }
+        .modal-close:hover { background: #f3f4f6; color: #111827; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .modal-service-info { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+        .modal-service-info h4 { margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 700; color: var(--csv-text); }
+        .modal-template-name { margin: 0; color: var(--csv-primary); font-weight: 600; font-size: 0.95rem; }
+        .modal-section { margin-bottom: 1.5rem; }
+        .modal-section h5 { margin: 0 0 0.75rem 0; font-size: 0.95rem; font-weight: 700; color: var(--csv-text); }
+        .modal-description { margin: 0; color: var(--csv-muted); font-size: 0.9rem; line-height: 1.5; }
+        .modal-criteria { display: flex; flex-direction: column; gap: 0.5rem; }
+        .modal-criteria-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f0f9ff; border-radius: 6px; }
+        .criteria-label { font-weight: 600; color: #0369a1; font-size: 0.85rem; }
+        .criteria-value { color: #0369a1; font-size: 0.85rem; }
+        .modal-warnings { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 0.75rem; }
+        .modal-warning-item { margin: 0.25rem 0; font-size: 0.85rem; line-height: 1.4; color: #92400e; }
+        .modal-reason { margin: 0; padding: 0.75rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; font-size: 0.9rem; line-height: 1.5; color: #0369a1; }
+        .modal-footer { display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; border-top: 1px solid #e5e7eb; justify-content: flex-end; }
+        .btn-modal-secondary { background: white; color: var(--csv-text); border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .btn-modal-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+        .btn-modal-primary { background: var(--csv-primary); color: white; border: none; border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .btn-modal-primary:hover { background: #16a34a; transform: translateY(-1px); }
         .recommendation-message { margin: 0 0 1rem 0; color: var(--csv-text); font-size: 0.9rem; line-height: 1.4; }
-        .recommendation-warnings { margin: 0.75rem 0; padding: 0.75rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; }
-        .warning-item { margin: 0.25rem 0; font-size: 0.85rem; line-height: 1.4; color: #92400e; }
-        .recommendation-reason { margin: 0.75rem 0; padding: 0.75rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; font-size: 0.85rem; line-height: 1.4; color: #0369a1; }
+        .recommendation-warnings { margin: 0.5rem 0; padding: 0.5rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; }
+        .warning-item { margin: 0.2rem 0; font-size: 0.7rem; line-height: 1.3; color: #92400e; }
+        .recommendation-reason { margin: 0.5rem 0; padding: 0.5rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; font-size: 0.7rem; line-height: 1.3; color: #0369a1; }
+        
+        @media (max-width: 768px) {
+          .recommended-services { grid-template-columns: 1fr; }
+        }
         .required-star { color: #ef4444; margin-left: 4px; }
         
         @media (max-width: 768px) { 

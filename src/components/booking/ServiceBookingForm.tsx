@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { getCurrentUser, type User } from '@/store/authSlice'
@@ -9,6 +9,7 @@ import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
 import LocationTimeStep from './LocationTimeStep'
 import AccountStep from './AccountStep'
 import ConfirmationStep from './ConfirmationStep'
+import BookingSummary from './BookingSummary'
 import { VehicleService } from '@/services/vehicleService'
 import { CustomerService } from '@/services/customerService'
 import { ServiceManagementService } from '@/services/serviceManagementService'
@@ -92,9 +93,15 @@ interface ServiceBookingFormProps {
   showStepper?: boolean
   externalStep?: number
   onStateChange?: (state: { currentStep: number; completedSteps: number[]; isGuest: boolean }) => void
+  progressBarProps?: {
+    currentStep: number
+    completedSteps: number[]
+    onStepClick: (step: number) => void
+    isGuest: boolean
+  }
 }
 
-const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false, showStepper = true, externalStep, onStateChange }) => {
+const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false, showStepper = true, externalStep, onStateChange, progressBarProps }) => {
   const [currentStep, setCurrentStep] = useState(1)
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
@@ -698,12 +705,68 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     }
   }
 
+  // refs để giới hạn chiều cao summary theo vùng nội dung
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const summaryFixedRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const TOP_OFFSET = 120 // khớp với CSS top của summary fixed
+    const updateSummaryMaxHeight = () => {
+      const contentEl = contentRef.current
+      const summaryEl = summaryFixedRef.current
+      if (!contentEl || !summaryEl) return
+      const contentRect = contentEl.getBoundingClientRect()
+      // Giới hạn tổng: không vượt quá chiều cao nội dung booking và không vượt quá viewport khả dụng
+      const viewportCap = Math.max(200, window.innerHeight - (TOP_OFFSET + 20))
+      const contentCap = Math.max(200, contentRect.height)
+      const maxH = Math.min(viewportCap, contentCap)
+      summaryEl.style.setProperty('--summary-max-height', `${Math.floor(maxH)}px`)
+    }
+    updateSummaryMaxHeight()
+    const onResize = () => updateSummaryMaxHeight()
+    const onImagesLoad = () => updateSummaryMaxHeight()
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    // Khi nội dung form thay đổi (bước khác), chờ next tick rồi đo lại
+    const id = setTimeout(updateSummaryMaxHeight, 0)
+    // fallback khi hình ảnh/maps load trễ
+    window.addEventListener('load', onImagesLoad)
+    return () => {
+      clearTimeout(id)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+      window.removeEventListener('load', onImagesLoad)
+    }
+  }, [currentStep])
+
   return (
     <div className="service-booking-form">
       {/* Header */}
       <div className="booking-header">
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
       </div>
+
+      {/* Progress Bar dưới tiêu đề */}
+      {progressBarProps && (
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '0.75rem 1.25rem',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ maxWidth: '900px', width: '100%' }}>
+            <StepsProgressIndicator
+              currentStep={progressBarProps.currentStep}
+              completedSteps={progressBarProps.completedSteps}
+              onStepClick={progressBarProps.onStepClick}
+              isGuest={progressBarProps.isGuest}
+              orientation="horizontal"
+              size="compact"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {submitError && (
@@ -724,28 +787,46 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         </div>
       )}
 
-      {/* Layout: nếu showStepper = true thì vẫn hiển thị trong form; ngược lại form tự full-width để dùng stepper bên ngoài */}
-      {showStepper ? (
-        <div className="booking-body">
-          <aside className="booking-sidebar">
-            <StepsProgressIndicator
-              currentStep={currentStep}
-              completedSteps={completedSteps}
-              onStepClick={handleStepClick}
-              isGuest={isGuest}
-              orientation="vertical"
-              size="compact"
-            />
-          </aside>
-          <div className="booking-content">
-            {renderCurrentStep()}
-          </div>
-        </div>
-      ) : (
-        <div className="booking-content">
+      {/* Layout mới: Progress bar ngang ở trên, Form bên trái, Summary bên phải */}
+      {showStepper && (
+        <StepsProgressIndicator
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepClick={handleStepClick}
+          isGuest={isGuest}
+          orientation="horizontal"
+          size="default"
+        />
+      )}
+
+      <div className="booking-body">
+        <div className="booking-content" ref={contentRef}>
           {renderCurrentStep()}
         </div>
-      )}
+        {/* Spacer cột phải để giữ layout, đồng thời chứa bản inline cho mobile */}
+        <div className="summary-spacer">
+          <div className="booking-summary-inline">
+            <BookingSummary
+              customerInfo={isGuest ? bookingData.customerInfo : undefined}
+              vehicleInfo={bookingData.vehicleInfo}
+              serviceInfo={bookingData.serviceInfo}
+              locationTimeInfo={bookingData.locationTimeInfo}
+              isGuest={isGuest}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Bản fixed cho desktop */}
+      <div className="booking-summary-fixed" ref={summaryFixedRef}>
+        <BookingSummary
+          customerInfo={isGuest ? bookingData.customerInfo : undefined}
+          vehicleInfo={bookingData.vehicleInfo}
+          serviceInfo={bookingData.serviceInfo}
+          locationTimeInfo={bookingData.locationTimeInfo}
+          isGuest={isGuest}
+        />
+      </div>
 
       {/* CSS Styles */}
       <style>{`
@@ -753,7 +834,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           width: 100%;
           max-width: 100%;
           margin: 0;
-          padding: 1.25rem 1.25rem 2rem 1.25rem;
+          padding: 0;
           background: transparent;
           min-height: 100vh;
           box-sizing: border-box;
@@ -762,22 +843,78 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           right: 0;
         }
 
-        .booking-body {
-          display: grid;
-          grid-template-columns: 280px 1fr;
-          gap: 1.25rem;
-          align-items: start;
-        }
-
-        .booking-sidebar {
-          position: sticky;
-          top: 16px;
-          align-self: start;
-        }
-
         .booking-header {
           text-align: center;
-          margin-bottom: 3rem;
+          margin-bottom: 2rem;
+          padding: 1.5rem 1.25rem 0 1.25rem;
+        }
+
+        .booking-body {
+          display: grid;
+          grid-template-columns:6.5fr 2fr;
+          gap: 1.5rem;
+          align-items: start;
+          padding: 1.25rem;
+        }
+
+        /* Spacer cột phải để giữ layout 2 cột */
+        .summary-spacer { min-height: 1px; }
+
+        /* Inline summary chỉ dùng cho mobile/tablet */
+        .booking-summary-inline { display: none; }
+
+        /* Summary dạng fixed cho desktop */
+        .booking-summary-fixed {
+          position: fixed;
+          right: 24px;
+          top: var(--summary-top, 90px); /* dưới tiêu đề + progress bar */
+          bottom: var(--summary-bottom, 50px); /* chừa khoảng tránh footer */
+          width: 360px;
+          /* Giới hạn theo viewport (tránh header/footer) và theo chiều cao nội dung booking */
+          max-height: min(
+            var(--summary-max-height, 100vh),
+            calc(100vh - (var(--summary-top, 120px) + var(--summary-bottom, 24px)))
+          );
+          overflow: auto;
+          z-index: 3;
+          display: block;
+        }
+
+        /* Điều chỉnh vùng nội dung để không bị summary fixed đè lên (khoảng thở bên phải) */
+        .service-booking-form { padding-right: 384px; }
+
+        /* Responsive */
+        @media (max-width: 1280px) {
+          .booking-summary-fixed { width: 320px; }
+          .service-booking-form { padding-right: 340px; }
+        }
+
+        @media (max-width: 1024px) {
+          .booking-body { grid-template-columns: 1fr; }
+          .booking-summary-fixed { display: none; }
+          .booking-summary-inline { display: block; }
+          .service-booking-form { padding-right: 0; }
+        }
+
+        .booking-summary-sidebar {
+          position: sticky;
+          top: 80px; // chừa khoảng cho tiêu đề/progressbar
+          align-self: start;
+          z-index: 2;
+          height: fit-content;
+          max-height: calc(100vh - 100px);
+          overflow: auto;
+        }
+
+        .booking-content {
+          background: rgba(255, 255, 255, 0.18);
+          border-radius: 18px;
+          padding: 2rem;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.28);
+          backdrop-filter: blur(14px) saturate(160%);
+          -webkit-backdrop-filter: blur(14px) saturate(160%);
+          z-index: 1; // tránh chồng lấn lên sidebar
         }
 
         .booking-title {
@@ -846,27 +983,22 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           background: #fecaca;
         }
 
-        .booking-content {
-          background: rgba(255, 255, 255, 0.18);
-          border-radius: 18px;
-          padding: 2rem;
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-          border: 1px solid rgba(255, 255, 255, 0.28);
-          backdrop-filter: blur(14px) saturate(160%);
-          -webkit-backdrop-filter: blur(14px) saturate(160%);
-        }
-
         @media (max-width: 768px) {
           .service-booking-form {
+            padding: 0;
+          }
+
+          .booking-header {
+            padding: 1rem 1rem 0 1rem;
+          }
+
+          .booking-body {
             padding: 1rem;
+            display: block;
           }
 
           .booking-title {
             font-size: 1.5rem;
-          }
-
-          .booking-body {
-            display: block;
           }
 
           .booking-content {
