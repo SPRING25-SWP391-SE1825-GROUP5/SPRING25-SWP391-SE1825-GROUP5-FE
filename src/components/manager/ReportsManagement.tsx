@@ -17,6 +17,8 @@ import {
   PieChart as RechartsPieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -40,7 +42,8 @@ export default function ReportsManagement() {
   const [inventoryData, setInventoryData] = useState<any>(null)
   const [lowStockItems, setLowStockItems] = useState<any[]>([])
   const [serviceRevenueItems, setServiceRevenueItems] = useState<any[]>([])
-  const [utilizationRate, setUtilizationRate] = useState<number | null>(null)
+  const [technicianBookingStats, setTechnicianBookingStats] = useState<any[]>([])
+  const [peakHourStats, setPeakHourStats] = useState<any[]>([])
 
   const user = useAppSelector((state) => state.auth.user)
   const dispatch = useAppDispatch()
@@ -129,22 +132,73 @@ export default function ReportsManagement() {
         ReportsService.getTechnicianPerformance(centerId, 'month'),
         ReportsService.getInventoryUsage(centerId, 'month'),
         ReportsService.getRevenueByService(centerId, { from: startDate, to: endDate }),
-        ReportsService.getBookingCancellation(centerId, { from: startDate, to: endDate }),
         ReportsService.getInventoryLowStock(centerId, { threshold: 5 }),
-        ReportsService.getUtilizationRate(centerId, { from: startDate, to: endDate })
+        ReportsService.getTechnicianBookingStats(centerId, { from: startDate, to: endDate }),
+        ReportsService.getPeakHourStats(centerId, { from: startDate, to: endDate })
       ])
 
       setRevenueData(revenuePayload)
-      const [partsR, bookingR, techR, invR, revServiceR, cancelR, lowStockR, utilizationR] = results
+      const [partsR, bookingR, techR, invR, revServiceR, lowStockR, techBookingStatsR, peakHourStatsR] = results
       if (partsR.status === 'fulfilled') setPartsUsageData(partsR.value.data)
       if (bookingR.status === 'fulfilled') {
-        const total = bookingR.value.total ?? 0
-        const items = bookingR.value.items || []
-        // Lấy số lượng bookings có status PAID
-        const paidCount = items.find((item: any) => 
-          item.status?.toUpperCase() === 'PAID'
-        )?.count || 0
-        setBookingData({ totalBookings: paidCount })
+        const response = bookingR.value as any
+        console.log('[ReportsManagement] Booking status response:', response)
+        
+        // Kiểm tra nhiều format response có thể có
+        const total = response.total ?? response.data?.total ?? 0
+        const items = response.items ?? response.data?.items ?? []
+        
+        console.log('[ReportsManagement] Booking status items:', items)
+        console.log('[ReportsManagement] Booking status total:', total)
+        
+        // Lấy số lượng bookings theo từng status
+        const getBookingCount = (status: string) => {
+          const item = items.find((item: any) => {
+            const itemStatus = item.status?.toUpperCase() ?? item.Status?.toUpperCase() ?? ''
+            return itemStatus === status.toUpperCase()
+          })
+          const count = item?.count ?? item?.Count ?? 0
+          console.log(`[ReportsManagement] Status ${status}:`, count)
+          return Number(count) || 0
+        }
+        
+        const paidCount = getBookingCount('PAID')
+        const cancelledCount = getBookingCount('CANCELLED')
+        const completedCount = getBookingCount('COMPLETED')
+        const inProgressCount = getBookingCount('IN_PROGRESS')
+        const inProgressCountAlt = getBookingCount('INPROGRESS') // Alternative format
+        const pendingCount = getBookingCount('PENDING')
+        
+        // Tính tổng từ items nếu total không có
+        const calculatedTotal = total > 0 ? total : items.reduce((sum: number, item: any) => {
+          const count = item?.count ?? item?.Count ?? 0
+          return sum + (Number(count) || 0)
+        }, 0)
+        
+        // Kết hợp IN_PROGRESS và INPROGRESS nếu có
+        const finalInProgressCount = inProgressCount + inProgressCountAlt
+        
+        console.log('[ReportsManagement] Final booking stats:', {
+          totalAllBookings: calculatedTotal,
+          paidBookings: paidCount,
+          cancelledBookings: cancelledCount,
+          completedBookings: completedCount,
+          inProgressBookings: finalInProgressCount,
+          pendingBookings: pendingCount
+        })
+        
+        // Lưu tất cả thông tin booking để hiển thị
+        setBookingData({ 
+          totalBookings: paidCount, // Giữ lại cho stats card "Lịch hẹn"
+          totalAllBookings: calculatedTotal, // Tổng tất cả các booking
+          paidBookings: paidCount, // Booking đã thanh toán
+          cancelledBookings: cancelledCount, // Booking đã hủy
+          completedBookings: completedCount, // Booking đã hoàn thành
+          inProgressBookings: finalInProgressCount, // Booking đang xử lý
+          pendingBookings: pendingCount // Booking chờ xử lý
+        })
+      } else if (bookingR.status === 'rejected') {
+        console.error('[ReportsManagement] Failed to fetch booking status:', bookingR.reason)
       }
       if (techR.status === 'fulfilled') setTechnicianData(techR.value.data)
       if (invR.status === 'fulfilled') setInventoryData(invR.value.data)
@@ -161,46 +215,118 @@ export default function ReportsManagement() {
         })
         setServiceRevenueItems(normalized)
       }
-      if (cancelR.status === 'fulfilled') {
-        const rate = Number(cancelR.value?.cancellationRate ?? 0)
-        setInventoryData((prev: any) => ({ ...(prev || {}), __cancellationRate: rate }))
-      }
       if (lowStockR.status === 'fulfilled') {
         const items = lowStockR.value?.items || []
         setLowStockItems(Array.isArray(items) ? items : [])
       }
-      if (utilizationR.status === 'fulfilled') {
-        const response = utilizationR.value as any
+      if (techBookingStatsR.status === 'fulfilled') {
+        const response = techBookingStatsR.value as any
+        console.log('[ReportsManagement] Raw technician booking stats response:', response)
         
-        // Lấy tỉ lệ lấp đầy trung bình
-        let averageRate = 0
-        
-        // Nếu có field averageUtilizationRate trực tiếp
-        if (response?.averageUtilizationRate !== undefined) {
-          averageRate = Number(response.averageUtilizationRate)
-        }
-        // Nếu có items array, tính trung bình từ các items
-        else if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
-          const rates = response.items
-            .map((item: any) => Number(item.utilizationRate ?? item.rate ?? 0))
-            .filter((rate: number) => !isNaN(rate) && rate > 0)
-          
-          if (rates.length > 0) {
-            averageRate = rates.reduce((sum: number, rate: number) => sum + rate, 0) / rates.length
+        // Xử lý nhiều cấu trúc response khác nhau
+        let items: any[] = []
+        if (response?.technicians && Array.isArray(response.technicians)) {
+          // API trả về { success: true, technicians: [...] }
+          items = response.technicians
+          console.log('[ReportsManagement] Found items in response.technicians')
+        } else if (response?.items && Array.isArray(response.items)) {
+          items = response.items
+          console.log('[ReportsManagement] Found items in response.items')
+        } else if (response?.data?.technicians && Array.isArray(response.data.technicians)) {
+          items = response.data.technicians
+          console.log('[ReportsManagement] Found items in response.data.technicians')
+        } else if (response?.data?.items && Array.isArray(response.data.items)) {
+          items = response.data.items
+          console.log('[ReportsManagement] Found items in response.data.items')
+        } else if (response?.data && Array.isArray(response.data)) {
+          items = response.data
+          console.log('[ReportsManagement] Found items in response.data')
+        } else if (Array.isArray(response)) {
+          items = response
+          console.log('[ReportsManagement] Response is array directly')
+        } else {
+          console.warn('[ReportsManagement] Unknown response structure:', Object.keys(response || {}))
+          // Thử tìm trong các field khác
+          if (response && typeof response === 'object') {
+            const allKeys = Object.keys(response)
+            console.log('[ReportsManagement] Available keys in response:', allKeys)
+            // Có thể response có structure khác, thử tìm array trong các field
+            for (const key of allKeys) {
+              if (Array.isArray(response[key])) {
+                console.log(`[ReportsManagement] Found array in key: ${key}`, response[key])
+                items = response[key]
+                break
+              }
+            }
           }
         }
-        // Nếu có utilizationRate trực tiếp (có thể đã là trung bình)
-        else if (response?.utilizationRate !== undefined) {
-          averageRate = Number(response.utilizationRate)
-        }
-        // Tính từ usedSlots / totalSlots nếu có
-        else if (response?.usedSlots && response?.totalSlots) {
-          averageRate = Number(response.usedSlots) / Number(response.totalSlots)
+        console.log('[ReportsManagement] Final technician booking stats items:', items)
+        setTechnicianBookingStats(items)
+      } else if (techBookingStatsR.status === 'rejected') {
+        const error = techBookingStatsR.reason
+        console.error('[ReportsManagement] Error loading technician booking stats:', error)
+        console.error('[ReportsManagement] Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status,
+          statusText: error?.response?.statusText
+        })
+        setTechnicianBookingStats([])
+      }
+
+      // Handle Peak Hour Stats
+      if (peakHourStatsR.status === 'fulfilled') {
+        const response = peakHourStatsR.value as any
+        console.log('[ReportsManagement] Peak hour stats response (full):', JSON.stringify(response, null, 2))
+        
+        // Xử lý nhiều cấu trúc response khác nhau
+        let items: any[] = []
+        if (response?.hourlyStats && Array.isArray(response.hourlyStats)) {
+          items = response.hourlyStats
+          console.log('[ReportsManagement] Found items in response.hourlyStats')
+        } else if (response?.items && Array.isArray(response.items)) {
+          items = response.items
+          console.log('[ReportsManagement] Found items in response.items')
+        } else if (response?.data?.hourlyStats && Array.isArray(response.data.hourlyStats)) {
+          items = response.data.hourlyStats
+          console.log('[ReportsManagement] Found items in response.data.hourlyStats')
+        } else if (response?.data?.items && Array.isArray(response.data.items)) {
+          items = response.data.items
+          console.log('[ReportsManagement] Found items in response.data.items')
+        } else if (response?.data && Array.isArray(response.data)) {
+          items = response.data
+          console.log('[ReportsManagement] Found items in response.data')
+        } else if (Array.isArray(response)) {
+          items = response
+          console.log('[ReportsManagement] Response is array directly')
+        } else {
+          console.warn('[ReportsManagement] Unknown peak hour stats response structure:', Object.keys(response || {}))
+          // Thử tìm array trong bất kỳ field nào
+          if (response && typeof response === 'object') {
+            const allKeys = Object.keys(response)
+            for (const key of allKeys) {
+              if (Array.isArray(response[key])) {
+                items = response[key]
+                console.log(`[ReportsManagement] Found array in response.${key}`)
+                break
+              }
+            }
+          }
         }
         
-        setUtilizationRate(averageRate)
-      } else if (utilizationR.status === 'rejected') {
-        setUtilizationRate(0)
+        console.log('[ReportsManagement] Peak hour stats items (parsed):', items)
+        console.log('[ReportsManagement] Peak hour stats items count:', items.length)
+        setPeakHourStats(items)
+      } else if (peakHourStatsR.status === 'rejected') {
+        const error = peakHourStatsR.reason
+        console.error('[ReportsManagement] Error loading peak hour stats:', error)
+        console.error('[ReportsManagement] Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status,
+          statusText: error?.response?.statusText
+        })
+        setPeakHourStats([])
       }
 
     } catch (err) {
@@ -360,6 +486,98 @@ export default function ReportsManagement() {
     }
   })
 
+  // Prepare technician booking stats chart data
+  const technicianChartData = (technicianBookingStats || [])
+    .filter((tech: any) => tech && (tech.technicianId || tech.technicianName)) // Filter out invalid entries
+    .map((tech: any) => {
+      // Xử lý nhiều format khác nhau của response
+      const name = tech.technicianName || tech.name || tech.fullName || `KTV ${tech.technicianId || tech.id || ''}` || 'Không rõ'
+      // API trả về bookingCount, map thành totalBookings
+      const total = Number(tech.totalBookings ?? tech.bookingCount ?? tech.total ?? tech.count ?? 0) || 0
+      const completed = Number(tech.completedBookings ?? tech.completed ?? tech.completedCount ?? 0) || 0
+      const cancelled = Number(tech.cancelledBookings ?? tech.cancelled ?? tech.cancelledCount ?? 0) || 0
+      const inProgress = Number(tech.inProgressBookings ?? tech.inProgress ?? tech.inProgressCount ?? 0) || 0
+      const pending = Number(tech.pendingBookings ?? tech.pending ?? tech.pendingCount ?? 0) || 0
+      const rating = Number(tech.averageRating ?? tech.rating ?? tech.avgRating ?? 0) || 0
+      const revenue = Number(tech.revenue ?? tech.totalRevenue ?? 0) || 0
+      
+      return {
+        name,
+        totalBookings: total,
+        completedBookings: completed,
+        cancelledBookings: cancelled,
+        inProgressBookings: inProgress,
+        pendingBookings: pending,
+        averageRating: rating,
+        revenue
+      }
+    })
+    .sort((a, b) => b.totalBookings - a.totalBookings) // Sort by total bookings descending
+
+  console.log('[ReportsManagement] Technician chart data:', technicianChartData)
+
+  // Prepare peak hour stats chart data
+  const peakHourChartData = (peakHourStats || [])
+    .filter((item: any) => {
+      // Nới lỏng filter - chỉ cần có dữ liệu hợp lệ
+      if (!item || typeof item !== 'object') return false
+      // Kiểm tra xem có ít nhất một trong các field: slotId, slotLabel, slotTime, totalBookedSlots
+      const hasSlotId = item.slotId !== undefined
+      const hasSlotLabel = item.slotLabel || item.slotName || item.timeSlot || item.slot
+      const hasSlotTime = item.slotTime || item.hour || item.hourOfDay
+      const hasCount = item.totalBookedSlots !== undefined || item.bookingCount !== undefined || item.count !== undefined || item.totalBookings !== undefined
+      return hasSlotId || hasSlotLabel || hasSlotTime || hasCount
+    })
+    .map((item: any) => {
+      // Xử lý nhiều format khác nhau, ưu tiên format mới từ API
+      const slotLabel = item.slotLabel || item.slotName || item.timeSlot || item.slot || item.SlotLabel || item.SlotName || item.TimeSlot || 'Không rõ'
+      const slotTime = item.slotTime || item.time || item.hour || item.hourOfDay || ''
+      
+      // Parse hour từ slotTime để sort (ví dụ: "08:00" -> 8)
+      let hour = 0
+      if (slotTime) {
+        const timeMatch = slotTime.toString().match(/(\d+)/)
+        if (timeMatch) {
+          hour = parseInt(timeMatch[1], 10)
+        }
+      } else if (item.hour !== undefined) {
+        hour = Number(item.hour) || 0
+      } else if (item.slotId !== undefined) {
+        // Nếu không có time, có thể dùng slotId làm thứ tự
+        hour = Number(item.slotId) || 0
+      }
+      
+      const bookingCount = Number(item.totalBookedSlots ?? item.bookingCount ?? item.count ?? item.totalBookings ?? item.BookingCount ?? item.Count ?? 0) || 0
+      const totalSlots = Number(item.totalSlots ?? item.availableSlots ?? item.TotalSlots ?? item.AvailableSlots ?? 0) || 0
+      const utilizationRate = Number(item.utilizationRate ?? item.rate ?? item.UtilizationRate ?? item.Rate ?? 0) || 0
+      
+      return {
+        name: slotLabel,
+        hour: hour,
+        slotTime: slotTime,
+        bookingCount: bookingCount,
+        totalSlots: totalSlots,
+        utilizationRate: utilizationRate,
+        slotId: item.slotId
+      }
+    })
+    .sort((a: any, b: any) => {
+      // Sort by slotId hoặc hour hoặc slotTime
+      if (a.slotId !== undefined && b.slotId !== undefined) {
+        return a.slotId - b.slotId
+      }
+      if (a.hour !== undefined && b.hour !== undefined) {
+        return a.hour - b.hour
+      }
+      if (a.slotTime && b.slotTime) {
+        return a.slotTime.localeCompare(b.slotTime)
+      }
+      return (a.name || '').localeCompare(b.name || '')
+    })
+
+  console.log('[ReportsManagement] Peak hour chart data (final):', peakHourChartData)
+  console.log('[ReportsManagement] Peak hour chart data count:', peakHourChartData.length)
+
   // Calculate stats
   // Tính tổng doanh thu theo dịch vụ
   const totalServiceRevenue = (serviceRevenueItems || []).reduce((sum, item) => {
@@ -389,10 +607,10 @@ export default function ReportsManagement() {
       color: '#3B82F6'
     },
     {
-      title: 'Tỉ lệ lấp đầy',
-      value: utilizationRate !== null ? `${(utilizationRate * 100).toFixed(1)}` : '0',
-      unit: '%',
-      icon: TrendingUp,
+      title: 'Doanh thu theo phụ tùng',
+      value: (partsUsageData?.totalValue ? Number(partsUsageData.totalValue) : 0).toLocaleString('vi-VN'),
+      unit: 'VNĐ',
+      icon: Package,
       color: '#A78BFA'
     }
   ]
@@ -695,49 +913,440 @@ export default function ReportsManagement() {
         </div>
       </div>
 
-      {/* Additional Info */}
+      {/* Charts Row - Technician Performance and Peak Hour Stats */}
       <div style={{
-        background: 'var(--bg-card)',
-        padding: '24px',
-        borderRadius: '12px',
-        border: '1px solid var(--border-primary)'
+        display: 'flex',
+        gap: '24px',
+        marginBottom: '32px',
+        flexWrap: 'wrap'
       }}>
-        <h3 style={{ 
-          fontSize: '18px', 
-          fontWeight: '600', 
-          color: 'var(--text-primary)',
-          margin: '0 0 16px 0'
+        {/* Technician Performance Chart */}
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '12px',
+          border: '1px solid var(--border-primary)',
+          flex: '1',
+          minWidth: '500px'
         }}>
-          Thông tin bổ sung
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          <div>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
-              Tỷ lệ hủy đơn
-            </p>
-            <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
-              {typeof inventoryData?.__cancellationRate === 'number'
-                ? (inventoryData.__cancellationRate * 100).toFixed(1)
-                : '0'}%
-            </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '600', 
+            color: 'var(--text-primary)',
+            margin: 0
+          }}>
+            Hiệu suất Kỹ thuật viên
+          </h3>
+        </div>
+        {loading ? (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            color: 'var(--text-secondary)'
+          }}>
+            Đang tải dữ liệu...
           </div>
-          <div>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>
-              Phụ tùng sắp hết (≤ 5)
+        ) : technicianChartData.length > 0 ? (
+          <div style={{ width: '100%', height: '400px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={technicianChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                />
+              <YAxis 
+                stroke="var(--text-secondary)"
+                fontSize={12}
+                tickFormatter={(value) => Number(value).toLocaleString('vi-VN')}
+                domain={[0, 'auto']}
+              />
+                <Tooltip 
+                  contentStyle={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const labels: Record<string, string> = {
+                      totalBookings: 'Tổng đơn',
+                      completedBookings: 'Đã hoàn thành',
+                      cancelledBookings: 'Đã hủy',
+                      inProgressBookings: 'Đang xử lý',
+                      pendingBookings: 'Chờ xử lý',
+                      revenue: 'Doanh thu (VNĐ)',
+                      averageRating: 'Đánh giá TB'
+                    }
+                    if (name === 'revenue') {
+                      return [`${Number(value).toLocaleString('vi-VN')} VNĐ`, labels[name] || name]
+                    }
+                    if (name === 'averageRating') {
+                      return [`${Number(value).toFixed(1)}`, labels[name] || name]
+                    }
+                    return [`${Number(value).toLocaleString('vi-VN')}`, labels[name] || name]
+                  }}
+                />
+                <Legend 
+                  formatter={(value) => {
+                    const labels: Record<string, string> = {
+                      totalBookings: 'Tổng đơn',
+                      completedBookings: 'Đã hoàn thành',
+                      cancelledBookings: 'Đã hủy',
+                      inProgressBookings: 'Đang xử lý',
+                      pendingBookings: 'Chờ xử lý'
+                    }
+                    return labels[value] || value
+                  }}
+                />
+                <Bar 
+                  dataKey="totalBookings" 
+                  fill="#3B82F6" 
+                  name="totalBookings"
+                  radius={[4, 4, 0, 0]}
+                />
+                {technicianChartData.some((d: any) => d.completedBookings > 0) && (
+                  <Bar 
+                    dataKey="completedBookings" 
+                    fill="#22C55E" 
+                    name="completedBookings"
+                    radius={[4, 4, 0, 0]}
+                  />
+                )}
+                {technicianChartData.some((d: any) => d.cancelledBookings > 0) && (
+                  <Bar 
+                    dataKey="cancelledBookings" 
+                    fill="#EF4444" 
+                    name="cancelledBookings"
+                    radius={[4, 4, 0, 0]}
+                  />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            color: 'var(--text-secondary)',
+            gap: '8px'
+          }}>
+            <p style={{ margin: 0, fontSize: '14px' }}>Không có dữ liệu hiệu suất Kỹ thuật viên</p>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-tertiary)' }}>
+              Vui lòng chọn khoảng thời gian khác hoặc kiểm tra lại dữ liệu
             </p>
-            {lowStockItems && lowStockItems.length > 0 ? (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '6px' }}>
-                {lowStockItems.slice(0, 6).map((p: any) => (
-                  <li key={p.partId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-primary)' }}>{p.partName || 'Không rõ'}</span>
-                    <span style={{ color: '#F59E0B', fontWeight: 600 }}>{p.currentStock}/{p.minThreshold}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>Không có phụ tùng sắp hết</span>
+            {process.env.NODE_ENV === 'development' && (
+              <details style={{ marginTop: '16px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                <summary style={{ cursor: 'pointer' }}>Debug Info</summary>
+                <pre style={{ 
+                  marginTop: '8px', 
+                  padding: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  borderRadius: '4px',
+                  overflow: 'auto',
+                  maxHeight: '200px',
+                  fontSize: '10px'
+                }}>
+                  {JSON.stringify({ 
+                    technicianBookingStats, 
+                    technicianChartData,
+                    fromDate,
+                    toDate
+                  }, null, 2)}
+                </pre>
+              </details>
             )}
           </div>
+        )}
+        </div>
+
+        {/* Peak Hour Stats Chart */}
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '12px',
+          border: '1px solid var(--border-primary)',
+          flex: '1',
+          minWidth: '500px'
+        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '600', 
+            color: 'var(--text-primary)',
+            margin: 0
+          }}>
+            Thống kê giờ cao điểm
+          </h3>
+        </div>
+        {loading ? (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            color: 'var(--text-secondary)'
+          }}>
+            Đang tải dữ liệu...
+          </div>
+        ) : peakHourChartData.length > 0 ? (
+          <div style={{ width: '100%', height: '400px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={peakHourChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                />
+                <YAxis 
+                  stroke="var(--text-secondary)"
+                  fontSize={12}
+                  tickFormatter={(value) => Number(value).toLocaleString('vi-VN')}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const labels: Record<string, string> = {
+                      bookingCount: 'Số lượng đặt chỗ',
+                      totalSlots: 'Tổng slot',
+                      utilizationRate: 'Tỷ lệ sử dụng (%)'
+                    }
+                    if (name === 'utilizationRate') {
+                      return [`${(Number(value) * 100).toFixed(1)}%`, labels[name] || name]
+                    }
+                    return [`${Number(value).toLocaleString('vi-VN')}`, labels[name] || name]
+                  }}
+                />
+                <Legend 
+                  formatter={(value) => {
+                    const labels: Record<string, string> = {
+                      bookingCount: 'Số lượng đặt chỗ',
+                      totalSlots: 'Tổng slot',
+                      utilizationRate: 'Tỷ lệ sử dụng'
+                    }
+                    return labels[value] || value
+                  }}
+                />
+                <Bar 
+                  dataKey="bookingCount" 
+                  fill="#FFD875" 
+                  name="bookingCount"
+                  radius={[4, 4, 0, 0]}
+                />
+                {peakHourChartData.some((d: any) => d.totalSlots > 0) && (
+                  <Bar 
+                    dataKey="totalSlots" 
+                    fill="#94A3B8" 
+                    name="totalSlots"
+                    radius={[4, 4, 0, 0]}
+                  />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            color: 'var(--text-secondary)',
+            gap: '8px'
+          }}>
+            <p style={{ margin: 0, fontSize: '14px' }}>Không có dữ liệu thống kê giờ cao điểm</p>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-tertiary)' }}>
+              Vui lòng chọn khoảng thời gian khác hoặc kiểm tra lại dữ liệu
+            </p>
+            {process.env.NODE_ENV === 'development' && (
+              <details style={{ marginTop: '16px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                <summary style={{ cursor: 'pointer' }}>Debug Info</summary>
+                <pre style={{ 
+                  marginTop: '8px', 
+                  padding: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  borderRadius: '4px',
+                  overflow: 'auto',
+                  maxHeight: '200px',
+                  fontSize: '10px'
+                }}>
+                  {JSON.stringify({ 
+                    peakHourStats, 
+                    peakHourChartData,
+                    fromDate,
+                    toDate
+                  }, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+        </div>
+      </div>
+
+      {/* Additional Info and Low Stock Items - Side by Side */}
+      <div style={{
+        display: 'flex',
+        gap: '24px',
+        marginTop: '32px',
+        flexWrap: 'wrap'
+      }}>
+        {/* Additional Info */}
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '12px',
+          border: '1px solid var(--border-primary)',
+          flex: '1',
+          minWidth: '300px'
+        }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '600', 
+            color: 'var(--text-primary)',
+            margin: '0 0 16px 0'
+          }}>
+            Thông tin bổ sung
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Tổng các booking */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border-primary)' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+                Tổng các booking
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
+                {bookingData?.totalAllBookings ? bookingData.totalAllBookings.toLocaleString('vi-VN') : '0'}
+              </p>
+            </div>
+
+            {/* Booking đã thanh toán */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border-primary)' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+                Booking đã thanh toán
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '600', color: '#22C55E', margin: 0 }}>
+                {bookingData?.paidBookings ? bookingData.paidBookings.toLocaleString('vi-VN') : '0'}
+              </p>
+            </div>
+
+            {/* Booking đã hủy */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border-primary)' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+                Booking đã hủy
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '600', color: '#EF4444', margin: 0 }}>
+                {bookingData?.cancelledBookings ? bookingData.cancelledBookings.toLocaleString('vi-VN') : '0'}
+              </p>
+            </div>
+
+            {/* Booking đã hoàn thành */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border-primary)' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+                Booking đã hoàn thành
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '600', color: '#3B82F6', margin: 0 }}>
+                {bookingData?.completedBookings ? bookingData.completedBookings.toLocaleString('vi-VN') : '0'}
+              </p>
+            </div>
+
+            {/* Booking đang xử lý */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+                Booking đang xử lý
+              </p>
+              <p style={{ fontSize: '16px', fontWeight: '600', color: '#F59E0B', margin: 0 }}>
+                {bookingData?.inProgressBookings ? bookingData.inProgressBookings.toLocaleString('vi-VN') : '0'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Low Stock Items - Separate Section */}
+        <div style={{
+          background: 'var(--bg-card)',
+          padding: '24px',
+          borderRadius: '12px',
+          border: '1px solid var(--border-primary)',
+          flex: '1',
+          minWidth: '300px'
+        }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '600', 
+            color: 'var(--text-primary)',
+            margin: '0 0 16px 0'
+          }}>
+            Phụ tùng sắp hết (≤ 5)
+          </h3>
+          {lowStockItems && lowStockItems.length > 0 ? (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto' }}>
+              {lowStockItems.slice(0, 10).map((p: any) => (
+                <li 
+                  key={p.partId} 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '12px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-primary)'
+                  }}
+                >
+                  <span style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: '500' }}>
+                    {p.partName || 'Không rõ'}
+                  </span>
+                  <span style={{ 
+                    color: '#F59E0B', 
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    padding: '4px 12px',
+                    background: '#FEF3C7',
+                    borderRadius: '6px'
+                  }}>
+                    {p.currentStock}/{p.minThreshold}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div style={{ 
+              padding: '24px',
+              textAlign: 'center',
+              color: 'var(--text-tertiary)',
+              fontSize: '14px'
+            }}>
+              Không có phụ tùng sắp hết
+            </div>
+          )}
         </div>
       </div>
     </div>

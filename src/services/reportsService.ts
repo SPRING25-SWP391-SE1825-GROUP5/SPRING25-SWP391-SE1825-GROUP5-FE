@@ -329,5 +329,69 @@ export const ReportsService = {
       params: params ? { from: params.from, to: params.to } : undefined,
     })
     return response.data
+  },
+
+  // Technician Booking Stats
+  async getTechnicianBookingStats(
+    centerId: number,
+    params?: { from?: string; to?: string }
+  ): Promise<{
+    success?: boolean
+    items?: Array<{
+      technicianId: number
+      technicianName: string
+      totalBookings: number
+      completedBookings: number
+      cancelledBookings: number
+      inProgressBookings?: number
+      pendingBookings?: number
+      averageRating?: number
+      revenue?: number
+    }>
+  }> {
+    try {
+      console.log('[ReportsService] Calling getTechnicianBookingStats with:', { centerId, params })
+      const response = await api.get(`/Report/centers/${centerId}/technicians/booking-stats`, {
+        params: params ? { from: params.from, to: params.to } : undefined,
+      })
+      console.log('[ReportsService] getTechnicianBookingStats response:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('[ReportsService] Error in getTechnicianBookingStats:', error)
+      console.error('[ReportsService] Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        url: error?.config?.url
+      })
+      throw error
+    }
+  },
+
+  // Peak Hour Stats
+  async getPeakHourStats(
+    centerId: number,
+    params?: { from?: string; to?: string }
+  ): Promise<{
+    success?: boolean
+    hourlyStats?: Array<{
+      hour: number
+      slotName?: string
+      bookingCount: number
+      totalSlots?: number
+      utilizationRate?: number
+    }>
+    items?: Array<{
+      hour: number
+      slotName?: string
+      bookingCount: number
+      totalSlots?: number
+      utilizationRate?: number
+    }>
+  }> {
+    const response = await api.get(`/Report/centers/${centerId}/peak-hour-stats`, {
+      params: params ? { from: params.from, to: params.to } : undefined,
+    })
+    return response.data
   }
 }
