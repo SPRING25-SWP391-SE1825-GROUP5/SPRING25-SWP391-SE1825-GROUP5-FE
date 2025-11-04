@@ -3,7 +3,7 @@ import { useAppSelector } from '@/store/hooks'
 import { 
   DollarSign,
   ShoppingCart,
-  Download,
+  CheckCircle,
   TrendingUp,
   Users,
   Package,
@@ -27,56 +27,109 @@ import { ReportsService } from '@/services/reportsService'
 export default function ReportsManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [reportPeriod, setReportPeriod] = useState('MONTHLY')
+  // Chế độ mặc định: 7 ngày gần nhất, cho phép tùy chỉnh
+  const [fromDate, setFromDate] = useState<string>('')
+  const [toDate, setToDate] = useState<string>('')
+  const [granularity, setGranularity] = useState<'day' | 'week' | 'month' | 'quarter' | 'year'>('day')
   const [revenueData, setRevenueData] = useState<any>(null)
   const [partsUsageData, setPartsUsageData] = useState<any>(null)
   const [bookingData, setBookingData] = useState<any>(null)
   const [technicianData, setTechnicianData] = useState<any>(null)
   const [inventoryData, setInventoryData] = useState<any>(null)
+  const [lowStockItems, setLowStockItems] = useState<any[]>([])
+  const [serviceRevenueItems, setServiceRevenueItems] = useState<any[]>([])
 
   const user = useAppSelector((state) => state.auth.user)
 
+  // Khởi tạo mặc định: 7 ngày gần nhất và tự tải dữ liệu
   useEffect(() => {
-    loadReportsData()
-  }, [reportPeriod])
+    const today = new Date()
+    const sevenDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)
+    const d2 = today.toISOString().split('T')[0]
+    const d1 = sevenDaysAgo.toISOString().split('T')[0]
+    setFromDate(d1)
+    setToDate(d2)
+    setGranularity('day')
+    // Tải sau khi state set (microtask)
+    setTimeout(() => {
+      loadReportsData(d1, d2, 'day')
+    }, 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const loadReportsData = async () => {
+  const loadReportsData = async (
+    overrideFrom?: string,
+    overrideTo?: string,
+    overrideGranularity?: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  ) => {
     try {
       setLoading(true)
       setError(null)
       
       const centerId = user?.centerId || 2
-      const endDate = new Date().toISOString().split('T')[0]
-      const startDate = getStartDateByPeriod(reportPeriod)
+      const startDate = overrideFrom || fromDate
+      const endDate = overrideTo || toDate
 
-      // Load all reports in parallel
-      const [
-        revenueResponse,
-        partsResponse,
-        bookingResponse,
-        technicianResponse,
-        inventoryResponse
-      ] = await Promise.all([
-        ReportsService.getRevenueReport(centerId, {
-          startDate,
-          endDate,
-          reportType: reportPeriod as any
-        }),
-        ReportsService.getPartsUsageReport(centerId, {
-          startDate,
-          endDate,
-          reportType: reportPeriod as any
-        }),
-        ReportsService.getTodayBookings(centerId),
-        ReportsService.getTechnicianPerformance(centerId, reportPeriod),
-        ReportsService.getInventoryUsage(centerId, reportPeriod)
+      // Revenue: luôn dùng API mới theo BE
+      let revenuePayload: any
+      const effectiveGran = overrideGranularity || (granularity || deriveGranularity(startDate, endDate))
+      const res = await ReportsService.getCenterRevenue(centerId, {
+        from: startDate,
+        to: endDate,
+        granularity: effectiveGran
+      })
+      const total = res.totalRevenue ?? (res.items?.reduce((s, it) => s + (it.revenue || 0), 0) || 0)
+      revenuePayload = {
+        totalRevenue: total,
+        revenueByPeriod: (res.items || []).map((it: any) => ({
+          period: it.period,
+          revenue: it.revenue,
+          bookings: 0
+        })),
+        revenueByService: []
+      }
+
+      // Load remaining reports in non-blocking mode
+      const results = await Promise.allSettled([
+        ReportsService.getPartsUsageReport(centerId, { startDate, endDate, reportType: 'DAILY' as any }),
+        ReportsService.getBookingStatusCounts(centerId, { from: startDate, to: endDate }),
+        ReportsService.getTechnicianPerformance(centerId, 'month'),
+        ReportsService.getInventoryUsage(centerId, 'month'),
+        ReportsService.getRevenueByService(centerId, { from: startDate, to: endDate }),
+        ReportsService.getBookingCancellation(centerId, { from: startDate, to: endDate }),
+        ReportsService.getInventoryLowStock(centerId, { threshold: 5 })
       ])
 
-      setRevenueData(revenueResponse.data)
-      setPartsUsageData(partsResponse.data)
-      setBookingData(bookingResponse.data)
-      setTechnicianData(technicianResponse.data)
-      setInventoryData(inventoryResponse.data)
+      setRevenueData(revenuePayload)
+      const [partsR, bookingR, techR, invR, revServiceR, cancelR, lowStockR] = results
+      if (partsR.status === 'fulfilled') setPartsUsageData(partsR.value.data)
+      if (bookingR.status === 'fulfilled') {
+        const total = bookingR.value.total ?? 0
+        setBookingData({ totalBookings: total })
+      }
+      if (techR.status === 'fulfilled') setTechnicianData(techR.value.data)
+      if (invR.status === 'fulfilled') setInventoryData(invR.value.data)
+      if (revServiceR.status === 'fulfilled') {
+        const raw = revServiceR.value?.items || revServiceR.value?.data?.items || revServiceR.value?.data || revServiceR.value || []
+        const arr: any[] = Array.isArray(raw) ? raw : []
+        const normalized = arr.map((it: any) => {
+          const name = it.serviceName || it.name || it.ServiceName || 'Không rõ'
+          const revenue = Number(it.revenue ?? it.totalRevenue ?? 0) || 0
+          const bookingCount = Number(
+            it.usageCount ?? it.bookings ?? it.count ?? it.totalBookings ?? it.bookingCount ?? it.timesUsed ?? 0
+          ) || 0
+          return { serviceName: name, revenue, bookingCount }
+        })
+        setServiceRevenueItems(normalized)
+      }
+      if (cancelR.status === 'fulfilled') {
+        const rate = Number(cancelR.value?.cancellationRate ?? cancelR.value?.data?.cancellationRate ?? 0)
+        setInventoryData((prev: any) => ({ ...(prev || {}), __cancellationRate: rate }))
+      }
+      if (lowStockR.status === 'fulfilled') {
+        const items = lowStockR.value?.items || lowStockR.value?.data?.items || []
+        setLowStockItems(Array.isArray(items) ? items : [])
+      }
 
     } catch (err) {
       setError('Có lỗi xảy ra khi tải dữ liệu báo cáo')
@@ -85,23 +138,69 @@ export default function ReportsManagement() {
     }
   }
 
-  const getStartDateByPeriod = (period: string): string => {
-    const today = new Date()
-    switch (period) {
-      case 'DAILY':
-        return today.toISOString().split('T')[0]
-      case 'WEEKLY':
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-        return weekAgo.toISOString().split('T')[0]
-      case 'MONTHLY':
-        const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
-        return monthAgo.toISOString().split('T')[0]
-      case 'YEARLY':
-        const yearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
-        return yearAgo.toISOString().split('T')[0]
-      default:
-        return today.toISOString().split('T')[0]
+  // Bỏ preset: không dùng nữa
+
+  const deriveGranularity = (from: string, to: string): 'day' | 'week' | 'month' | 'quarter' | 'year' => {
+    try {
+      const start = new Date(from)
+      const end = new Date(to)
+      const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
+      if (diffDays <= 31) return 'day'
+      if (diffDays <= 180) return 'week'
+      if (diffDays <= 730) return 'month'
+      return 'quarter'
+    } catch {
+      return 'day'
     }
+  }
+
+  // Format helpers for professional range label
+  const formatDateShort = (iso: string): { d: string; m: string; y: string; text: string } => {
+    try {
+      const d = new Date(iso + 'T00:00:00')
+      const day = d.getDate().toString().padStart(2, '0')
+      const monthShort = new Intl.DateTimeFormat('vi-VN', { month: 'short' }).format(d) // "thg 11"
+      const year = d.getFullYear().toString()
+      const prettyMonth = monthShort.replace('thg ', 'Thg ')
+      return { d: day, m: prettyMonth, y: year, text: `${day} ${prettyMonth} ${year}` }
+    } catch {
+      return { d: iso, m: '', y: '', text: iso }
+    }
+  }
+
+  const formatRangeLabel = (from?: string, to?: string, g?: string): string => {
+    if (!from || !to) return ''
+    const a = formatDateShort(from)
+    const b = formatDateShort(to)
+    // Same year and month → "02–04 Thg 11 2025"
+    if (a.y === b.y && a.m === b.m) {
+      const core = `${a.d}–${b.d} ${a.m} ${a.y}`
+      return g === 'week' ? `Tuần: ${core}` : core
+    }
+    // Same year, different month → "28 Thg 10 – 04 Thg 11 2025"
+    if (a.y === b.y) {
+      const core = `${a.d} ${a.m} – ${b.d} ${b.m} ${a.y}`
+      return g === 'week' ? `Tuần: ${core}` : core
+    }
+    // Different year → "30 Thg 12 2024 – 04 Thg 1 2025"
+    const core = `${a.d} ${a.m} ${a.y} – ${b.d} ${b.m} ${b.y}`
+    return g === 'week' ? `Tuần: ${core}` : core
+  }
+
+  // Beautify period label from backend (e.g., "2025-11-02_to_2025-11-04")
+  const beautifyPeriod = (raw: string): string => {
+    if (!raw) return ''
+    // Weekly pattern: YYYY-MM-DD_to_YYYY-MM-DD
+    if (raw.includes('_to_')) {
+      const [a, b] = raw.split('_to_')
+      return formatRangeLabel(a, b, granularity)
+    }
+    // ISO date -> dd Thg mm
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const f = formatDateShort(raw)
+      return `${f.d} ${f.m}`
+    }
+    return raw
   }
 
   const getPeriodLabel = (period: string): string => {
@@ -160,22 +259,29 @@ export default function ReportsManagement() {
   // Prepare chart data
   const revenueChartData = revenueData?.revenueByPeriod?.map((item: any) => ({
     period: item.period,
-    revenue: item.revenue / 1000000, // Convert to millions
+    revenue: item.revenue,
     bookings: item.bookings
   })) || []
 
-  const serviceChartData = revenueData?.revenueByService?.map((item: any) => ({
-    name: item.serviceName,
-    value: item.bookings,
-    color: item.serviceName.includes('Bảo dưỡng') ? '#FFD875' : '#22C55E'
-  })) || []
+  const palette = ['#FFD875','#22C55E','#3B82F6','#F59E0B','#EF4444','#A78BFA','#14B8A6','#F472B6','#84CC16','#06B6D4']
+  const serviceChartData = (serviceRevenueItems || []).map((item: any, idx: number) => {
+    const count = Number(item.bookingCount ?? item.count ?? item.bookings ?? item.usageCount ?? 0) || 0
+    const revenue = Number(item.revenue ?? 0) || 0
+    return {
+      name: item.serviceName,
+      value: revenue, // dùng doanh thu làm tỷ lệ
+      revenue,
+      count,
+      color: palette[idx % palette.length]
+    }
+  })
 
   // Calculate stats
   const reportStats = [
     {
       title: 'Doanh thu',
-      value: revenueData ? (revenueData.totalRevenue / 1000000).toFixed(1) : '0',
-      unit: 'triệu VNĐ',
+      value: (revenueData?.totalRevenue ? Number(revenueData.totalRevenue) : 0).toLocaleString('vi-VN'),
+      unit: 'VNĐ',
       icon: DollarSign,
       color: '#FFD875'
     },
@@ -185,20 +291,6 @@ export default function ReportsManagement() {
       unit: 'đơn',
       icon: ShoppingCart,
       color: '#22C55E'
-    },
-    {
-      title: 'Kỹ thuật viên',
-      value: technicianData?.summary?.totalTechnicians?.toString() || '0',
-      unit: 'người',
-      icon: Users,
-      color: '#3B82F6'
-    },
-    {
-      title: 'Phụ tùng',
-      value: inventoryData?.totalParts?.toString() || '0',
-      unit: 'loại',
-      icon: Package,
-      color: '#F59E0B'
     }
   ]
 
@@ -208,26 +300,79 @@ export default function ReportsManagement() {
         <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)' }}>
           Báo cáo Chi nhánh
         </h2>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <select 
-            value={reportPeriod}
-            onChange={(e) => setReportPeriod(e.target.value)}
-            style={{
-              padding: '10px 16px',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontSize: '14px'
-            }}
-          >
-            <option value="DAILY">Hôm nay</option>
-            <option value="WEEKLY">Tuần này</option>
-            <option value="MONTHLY">Tháng này</option>
-            <option value="YEARLY">Năm nay</option>
-          </select>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+              <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>đến</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+              <select
+                value={granularity}
+                onChange={(e) => setGranularity(e.target.value as any)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                <option value="day">Theo ngày</option>
+                <option value="week">Theo tuần</option>
+                <option value="month">Theo tháng</option>
+                <option value="quarter">Theo quý</option>
+                <option value="year">Theo năm</option>
+              </select>
+              {/* Pretty range label */}
+              {fromDate && toDate && (
+                <span style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  padding: '6px 10px',
+                  border: '1px dashed var(--border-primary)',
+                  borderRadius: '8px',
+                  background: 'var(--bg-card)'
+                }}>
+                  {formatRangeLabel(fromDate, toDate, granularity)}
+                </span>
+              )}
+          </div>
+
           <button 
-            onClick={loadReportsData}
+            onClick={() => {
+              if (!fromDate || !toDate) {
+                setError('Vui lòng chọn đầy đủ khoảng thời gian')
+                return
+              }
+              // Ensure from <= to
+              if (new Date(fromDate) > new Date(toDate)) {
+                setError('Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc')
+                return
+              }
+              setError(null)
+              loadReportsData(fromDate, toDate, granularity)
+            }}
             style={{
               padding: '10px 20px',
               background: '#FFD875',
@@ -242,9 +387,11 @@ export default function ReportsManagement() {
               gap: '8px'
             }}
           >
-            <Download size={16} />
-            Xuất báo cáo
+            <CheckCircle size={16} />
+            Áp dụng
           </button>
+          {/* Luôn hiển thị điểm dữ liệu (đã bật cố định) */}
+          {/* Bỏ chọn chỉ số; luôn dùng doanh thu làm tỷ lệ, tooltip hiển thị cả 2 */}
         </div>
       </div>
 
@@ -339,11 +486,12 @@ export default function ReportsManagement() {
                   dataKey="period" 
                   stroke="var(--text-secondary)"
                   fontSize={12}
+                  tickFormatter={(value: string) => beautifyPeriod(value)}
                 />
                 <YAxis 
                   stroke="var(--text-secondary)"
                   fontSize={12}
-                  tickFormatter={(value) => `${value}M`}
+                  tickFormatter={(value: number) => Number(value).toLocaleString('vi-VN')}
                 />
                 <Tooltip 
                   contentStyle={{
@@ -352,7 +500,8 @@ export default function ReportsManagement() {
                     borderRadius: '8px',
                     color: 'var(--text-primary)'
                   }}
-                  formatter={(value) => [`${value} triệu VNĐ`, 'Doanh thu']}
+                  formatter={(value) => [`${Number(value).toLocaleString('vi-VN')} VNĐ`, 'Doanh thu']}
+                  labelFormatter={(label) => beautifyPeriod(label as string)}
                 />
                 <Legend />
                 <Line 
@@ -361,6 +510,7 @@ export default function ReportsManagement() {
                   stroke="#FFD875" 
                   strokeWidth={2}
                   name="Doanh thu"
+                  dot
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -403,6 +553,7 @@ export default function ReportsManagement() {
                   outerRadius={100}
                   paddingAngle={5}
                   dataKey="value"
+                  nameKey="name"
                 >
                   {serviceChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -415,7 +566,14 @@ export default function ReportsManagement() {
                     borderRadius: '8px',
                     color: 'var(--text-primary)'
                   }}
-                  formatter={(value, name) => [`${value} đơn`, name]}
+                  formatter={(value: number, name: string, entry: any) => {
+                    const d = (entry && entry.payload) ? entry.payload : {}
+                    const rev = d.revenue ?? d.totalRevenue ?? value ?? 0
+                    const cnt = d.count ?? d.usageCount ?? d.bookings ?? d.totalBookings ?? 0
+                    const display = `${Number(rev).toLocaleString('vi-VN')} VNĐ • ${Number(cnt).toLocaleString('vi-VN')} lượt`
+                    const label = d.name || d.serviceName || name || 'Dịch vụ'
+                    return [display, label]
+                  }}
                 />
                 <Legend />
               </RechartsPieChart>
@@ -449,32 +607,33 @@ export default function ReportsManagement() {
         }}>
           Thông tin bổ sung
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
           <div>
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
-              Giá trị đơn hàng trung bình
+              Tỷ lệ hủy đơn
             </p>
             <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
-              {revenueData?.averageOrderValue ? revenueData.averageOrderValue.toLocaleString() : '0'} VNĐ
-            </p>
-          </div>
-          <div>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
-              Tỷ lệ hoàn thành
-            </p>
-            <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
-              {bookingData?.totalBookings > 0 
-                ? ((bookingData.completedBookings / bookingData.totalBookings) * 100).toFixed(1)
+              {typeof inventoryData?.__cancellationRate === 'number'
+                ? (inventoryData.__cancellationRate * 100).toFixed(1)
                 : '0'}%
             </p>
           </div>
           <div>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
-              Phụ tùng sắp hết
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>
+              Phụ tùng sắp hết (≤ 5)
             </p>
-            <p style={{ fontSize: '16px', fontWeight: '600', color: '#F59E0B', margin: 0 }}>
-              {inventoryData?.lowStockParts || 0} loại
-            </p>
+            {lowStockItems && lowStockItems.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '6px' }}>
+                {lowStockItems.slice(0, 6).map((p: any) => (
+                  <li key={p.partId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <span style={{ color: 'var(--text-primary)' }}>{p.partName || 'Không rõ'}</span>
+                    <span style={{ color: '#F59E0B', fontWeight: 600 }}>{p.currentStock}/{p.minThreshold}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>Không có phụ tùng sắp hết</span>
+            )}
           </div>
         </div>
       </div>

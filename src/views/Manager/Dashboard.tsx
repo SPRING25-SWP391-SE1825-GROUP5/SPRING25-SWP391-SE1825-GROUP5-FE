@@ -15,7 +15,8 @@ import {
 import {
   DashboardOverview,
   StaffManagement,
-  InventoryManagement
+  InventoryManagement,
+  ReportsManagement
 } from '../../components/manager'
 import NotificationBell from '@/components/common/NotificationBell'
 import BookingManagement from '@/components/manager/BookingManagement'
@@ -25,7 +26,7 @@ export default function ManagerDashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState('reports')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   
 
@@ -36,6 +37,8 @@ export default function ManagerDashboard() {
 
   const renderPageContent = () => {
     switch (activePage) {
+      case 'reports':
+        return <ReportsManagement />
       case 'staff':
         return <StaffManagement />
       case 'bookings':
@@ -198,27 +201,27 @@ export default function ManagerDashboard() {
                 Tổng quan
               </h3>
               <div 
-                onClick={() => setActivePage('dashboard')}
+                onClick={() => setActivePage('reports')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   padding: '12px 16px',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  color: activePage === 'dashboard' ? '#FFD875' : 'var(--text-secondary)',
-                  background: activePage === 'dashboard' ? '#FFF8E5' : 'transparent',
+                  color: activePage === 'reports' ? '#FFD875' : 'var(--text-secondary)',
+                  background: activePage === 'reports' ? '#FFF8E5' : 'transparent',
                   fontWeight: '500',
                   marginBottom: '4px',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  if (activePage !== 'dashboard') {
+                  if (activePage !== 'reports') {
                     e.currentTarget.style.background = '#FFF8E5'
                     e.currentTarget.style.color = '#FFD875'
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (activePage !== 'dashboard') {
+                  if (activePage !== 'reports') {
                     e.currentTarget.style.background = 'transparent'
                     e.currentTarget.style.color = 'var(--text-secondary)'
                   }
