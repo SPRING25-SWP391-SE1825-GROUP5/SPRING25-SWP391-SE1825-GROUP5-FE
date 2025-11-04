@@ -210,12 +210,11 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
       {/* CSS Styles */}
       <style>{`
         .steps-progress-indicator {
-          margin: 2rem 0 3rem 0;
-          padding: 0 1rem;
-          background: linear-gradient(135deg, #e6f2f0 0%, #cce5e0 100%);
-          border-radius: 20px;
-          padding: 2rem 1rem;
-          box-shadow: 0 4px 20px rgba(74, 151, 130, 0.15);
+          margin: 0.5rem 0;
+          padding: 0.75rem 1rem;
+          background: rgba(255, 255, 255, 0.6);
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .steps-container {
@@ -253,13 +252,13 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
 
         /* Compact size adjustments */
         .steps-progress-indicator.compact .step-circle {
-          width: 36px;
-          height: 36px;
-          border-width: 3px;
+          width: 32px;
+          height: 32px;
+          border-width: 2px;
         }
         .steps-progress-indicator.compact .step-content {
-          margin-top: 8px;
-          max-width: 180px;
+          margin-top: 6px;
+          max-width: 120px;
           padding: 0 4px;
         }
         .step-circle.completed {
@@ -281,6 +280,15 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           text-align: center;
           max-width: 160px;
           padding: 0 8px;
+        }
+
+        .steps-progress-indicator.compact .step-label {
+          font-size: 0.75rem;
+          margin-bottom: 2px;
+        }
+
+        .steps-progress-indicator.compact .step-description {
+          font-size: 0.65rem;
         }
 
         .step-label {
@@ -307,6 +315,11 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           right: -50%;
           height: 4px;
           z-index: 1;
+        }
+
+        .steps-progress-indicator.compact .step-connector {
+          top: 16px;
+          height: 2px;
         }
 
         .connector-line {

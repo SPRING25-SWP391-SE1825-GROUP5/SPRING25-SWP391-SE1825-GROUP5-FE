@@ -7,6 +7,7 @@ export interface VehicleModel {
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;
+  imageUrl?: string; // Cloudinary URL (BE column ImageUrl)
 }
 
 export interface CreateVehicleModelRequest {
@@ -28,6 +29,7 @@ export interface VehicleModelResponse {
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;
+  imageUrl?: string; // Cloudinary URL
 }
 
 export interface VehicleModelSearchParams {
@@ -40,7 +42,7 @@ export interface VehicleModelSearchParams {
 
 // Service functions cho VehicleModel
 export const vehicleModelService = {
-    // get all vehicle model
+  // get all vehicle model
   async getAll(): Promise<VehicleModelResponse[]> {
     try {
       const response = await api.get('/VehicleModel');
