@@ -311,5 +311,23 @@ export const ReportsService = {
     const convertedPeriod = convertPeriodForTechnicianInventory(period)
     const response = await api.get(`/Reports/inventory/usage/${centerId}`, { params: { period: convertedPeriod } })
     return response.data
+  },
+
+  // Utilization Rate
+  async getUtilizationRate(
+    centerId: number,
+    params?: { from?: string; to?: string }
+  ): Promise<{
+    success?: boolean
+    utilizationRate?: number
+    averageUtilizationRate?: number
+    totalSlots?: number
+    usedSlots?: number
+    items?: Array<{ period: string; utilizationRate: number }>
+  }> {
+    const response = await api.get(`/Report/centers/${centerId}/utilization-rate`, {
+      params: params ? { from: params.from, to: params.to } : undefined,
+    })
+    return response.data
   }
 }

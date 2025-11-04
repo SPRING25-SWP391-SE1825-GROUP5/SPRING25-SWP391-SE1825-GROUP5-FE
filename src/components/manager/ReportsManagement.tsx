@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useAppSelector } from '@/store/hooks'
+import { useState, useEffect, useRef } from 'react'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { getCurrentUser } from '@/store/authSlice'
 import { 
   DollarSign,
   ShoppingCart,
@@ -7,7 +8,8 @@ import {
   TrendingUp,
   Users,
   Package,
-  AlertTriangle
+  AlertTriangle,
+  Calendar
 } from 'lucide-react'
 import {
   LineChart,
@@ -38,11 +40,36 @@ export default function ReportsManagement() {
   const [inventoryData, setInventoryData] = useState<any>(null)
   const [lowStockItems, setLowStockItems] = useState<any[]>([])
   const [serviceRevenueItems, setServiceRevenueItems] = useState<any[]>([])
+  const [utilizationRate, setUtilizationRate] = useState<number | null>(null)
 
   const user = useAppSelector((state) => state.auth.user)
+  const dispatch = useAppDispatch()
+  const profileFetchAttempted = useRef(false)
+
+  // Fetch profile nếu thiếu centerId (chỉ một lần)
+  useEffect(() => {
+    const fetchProfileIfNeeded = async () => {
+      // Chỉ fetch một lần nếu user tồn tại nhưng thiếu centerId
+      if (!profileFetchAttempted.current && user && !user.centerId) {
+        profileFetchAttempted.current = true
+        try {
+          await dispatch(getCurrentUser()).unwrap()
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error)
+        }
+      }
+    }
+    fetchProfileIfNeeded()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]) // Chỉ chạy khi user.id thay đổi (khi user được set lần đầu)
 
   // Khởi tạo mặc định: 7 ngày gần nhất và tự tải dữ liệu
   useEffect(() => {
+    // Chỉ load data khi đã có centerId
+    if (!user?.centerId) {
+      return
+    }
+    
     const today = new Date()
     const sevenDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)
     const d2 = today.toISOString().split('T')[0]
@@ -55,7 +82,7 @@ export default function ReportsManagement() {
       loadReportsData(d1, d2, 'day')
     }, 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user?.centerId])
 
   const loadReportsData = async (
     overrideFrom?: string,
@@ -66,7 +93,13 @@ export default function ReportsManagement() {
       setLoading(true)
       setError(null)
       
-      const centerId = user?.centerId || 2
+      const centerId = user?.centerId
+      
+      if (!centerId) {
+        setError('Không tìm thấy thông tin chi nhánh. Vui lòng đăng nhập lại.')
+        setLoading(false)
+        return
+      }
       const startDate = overrideFrom || fromDate
       const endDate = overrideTo || toDate
 
@@ -97,20 +130,26 @@ export default function ReportsManagement() {
         ReportsService.getInventoryUsage(centerId, 'month'),
         ReportsService.getRevenueByService(centerId, { from: startDate, to: endDate }),
         ReportsService.getBookingCancellation(centerId, { from: startDate, to: endDate }),
-        ReportsService.getInventoryLowStock(centerId, { threshold: 5 })
+        ReportsService.getInventoryLowStock(centerId, { threshold: 5 }),
+        ReportsService.getUtilizationRate(centerId, { from: startDate, to: endDate })
       ])
 
       setRevenueData(revenuePayload)
-      const [partsR, bookingR, techR, invR, revServiceR, cancelR, lowStockR] = results
+      const [partsR, bookingR, techR, invR, revServiceR, cancelR, lowStockR, utilizationR] = results
       if (partsR.status === 'fulfilled') setPartsUsageData(partsR.value.data)
       if (bookingR.status === 'fulfilled') {
         const total = bookingR.value.total ?? 0
-        setBookingData({ totalBookings: total })
+        const items = bookingR.value.items || []
+        // Lấy số lượng bookings có status PAID
+        const paidCount = items.find((item: any) => 
+          item.status?.toUpperCase() === 'PAID'
+        )?.count || 0
+        setBookingData({ totalBookings: paidCount })
       }
       if (techR.status === 'fulfilled') setTechnicianData(techR.value.data)
       if (invR.status === 'fulfilled') setInventoryData(invR.value.data)
       if (revServiceR.status === 'fulfilled') {
-        const raw = revServiceR.value?.items || revServiceR.value?.data?.items || revServiceR.value?.data || revServiceR.value || []
+        const raw = revServiceR.value?.items || revServiceR.value || []
         const arr: any[] = Array.isArray(raw) ? raw : []
         const normalized = arr.map((it: any) => {
           const name = it.serviceName || it.name || it.ServiceName || 'Không rõ'
@@ -123,12 +162,45 @@ export default function ReportsManagement() {
         setServiceRevenueItems(normalized)
       }
       if (cancelR.status === 'fulfilled') {
-        const rate = Number(cancelR.value?.cancellationRate ?? cancelR.value?.data?.cancellationRate ?? 0)
+        const rate = Number(cancelR.value?.cancellationRate ?? 0)
         setInventoryData((prev: any) => ({ ...(prev || {}), __cancellationRate: rate }))
       }
       if (lowStockR.status === 'fulfilled') {
-        const items = lowStockR.value?.items || lowStockR.value?.data?.items || []
+        const items = lowStockR.value?.items || []
         setLowStockItems(Array.isArray(items) ? items : [])
+      }
+      if (utilizationR.status === 'fulfilled') {
+        const response = utilizationR.value as any
+        
+        // Lấy tỉ lệ lấp đầy trung bình
+        let averageRate = 0
+        
+        // Nếu có field averageUtilizationRate trực tiếp
+        if (response?.averageUtilizationRate !== undefined) {
+          averageRate = Number(response.averageUtilizationRate)
+        }
+        // Nếu có items array, tính trung bình từ các items
+        else if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
+          const rates = response.items
+            .map((item: any) => Number(item.utilizationRate ?? item.rate ?? 0))
+            .filter((rate: number) => !isNaN(rate) && rate > 0)
+          
+          if (rates.length > 0) {
+            averageRate = rates.reduce((sum: number, rate: number) => sum + rate, 0) / rates.length
+          }
+        }
+        // Nếu có utilizationRate trực tiếp (có thể đã là trung bình)
+        else if (response?.utilizationRate !== undefined) {
+          averageRate = Number(response.utilizationRate)
+        }
+        // Tính từ usedSlots / totalSlots nếu có
+        else if (response?.usedSlots && response?.totalSlots) {
+          averageRate = Number(response.usedSlots) / Number(response.totalSlots)
+        }
+        
+        setUtilizationRate(averageRate)
+      } else if (utilizationR.status === 'rejected') {
+        setUtilizationRate(0)
       }
 
     } catch (err) {
@@ -239,8 +311,20 @@ export default function ReportsManagement() {
         gap: '16px'
       }}>
         <div style={{ fontSize: '16px', color: '#EF4444' }}>{error}</div>
-        <button 
-          onClick={loadReportsData}
+          <button 
+            onClick={() => {
+              if (!fromDate || !toDate) {
+                setError('Vui lòng chọn đầy đủ khoảng thời gian')
+                return
+              }
+              // Ensure from <= to
+              if (new Date(fromDate) > new Date(toDate)) {
+                setError('Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc')
+                return
+              }
+              setError(null)
+              loadReportsData(fromDate, toDate, granularity)
+            }}
           style={{
             padding: '8px 16px',
             background: '#FFD875',
@@ -277,20 +361,39 @@ export default function ReportsManagement() {
   })
 
   // Calculate stats
+  // Tính tổng doanh thu theo dịch vụ
+  const totalServiceRevenue = (serviceRevenueItems || []).reduce((sum, item) => {
+    return sum + (Number(item.revenue) || 0)
+  }, 0)
+
   const reportStats = [
     {
-      title: 'Doanh thu',
+      title: 'Tổng doanh thu',
       value: (revenueData?.totalRevenue ? Number(revenueData.totalRevenue) : 0).toLocaleString('vi-VN'),
       unit: 'VNĐ',
       icon: DollarSign,
       color: '#FFD875'
     },
     {
-      title: 'Đơn hàng',
+      title: 'Lịch hẹn',
       value: bookingData?.totalBookings?.toString() || '0',
       unit: 'đơn',
-      icon: ShoppingCart,
+      icon: Calendar,
       color: '#22C55E'
+    },
+    {
+      title: 'Doanh thu theo dịch vụ',
+      value: totalServiceRevenue.toLocaleString('vi-VN'),
+      unit: 'VNĐ',
+      icon: Package,
+      color: '#3B82F6'
+    },
+    {
+      title: 'Tỉ lệ lấp đầy',
+      value: utilizationRate !== null ? `${(utilizationRate * 100).toFixed(1)}` : '0',
+      unit: '%',
+      icon: TrendingUp,
+      color: '#A78BFA'
     }
   ]
 
