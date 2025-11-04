@@ -88,45 +88,24 @@ export class PaymentService {
      * Tạo thanh toán thông thường
      */
     static async createPayment(request: PaymentRequest): Promise<PaymentResponse> {
-        try {
-            console.log('Creating payment:', request)
-            const response = await api.post('/Payment/create', request)
-            console.log('Payment creation response:', response.data)
-            return response.data
-        } catch (error) {
-            console.error('Error creating payment:', error)
-            throw error
-        }
+        const response = await api.post('/Payment/create', request)
+        return response.data
     }
 
     /**
      * Tạo thanh toán VNPay
      */
     static async createVNPayPayment(request: VNPayPaymentRequest): Promise<VNPayPaymentResponse> {
-        try {
-            console.log('Creating VNPay payment:', request)
-            const response = await api.post('/Payment/vnpay/create', request)
-            console.log('VNPay payment creation response:', response.data)
-            return response.data
-        } catch (error) {
-            console.error('Error creating VNPay payment:', error)
-            throw error
-        }
+        const response = await api.post('/Payment/vnpay/create', request)
+        return response.data
     }
 
     /**
      * Tạo thanh toán QR Code
      */
     static async createQRPayment(request: QRPaymentRequest): Promise<QRPaymentResponse> {
-        try {
-            console.log('Creating QR payment:', request)
-            const response = await api.post('/Payment/qr/create', request)
-            console.log('QR payment creation response:', response.data)
-            return response.data
-        } catch (error) {
-            console.error('Error creating QR payment:', error)
-            throw error
-        }
+        const response = await api.post('/Payment/qr/create', request)
+        return response.data
     }
 
     /**
@@ -141,14 +120,8 @@ export class PaymentService {
      */
     static async checkPaymentStatus(orderCode: string): Promise<PaymentStatusResponse> {
         try {
-            console.log('Checking payment status for orderCode:', orderCode)
             const response = await api.get(`/Payment/check-status/${orderCode}`)
-            console.log('Payment status API response:', response.data)
-
-            // Xử lý response structure khác nhau
             const responseData = response.data
-
-            // Nếu API trả về structure khác, map lại
             if (responseData.success && responseData.data) {
                 return {
                     success: responseData.success,
@@ -164,8 +137,6 @@ export class PaymentService {
                     }
                 }
             }
-
-            // Fallback nếu structure không đúng
             return {
                 success: responseData.success || false,
                 message: responseData.message || 'Unknown response',
@@ -176,7 +147,6 @@ export class PaymentService {
                 }
             }
         } catch (error) {
-            console.error('Error checking payment status:', error)
             throw error
         }
     }
@@ -186,19 +156,11 @@ export class PaymentService {
      */
     static async handlePaymentCallback(params: Record<string, string>) {
         try {
-            console.log('Payment callback params:', params)
             const orderCode = params.orderCode || params.bookingId
             if (!orderCode) {
-                console.error('Missing orderCode in payment callback params:', params)
                 throw new Error('Missing orderCode in payment callback')
             }
-
-            console.log('Processing payment callback for orderCode:', orderCode)
-
-            // Kiểm tra trạng thái thanh toán từ API
             const paymentStatus = await this.checkPaymentStatus(orderCode)
-            console.log('Payment status result:', paymentStatus)
-
             const result = {
                 success: paymentStatus.success,
                 status: paymentStatus.data.status,
@@ -207,11 +169,8 @@ export class PaymentService {
                 bookingId: paymentStatus.data.bookingId,
                 message: paymentStatus.message
             }
-
-            console.log('Payment callback result:', result)
             return result
         } catch (error) {
-            console.error('Error handling payment callback:', error)
             const result = {
                 success: false,
                 status: 'FAILED' as const,
@@ -220,7 +179,6 @@ export class PaymentService {
                 bookingId: undefined,
                 message: 'Không thể xác minh trạng thái thanh toán'
             }
-            console.log('Payment callback error result:', result)
             return result
         }
     }

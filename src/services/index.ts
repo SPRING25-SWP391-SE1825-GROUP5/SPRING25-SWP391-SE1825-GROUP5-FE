@@ -155,3 +155,7 @@ export type { QuickOrderRequest, QuickOrderResponse } from './orderService'
 export { PromotionService } from './promotionService'
 
 // TODO: Add other services as they are created
+
+// Cart Services
+export { CartService } from './cartService'
+export type { AddCartItemRequest } from './cartService'

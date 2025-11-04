@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { removeFromCart, updateQuantity, clearCart } from '@/store/cartSlice'
+import { CartService, CustomerService } from '@/services'
 import {
   XMarkIcon,
   ArrowLeftIcon,
@@ -14,6 +16,7 @@ export default function Cart() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const cart = useAppSelector((state) => state.cart)
+  const auth = useAppSelector((state) => state.auth)
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -40,46 +43,55 @@ export default function Cart() {
     }
   }
 
-  const shipping = cart.total >= 10000000 ? 0 : 200000 // Free shipping over 10M
-  const finalTotal = cart.total + shipping
+  // Tính theo tổng giá trị (đơn giá x số lượng)
+  // Lưu ý: phần phí ship sẽ tính sau khi có displayedTotal (phía dưới)
 
-  const mockItems = [
-    {
-      id: '1',
-      name: 'Pin Lithium 72V-40Ah',
-      price: 9200000,
-      originalPrice: 10600000,
-      image: '',
-      brand: 'Panasonic',
-      quantity: 2,
-      category: 'Phụ tùng EV',
-      inStock: true
-    },
-    {
-      id: '2',
-      name: 'Lốp Yokohama City 12", Tubeless (Chính hãng)',
-      price: 520000,
-      image: '',
-      brand: 'Yokohama',
-      quantity: 1,
-      category: 'Phụ tùng EV',
-      inStock: true
-    },
-    {
-      id: '3',
-      name: 'Sên dẫn động DID 10mm',
-      price: 370000,
-      image: '',
-      brand: 'DID (Japan)',
-      quantity: 4,
-      category: 'Phụ kiện',
-      inStock: true
-    }
-  ]
-
-  const displayedItems = cart.items.length === 0 ? mockItems : cart.items
+  // Remove mock data: always use items from store
+  const displayedItems = cart.items
   const displayedCount = displayedItems.reduce((sum, it) => sum + it.quantity, 0)
   const displayedTotal = displayedItems.reduce((sum, it) => sum + (it.price * it.quantity), 0)
+  const finalTotal = displayedTotal
+
+  // Load cart from backend for current customer
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const user = auth.user
+        const storedId = (typeof localStorage !== 'undefined' && localStorage.getItem('cartId')) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cartId'))
+        let cartId = storedId ? Number(storedId) : undefined
+
+        if (!cartId && user?.customerId) {
+          const resp = await CartService.getCartByCustomer(Number(user.customerId))
+          const id = (resp?.data as any)?.cartId
+          if (id) {
+            cartId = Number(id)
+            if (typeof localStorage !== 'undefined') localStorage.setItem('cartId', String(cartId))
+            dispatch({ type: 'cart/setCartId', payload: cartId })
+          }
+        }
+
+        if (cartId) {
+          const itemsResp = await CartService.getCartItems(cartId)
+          const mapped = (itemsResp?.data || []).map((it: any) => ({
+            id: String(it.partId ?? it.id ?? it.part?.partId),
+            name: it.partName ?? it.name ?? it.part?.partName ?? 'Sản phẩm',
+            price: it.unitPrice ?? it.price ?? it.part?.unitPrice ?? 0,
+            image: it.imageUrl ?? it.image ?? it.part?.imageUrl ?? '',
+            brand: it.brand ?? it.part?.brand ?? '',
+            quantity: it.quantity ?? 1,
+            category: it.category ?? '',
+            inStock: true,
+          }))
+          if (Array.isArray(mapped) && mapped.length > 0) {
+            dispatch({ type: 'cart/setCartItems', payload: mapped })
+          }
+        }
+      } catch (_) {
+        // ignore silently
+      }
+    }
+    fetchCart()
+  }, [auth.user?.customerId, dispatch])
 
   if (displayedItems.length === 0) {
     return (
@@ -200,19 +212,7 @@ export default function Cart() {
                 <span>{formatPrice(displayedTotal)}</span>
               </div>
               
-              <div className="summary-row">
-                <span>Phí vận chuyển</span>
-                <span className={shipping === 0 ? 'free' : ''}>
-                  {shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}
-                </span>
-              </div>
-
-              {shipping === 0 && (
-                <div className="free-shipping-notice">
-                  <TruckIcon className="w-5 h-5" />
-                  Bạn được miễn phí vận chuyển!
-                </div>
-              )}
+              {/* Bỏ mục phí vận chuyển theo yêu cầu */}
 
               <div className="summary-divider"></div>
 

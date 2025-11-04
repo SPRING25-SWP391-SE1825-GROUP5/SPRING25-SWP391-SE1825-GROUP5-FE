@@ -1,10 +1,26 @@
 .booking-page {
-  background: #fff9e514;
+  background: #fff9e514 url('../assets/images/ChatGPT Image 04_26_30 4 thg 11, 2025.png') no-repeat center center;
+  background-size: cover;
+  background-attachment: fixed;
   padding-top: 80px;
   width: 100%;
   min-height: 100vh;
   box-sizing: border-box;
   overflow-x: hidden;
+  position: relative;
+
+  /* Overlay để làm nền hình ảnh nhẹ nhàng hơn */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 249, 229, 0.75);
+    z-index: 0;
+    pointer-events: none;
+  }
 
   .booking-title {
     color: var(--text-primary);
@@ -15,6 +31,8 @@
   }
 
   .booking-content {
+    position: relative;
+    z-index: 1;
     background: rgba(255, 255, 255, 0.18);
     -webkit-backdrop-filter: blur(14px) saturate(160%);
     backdrop-filter: blur(14px) saturate(160%);
@@ -27,6 +45,8 @@
 }
 
 .service-booking-view {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 100%;
   margin: 0;
@@ -37,7 +57,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-}
 
   /* Progress indicator unify */
   .steps-progress-indicator {
@@ -702,4 +721,4 @@
   }
 }
 
-
+}
