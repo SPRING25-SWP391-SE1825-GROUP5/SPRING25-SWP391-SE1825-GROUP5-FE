@@ -15,7 +15,8 @@ import {
   Brain,
   Calendar,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  LayoutDashboard
 } from 'lucide-react'
 import NotificationBell from '@/components/common/NotificationBell'
 import NavigationDropdown, { type MenuItem } from './NavigationDropdown'
@@ -180,6 +181,32 @@ const NewAppHeader: React.FC = () => {
     }
   ]
 
+  // Hàm lấy dashboard URL dựa trên role
+  const getDashboardUrl = (): string | null => {
+    if (!user?.role) return null
+    
+    const role = user.role.toUpperCase()
+    switch (role) {
+      case 'STAFF':
+        return '/staff'
+      case 'TECHNICIAN':
+        return '/technician'
+      case 'MANAGER':
+        return '/manager'
+      case 'ADMIN':
+        return '/admin'
+      default:
+        return null
+    }
+  }
+
+  // Kiểm tra user có role cần hiển thị nút dashboard không
+  const shouldShowDashboardButton = (): boolean => {
+    if (!user?.role) return false
+    const role = user.role.toUpperCase()
+    return ['STAFF', 'TECHNICIAN', 'MANAGER', 'ADMIN'].includes(role)
+  }
+
   // Right items (icons and buttons)
   const rightItems = (
     <>
@@ -229,6 +256,15 @@ const NewAppHeader: React.FC = () => {
                   </div>
                 </NavLink>
               </div>
+              {/* Dashboard Link - Only show for staff, technician, manager, admin */}
+              {shouldShowDashboardButton() && getDashboardUrl() && (
+                <div className="dropdown-item">
+                  <NavLink to={getDashboardUrl()!} className="dropdown-link">
+                    <LayoutDashboard size={16} />
+                    <span className="dropdown-label">Quay lại Dashboard</span>
+                  </NavLink>
+                </div>
+              )}
               <div className="dropdown-item">
                   <button 
                   className="dropdown-link dropdown-link--logout"
