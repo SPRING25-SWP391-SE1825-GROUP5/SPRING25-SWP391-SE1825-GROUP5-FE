@@ -20,6 +20,8 @@ interface VehicleInfo {
   brand?: string
   // Bảo dưỡng fields
   lastMaintenanceDate?: string
+  purchaseDate?: string // Ngày mua xe (dùng khi chưa bảo dưỡng)
+  hasMaintenanceHistory?: boolean // Đã bảo dưỡng chưa?
   // Sửa chữa fields
   vehicleCondition?: string
   repairChecklist?: string[]
@@ -74,7 +76,6 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(serviceData.categoryId)
-  const [expandedCategoryId, setExpandedCategoryId] = useState<number | undefined>(serviceData.categoryId)
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(undefined)
   
   // Recommendation states
@@ -97,6 +98,17 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       try {
         const cats = await ServiceCategoryService.getActiveCategories()
         setCategories(cats)
+        
+        // Tự động chọn category "bảo dưỡng" làm mặc định
+        if (cats.length > 0) {
+          const maintenanceCategory = cats.find(cat => 
+            cat.categoryName?.toLowerCase().includes('bảo dưỡng')
+          )
+          if (maintenanceCategory) {
+            setSelectedCategoryId(maintenanceCategory.categoryId)
+            onUpdateService({ categoryId: maintenanceCategory.categoryId, services: [], packageId: undefined, packageCode: undefined })
+          }
+        }
       } catch (error) {
         setCategories([])
       } finally {
@@ -104,6 +116,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       }
     }
     loadCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Load active services (filter by category if selected)
@@ -185,12 +198,21 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     // Reset recommendations when category changes
     setRecommendedServices([])
     setShowRecommendations(false)
-    setExpandedCategoryId(undefined)
+    // Reset maintenance history question when category changes to non-maintenance
+    const newCategory = categoryId ? categories.find(c => c.categoryId === categoryId) : undefined
+    if (!newCategory?.categoryName?.toLowerCase().includes('bảo dưỡng')) {
+      onUpdateVehicle({ hasMaintenanceHistory: undefined, lastMaintenanceDate: undefined, purchaseDate: undefined })
+    }
   }
 
   // Function to get recommended services
   const getRecommendedServices = async () => {
-    if (!vehicleData.mileage || !vehicleData.lastMaintenanceDate || !selectedCategoryId) {
+    // Use lastMaintenanceDate if has maintenance history, otherwise use purchaseDate
+    const dateToUse = vehicleData.hasMaintenanceHistory 
+      ? vehicleData.lastMaintenanceDate 
+      : vehicleData.purchaseDate
+    
+    if (!vehicleData.mileage || !dateToUse || !selectedCategoryId) {
       return
     }
 
@@ -203,7 +225,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     try {
       const response = await ServiceChecklistTemplateService.getRecommendedServices({
         currentKm,
-        lastMaintenanceDate: vehicleData.lastMaintenanceDate,
+        lastMaintenanceDate: dateToUse,
         categoryId: selectedCategoryId
       })
       
@@ -238,6 +260,33 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const recentKm = Number(vehicleData.recentMileage || '')
     const invalidRecent = isVehicleSelected && !!vehicleData.recentMileage && !isNaN(recentKm) && recentKm < baseKm
     if (invalidRecent) return false
+    
+    // Kiểm tra yêu cầu cho dịch vụ bảo dưỡng
+    const isMaintenanceCategory = selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng')
+    if (isMaintenanceCategory) {
+      // Nếu đã chọn loại dịch vụ bảo dưỡng, phải trả lời câu hỏi và nhập ngày tương ứng
+      if (vehicleData.hasMaintenanceHistory === undefined) return false
+      
+      if (vehicleData.hasMaintenanceHistory) {
+        if (!vehicleData.lastMaintenanceDate) return false
+        // Kiểm tra ngày bảo dưỡng không được là hôm nay hoặc tương lai
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+        const yesterdayStr = yesterday.toISOString().split('T')[0]
+        const todayStr = today.toISOString().split('T')[0]
+        if (vehicleData.lastMaintenanceDate >= todayStr) return false
+      }
+      
+      if (!vehicleData.hasMaintenanceHistory) {
+        if (!vehicleData.purchaseDate) return false
+        // Kiểm tra ngày mua xe không được là tương lai
+        const todayStr = new Date().toISOString().split('T')[0]
+        if (vehicleData.purchaseDate > todayStr) return false
+      }
+    }
+    
     return (
       (serviceData.services.length > 0 || serviceData.packageId) &&
       !!vehicleData.carModel &&
@@ -254,10 +303,39 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     <div className="combined-service-vehicle-step">
       <h2 className="csv-title">Dịch vụ & Thông tin xe</h2>
       <p className="csv-subheading">Chọn dịch vụ hoặc gói dịch vụ và cung cấp thông tin xe để tiếp tục đặt lịch</p>
-      <form onSubmit={handleSubmit} className="csv-grid">
-      <div className="csv-section card">
+      <form onSubmit={handleSubmit}>
+        {/* Phần chọn loại dịch vụ - đưa lên đầu tiên */}
+        <div className="csv-section card category-section">
           <div className="form-group">
-            <label>Chọn xe<span className="required-star">*</span></label>
+            <label className="csv-section-title">1. Loại dịch vụ <span className="required-star">*</span></label>
+            {categoriesLoading ? (
+              <div>Đang tải...</div>
+            ) : (
+              <div className="category-grid">
+                {categories.map(cat => {
+                  const active = selectedCategoryId === cat.categoryId
+                  return (
+                    <div key={cat.categoryId} className={`category-card ${active ? 'active' : ''}`}>
+                      <button
+                        type="button"
+                        className="category-main"
+                        onClick={() => handleCategoryChange(cat.categoryId)}
+                      >
+                        <span className="category-name">{cat.categoryName}</span>
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Grid 2 cột: Thông tin xe và Chọn dịch vụ */}
+        <div className="csv-grid">
+          <div className="csv-section card">
+            <div className="form-group">
+            <label className="csv-section-title">2. Chọn xe<span className="required-star">*</span></label>
             <select
             style={{
               width: '100%',
@@ -369,42 +447,129 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
           {/* Fields riêng cho Bảo dưỡng */}
           {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && (
-            <div className="form-group">
-              <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
-              {(() => {
-                const todayStr = new Date().toISOString().split('T')[0]
-                const selectedDate = vehicleData.lastMaintenanceDate || ''
-                const isFuture = !!selectedDate && selectedDate > todayStr
-                return (
-                  <>
+            <>
+              <div className="form-group">
+                <label>Bạn đã bảo dưỡng chưa? <span className="required-star">*</span></label>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                     <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
-                      max={todayStr}
-                      required
-                      aria-invalid={isFuture}
-                      style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
-                        borderRadius: '12px',
-                        fontSize: '16px',
-                        background: '#ffffff',
-                        color: '#111827',
-                        transition: 'all 0.2s ease',
-                        boxSizing: 'border-box'
+                      type="radio"
+                      name="hasMaintenanceHistory"
+                      checked={vehicleData.hasMaintenanceHistory === true}
+                      onChange={() => {
+                        onUpdateVehicle({ 
+                          hasMaintenanceHistory: true,
+                          purchaseDate: undefined // Clear purchase date when selecting "yes"
+                        })
                       }}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
-                    {isFuture && (
-                      <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
-                        Ngày này không thể chọn trong tương lai
-                      </div>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
+                    <span>Có</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="hasMaintenanceHistory"
+                      checked={vehicleData.hasMaintenanceHistory === false}
+                      onChange={() => {
+                        onUpdateVehicle({ 
+                          hasMaintenanceHistory: false,
+                          lastMaintenanceDate: undefined // Clear maintenance date when selecting "no"
+                        })
+                      }}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span>Chưa</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Hiển thị trường ngày bảo dưỡng cuối nếu đã bảo dưỡng */}
+              {vehicleData.hasMaintenanceHistory === true && (
+                <div className="form-group">
+                  <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
+                  {(() => {
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    const yesterday = new Date(today)
+                    yesterday.setDate(yesterday.getDate() - 1)
+                    const yesterdayStr = yesterday.toISOString().split('T')[0]
+                    const todayStr = today.toISOString().split('T')[0]
+                    const selectedDate = vehicleData.lastMaintenanceDate || ''
+                    const isFuture = !!selectedDate && selectedDate > yesterdayStr
+                    const isToday = selectedDate === todayStr
+                    return (
+                      <>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
+                          max={yesterdayStr}
+                          required
+                          aria-invalid={isFuture || isToday}
+                          style={{
+                            width: '100%',
+                            padding: '14px 16px',
+                            border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                            borderRadius: '12px',
+                            fontSize: '16px',
+                            background: '#ffffff',
+                            color: '#111827',
+                            transition: 'all 0.2s ease',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        {(isFuture || isToday) && (
+                          <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
+                            {isToday ? 'Không thể chọn ngày hôm nay' : 'Ngày này không thể chọn trong tương lai'}
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+
+              {/* Hiển thị trường ngày mua xe nếu chưa bảo dưỡng */}
+              {vehicleData.hasMaintenanceHistory === false && (
+                <div className="form-group">
+                  <label>Ngày mua xe <span className="required-star">*</span></label>
+                  {(() => {
+                    const todayStr = new Date().toISOString().split('T')[0]
+                    const selectedDate = vehicleData.purchaseDate || ''
+                    const isFuture = !!selectedDate && selectedDate > todayStr
+                    return (
+                      <>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => onUpdateVehicle({ purchaseDate: e.target.value })}
+                          max={todayStr}
+                          required
+                          aria-invalid={isFuture}
+                          style={{
+                            width: '100%',
+                            padding: '14px 16px',
+                            border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                            borderRadius: '12px',
+                            fontSize: '16px',
+                            background: '#ffffff',
+                            color: '#111827',
+                            transition: 'all 0.2s ease',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        {isFuture && (
+                          <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
+                            Ngày này không thể chọn trong tương lai
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+            </>
           )}
 
           {/* Fields riêng cho Sửa chữa */}
@@ -441,46 +606,12 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               </div>
             </>
           )}
-        </div>
-        <div className="csv-section card">
-          <div className="form-group">
-            <label>Loại dịch vụ <span className="required-star">*</span></label>
-            {categoriesLoading ? (
-              <div>Đang tải...</div>
-            ) : (
-              <div className="category-grid">
-                {categories.map(cat => {
-                  const active = selectedCategoryId === cat.categoryId
-                  return (
-                    <div key={cat.categoryId} className={`category-card ${active ? 'active' : ''}`}>
-                      <button
-                        type="button"
-                        className="category-main"
-                        onClick={() => handleCategoryChange(cat.categoryId)}
-                      >
-                        <span className="category-name">{cat.categoryName}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="category-detail"
-                        onClick={() => {
-                          const next = expandedCategoryId === cat.categoryId ? undefined : cat.categoryId
-                          setSelectedCategoryId(cat.categoryId)
-                          setExpandedCategoryId(next)
-                        }}
-                      >
-                        {expandedCategoryId === cat.categoryId ? 'Ẩn chi tiết' : 'Xem chi tiết'}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
           </div>
-
-          {expandedCategoryId && selectedCategoryId === expandedCategoryId && (
+        <div className="csv-section card">
+          {/* Hiển thị phần chọn dịch vụ và gói dịch vụ khi đã chọn loại dịch vụ */}
+          {selectedCategoryId && (
             <>
-          <h3 className="csv-section-title">Chọn dịch vụ</h3>
+              <h3 className="csv-section-title">3. Chi tiết dịch vụ</h3>
               {servicesLoading && <div>Đang tải dịch vụ...</div>}
               {!servicesLoading && (
                 <div className="service-list">
@@ -506,7 +637,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               {/* Recommendation Section for Maintenance Category - Only show when vehicle info is complete */}
               {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
                vehicleData.mileage && 
-               vehicleData.lastMaintenanceDate && (
+               vehicleData.hasMaintenanceHistory !== undefined &&
+               ((vehicleData.hasMaintenanceHistory && vehicleData.lastMaintenanceDate) || 
+                (!vehicleData.hasMaintenanceHistory && vehicleData.purchaseDate)) && (
                 <div className="recommendation-section">
                   <div className="recommendation-header">
                     <h4 className="csv-subtitle">💡 Gợi ý dịch vụ phù hợp</h4>
@@ -514,7 +647,11 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       type="button"
                       className="btn-recommend"
                       onClick={getRecommendedServices}
-                      disabled={recommendationLoading || !vehicleData.mileage || !vehicleData.lastMaintenanceDate}
+                      disabled={
+                        recommendationLoading || 
+                        !vehicleData.mileage || 
+                        (vehicleData.hasMaintenanceHistory ? !vehicleData.lastMaintenanceDate : !vehicleData.purchaseDate)
+                      }
                     >
                       {recommendationLoading ? 'Đang tìm...' : 'Tìm dịch vụ phù hợp'}
                     </button>
@@ -530,7 +667,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       ) : (
                         <div className="recommended-services">
                           <p className="recommendation-message">
-                            Dựa trên số km hiện tại ({vehicleData.mileage} km) và ngày bảo dưỡng cuối ({vehicleData.lastMaintenanceDate}), 
+                            Dựa trên số km hiện tại ({vehicleData.mileage} km) và {vehicleData.hasMaintenanceHistory ? 'ngày bảo dưỡng cuối' : 'ngày mua xe'} ({vehicleData.hasMaintenanceHistory ? vehicleData.lastMaintenanceDate : vehicleData.purchaseDate}), 
                             chúng tôi gợi ý các dịch vụ sau:
                           </p>
                           {recommendedServices.map((template, index) => (
@@ -598,76 +735,79 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
               {/* Show instruction when maintenance category is selected but vehicle info is incomplete */}
               {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               (!vehicleData.mileage || !vehicleData.lastMaintenanceDate) && (
+               (!vehicleData.mileage || 
+                vehicleData.hasMaintenanceHistory === undefined ||
+                (vehicleData.hasMaintenanceHistory && !vehicleData.lastMaintenanceDate) ||
+                (!vehicleData.hasMaintenanceHistory && !vehicleData.purchaseDate)) && (
                 <div className="recommendation-instruction">
                   <div className="instruction-content">
                     <h4 className="csv-subtitle">💡 Để nhận gợi ý dịch vụ phù hợp</h4>
                     <p>Vui lòng nhập đầy đủ thông tin xe bên dưới:</p>
                     <ul>
                       <li>✅ Số km đã đi</li>
-                      <li>✅ Ngày bảo dưỡng cuối</li>
+                      <li>✅ Trả lời câu hỏi "Bạn đã bảo dưỡng chưa?"</li>
+                      <li>✅ {vehicleData.hasMaintenanceHistory === true ? 'Ngày bảo dưỡng cuối' : vehicleData.hasMaintenanceHistory === false ? 'Ngày mua xe' : 'Ngày bảo dưỡng cuối hoặc ngày mua xe'}</li>
                     </ul>
                     <p>Sau đó hệ thống sẽ gợi ý các dịch vụ phù hợp nhất với tình trạng xe của bạn.</p>
                   </div>
                 </div>
               )}
+
+              <h4 className="csv-subtitle">Gói dịch vụ</h4>
+              {packagesLoading && <div>Đang tải gói dịch vụ...</div>}
+              {!packagesLoading && packages.length === 0 && (
+                <div style={{ padding: '1rem', color: 'var(--csv-muted)', textAlign: 'center' }}>
+                  Không có gói dịch vụ nào trong danh mục này
+                </div>
+              )}
+              {!packagesLoading && packages.length > 0 && (
+                <div className="pkg-grid">
+                  {packages.map(pkg => {
+                    const price = typeof pkg.price === 'number' ? pkg.price : Number((pkg as any).price || 0)
+                    const priceText = price.toLocaleString('vi-VN')
+                    const selected = serviceData.packageId === pkg.packageId
+                    return (
+                      <div
+                        key={pkg.packageId}
+                        className={`pkg-card ${selected ? 'selected' : ''}`}
+                        onClick={() => handleSelectPackage(pkg)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="pkg-head">
+                          <h5 className="pkg-name">{pkg.packageName}</h5>
+                          {pkg.discountPercent ? (
+                            <span className="pkg-badge">-{pkg.discountPercent}%</span>
+                          ) : null}
+                        </div>
+                        <div className="pkg-meta">
+                          <span className="pkg-service">{pkg.serviceName ?? ''}</span>
+                          {pkg.totalCredits ? (
+                            <span className="pkg-dot">•</span>
+                          ) : null}
+                          {pkg.totalCredits ? (
+                            <span className="pkg-credits">{pkg.totalCredits} lượt</span>
+                          ) : null}
+                        </div>
+                        <div className="pkg-price">{priceText} VNĐ</div>
+                        <div className="pkg-action">{selected ? 'Đã chọn' : 'Chọn gói'}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="form-group">
+                <label>{selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') ? 'Tình trạng xe / ghi chú' : 'Ghi chú thêm'}</label>
+                <textarea
+                  value={serviceData.notes}
+                  onChange={(e) => onUpdateService({ notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
             </>
           )}
-
-          <h4 className="csv-subtitle">Gói dịch vụ</h4>
-          {packagesLoading && <div>Đang tải gói dịch vụ...</div>}
-          {!packagesLoading && packages.length === 0 && (
-            <div style={{ padding: '1rem', color: 'var(--csv-muted)', textAlign: 'center' }}>
-              Không có gói dịch vụ nào trong danh mục này
-            </div>
-          )}
-          {!packagesLoading && packages.length > 0 && (
-            <div className="pkg-grid">
-              {packages.map(pkg => {
-                const price = typeof pkg.price === 'number' ? pkg.price : Number((pkg as any).price || 0)
-                const priceText = price.toLocaleString('vi-VN')
-                const selected = serviceData.packageId === pkg.packageId
-                return (
-                  <div
-                    key={pkg.packageId}
-                    className={`pkg-card ${selected ? 'selected' : ''}`}
-                    onClick={() => handleSelectPackage(pkg)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="pkg-head">
-                      <h5 className="pkg-name">{pkg.packageName}</h5>
-                      {pkg.discountPercent ? (
-                        <span className="pkg-badge">-{pkg.discountPercent}%</span>
-                      ) : null}
-                    </div>
-                    <div className="pkg-meta">
-                      <span className="pkg-service">{pkg.serviceName ?? ''}</span>
-                      {pkg.totalCredits ? (
-                        <span className="pkg-dot">•</span>
-                      ) : null}
-                      {pkg.totalCredits ? (
-                        <span className="pkg-credits">{pkg.totalCredits} lượt</span>
-                      ) : null}
-                    </div>
-                    <div className="pkg-price">{priceText} VNĐ</div>
-                    <div className="pkg-action">{selected ? 'Đã chọn' : 'Chọn gói'}</div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          <div className="form-group">
-            <label>{selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') ? 'Tình trạng xe / ghi chú' : 'Ghi chú thêm'}</label>
-            <textarea
-              value={serviceData.notes}
-              onChange={(e) => onUpdateService({ notes: e.target.value })}
-              rows={3}
-            />
-          </div>
         </div>
-
-        
+        </div>
 
         <CreateVehicleModal
           open={openCreate}
@@ -724,7 +864,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .combined-service-vehicle-step { background: transparent; padding-bottom: .5rem; }
         .csv-title { font-size: 1.75rem; font-weight: 800; color: var(--csv-text); margin: 0 0 .25rem 0; letter-spacing: .2px; }
         .csv-subheading { margin: 0 0 1rem 0; color: var(--csv-muted); }
-        .csv-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1.25rem; align-items: start; }
+        .csv-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1.25rem; align-items: start; margin-top: 1.25rem; }
+        .category-section { margin-bottom: 1.25rem; }
         .card { 
           background: rgba(255, 255, 255, 0.6);
           border: 1px solid rgba(255, 255, 255, 0.45);
@@ -743,10 +884,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .service-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin-bottom: 1rem; }
         .pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: .5rem; }
         .category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
-        .category-card { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid var(--border-primary); border-radius: 12px; padding: .5rem; background: #fff; }
+        .category-card { display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-primary); border-radius: 12px; padding: .5rem; background: #fff; }
         .category-card.active { border-color: var(--progress-current); box-shadow: 0 2px 10px rgba(0,64,48,.12); }
-        .category-main { flex: 1; text-align: left; background: transparent; border: none; color: var(--text-primary); font-weight: 700; padding: .5rem .75rem; border-radius: 10px; cursor: pointer; }
-        .category-detail { background: var(--primary-50); color: var(--progress-current); border: 1px solid var(--progress-current); border-radius: 10px; padding: .45rem .7rem; font-weight: 700; cursor: pointer; }
+        .category-main { width: 100%; text-align: center; background: transparent; border: none; color: var(--text-primary); font-weight: 700; padding: .5rem .75rem; border-radius: 10px; cursor: pointer; }
         .service-item { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
         .service-item input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
         .service-item span { display: inline-block; padding: .5rem .75rem; border: 1px solid var(--border-primary); border-radius: 999px; background: #fff; color: var(--text-primary); transition: all .2s ease; user-select: none; }

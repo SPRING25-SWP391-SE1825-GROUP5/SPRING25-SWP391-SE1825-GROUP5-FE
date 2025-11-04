@@ -35,6 +35,8 @@ interface VehicleInfo {
   brand?: string
   // Bảo dưỡng fields
   lastMaintenanceDate?: string
+  purchaseDate?: string // Ngày mua xe (dùng khi chưa bảo dưỡng)
+  hasMaintenanceHistory?: boolean // Đã bảo dưỡng chưa?
   // Sửa chữa fields
   vehicleCondition?: string
   repairChecklist?: string[]
