@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ServiceManagementService, type Service as BackendService } from '@/services/serviceManagementService'
 import type { ServicePackage } from '@/services/serviceManagementService'
 import { CustomerService } from '@/services/customerService'
@@ -7,6 +7,18 @@ import CreateVehicleModal from './CreateVehicleModal'
 import api from '@/services/api'
 import { ServiceCategoryService, type ServiceCategory } from '@/services/serviceCategoryService'
 import { ServiceChecklistTemplateService, type ServiceChecklistTemplate } from '@/services/serviceChecklistTemplateService'
+import { vehicleModelService, type VehicleModelResponse } from '@/services/vehicleModelManagement'
+// Ảnh dự phòng nếu không có ảnh model trong public/vehicle-models
+import fallbackVehicleImg from '@/assets/images/dich-vu-sua-chua-chung-vinfast_0.webp'
+
+// Cloudinary helpers: dựng URL theo modelId nếu có cấu hình
+const CLOUD_NAME = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
+const CLOUD_FOLDER = ((import.meta as any).env?.VITE_CLOUDINARY_MODEL_FOLDER as string | undefined) || 'vehicle-models'
+const buildModelImageUrl = (modelId?: number) => {
+  if (!modelId || !CLOUD_NAME) return undefined
+  // ví dụ: https://res.cloudinary.com/<cloud>/image/upload/vehicle-models/123.webp
+  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${CLOUD_FOLDER}/${modelId}.webp`
+}
 
 interface VehicleInfo {
   carModel: string
@@ -71,12 +83,34 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [vehiclesLoading, setVehiclesLoading] = useState(false)
   // Removed vehicle models state - now handled in CreateVehicleModal
   const [openCreate, setOpenCreate] = useState(false)
+  // Map modelId -> imageUrl
+  const [modelImages, setModelImages] = useState<Record<number, string>>({})
+  // Map vehicleId -> modelId (dùng khi API danh sách xe không có modelId)
+  const [vehicleModelMap, setVehicleModelMap] = useState<Record<number, number>>({})
   
   // Category states
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(serviceData.categoryId)
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(undefined)
+  const vehicleScrollerRef = useRef<HTMLDivElement | null>(null)
+  const [vehicleIndex, setVehicleIndex] = useState(0)
+  useEffect(() => {
+    // đảm bảo index hợp lệ khi danh sách thay đổi
+    if (!vehicles || vehicles.length === 0) {
+      setVehicleIndex(0)
+    } else if (vehicleIndex >= vehicles.length) {
+      setVehicleIndex(vehicles.length - 1)
+    }
+  }, [vehicles, vehicleIndex])
+  const showPrevVehicle = () => {
+    if (!vehicles || vehicles.length === 0) return
+    setVehicleIndex((prev) => (prev - 1 + vehicles.length) % vehicles.length)
+  }
+  const showNextVehicle = () => {
+    if (!vehicles || vehicles.length === 0) return
+    setVehicleIndex((prev) => (prev + 1) % vehicles.length)
+  }
   
   // Recommendation states
   const [recommendedServices, setRecommendedServices] = useState<ServiceChecklistTemplate[]>([])
@@ -170,6 +204,92 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   }, [selectedCategoryId])
 
   // Vehicle models loading moved to CreateVehicleModal
+
+  // Load active vehicle models to map imageUrl by modelId
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const res = await vehicleModelService.getActive()
+        const models: VehicleModelResponse[] = Array.isArray(res)
+          ? res
+          : (res as any)?.data || (res as any)?.items || []
+        const map: Record<number, string> = {}
+        ;(models || []).forEach((m: VehicleModelResponse) => {
+          if (m?.modelId && (m as any)?.imageUrl) map[m.modelId] = (m as any).imageUrl as string
+        })
+        setModelImages(map)
+      } catch (_e) {
+        setModelImages({})
+      }
+    }
+    loadModels()
+  }, [])
+
+  // Sau khi load danh sách xe, đảm bảo có ảnh cho từng modelId bằng cách gọi getById
+  useEffect(() => {
+    const ensureModelImages = async () => {
+      const ids = Array.from(
+        new Set(
+          (vehicles || [])
+            .map(v => v.modelId || vehicleModelMap[v.vehicleId as number])
+            .filter(Boolean)
+        )
+      ) as number[]
+      if (ids.length === 0) return
+      const newMap: Record<number, string> = { ...modelImages }
+      const fetchIds: number[] = ids.filter(id => !newMap[id])
+      if (fetchIds.length === 0) return
+      try {
+        const results = await Promise.all(
+          fetchIds.map(async (id) => {
+            try {
+              const m = await vehicleModelService.getById(id)
+              return m
+            } catch {
+              return null
+            }
+          })
+        )
+        results.forEach((m) => {
+          if (m && (m as any).modelId && (m as any).imageUrl) {
+            newMap[(m as any).modelId as number] = (m as any).imageUrl as string
+          }
+        })
+        setModelImages(newMap)
+      } catch {
+        // ignore
+      }
+    }
+    ensureModelImages()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicles, vehicleModelMap])
+
+  // Khi danh sách xe không có modelId, gọi chi tiết từng xe để lấy modelId
+  useEffect(() => {
+    const enrichVehiclesWithModel = async () => {
+      const missing = (vehicles || []).filter(v => !v.modelId && v.vehicleId)
+      if (missing.length === 0) return
+      try {
+        const results = await Promise.all(
+          missing.map(async (v) => {
+            try {
+              const detail = await VehicleService.getVehicleById(Number(v.vehicleId))
+              return { id: v.vehicleId as number, modelId: (detail as any)?.data?.modelId ?? (detail as any)?.modelId }
+            } catch {
+              return { id: v.vehicleId as number, modelId: undefined }
+            }
+          })
+        )
+        const map: Record<number, number> = { ...vehicleModelMap }
+        results.forEach(r => { if (r.modelId) map[r.id] = Number(r.modelId) })
+        setVehicleModelMap(map)
+      } catch {
+        // ignore
+      }
+    }
+    enrichVehiclesWithModel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicles])
 
   // Load current customer's vehicles
   useEffect(() => {
@@ -336,55 +456,137 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         <div className="csv-grid">
           <div className="csv-section card">
             <div className="form-group">
-            <label className="csv-section-title">2. Chọn xe<span className="required-star">*</span></label>
-            <select
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
-              borderRadius: '12px',
-              fontSize: '16px',
-              background: '#ffffff',
-              color: '#111827',
-              transition: 'all 0.2s ease',
-              boxSizing: 'border-box'
-            }}
-              value={selectedVehicleId || ''}
-              onChange={(e) => {
-                const vid = Number(e.target.value)
-                const v = vehicles.find(x => x.vehicleId === vid)
-                if (v) {
-                  setSelectedVehicleId(vid)
-                  onUpdateVehicle({ 
-                    licensePlate: v.licensePlate, 
-                    carModel: v.vin,
-                    mileage: v.currentMileage?.toString() || ''
-                  })
-                } else {
+              <label className="csv-section-title">2. Chọn xe<span className="required-star">*</span></label>
+              {/* Grid ảnh chọn xe thay cho dropdown */}
+              {vehiclesLoading ? (
+                <div>Đang tải...</div>
+              ) : (
+                <>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button type="button" aria-label="Prev" onClick={showPrevVehicle} style={{ position: 'absolute', left: -6, top: '40%', transform: 'translateY(-50%)', zIndex: 2, width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--csv-border)', background: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>‹</button>
+                  <div ref={vehicleScrollerRef} style={{ width: 320, maxWidth: '100%' }}>
+                  {vehicles.length === 0 && (
+                    <div style={{ color: 'var(--csv-muted)' }}>Chưa có xe. Vui lòng tạo xe mới.</div>
+                  )}
+                  {vehicles.length > 0 && (() => {
+                    const v = vehicles[vehicleIndex]
+                    const active = selectedVehicleId === v.vehicleId
+                    const modelId = v.modelId || vehicleModelMap[v.vehicleId as number] || 0
+                    // Ưu tiên lấy ảnh Cloudinary theo modelId nếu đã cấu hình; nếu không, thử public/vehicle-models; cuối cùng dùng ảnh dự phòng.
+                    const cloudFromVehicle = (() => {
+                      const raw = (v as any).modelImageUrl as string | undefined
+                      if (!raw) return undefined
+                      const s = String(raw).trim()
+                      // Chỉ nhận URL hợp lệ bắt đầu bằng http/https
+                      return /^https?:\/\//i.test(s) ? s : undefined
+                    })()
+                    const cloudFromModel = cloudFromVehicle || modelImages[modelId]
+                    const cloudUrl = cloudFromModel || buildModelImageUrl(modelId)
+                    const imgSrc = cloudUrl || (modelId ? `/vehicle-models/${modelId}.webp` : fallbackVehicleImg)
+                    return (
+                      <button
+                        key={v.vehicleId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVehicleId(v.vehicleId)
+                          onUpdateVehicle({
+                            licensePlate: v.licensePlate,
+                            carModel: v.vin,
+                            mileage: v.currentMileage?.toString() || '',
+                            modelId: v.modelId || undefined
+                          })
+                        }}
+                        className={`vehicle-card ${active ? 'selected' : ''}`}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'stretch',
+                          gap: 10,
+                          background: '#ffffff',
+                          border: active ? `2px solid var(--progress-current)` : '1px solid var(--csv-border)',
+                          borderRadius: 14,
+                          cursor: 'pointer',
+                          transition: 'transform .18s ease, box-shadow .22s ease, border-color .22s ease',
+                          textAlign: 'left',
+                          boxShadow: active ? '0 8px 26px rgba(30,199,116,.18)' : '0 6px 18px rgba(2,6,23,.06)',
+                          padding: 12,
+                          minHeight: 270
+                        }}
+                        aria-pressed={active}
+                      >
+                        <div
+                          style={{
+                            width: '100%',
+                            aspectRatio: '16 / 9',
+                            borderRadius: 12,
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <img
+                            src={imgSrc}
+                            alt={`Model xe ${modelId || ''}`}
+                            onError={(e) => {
+                              // Nếu cloud/public fail, rơi về ảnh dự phòng local
+                              (e.currentTarget as HTMLImageElement).src = fallbackVehicleImg
+                            }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem', letterSpacing: '.1px' }}>{v.licensePlate}</div>
+                          <div style={{ fontSize: 12, color: '#64748b', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
+                            VIN: <span style={{ color: '#334155' }}>{v.vin}</span>
+                          </div>
+                        </div>
+                        {active && (
+                          <div style={{
+                            marginTop: 2,
+                            fontSize: 12,
+                            color: 'var(--progress-current)',
+                            fontWeight: 700
+                          }}>
+                            ✓ Đã chọn
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })()}
+                  </div>
+                  <button type="button" aria-label="Next" onClick={showNextVehicle} style={{ position: 'absolute', right: -6, top: '40%', transform: 'translateY(-50%)', zIndex: 2, width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--csv-border)', background: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>›</button>
+                </div>
+                {vehicles && vehicles.length > 0 && !selectedVehicleId && (
+                  <div style={{
+                    marginTop: 8,
+                    color: '#475569',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    padding: '8px 10px',
+                    borderRadius: 10
+                  }}>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>Lưu ý:</span>
+                    Vui lòng chọn xe trước khi tiếp tục.
+                  </div>
+                )}
+                </>
+              )}
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => {
+                  setOpenCreate(true)
                   setSelectedVehicleId(undefined)
-                  onUpdateVehicle({ licensePlate: '', carModel: '', mileage: '' })
-                }
-              }}
-            >
-              <option value="">—</option>
-              {vehiclesLoading && <option value="" disabled>Đang tải...</option>}
-              {!vehiclesLoading && vehicles.map(v => (
-                <option key={v.vehicleId} value={v.vehicleId}>{v.licensePlate} — {v.vin}</option>
-              ))}
-            </select>
-            <button 
-              type="button" 
-              className="btn-secondary" 
-              onClick={() => {
-                setOpenCreate(true)
-                // Reset selected vehicle khi tạo xe mới
-                setSelectedVehicleId(undefined)
-              }} 
-              style={{ marginTop: 8 }}
-            >
-              + Tạo xe mới
-            </button>
-          </div>
+                }} 
+                style={{ marginTop: 8 }}
+              >
+                + Tạo xe mới
+              </button>
+            </div>
           {/* Model selection moved to CreateVehicleModal */}
           <div className="form-group">
             <label>Số Km hiện tại<span className="required-star">*</span></label>
@@ -946,6 +1148,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           --csv-text: #0f172a;
           --csv-muted: #64748b;
         }
+        .vehicle-carousel{ -ms-overflow-style: none; }
+        .vehicle-carousel::-webkit-scrollbar{ display: none; }
         .combined-service-vehicle-step { background: transparent; padding-bottom: .5rem; }
         .csv-title { font-size: 1.75rem; font-weight: 800; color: var(--csv-text); margin: 0 0 .25rem 0; letter-spacing: .2px; }
         .csv-subheading { margin: 0 0 1rem 0; color: var(--csv-muted); }

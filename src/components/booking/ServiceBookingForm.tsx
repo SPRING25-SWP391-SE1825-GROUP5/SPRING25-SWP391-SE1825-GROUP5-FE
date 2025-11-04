@@ -13,8 +13,7 @@ import BookingSummary from './BookingSummary'
 import { VehicleService } from '@/services/vehicleService'
 import { CustomerService } from '@/services/customerService'
 import { ServiceManagementService } from '@/services/serviceManagementService'
-import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
-import { PayOSService } from '@/services/payOSService'
+import { createBooking, holdSlot, releaseHold } from '@/services/bookingFlowService'
 import { PromotionBookingService } from '@/services/promotionBookingService'
 
 // Types
@@ -581,20 +580,14 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         console.warn('Apply promotion failed (continue with client-side discount + server safety-net):', applyErr)
       }
 
-      // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
-      console.log('Creating PayOS payment link for booking ID:', bookingId)
-      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId), Math.round(payableAmount))
-
-      if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
-        // Redirect trực tiếp đến PayOS checkout
-        window.location.href = paymentResponse.data.checkoutUrl
-
-        // Đánh dấu bước cuối cùng là completed khi booking được tạo thành công
+      // Bỏ thanh toán: điều hướng tới trang thành công và thông báo đặt lịch xong (status PENDING)
+      try {
         const finalStep = isGuest ? 4 : 3
         setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
-      } else {
-        setSubmitError('Không thể tạo link thanh toán: ' + (paymentResponse.message || 'Lỗi không xác định'))
-      }
+      } catch {}
+
+      // Điều hướng trang thành công, truyền bookingId và số tiền để hiển thị nếu cần
+      window.location.href = `/booking-success?bookingId=${encodeURIComponent(bookingId)}&amount=${encodeURIComponent(payableAmount)}`
       return
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string }
@@ -739,8 +732,10 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     }
   }, [currentStep])
 
+  const isConfirmationStep = isGuest ? currentStep === 4 : currentStep === 3
+
   return (
-    <div className="service-booking-form">
+    <div className="service-booking-form" style={{ paddingRight: isConfirmationStep ? 0 : undefined }}>
       {/* Header */}
       <div className="booking-header">
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
@@ -803,30 +798,34 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         <div className="booking-content" ref={contentRef}>
           {renderCurrentStep()}
         </div>
-        {/* Spacer cột phải để giữ layout, đồng thời chứa bản inline cho mobile */}
-        <div className="summary-spacer">
-          <div className="booking-summary-inline">
-            <BookingSummary
-              customerInfo={isGuest ? bookingData.customerInfo : undefined}
-              vehicleInfo={bookingData.vehicleInfo}
-              serviceInfo={bookingData.serviceInfo}
-              locationTimeInfo={bookingData.locationTimeInfo}
-              isGuest={isGuest}
-            />
+        {/* Summary chỉ hiển thị trước bước xác nhận */}
+        {!isConfirmationStep && (
+          <div className="summary-spacer">
+            <div className="booking-summary-inline">
+              <BookingSummary
+                customerInfo={isGuest ? bookingData.customerInfo : undefined}
+                vehicleInfo={bookingData.vehicleInfo}
+                serviceInfo={bookingData.serviceInfo}
+                locationTimeInfo={bookingData.locationTimeInfo}
+                isGuest={isGuest}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Bản fixed cho desktop */}
-      <div className="booking-summary-fixed" ref={summaryFixedRef}>
-        <BookingSummary
-          customerInfo={isGuest ? bookingData.customerInfo : undefined}
-          vehicleInfo={bookingData.vehicleInfo}
-          serviceInfo={bookingData.serviceInfo}
-          locationTimeInfo={bookingData.locationTimeInfo}
-          isGuest={isGuest}
-        />
-      </div>
+      {/* Bản fixed cho desktop - ẩn ở bước xác nhận */}
+      {!isConfirmationStep && (
+        <div className="booking-summary-fixed" ref={summaryFixedRef}>
+          <BookingSummary
+            customerInfo={isGuest ? bookingData.customerInfo : undefined}
+            vehicleInfo={bookingData.vehicleInfo}
+            serviceInfo={bookingData.serviceInfo}
+            locationTimeInfo={bookingData.locationTimeInfo}
+            isGuest={isGuest}
+          />
+        </div>
+      )}
 
       {/* CSS Styles */}
       <style>{`
@@ -868,7 +867,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           position: fixed;
           right: 24px;
           top: var(--summary-top, 90px); /* dưới tiêu đề + progress bar */
-          bottom: var(--summary-bottom, 50px); /* chừa khoảng tránh footer */
+          bottom: var(--summary-bottom, 24px); /* chừa khoảng tránh footer */
           width: 360px;
           /* Giới hạn theo viewport (tránh header/footer) và theo chiều cao nội dung booking */
           max-height: min(

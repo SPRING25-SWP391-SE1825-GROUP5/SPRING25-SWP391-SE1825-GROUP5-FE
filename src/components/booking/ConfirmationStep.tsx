@@ -252,7 +252,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
               <form onSubmit={handleSubmit}>
                 <div className="form-actions column">
                   <button type="button" onClick={onPrev} className="btn-secondary">Quay lại</button>
-                  <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý...' : 'Xác nhận và thanh toán'}</button>
+                  <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Đang xử lý...' : 'Xác nhận đặt lịch'}</button>
                 </div>
               </form>
             </div>

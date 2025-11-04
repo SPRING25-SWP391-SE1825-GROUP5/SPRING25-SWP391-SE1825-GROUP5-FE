@@ -76,8 +76,16 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
         // Load technician name
         if (locationTimeInfo?.technicianId && !locationTimeInfo.technicianName) {
           try {
-            const tech = await TechnicianService.getTechnicianById(Number(locationTimeInfo.technicianId))
-            setTechnicianName(tech.name || '')
+            // Lấy danh sách kỹ thuật viên theo center rồi tìm theo technicianId
+            if (locationTimeInfo.centerId) {
+              const res = await TechnicianService.list({ centerId: Number(locationTimeInfo.centerId), pageSize: 1000 })
+              const tech = (res.technicians || []).find((t: any) => Number(t.technicianId) === Number(locationTimeInfo.technicianId))
+              setTechnicianName(tech?.userFullName || tech?.name || '')
+            } else {
+              const res = await TechnicianService.list({ pageSize: 1000 })
+              const tech = (res.technicians || []).find((t: any) => Number(t.technicianId) === Number(locationTimeInfo.technicianId))
+              setTechnicianName(tech?.userFullName || tech?.name || '')
+            }
           } catch (error) {
             setTechnicianName('')
           }
