@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { removeFromCart, updateQuantity, clearCart } from '@/store/cartSlice'
+import { removeFromCart, updateQuantity, clearCart, setCartItems, setCartId } from '@/store/cartSlice'
 import { CartService, CustomerService, OrderService } from '@/services'
 import toast from 'react-hot-toast'
 import {
@@ -22,8 +22,9 @@ export default function Cart() {
   // Selection state: which cart item ids are selected for checkout
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     try {
-      if (typeof localStorage !== 'undefined') {
-        const raw = localStorage.getItem('cartSelectedIds')
+      if (typeof localStorage !== 'undefined' && auth.user?.id) {
+        const key = `cartSelectedIds_${auth.user.id}`
+        const raw = localStorage.getItem(key)
         if (raw) {
           const arr: string[] = JSON.parse(raw)
           if (Array.isArray(arr)) return new Set(arr)
@@ -44,14 +45,18 @@ export default function Cart() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.items.length])
 
-  // Persist selection
+  // Persist selection (user-specific)
   useEffect(() => {
     try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('cartSelectedIds', JSON.stringify(Array.from(selectedIds)))
+      if (typeof localStorage !== 'undefined' && auth.user?.id) {
+        const key = `cartSelectedIds_${auth.user.id}`
+        localStorage.setItem(key, JSON.stringify(Array.from(selectedIds)))
+      } else if (typeof localStorage !== 'undefined') {
+        // Guest user - use generic key
+        localStorage.setItem('cartSelectedIds_guest', JSON.stringify(Array.from(selectedIds)))
       }
     } catch {}
-  }, [selectedIds])
+  }, [selectedIds, auth.user?.id])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -62,19 +67,19 @@ export default function Cart() {
 
   const handleQuantityChange = (id: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      dispatch(removeFromCart(id))
+      dispatch(removeFromCart({ id, userId: auth.user?.id ?? null }))
     } else {
-      dispatch(updateQuantity({ id, quantity: newQuantity }))
+      dispatch(updateQuantity({ id, quantity: newQuantity, userId: auth.user?.id ?? null }))
     }
   }
 
   const handleRemoveItem = (id: string) => {
-    dispatch(removeFromCart(id))
+    dispatch(removeFromCart({ id, userId: auth.user?.id ?? null }))
   }
 
   const handleClearCart = () => {
     if (confirm('Bạn có chắc muốn xóa toàn bộ giỏ hàng?')) {
-      dispatch(clearCart())
+      dispatch(clearCart({ userId: auth.user?.id ?? null }))
     }
   }
 
@@ -148,7 +153,9 @@ export default function Cart() {
     const fetchCart = async () => {
       try {
         const user = auth.user
-        const storedId = (typeof localStorage !== 'undefined' && localStorage.getItem('cartId')) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cartId'))
+        const userId = user?.id
+        const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
+        const storedId = (typeof localStorage !== 'undefined' && localStorage.getItem(cartIdKey)) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cartIdKey))
         let cartId = storedId ? Number(storedId) : undefined
 
         if (!cartId && user?.customerId) {
@@ -156,8 +163,7 @@ export default function Cart() {
           const id = (resp?.data as any)?.cartId
           if (id) {
             cartId = Number(id)
-            if (typeof localStorage !== 'undefined') localStorage.setItem('cartId', String(cartId))
-            dispatch({ type: 'cart/setCartId', payload: cartId })
+            dispatch(setCartId({ cartId, userId: user?.id ?? null }))
           }
         }
 
@@ -174,7 +180,7 @@ export default function Cart() {
             inStock: true,
           }))
           if (Array.isArray(mapped) && mapped.length > 0) {
-            dispatch({ type: 'cart/setCartItems', payload: mapped })
+            dispatch(setCartItems({ items: mapped, userId: user?.id ?? null }))
           }
         }
       } catch (_) {

@@ -15,7 +15,7 @@ import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import { PartService, Part, PartFilters, OrderService, CustomerService, CartService } from '@/services'
 import toast from 'react-hot-toast'
 import './products.scss'
-import { addToCart } from '@/store/cartSlice'
+import { addToCart, setCartId } from '@/store/cartSlice'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 
 export default function Products() {
@@ -230,19 +230,24 @@ export default function Products() {
   const handleAddToCart = async (part: Part, e: React.MouseEvent) => {
     e.stopPropagation()
     dispatch(addToCart({
-      id: String(part.partId),
-      name: part.partName,
-      price: part.unitPrice,
-      image: part.imageUrl || '',
-      brand: part.brand,
-      category: '', // Nếu part có category, gán vào đây.
-      inStock: !part.isOutOfStock
+      item: {
+        id: String(part.partId),
+        name: part.partName,
+        price: part.unitPrice,
+        image: part.imageUrl || '',
+        brand: part.brand,
+        category: '', // Nếu part có category, gán vào đây.
+        inStock: !part.isOutOfStock
+      },
+      userId: user?.id ?? null
     }))
     toast.success(`Đã thêm ${part.partName} vào giỏ hàng`)
 
     // Sync BE cart: lấy cartId theo customer -> thêm item
     try {
-      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem('cartId')) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cartId'))
+      const userId = user?.id
+      const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
+      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem(cartIdKey)) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cartIdKey))
       let cartId: number | null = storedCartId ? Number(storedCartId) : null
 
       if (!cartId && user?.customerId) {
@@ -250,7 +255,7 @@ export default function Products() {
         const id = (resp?.data as any)?.cartId
         if (id) {
           cartId = Number(id)
-          if (typeof localStorage !== 'undefined') localStorage.setItem('cartId', String(cartId))
+          dispatch(setCartId({ cartId, userId: user?.id ?? null }))
         }
       }
 
