@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { ServiceManagementService } from '@/services/serviceManagementService'
-import { PayOSService } from '@/services/payOSService'
 import { CenterService } from '@/services/centerService'
 import { TechnicianService } from '@/services/technicianService'
 import PromotionSelector from './PromotionSelector'
@@ -146,7 +145,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
   )
 
   const subtotal = selectedServices.reduce((sum, service) => sum + service.price, 0)
-  const finalAmount = subtotal - discountAmount
+  // Không còn thanh toán, chỉ hiển thị tạm tính và giảm giá (không hiển thị tổng cộng)
 
   if (loading) {
     return (
@@ -248,7 +247,6 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
               {discountAmount > 0 && (
                 <div className="price-item discount"><span className="label">Giảm giá</span><span className="value">-{formatPrice(discountAmount)}</span></div>
               )}
-              <div className="price-item total"><span className="label">Tổng cộng</span><span className="value">{formatPrice(finalAmount)}</span></div>
               <form onSubmit={handleSubmit}>
                 <div className="form-actions column">
                   <button type="button" onClick={onPrev} className="btn-secondary">Quay lại</button>
@@ -306,7 +304,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
         .compact-notes h4 { margin: 0 0 0.25rem 0; font-size: 0.85rem; }
         .compact-notes p { margin: 0; font-size: 0.85rem; color: #475569; }
 
-        .price-summary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 12px; }
+        .price-summary { background: var(--progress-current, #1ec774); color: white; padding: 1rem; border-radius: 12px; }
         .compact-summary .price-item { padding: 0.4rem 0; }
 
         .price-item {
@@ -350,14 +348,9 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           background: #e2e8f0;
         }
 
-        .btn-primary {
-          background: #3b82f6;
-          color: white;
-        }
+        .btn-primary { background: var(--progress-current, #1ec774); color: #0f172a; }
 
-        .btn-primary:hover:not(:disabled) {
-          background: #2563eb;
-        }
+        .btn-primary:hover:not(:disabled) { filter: brightness(0.95); }
 
         .btn-primary:disabled {
           background: #9ca3af;

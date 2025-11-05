@@ -59,8 +59,14 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   // States for timeslot validation
   const [allTechnicianSlots, setAllTechnicianSlots] = useState<any[]>([])
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set())
+  // Ngày khả dụng toàn tháng (dùng để disable các ngày kín lịch trên calendar)
+  const [availableDatesMonth, setAvailableDatesMonth] = useState<Set<string>>(new Set())
+  // Khi chưa tải xong availability theo tháng, không disable ngày (tránh khoá nhầm)
+  const [monthlyLoaded, setMonthlyLoaded] = useState<boolean>(false)
   // Tick dùng để kích hoạt reload timeslot theo chu kỳ
   const [refreshTick, setRefreshTick] = useState<number>(0)
+  // Đề xuất KTV có nhiều slot trống nhất
+  const [recommendedTechnician, setRecommendedTechnician] = useState<{ id: number; name?: string } | null>(null)
 
   // Chuẩn hoá hiển thị giờ: loại bỏ hậu tố SA/CH, chỉ giữ HH:mm
   const formatDisplayTime = (value?: string) => {
@@ -292,16 +298,17 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
 
   // Load all timeslots when center, date, or technician are selected
   useEffect(() => {
-    const loadAllTimeslots = async () => {
+    const loadAllTimeslots = () => {
       if (!data.centerId || !data.date) { 
         setAllTechnicianSlots([])
         setAvailableDates(new Set())
         setSlots([])
-        return 
+        return () => {}
       }
-      
-      setLoadingSlots(true)
-      try {
+      const controller = new AbortController()
+      const debounceId = setTimeout(async () => {
+        setLoadingSlots(true)
+        try {
         // Load tất cả timeslots của center trong ngày đã chọn
         // Sử dụng API Booking/available-times để lấy timeslots theo center và date
         const params: any = {
@@ -320,8 +327,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         if (data.technicianId && data.technicianId !== '') {
           response = await api.get(`/TechnicianTimeSlot/technician/${data.technicianId}/center/${data.centerId}`)
         } else {
-          response = await api.get(`/Booking/available-times`, {
-            params: params
+          response = await api.get(`/Booking/availability`, {
+            params: params,
+            signal: controller.signal as any
           })
         }
         
@@ -421,7 +429,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               } else {
                 slotDate = fallbackDate
               }
-              return slotDate === data.date && slot.isAvailable && !slot.bookingId
+              // Không lọc theo availability/bookingId để vẫn hiện các slot đã đặt (sẽ disable ở bước map)
+              return slotDate === data.date
             })
             .map((slot: any) => {
               // Check if timeslot is in the past for today
@@ -450,7 +459,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             slotId: slot.slotId,
             slotTime: slot.slotTime,
             slotLabel: slot.slotLabel,
-              isAvailable: slot.isAvailable && !isPastSlot,
+              isAvailable: (slot.isAvailable ?? true) && !slot.bookingId && (slot.isBooked ? !slot.isBooked : true) && !isPastSlot,
             isRealtimeAvailable: slot.isRealtimeAvailable || false,
             technicianId: slot.technicianId,
             technicianName: slot.technicianName,
@@ -461,11 +470,12 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           }
         } else {
           // Booking available-times API
+            const slotAvailable = (slot.isAvailable ?? true) && !slot.bookingId && (slot.isBooked ? !slot.isBooked : true) && !isPastSlot
             return {
             slotId: slot.slotId,
             slotTime: slot.slotTime,
             slotLabel: slot.slotLabel,
-            isAvailable: !isPastSlot, // Disable if past slot
+            isAvailable: slotAvailable,
             isRealtimeAvailable: slot.isRealtimeAvailable || false,
             technicianId: slot.technicianId,
             technicianName: slot.technicianName,
@@ -478,22 +488,117 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             })
           
           setSlots(slotsForDate)
+          // Cập nhật nhãn đề xuất theo số slot trống (không auto chọn)
+          if (slotsForDate.length > 0) {
+            const countByTech = new Map<number, { name?: string; count: number }>()
+            for (const s of slotsForDate) {
+              if (!s.technicianId || !s.isAvailable) continue
+              const entry = countByTech.get(s.technicianId) || { name: s.technicianName, count: 0 }
+              entry.count += 1
+              entry.name = entry.name || s.technicianName
+              countByTech.set(s.technicianId, entry)
+            }
+            let bestId: number | null = null
+            let best = -1
+            let bestName = ''
+            for (const [tid, info] of countByTech.entries()) {
+              if (info.count > best) { best = info.count; bestId = tid; bestName = info.name || '' }
+            }
+            if (bestId && best > 0) setRecommendedTechnician({ id: bestId, name: bestName })
+            else setRecommendedTechnician(null)
+          }
         } else {
           setAllTechnicianSlots([])
           setAvailableDates(new Set())
           setSlots([])
         }
-      } catch (error) {
-        setAllTechnicianSlots([])
-        setAvailableDates(new Set())
-        setSlots([])
+      } catch (error: any) {
+        if (error?.name !== 'CanceledError') {
+          setAllTechnicianSlots([])
+          setAvailableDates(new Set())
+          setSlots([])
+        }
       } finally {
         setLoadingSlots(false)
       }
+      }, 200)
+      return () => { clearTimeout(debounceId); controller.abort() }
     }
     
-    loadAllTimeslots()
+    const cleanup = loadAllTimeslots()
+    return () => { if (typeof cleanup === 'function') cleanup() }
   }, [data.centerId, data.date, data.technicianId, refreshTick])
+
+  // Tải availability theo trung tâm cho cả tháng hiện tại để disable ngày kín lịch
+  useEffect(() => {
+    const fetchMonthlyAvailability = () => {
+      if (!data.centerId) {
+        setAvailableDatesMonth(new Set())
+        setMonthlyLoaded(false)
+        return () => {}
+      }
+      const controller = new AbortController()
+      const debounceId = setTimeout(async () => {
+      try {
+        const start = new Date(year, month, 1)
+        const end = new Date(year, month + 1, 0)
+        const startStr = formatISO(start)
+        const endStr = formatISO(end)
+
+        try {
+          // Ưu tiên dùng endpoint public tổng hợp theo ngày
+          const res = await api.get(`/TechnicianTimeSlot/centers/${data.centerId}/availability`, {
+            params: { startDate: startStr, endDate: endStr, page: 1, pageSize: 60 },
+            signal: controller.signal as any
+          })
+
+          const days: any[] = res?.data?.data || res?.data || []
+          const monthSet = new Set<string>()
+          days.forEach((d: any) => {
+            const available = (d.availableSlots ?? ((d.totalSlots ?? 0) - (d.bookedSlots ?? 0))) > 0
+            if (available && typeof d.date === 'string') monthSet.add(d.date)
+          })
+
+          setAvailableDatesMonth(monthSet)
+          setMonthlyLoaded(true)
+
+          // Gợi ý KTV có nhiều slot trống nhất cho ngày đang chọn (không auto chọn)
+          if (data.date) {
+            const entry = days.find((x: any) => x.date === data.date)
+            if (entry && Array.isArray(entry.technicians)) {
+              let bestId: number | null = null
+              let bestName = ''
+              let bestAvail = -1
+              for (const t of entry.technicians) {
+                const total = t.totalSlots ?? 0
+                const booked = t.bookedSlots ?? 0
+                const avail = total - booked
+                if (avail > bestAvail) {
+                  bestAvail = avail
+                  bestId = t.technicianId ?? t.TechnicianId ?? null
+                  bestName = t.name ?? t.Name ?? ''
+                }
+              }
+              if (bestId && bestAvail > 0) setRecommendedTechnician({ id: bestId, name: bestName })
+              else setRecommendedTechnician(null)
+            }
+          }
+        } catch (_e: any) {
+          // Không fallback quét từng ngày để tránh chậm; đánh dấu loaded rỗng
+          setAvailableDatesMonth(new Set())
+          setMonthlyLoaded(true)
+        }
+      } catch (_e) {
+        setAvailableDatesMonth(new Set())
+        setMonthlyLoaded(false)
+      }
+      }, 200)
+      return () => { clearTimeout(debounceId); controller.abort() }
+    }
+
+    const cleanup = fetchMonthlyAvailability()
+    return () => { if (typeof cleanup === 'function') cleanup() }
+  }, [data.centerId, month, year, data.date])
 
   // Auto-refresh timeslots theo chu kỳ để hạn chế đặt trùng (poll mỗi 15s)
   useEffect(() => {
@@ -528,7 +633,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               slotDate = data.date || ''
             }
           }
-          return slotDate === data.date && slot.isAvailable && !slot.bookingId
+          // Không loại bỏ slot đã đặt; trả về tất cả slot trong ngày
+          return slotDate === data.date
         })
 
       // Không cần filter theo technician nữa vì API đã trả về timeslots của technician cụ thể
@@ -559,7 +665,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           slotId: slot.slotId,
           slotTime: slot.slotTime,
           slotLabel: slot.slotLabel,
-          isAvailable: !isPastSlot, // Disable if past slot
+          isAvailable: (slot.isAvailable ?? true) && !slot.bookingId && (slot.isBooked ? !slot.isBooked : true) && !isPastSlot,
           isRealtimeAvailable: slot.isRealtimeAvailable || false,
           technicianId: slot.technicianId,
           technicianName: slot.technicianName,
@@ -655,7 +761,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           const d = new Date(year, month, day)
           const dateString = formatISO(d)
           const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate())
-          const hasAvailableSlots = availableDates.has(dateString)
+          // Khi chưa load xong dữ liệu tháng, không disable theo availability để user vẫn chọn ngày
+          const hasAvailableSlots = monthlyLoaded ? availableDatesMonth.has(dateString) : true
           const isDisabled = isPast || !hasAvailableSlots
           
           row.push({ date: d, disabled: isDisabled })
@@ -665,7 +772,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       grid.push(row)
     }
     return grid
-  }, [month, year, availableDates])
+  }, [month, year, availableDatesMonth, monthlyLoaded])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -856,16 +963,16 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               ))}
                 {days.flat().map((cell, idx) => {
                   const isPast = cell.date ? cell.date < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false
-                  
+                  const disabled = !cell.date || isPast || cell.disabled
                   return (
                 <button
                   key={idx}
                   type="button"
-                  className={`cal-cell ${cell.date ? '' : 'empty'} ${isPast ? 'disabled' : ''} ${cell.date && data.date === formatISO(cell.date) ? 'selected' : ''}`}
-                  onClick={() => cell.date && !isPast && onUpdate({ date: formatISO(cell.date) })}
-                  disabled={!cell.date || isPast}
+                  className={`cal-cell ${cell.date ? '' : 'empty'} ${disabled ? 'disabled' : ''} ${cell.date && data.date === formatISO(cell.date) ? 'selected' : ''}`}
+                  onClick={() => cell.date && !disabled && onUpdate({ date: formatISO(cell.date) })}
+                  disabled={disabled}
                       title={cell.date ? (
-                        isPast ? 'Ngày đã qua' : 
+                        disabled ? (isPast ? 'Ngày đã qua' : 'Trung tâm đã kín lịch ngày này') : 
                         'Chọn ngày này'
                       ) : ''}
                 >
@@ -911,7 +1018,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  minHeight: '48px'
+                  minHeight: '48px',
+                  position: 'relative'
                 }}
                 onMouseEnter={(e) => {
                   if (data.technicianId !== String(t.technicianId)) {
@@ -958,6 +1066,19 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                     </div>
                   </div>
                 </div>
+                {recommendedTechnician && recommendedTechnician.id === t.technicianId && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '8px',
+                    padding: '2px 6px',
+                    fontSize: '0.7rem',
+                    color: '#065f46',
+                    backgroundColor: '#d1fae5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '9999px'
+                  }}>Đề xuất</span>
+                )}
               </button>
             ))}
             {/* Nút "Để hệ thống tự chọn kỹ thuật viên" đã được gỡ bỏ theo yêu cầu */}
@@ -1077,7 +1198,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                         fontWeight: 'var(--font-weight-bold)'
                       }}>✓</span>
                     )}
-                    {!s.isAvailable && <span className="slot-status">Đã đặt</span>}
+                    {/* Slot đã đặt: không hiển thị chữ để gọn UI; trạng thái disabled + tooltip là đủ */}
                   </button>
                 )
               })}
@@ -1202,10 +1323,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           margin-bottom: 0.5rem;
           color: var(--text-primary);
         }
-        .time-slots { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .5rem; }
+        .time-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; }
         .time-slot { padding: .6rem .75rem; background: #fff; border: 1px solid var(--border-primary); border-radius: 8px; cursor: pointer; }
         .time-slot.selected { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
-        .time-slot.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+        .time-slot.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: .65; }
         /* Thanh hành động ở cuối, căn phải giống ảnh */
         .form-actions { 
           display: flex; 
