@@ -11,6 +11,22 @@ export interface QuickOrderRequest {
   shippingAddress?: string
 }
 
+export interface CreateOrderRequest {
+  items: QuickOrderItemRequest[]
+  notes?: string
+  shippingAddress?: string
+}
+
+export interface CreateOrderResponse {
+  success: boolean
+  message: string
+  data?: {
+    orderId?: number
+    OrderId?: number
+    id?: number
+  }
+}
+
 export interface QuickOrderResponse {
   success: boolean
   message: string
@@ -18,6 +34,10 @@ export interface QuickOrderResponse {
 }
 
 export const OrderService = {
+  async createOrder(customerId: number, payload: CreateOrderRequest): Promise<CreateOrderResponse> {
+    const { data } = await api.post<CreateOrderResponse>(`/Order/customer/${customerId}/create`, payload)
+    return data
+  },
   async createQuickOrder(customerId: number, payload: QuickOrderRequest): Promise<QuickOrderResponse> {
     const { data } = await api.post<QuickOrderResponse>(`/Order/customers/${customerId}/orders/quick`, payload)
     return data

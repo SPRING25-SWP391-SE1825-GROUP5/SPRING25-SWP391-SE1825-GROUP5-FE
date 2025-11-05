@@ -32,6 +32,7 @@ const NewAppHeader: React.FC = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
+  const cart = useAppSelector((s) => s.cart)
 
   // Sync localStorage on mount
   useEffect(() => {
@@ -225,7 +226,9 @@ const NewAppHeader: React.FC = () => {
         aria-label="Shopping cart"
       >
         <ShoppingCart size={20} />
-        <span className="cart-badge">3</span>
+        {cart.itemCount > 0 && (
+          <span className="cart-badge">{cart.itemCount}</span>
+        )}
       </NavLink>
       )}
 

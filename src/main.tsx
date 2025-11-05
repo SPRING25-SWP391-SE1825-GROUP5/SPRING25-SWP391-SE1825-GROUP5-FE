@@ -7,12 +7,27 @@ import { AppRouter } from './router'
 import { Provider } from 'react-redux'
 import { store } from './store'
 import { syncFromLocalStorage } from './store/authSlice'
+import { setCartItems } from './store/cartSlice'
 import { Toaster } from 'react-hot-toast'
 import LoginToastWatcher from '@/components/common/LoginToastWatcher'
 import { HeroUIProvider } from '@heroui/react'
 
 // Sync authentication state from localStorage on app start
 store.dispatch(syncFromLocalStorage())
+
+// Rehydrate cart from localStorage on app start (defensive in case initial load missed)
+try {
+  if (typeof localStorage !== 'undefined') {
+    const raw = localStorage.getItem('cartItems')
+    if (raw) {
+      const items = JSON.parse(raw)
+      if (Array.isArray(items) && items.length > 0) {
+        // ensure structure is array of objects
+        store.dispatch(setCartItems(items))
+      }
+    }
+  }
+} catch {}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
