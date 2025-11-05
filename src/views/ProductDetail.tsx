@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { addToCart } from '@/store/cartSlice'
 import { PartService, Part, CartService } from '@/services'
 import {
@@ -66,6 +66,7 @@ export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
+  const user = useAppSelector((s) => s.auth.user)
   
   const [product, setProduct] = useState<Product | null>(null)
   const [allParts, setAllParts] = useState<Part[]>([])
@@ -127,18 +128,23 @@ export default function ProductDetail() {
     if (!product) return
     
     dispatch(addToCart({
-      id: product.partId.toString(),
-      name: product.partName,
-      price: product.unitPrice,
-      image: product.images?.[0] || `https://picsum.photos/seed/${product.partId}/400/400`,
-      brand: product.brand,
-      category: product.category,
-      inStock: product.inStock || true
+      item: {
+        id: product.partId.toString(),
+        name: product.partName,
+        price: product.unitPrice,
+        image: product.images?.[0] || `https://picsum.photos/seed/${product.partId}/400/400`,
+        brand: product.brand,
+        category: product.category,
+        inStock: product.inStock || true
+      },
+      userId: user?.id ?? null
     }))
 
     // Best-effort sync to backend cart
     try {
-      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem('cartId')) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cartId'))
+      const userId = user?.id
+      const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
+      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem(cartIdKey)) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cartIdKey))
       let cartId = storedCartId ? Number(storedCartId) : null
       if (!cartId) return
       await CartService.addItem(cartId, { partId: product.partId, quantity: 1 })

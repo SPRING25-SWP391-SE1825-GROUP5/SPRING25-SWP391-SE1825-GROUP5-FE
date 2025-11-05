@@ -213,7 +213,7 @@ export default function Checkout() {
       
       if (isSuccess) {
         // Clear cart after successful payment
-        dispatch(clearCart())
+        dispatch(clearCart({ userId: user?.id ?? null }))
         
         // Navigate to success page
         navigate('/order-success', {
@@ -526,13 +526,16 @@ export default function Checkout() {
                     <button
                       type="button"
                       onClick={() => dispatch(addToCart({
-                        id: 'test-product',
-                        name: 'Test Product for Promo',
-                        price: 2000000,
-                        image: 'https://via.placeholder.com/100',
-                        brand: 'Test Brand',
-                        category: 'test',
-                        inStock: true
+                        item: {
+                          id: 'test-product',
+                          name: 'Test Product for Promo',
+                          price: 2000000,
+                          image: 'https://via.placeholder.com/100',
+                          brand: 'Test Brand',
+                          category: 'test',
+                          inStock: true
+                        },
+                        userId: user?.id ?? null
                       }))}
                       style={{
                         background: '#22c55e',
