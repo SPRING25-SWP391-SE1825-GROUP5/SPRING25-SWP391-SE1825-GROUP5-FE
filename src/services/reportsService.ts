@@ -4,7 +4,7 @@ import api from './api'
 export interface RevenueReportRequest {
   startDate: string
   endDate: string
-  reportType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+  reportType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
 }
 
 export interface RevenueReportResponse {
@@ -155,12 +155,62 @@ const convertPeriodForRevenue = (period: string): string => {
     'DAILY': 'daily',
     'WEEKLY': 'weekly',
     'MONTHLY': 'monthly',
+    'QUARTERLY': 'quarterly',
     'YEARLY': 'yearly'
   }
   return mapping[periodUpper] || period.toLowerCase()
 }
 
 export const ReportsService = {
+  // Total Revenue across the whole system (all centers)
+  async getTotalRevenue(
+    params: {
+      from?: string
+      to?: string
+      granularity?: 'day' | 'week' | 'month' | 'quarter' | 'year'
+    }
+  ): Promise<{
+    success?: boolean
+    totalRevenue?: number
+    granularity?: string
+    items?: Array<{ period: string; revenue: number }>
+    Items?: Array<{ Period: string; Revenue: number }>
+    TotalRevenue?: number
+  }> {
+    const response = await api.get('/Reports/total-revenue', {
+      params: {
+        from: params.from,
+        to: params.to,
+        granularity: params.granularity || 'day',
+      },
+    })
+    return response.data
+  },
+
+  // Services booking stats across the whole system (revenue + successful bookings)
+  async getServicesBookingStats(params?: { fromDate?: string; toDate?: string }): Promise<{
+    success: boolean
+    message?: string
+    data: {
+      success?: boolean
+      generatedAt?: string
+      fromDate?: string
+      toDate?: string
+      totalCompletedBookings?: number
+      totalServiceRevenue?: number
+      services: Array<{
+        serviceId: number
+        serviceName: string
+        bookingCount: number
+        serviceRevenue: number
+      }>
+    }
+  }> {
+    const response = await api.get('/Reports/services-booking-stats', {
+      params: params ? { fromDate: params.fromDate, toDate: params.toDate } : undefined,
+    })
+    return response.data
+  },
   // Center Revenue by range (aligns with BE: GET /api/Report/centers/{centerId}/revenue)
   async getCenterRevenue(
     centerId: number,
@@ -392,6 +442,59 @@ export const ReportsService = {
     const response = await api.get(`/Report/centers/${centerId}/peak-hour-stats`, {
       params: params ? { from: params.from, to: params.to } : undefined,
     })
+    return response.data
+  },
+
+  // Dashboard Summary
+  async getDashboardSummary(params?: { centerId?: number; fromDate?: string; toDate?: string }): Promise<{
+    success: boolean
+    message: string
+    data: {
+      success: boolean
+      generatedAt: string
+      fromDate: string
+      toDate: string
+      summary: {
+        totalRevenue: number
+        totalEmployees: number
+        totalCompletedBookings: number
+        serviceRevenue: number
+        partsRevenue: number
+      }
+    }
+  }> {
+    const apiParams: Record<string, string | number> = {}
+    if (params?.centerId) apiParams.centerId = params.centerId
+    if (params?.fromDate) apiParams.fromDate = params.fromDate
+    if (params?.toDate) apiParams.toDate = params.toDate
+
+    const response = await api.get('/Reports/dashboard-summary', { params: Object.keys(apiParams).length > 0 ? apiParams : undefined })
+    return response.data
+  },
+
+  // Revenue by Store
+  async getRevenueByStore(params?: { fromDate?: string; toDate?: string }): Promise<{
+    success: boolean
+    message: string
+    data: {
+      success: boolean
+      generatedAt: string
+      fromDate: string
+      toDate: string
+      stores: Array<{
+        storeId: number
+        storeName: string
+        revenue: number
+        completedBookings: number
+      }>
+      totalRevenue: number
+    }
+  }> {
+    const apiParams: Record<string, string> = {}
+    if (params?.fromDate) apiParams.fromDate = params.fromDate
+    if (params?.toDate) apiParams.toDate = params.toDate
+
+    const response = await api.get('/Reports/revenue-by-store', { params: Object.keys(apiParams).length > 0 ? apiParams : undefined })
     return response.data
   }
 }
