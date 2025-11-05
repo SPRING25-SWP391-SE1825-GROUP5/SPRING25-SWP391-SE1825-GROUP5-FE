@@ -6,7 +6,7 @@ import chat from './chatSlice'
 import { attachTokenGetter, attachUnauthorizedHandler } from '@/services/api'
 
 // Middleware to handle cart loading/clearing when user changes
-const cartUserMiddleware: Middleware = (store) => (next) => (action) => {
+const cartUserMiddleware: Middleware = (store) => (next) => (action: any) => {
   const prevState = store.getState()
   const prevUserId = prevState.auth.user?.id
   
