@@ -1,4 +1,7 @@
 import type { CustomerBooking } from '@/services/bookingService'
+import { BookingService } from '@/services/bookingService'
+import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 
 interface BookingHistoryCardProps {
   booking: CustomerBooking
@@ -9,6 +12,14 @@ interface BookingHistoryCardProps {
   onPayment?: (bookingId: number) => void
   isCancelling?: boolean
   isProcessingPayment?: boolean
+}
+
+interface BookingPart {
+  workOrderPartId: number
+  partId: number
+  partName: string
+  quantityUsed: number
+  status: string
 }
 
 const formatDate = (dateString: string) => {
@@ -68,6 +79,63 @@ export default function BookingHistoryCard({
   isCancelling = false,
   isProcessingPayment = false
 }: BookingHistoryCardProps) {
+  const [parts, setParts] = useState<BookingPart[]>([])
+  const [loadingParts, setLoadingParts] = useState(false)
+  const [approvingPartId, setApprovingPartId] = useState<number | null>(null)
+
+  // Load parts when expanded
+  useEffect(() => {
+    if (isExpanded && booking.bookingId) {
+      loadParts()
+    }
+  }, [isExpanded, booking.bookingId])
+
+  const loadParts = async () => {
+    try {
+      setLoadingParts(true)
+      const response = await BookingService.getBookingParts(booking.bookingId)
+      if (response.success && response.data) {
+        setParts(response.data.items || [])
+      }
+    } catch (error) {
+      console.error('Error loading parts:', error)
+    } finally {
+      setLoadingParts(false)
+    }
+  }
+
+  const handleApprovePart = async (workOrderPartId: number) => {
+    try {
+      setApprovingPartId(workOrderPartId)
+      // Gọi API với workOrderPartId (KHÔNG phải partId)
+      // API: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-approve
+      console.log('🔵 Starting approve part:', { 
+        bookingId: booking.bookingId, 
+        workOrderPartId,
+        part: parts.find(p => p.workOrderPartId === workOrderPartId)
+      })
+      
+      const response = await BookingService.approveBookingPart(booking.bookingId, workOrderPartId)
+      
+      console.log('🔵 Approve response:', response)
+      
+      if (response.success) {
+        toast.success('Đã đồng ý phụ tùng thành công')
+        // Reload parts
+        await loadParts()
+      } else {
+        const errorMsg = response.message || 'Không thể xác nhận phụ tùng'
+        console.error('❌ Approve failed:', errorMsg)
+        toast.error(errorMsg)
+      }
+    } catch (error: any) {
+      console.error('❌ Exception in handleApprovePart:', error)
+      const errorMsg = error?.message || error?.response?.data?.message || 'Có lỗi xảy ra khi xác nhận phụ tùng'
+      toast.error(errorMsg)
+    } finally {
+      setApprovingPartId(null)
+    }
+  }
   return (
     <>
       <div 
@@ -442,6 +510,100 @@ export default function BookingHistoryCard({
                 </p>
               </div>
             )}
+
+            {/* Phụ tùng phát sinh */}
+            <div style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
+              <p style={{ 
+                fontSize: '14px', 
+                color: '#374151', 
+                margin: 0,
+                marginBottom: '12px',
+                fontWeight: '600'
+              }}>
+                Phụ tùng phát sinh
+              </p>
+              {loadingParts ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                  Đang tải...
+                </div>
+              ) : parts.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>
+                  Không có phụ tùng phát sinh
+                </div>
+              ) : (
+                <div style={{ 
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Số lượng</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Trạng thái</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parts.map((part) => (
+                        <tr key={part.workOrderPartId} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                          <td style={{ padding: '12px', fontSize: '14px', color: '#374151' }}>{part.partName}</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#374151' }}>{part.quantityUsed}</td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '4px 12px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              background: part.status === 'PENDING_CUSTOMER_APPROVAL' ? '#fef3c7' : '#dcfce7',
+                              color: part.status === 'PENDING_CUSTOMER_APPROVAL' ? '#92400e' : '#166534'
+                            }}>
+                              {part.status === 'PENDING_CUSTOMER_APPROVAL' ? 'Chờ xác nhận' : 'Đã xác nhận'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            {part.status === 'PENDING_CUSTOMER_APPROVAL' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleApprovePart(part.workOrderPartId)
+                                }}
+                                disabled={approvingPartId === part.workOrderPartId}
+                                style={{
+                                  padding: '6px 16px',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  background: approvingPartId === part.workOrderPartId ? '#f3f4f6' : '#FFD875',
+                                  color: '#111827',
+                                  fontSize: '13px',
+                                  fontWeight: '600',
+                                  cursor: approvingPartId === part.workOrderPartId ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (approvingPartId !== part.workOrderPartId) {
+                                    e.currentTarget.style.background = '#FFE082'
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (approvingPartId !== part.workOrderPartId) {
+                                    e.currentTarget.style.background = '#FFD875'
+                                  }
+                                }}
+                              >
+                                {approvingPartId === part.workOrderPartId ? 'Đang xử lý...' : 'Đồng ý'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

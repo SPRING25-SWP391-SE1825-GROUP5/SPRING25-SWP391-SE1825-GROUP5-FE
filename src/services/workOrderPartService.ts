@@ -57,6 +57,15 @@ export const WorkOrderPartService = {
     const { data } = await api.post(`/Booking/${bookingId}/parts/confirm`)
     return data
   }
+  ,
+  async customerApprove(bookingId: number, workOrderPartId: number, approve: boolean, note?: string, idempotencyKey?: string): Promise<{ success: boolean; message?: string }> {
+    const headers: Record<string, string> = {}
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey
+    }
+    const { data } = await api.post(`/Booking/${bookingId}/parts/${workOrderPartId}/customer-approve`, { approve, note }, { headers })
+    return data
+  }
 }
 
 export default WorkOrderPartService

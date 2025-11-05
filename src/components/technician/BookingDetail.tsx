@@ -3,6 +3,8 @@ import { ArrowLeft, Calendar, User, Car, Wrench, MapPin, CheckCircle, Clock, Pho
 import { useAppSelector } from '@/store/hooks'
 import { TechnicianService } from '@/services/technicianService'
 import './BookingDetail.scss'
+import { WorkOrderPartService } from '@/services/workOrderPartService'
+import PartsApproval from '@/components/booking/PartsApproval'
 import toast from 'react-hot-toast'
 
 interface BookingDetailData {
@@ -64,6 +66,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
   const [maintenanceChecklist, setMaintenanceChecklist] = useState<MaintenanceChecklist | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string }>>([])
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     customerInfo: true,
     specialRequests: true,
@@ -86,6 +89,14 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
           // Maintenance checklist đã có trong response.data.maintenanceChecklists
           if (response.data.maintenanceChecklists && response.data.maintenanceChecklists.length > 0) {
             setMaintenanceChecklist(response.data.maintenanceChecklists[0])
+          }
+
+          // Load parts thuộc booking để khách có thể phê duyệt
+          try {
+            const items = await WorkOrderPartService.list(bookingId)
+            setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName })))
+          } catch {
+            setParts([])
           }
         }
       }
@@ -350,6 +361,41 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ bookingId, onBack }) => {
               Chi tiết đơn đặt lịch #{bookingData.bookingId}
             </h1>
           </div>
+          {/* Customer Parts Approval Section */}
+          {parts && parts.length > 0 && (
+            <div style={{
+              background: '#fff',
+              border: '1px solid var(--border-primary)',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              transition: 'all 0.3s ease',
+              marginTop: '20px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '16px 20px',
+                background: '#F8FAFC',
+                borderBottom: '1px solid var(--border-primary)'
+              }}>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '10px', background: '#F1F5F9',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)'
+                }}>
+                  <FileText size={18} />
+                </div>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', margin: 0, flex: 1 }}>
+                  Phê duyệt phụ tùng từ khách hàng
+                </h3>
+              </div>
+              <div style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                {parts.map(p => (
+                  <PartsApproval key={p.id} bookingId={bookingId} partId={p.partId} partName={p.partName} onApproved={() => {}} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Main Content Card */}

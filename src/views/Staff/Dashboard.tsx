@@ -28,6 +28,8 @@ import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
 import StaffBookingForm from '@/components/staff/StaffBookingForm'
 import StaffChatInterface from '@/components/chat/StaffChatInterface'
 import './staff.scss'
+import PartsApproval from '@/components/booking/PartsApproval'
+import { WorkOrderPartService } from '@/services/workOrderPartService'
 
 export default function StaffDashboard() {
   const navigate = useNavigate()
@@ -35,6 +37,9 @@ export default function StaffDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [approvalBookingId, setApprovalBookingId] = useState<number | ''>('')
+  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string }>>([])
+  const [loadingParts, setLoadingParts] = useState(false)
 
   const handleLogout = () => {
     dispatch(logout())
@@ -395,6 +400,57 @@ export default function StaffDashboard() {
         }}
       >
         {renderPageContent()}
+        {/* Quick Parts Approval Panel */}
+        <div style={{ marginTop: 24 }}>
+          <div style={{
+            background: '#fff',
+            border: '1px solid var(--border-primary)',
+            borderRadius: 12,
+            padding: 16
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <ClipboardList size={18} />
+              <strong>Phê duyệt phụ tùng nhanh (hỗ trợ khách)</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <input
+                type="number"
+                placeholder="Booking ID"
+                value={approvalBookingId}
+                onChange={(e) => setApprovalBookingId(e.target.value ? Number(e.target.value) : '')}
+                style={{ padding: '8px 10px', border: '1px solid var(--border-primary)', borderRadius: 8 }}
+              />
+              <button
+                onClick={async () => {
+                  if (!approvalBookingId) return
+                  setLoadingParts(true)
+                  try {
+                    const items = await WorkOrderPartService.list(Number(approvalBookingId))
+                    setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName })))
+                  } finally {
+                    setLoadingParts(false)
+                  }
+                }}
+                className="btn-primary"
+                style={{ padding: '8px 12px' }}
+              >
+                Tải phụ tùng
+              </button>
+            </div>
+            {loadingParts ? (
+              <div style={{ color: 'var(--text-secondary)' }}>Đang tải...</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                {parts.map(p => (
+                  <PartsApproval key={p.id} bookingId={Number(approvalBookingId)} partId={p.partId} partName={p.partName} />
+                ))}
+                {approvalBookingId && parts.length === 0 && (
+                  <div style={{ color: 'var(--text-secondary)' }}>Không có phụ tùng cần phê duyệt.</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

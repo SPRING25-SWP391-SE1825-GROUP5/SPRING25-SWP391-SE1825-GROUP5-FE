@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import { PartService, Part } from '@/services/partService'
+import { TechnicianService } from '@/services/technicianService'
 import { WorkOrderPartService, WorkOrderPartItem } from '@/services/workOrderPartService'
 import bookingRealtimeService from '@/services/bookingRealtimeService'
-import { BookingService } from '@/services/bookingService'
+// removed BookingService summary call; compute locally from items
 
-type ChecklistRow = { resultId: number; partId: number; partName?: string; description?: string; result?: string; notes?: string }
+type ChecklistRow = { resultId: number; partId?: number; partName?: string; categoryId?: number; categoryName?: string; description?: string; result?: string | null; notes?: string; status?: string }
 
 interface WorkQueueRowExpansionProps {
   workId: number
@@ -12,7 +13,17 @@ interface WorkQueueRowExpansionProps {
   centerId?: number
   status?: string
   items: ChecklistRow[]
-  onSetItemResult: (resultId: number, partId: number, result: 'PASS' | 'FAIL', notes?: string) => Promise<void> | void
+  onSetItemResult: (
+    resultId: number, 
+    partId: number | undefined, 
+    result: 'PASS' | 'FAIL', 
+    notes?: string,
+    replacementInfo?: {
+      requireReplacement?: boolean
+      replacementPartId?: number
+      replacementQuantity?: number
+    }
+  ) => Promise<void> | void
   onConfirmChecklist: () => Promise<void> | void
   onConfirmParts: () => Promise<void> | void
 }
@@ -31,6 +42,12 @@ export default function WorkQueueRowExpansion({
   const [showSelectPart, setShowSelectPart] = useState(false)
   const [parts, setParts] = useState<WorkOrderPartItem[]>([])
   const [summary, setSummary] = useState<{ total: number; pass: number; fail: number; na: number } | null>(null)
+  // Editable descriptions per resultId
+  const [descById, setDescById] = useState<Record<number, string>>({})
+  // Modal chọn phụ tùng khi đánh FAIL theo category
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [modalCategoryId, setModalCategoryId] = useState<number | null>(null)
+  const [modalResultId, setModalResultId] = useState<number | null>(null)
   const totalCost = useMemo(() => parts.reduce((sum, p) => sum + (p.unitPrice || 0) * p.quantity, 0), [parts])
   // inline notes editing; no modal
   const normalized = (status || '').toLowerCase()
@@ -50,15 +67,21 @@ export default function WorkQueueRowExpansion({
     })()
   }, [bookingId])
 
-  // Load checklist summary for mini-stats
+// Tính summary từ items (không gọi API summary)
+ React.useEffect(() => {
+    const total = (items || []).length
+    const pass = (items || []).filter(i => i.result === 'PASS' || i.result === 'pass').length
+    const fail = (items || []).filter(i => i.result === 'FAIL' || i.result === 'fail').length
+    const na = total - pass - fail
+    setSummary({ total, pass, fail, na })
+  }, [items])
+
+  // Initialize editable descriptions from props
   React.useEffect(() => {
-    (async () => {
-      try {
-        const res = await BookingService.getMaintenanceChecklistSummary(bookingId)
-        if (res?.success) setSummary({ total: res.total, pass: res.pass, fail: res.fail, na: res.na })
-      } catch {}
-    })()
-  }, [bookingId])
+    const map: Record<number, string> = {}
+    ;(items || []).forEach(i => { if (i.resultId) map[i.resultId] = i.description || '' })
+    setDescById(map)
+  }, [items])
 
   // Subscribe parts realtime for this booking
   React.useEffect(() => {
@@ -73,21 +96,34 @@ export default function WorkQueueRowExpansion({
   }, [bookingId])
 
   const handleSet = async (row: ChecklistRow, val: 'PASS' | 'FAIL') => {
-    if (!row?.resultId || !row?.partId) return
-    try {
-      setUpdatingId(row.resultId)
-      await onSetItemResult(row.resultId, row.partId, val, row.notes)
-    } finally {
-      setUpdatingId(null)
+    if (!row?.resultId) return
+    
+    // Nếu là PASS, gửi lên BE ngay
+    if (val === 'PASS') {
+      try {
+        setUpdatingId(row.resultId)
+        await onSetItemResult(row.resultId, row.partId, val, undefined)
+      } finally {
+        setUpdatingId(null)
+      }
+      return
+    }
+
+    // Nếu là FAIL, chỉ mở modal (không gửi BE ngay)
+    if (val === 'FAIL' && row.categoryId) {
+      setModalCategoryId(row.categoryId)
+      setModalResultId(row.resultId)
+      setShowCategoryModal(true)
+    } else if (val === 'FAIL') {
+      // Nếu không có categoryId, vẫn cho phép ghi mô tả và gửi lên BE
+      setModalCategoryId(null)
+      setModalResultId(row.resultId)
+      setShowCategoryModal(true)
     }
   }
 
   const checklistOk = useMemo(() => {
-    return (items || []).every((r) => {
-      if (!r.result) return false
-      if (r.result === 'FAIL') return !!(r.notes && r.notes.trim().length > 0)
-      return true
-    })
+    return (items || []).every((r) => !!(r.result && r.result !== null))
   }, [items])
 
   return (
@@ -114,7 +150,7 @@ export default function WorkQueueRowExpansion({
                 try {
                   const part = JSON.parse(raw) as Part
                   const quantity = 1
-                  const check = await PartService.checkPartAvailability(part.partId, quantity)
+                  const check = await PartService.checkPartAvailability(part.partId, quantity, centerId)
                   if (!check.success || !check.available) return
                   const created = await WorkOrderPartService.add(bookingId, { partId: part.partId, quantity })
                   setParts(prev => prev.concat(created))
@@ -130,20 +166,20 @@ export default function WorkQueueRowExpansion({
                 <tr>
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>#</th>
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Phụ tùng</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Mô tả</th>
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Trạng thái</th>
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Đánh giá</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((row, idx) => {
-                  const statusColor = row.result === 'PASS' ? '#10B981' : row.result === 'FAIL' ? '#EF4444' : '#6B7280'
-                  const statusText = row.result === 'PASS' ? 'Đạt' : row.result === 'FAIL' ? 'Không đạt' : 'Chưa đánh giá'
+                  const isFail = (row.result === 'FAIL' || row.result === 'fail')
+                  const isPass = (row.result === 'PASS' || row.result === 'pass')
+                  const statusColor = isPass ? '#10B981' : isFail ? '#EF4444' : '#6B7280'
+                  const statusText = isPass ? 'Đạt' : isFail ? 'Không đạt' : 'Chưa đánh giá'
                   return (
                     <tr key={`${workId}-${row.resultId || idx}`}>
                       <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13 }}>{idx + 1}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13, color: '#111827' }}>{row.partName || '-'}</td>
-                      <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13, color: 'var(--text-secondary)' }}>{row.description || '-'}</td>
+                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13, color: '#111827' }}>{row.partName || row.categoryName || '-'}</td>
                       <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13 }}>
                         <span style={{
                           display: 'inline-block',
@@ -162,8 +198,8 @@ export default function WorkQueueRowExpansion({
                             style={{
                               padding: '6px 12px',
                               borderRadius: 6,
-                              border: `1px solid ${row.result === 'PASS' ? '#FFD875' : '#D1D5DB'}`,
-                              background: row.result === 'PASS' ? '#FFF6D1' : (isChecklistEditable ? '#FFFFFF' : '#F9FAFB'),
+                              border: `1px solid ${(row.result === 'PASS' || row.result === 'pass') ? '#FFD875' : '#D1D5DB'}`,
+                              background: (row.result === 'PASS' || row.result === 'pass') ? '#FFF6D1' : (isChecklistEditable ? '#FFFFFF' : '#F9FAFB'),
                               color: '#374151',
                               fontSize: 13,
                               fontWeight: 400,
@@ -176,35 +212,15 @@ export default function WorkQueueRowExpansion({
                             style={{
                               padding: '6px 12px',
                               borderRadius: 6,
-                              border: `1px solid ${row.result === 'FAIL' ? '#FFD875' : '#D1D5DB'}`,
-                              background: row.result === 'FAIL' ? '#FFF6D1' : (isChecklistEditable ? '#FFFFFF' : '#F9FAFB'),
+                              border: `1px solid ${(row.result === 'FAIL' || row.result === 'fail') ? '#FFD875' : '#D1D5DB'}`,
+                              background: (row.result === 'FAIL' || row.result === 'fail') ? '#FFF6D1' : (isChecklistEditable ? '#FFFFFF' : '#F9FAFB'),
                               color: '#374151',
                               fontSize: 13,
                               fontWeight: 400,
                               cursor: (!isChecklistEditable || updatingId === row.resultId) ? 'not-allowed' : 'pointer'
                             }}
                           >Không đạt</button>
-                          {row.result === 'FAIL' && (
-                            <input
-                              placeholder="Ghi chú (bắt buộc)"
-                              defaultValue={row.notes || ''}
-                              onBlur={async (e) => {
-                                if (!isChecklistEditable) return
-                                const val = (e.target.value || '').trim()
-                                if (!val) {
-                                  e.currentTarget.style.borderColor = '#EF4444'
-                                  return
-                                }
-                                e.currentTarget.style.borderColor = '#D1D5DB'
-                                await onSetItemResult(row.resultId!, row.partId!, 'FAIL', val)
-                              }}
-                              disabled={!isChecklistEditable}
-                              style={{ maxWidth: 240, width: '100%', padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, background: !isChecklistEditable ? '#F9FAFB' : '#FFFFFF' }}
-                            />
-                          )}
-                          {!!row.notes && row.result === 'FAIL' && (
-                            <span style={{ fontSize: 12, color: '#6B7280' }} title={row.notes}>Có ghi chú</span>
-                          )}
+                          {/* Bỏ input ghi chú và gợi ý inline theo yêu cầu */}
                         </div>
                       </td>
                     </tr>
@@ -225,7 +241,18 @@ export default function WorkQueueRowExpansion({
               <button
                 type="button"
                 disabled={!checklistOk}
-                onClick={() => onConfirmChecklist()}
+                onClick={async () => {
+                  // Gửi mô tả đã chỉnh sửa cùng kết quả lên BE trước khi confirm
+                  const payload = (items || []).map(it => ({
+                    resultId: it.resultId!,
+                    description: (descById[it.resultId!] ?? it.description ?? '').trim(),
+                    result: (it.result && typeof it.result === 'string') ? (it.result.toUpperCase()) : 'N/A'
+                  }))
+                  try {
+                    await TechnicianService.updateMaintenanceChecklist(bookingId, payload as any)
+                  } catch {}
+                  await onConfirmChecklist()
+                }}
                 style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #FFD875', background: checklistOk ? '#FFF6D1' : '#FFFFFF', color: '#111827', fontSize: 13, fontWeight: 400, cursor: checklistOk ? 'pointer' : 'not-allowed' }}
               >Xác nhận checklist</button>
             ) : null}
@@ -286,7 +313,7 @@ export default function WorkQueueRowExpansion({
                           const val = Math.max(1, Number(e.target.value || 1))
                           // Check availability before commit
                           try {
-                            const check = await PartService.checkPartAvailability(p.partId, val)
+                            const check = await PartService.checkPartAvailability(p.partId, val, centerId)
                             if (!check.success || !check.available) {
                               e.currentTarget.style.borderColor = '#EF4444'
                               return
@@ -365,12 +392,72 @@ export default function WorkQueueRowExpansion({
             centerId={centerId}
             onSelect={async (part, quantity) => {
               try {
-                const check = await PartService.checkPartAvailability(part.partId, quantity)
+                const check = await PartService.checkPartAvailability(part.partId, quantity, centerId)
                 if (!check.success || !check.available) return
                 const created = await WorkOrderPartService.add(bookingId, { partId: part.partId, quantity })
                 setParts(prev => prev.concat(created))
                 setShowSelectPart(false)
               } catch {}
+            }}
+          />
+        )}
+
+        {showCategoryModal && isInProgress && modalResultId && (
+          <CategoryPartsModal
+            categoryId={modalCategoryId}
+            resultId={modalResultId}
+            centerId={centerId}
+            onClose={() => { setShowCategoryModal(false); setModalCategoryId(null); setModalResultId(null) }}
+            onConfirm={async (notes, selectedParts) => {
+              try {
+                setUpdatingId(modalResultId)
+                // Gửi result FAIL + description + thông tin phụ tùng thay thế lên BE trong một request
+                // API: PUT /api/maintenance-checklist/{bookingId}/results/{resultId}
+                // Request body: { description, result, requireReplacement, replacementPartId, replacementQuantity }
+                
+                // Lấy phụ tùng đầu tiên từ danh sách đã chọn (lấy từ API GET /api/parts/by-category/{categoryId})
+                const firstPart = selectedParts.length > 0 ? selectedParts[0] : null
+                const replacementInfo = firstPart ? {
+                  requireReplacement: true,
+                  replacementPartId: firstPart.part.partId, // partId từ API GET /api/parts/by-category/{categoryId}
+                  replacementQuantity: firstPart.quantity    // số lượng user nhập vào
+                } : undefined // Không gửi replacementInfo nếu không có phụ tùng
+                
+                const resultResponse = await onSetItemResult(
+                  modalResultId, 
+                  undefined, 
+                  'FAIL', 
+                  notes,
+                  replacementInfo
+                )
+                
+                // Kiểm tra nếu API update tình trạng thành công
+                if (resultResponse === undefined || (resultResponse as any)?.success !== false) {
+                  // Nếu có nhiều phụ tùng, thêm các phụ tùng còn lại (bỏ qua phụ tùng đầu tiên đã gửi trong request body)
+                  for (let i = 1; i < selectedParts.length; i++) {
+                    const { part, quantity } = selectedParts[i]
+                    try {
+                      const created = await WorkOrderPartService.add(bookingId, { partId: part.partId, quantity })
+                      setParts(prev => prev.concat(created))
+                    } catch (err) {
+                      console.error('Lỗi khi thêm phụ tùng:', err)
+                    }
+                  }
+                  // Đóng modal sau khi thành công
+                  setShowCategoryModal(false)
+                  setModalCategoryId(null)
+                  setModalResultId(null)
+                } else {
+                  // Nếu API update tình trạng thất bại, không đóng modal và giữ nguyên form
+                  throw new Error((resultResponse as any)?.message || 'Cập nhật tình trạng thất bại')
+                }
+              } catch (error: any) {
+                // Hiển thị lỗi và giữ modal mở để người dùng có thể thử lại
+                console.error('Lỗi khi xác nhận:', error)
+                throw error // Re-throw để modal có thể xử lý lỗi
+              } finally {
+                setUpdatingId(null)
+              }
             }}
           />
         )}
@@ -388,6 +475,7 @@ interface SelectPartModalProps {
 
 function SelectPartModal({ onClose, onSelect, centerId }: SelectPartModalProps & { centerId?: number }) {
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<Part[]>([])
   const [selected, setSelected] = useState<Part | null>(null)
@@ -396,8 +484,17 @@ function SelectPartModal({ onClose, onSelect, centerId }: SelectPartModalProps &
   const load = async () => {
     setLoading(true)
     try {
-      const res = await PartService.getPartAvailability({ centerId, searchTerm: search, inStock: true, pageSize: 10, pageNumber: 1 })
-      setData(res?.data || [])
+      const res = await PartService.getPartAvailability({ centerId, searchTerm: search, category: category || undefined, inStock: true, pageSize: 10, pageNumber: 1 })
+      const parts = res?.data || []
+      // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl
+      setData(parts.map(p => {
+        const raw = p as any
+        return {
+          ...p,
+          unitPrice: p.unitPrice ?? raw.Price ?? raw.price ?? 0,
+          imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl
+        }
+      }))
     } finally {
       setLoading(false)
     }
@@ -416,33 +513,40 @@ function SelectPartModal({ onClose, onSelect, centerId }: SelectPartModalProps &
           <button onClick={onClose} style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#FFFFFF', cursor: 'pointer' }}>Đóng</button>
         </div>
         <div style={{ padding: 16 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px auto', gap: 8, marginBottom: 12 }}>
             <input
               placeholder="Tìm kiếm phụ tùng..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1, padding: '8px 10px', border: '1px solid #D1D5DB', borderRadius: 8 }}
+              style={{ padding: '8px 10px', border: '1px solid #D1D5DB', borderRadius: 8 }}
             />
-            <button onClick={load} style={{ padding: '8px 12px', border: '1px solid #D1D5DB', borderRadius: 8, background: '#FFFFFF', cursor: 'pointer' }}>Tìm</button>
+            <input
+              placeholder="Category (ví dụ: oil, brake, tire...)"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ padding: '8px 10px', border: '1px solid #D1D5DB', borderRadius: 8 }}
+            />
+            <button onClick={load} style={{ padding: '8px 12px', border: '1px solid #D1D5DB', borderRadius: 8, background: '#FFFFFF', cursor: 'pointer' }}>Lọc</button>
           </div>
 
           <div style={{ overflow: 'auto', maxHeight: '50vh', border: '1px solid #E5E7EB', borderRadius: 8 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '16%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Mã</th>
-                  <th style={{ width: '32%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tên</th>
-                  <th style={{ width: '16%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thương hiệu</th>
-                  <th style={{ width: '16%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Giá</th>
-                  <th style={{ width: '12%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tồn kho</th>
-                  <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Chọn</th>
+                  <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Ảnh</th>
+                  <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Mã</th>
+                  <th style={{ width: '30%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tên</th>
+                  <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thương hiệu</th>
+                  <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Giá</th>
+                  <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tồn kho</th>
+                  <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Chọn</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>Đang tải...</td></tr>
+                  <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>Đang tải...</td></tr>
                 ) : data.length === 0 ? (
-                  <tr><td colSpan={6} style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>Không có phụ tùng phù hợp</td></tr>
+                  <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>Không có phụ tùng phù hợp</td></tr>
                 ) : (
                   data.map((p) => (
                     <tr
@@ -453,10 +557,24 @@ function SelectPartModal({ onClose, onSelect, centerId }: SelectPartModalProps &
                         e.dataTransfer.setData('application/part', JSON.stringify(p))
                       }}
                     >
+                      <td style={{ padding: '10px', textAlign: 'center' }}>
+                        {p.imageUrl && p.imageUrl !== 'NULL' ? (
+                          <img 
+                            src={p.imageUrl} 
+                            alt={p.partName}
+                            style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4, border: '1px solid #E5E7EB' }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          <div style={{ width: 50, height: 50, background: '#F3F4F6', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#9CA3AF' }}>N/A</div>
+                        )}
+                      </td>
                       <td style={{ padding: '10px', fontSize: 13 }}>{p.partNumber}</td>
                       <td style={{ padding: '10px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{p.partName}</td>
                       <td style={{ padding: '10px', fontSize: 13 }}>{p.brand}</td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.unitPrice.toLocaleString('vi-VN')}</td>
+                      <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{(p.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</td>
                       <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.totalStock}</td>
                       <td style={{ padding: '10px', textAlign: 'center' }}>
                         <button
@@ -488,4 +606,298 @@ function SelectPartModal({ onClose, onSelect, centerId }: SelectPartModalProps &
   )
 }
 
+
+interface CategoryPartsModalProps {
+  categoryId: number | null
+  resultId: number
+  centerId?: number
+  onClose: () => void
+  onConfirm: (notes: string, selectedParts: Array<{ part: Part; quantity: number }>) => void | Promise<void>
+}
+
+function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm }: CategoryPartsModalProps) {
+  const [loading, setLoading] = useState(false)
+  const [data, setData] = useState<Part[]>([])
+  const [selected, setSelected] = useState<Part | null>(null)
+  const [qty, setQty] = useState(1)
+  const [notes, setNotes] = useState('')
+  const [selectedParts, setSelectedParts] = useState<Array<{ part: Part; quantity: number }>>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      if (categoryId) {
+        const res = await PartService.getPartsByCategory(categoryId)
+        const parts = res?.data || []
+        // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl
+        setData(parts.map(p => {
+          const raw = p as any
+          return {
+            ...p,
+            unitPrice: p.unitPrice ?? raw.Price ?? raw.price ?? 0,
+            imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl
+          }
+        }))
+      } else {
+        // Nếu không có categoryId, lấy tất cả phụ tùng có sẵn
+        const res = await PartService.getPartAvailability({ centerId, inStock: true, pageSize: 100, pageNumber: 1 })
+        const parts = res?.data || []
+        // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl
+        setData(parts.map(p => {
+          const raw = p as any
+          return {
+            ...p,
+            unitPrice: p.unitPrice ?? raw.Price ?? raw.price ?? 0,
+            imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl
+          }
+        }))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  React.useEffect(() => { load() }, [categoryId, centerId])
+
+  const handleAddPart = () => {
+    if (!selected) return
+    // Kiểm tra xem phụ tùng đã được thêm chưa
+    const exists = selectedParts.find(sp => sp.part.partId === selected.partId)
+    if (exists) {
+      // Nếu đã có, cập nhật số lượng
+      setSelectedParts(prev => prev.map(sp => 
+        sp.part.partId === selected.partId 
+          ? { ...sp, quantity: sp.quantity + qty }
+          : sp
+      ))
+    } else {
+      // Nếu chưa có, thêm mới
+      setSelectedParts(prev => [...prev, { part: selected, quantity: qty }])
+    }
+    setSelected(null)
+    setQty(1)
+  }
+
+  const handleRemovePart = (index: number) => {
+    setSelectedParts(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleUpdateQuantity = (index: number, newQuantity: number) => {
+    if (newQuantity < 1) return
+    setSelectedParts(prev => prev.map((sp, i) => 
+      i === index ? { ...sp, quantity: newQuantity } : sp
+    ))
+  }
+
+  const handleConfirm = async () => {
+    if (!notes.trim()) {
+      setError('Vui lòng nhập mô tả lý do không đạt')
+      return
+    }
+    
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onConfirm(notes, selectedParts)
+      // Nếu thành công, onConfirm sẽ đóng modal
+    } catch (error: any) {
+      // Hiển thị lỗi và giữ modal mở
+      setError(error?.message || 'Có lỗi xảy ra khi cập nhật. Vui lòng thử lại.')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ width: '900px', maxWidth: '95vw', background: '#FFFFFF', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, color: '#111827' }}>Đánh giá không đạt</h3>
+          <button onClick={onClose} style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#FFFFFF', cursor: 'pointer' }}>Đóng</button>
+        </div>
+        <div style={{ padding: 16, overflow: 'auto', flex: 1 }}>
+          {/* Hiển thị lỗi nếu có */}
+          {error && (
+            <div style={{ marginBottom: 16, padding: '12px', background: '#FEF2F2', border: '1px solid #EF4444', borderRadius: 8, color: '#991B1B', fontSize: 13 }}>
+              {error}
+            </div>
+          )}
+          
+          {/* Phần mô tả */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: '#374151', fontWeight: 500 }}>Mô tả *</label>
+            <textarea
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value)
+                setError(null) // Xóa lỗi khi người dùng nhập lại
+              }}
+              placeholder="Nhập mô tả về lý do không đạt..."
+              rows={4}
+              style={{ 
+                width: '100%', 
+                padding: '8px 10px', 
+                border: '1px solid #D1D5DB', 
+                borderRadius: 8,
+                fontSize: 13,
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          {/* Danh sách phụ tùng đã chọn */}
+          {selectedParts.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: '#374151', fontWeight: 500 }}>Phụ tùng đã chọn</label>
+              <div style={{ border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tên phụ tùng</th>
+                      <th style={{ borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Đơn giá</th>
+                      <th style={{ borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Số lượng</th>
+                      <th style={{ borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thành tiền</th>
+                      <th style={{ borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedParts.map((sp, index) => (
+                      <tr key={`${sp.part.partId}-${index}`}>
+                        <td style={{ padding: '10px', fontSize: 13 }}>{sp.part.partName}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{(sp.part.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</td>
+                        <td style={{ padding: '10px', textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={sp.quantity}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 1 : Math.max(1, Number(e.target.value || 1))
+                              handleUpdateQuantity(index, val)
+                            }}
+                            onBlur={(e) => {
+                              if (!e.target.value || Number(e.target.value) < 1) {
+                                handleUpdateQuantity(index, 1)
+                              }
+                            }}
+                            style={{ width: 80, padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, textAlign: 'right', fontSize: 13 }}
+                          />
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{((sp.part.unitPrice || 0) * sp.quantity).toLocaleString('vi-VN')} VNĐ</td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleRemovePart(index)}
+                            style={{ padding: '6px 10px', border: '1px solid #EF4444', borderRadius: 6, background: '#FFFFFF', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}
+                          >Xóa</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Chọn phụ tùng */}
+          <div>
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: '#374151', fontWeight: 500 }}>Chọn phụ tùng {categoryId ? 'theo danh mục' : ''}</label>
+            <div style={{ overflow: 'auto', maxHeight: '300px', border: '1px solid #E5E7EB', borderRadius: 8 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', tableLayout: 'fixed' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Ảnh</th>
+                    <th style={{ width: '12%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Mã</th>
+                    <th style={{ width: '28%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tên</th>
+                    <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thương hiệu</th>
+                    <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Giá</th>
+                    <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tồn kho</th>
+                    <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Chọn</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>Đang tải...</td></tr>
+                  ) : data.length === 0 ? (
+                    <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>Không có phụ tùng</td></tr>
+                  ) : (
+                    data.map((p) => (
+                      <tr key={p.partId} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          {p.imageUrl && p.imageUrl !== 'NULL' ? (
+                            <img 
+                              src={p.imageUrl} 
+                              alt={p.partName}
+                              style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4, border: '1px solid #E5E7EB' }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div style={{ width: 50, height: 50, background: '#F3F4F6', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#9CA3AF' }}>N/A</div>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px', fontSize: 13 }}>{p.partNumber}</td>
+                        <td style={{ padding: '10px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{p.partName}</td>
+                        <td style={{ padding: '10px', fontSize: 13 }}>{p.brand}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{(p.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.totalStock}</td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => setSelected(p)}
+                            style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: selected?.partId === p.partId ? '#111827' : '#FFFFFF', color: selected?.partId === p.partId ? '#FFFFFF' : '#374151', cursor: 'pointer', fontSize: 13 }}
+                          >{selected?.partId === p.partId ? 'Đã chọn' : 'Chọn'}</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 13, color: '#374151' }}>Số lượng</label>
+                <input 
+                  type="number" 
+                  min={1} 
+                  value={qty} 
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 1 : Math.max(1, Number(e.target.value || 1))
+                    setQty(val)
+                  }}
+                  onBlur={(e) => {
+                    if (!e.target.value || Number(e.target.value) < 1) {
+                      setQty(1)
+                    }
+                  }}
+                  style={{ width: 100, padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6 }} 
+                />
+              </div>
+              <button
+                disabled={!selected}
+                onClick={handleAddPart}
+                style={{ padding: '8px 14px', border: '1px solid #D1D5DB', borderRadius: 8, background: selected ? '#111827' : '#FFFFFF', color: selected ? '#FFFFFF' : '#9CA3AF', cursor: selected ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 700 }}
+              >Thêm vào danh sách</button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Footer với nút xác nhận */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            style={{ padding: '8px 16px', border: '1px solid #D1D5DB', borderRadius: 8, background: '#FFFFFF', color: '#374151', cursor: submitting ? 'not-allowed' : 'pointer', fontSize: 13 }}
+          >Hủy</button>
+          <button
+            onClick={handleConfirm}
+            disabled={submitting || !notes.trim()}
+            style={{ padding: '8px 16px', border: '1px solid #FFD875', borderRadius: 8, background: (!notes.trim() || submitting) ? '#F9FAFB' : '#FFF6D1', color: (!notes.trim() || submitting) ? '#9CA3AF' : '#111827', cursor: (!notes.trim() || submitting) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500 }}
+          >{submitting ? 'Đang xử lý...' : 'Xác nhận'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 

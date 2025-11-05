@@ -7,13 +7,12 @@ import {
   CheckCircle, 
   TrendingUp,
   Filter,
-  Search,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  Trash2
+  Search
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
+import { BookingService } from '../../services/bookingService'
+import QuickPartsApprovalModal from '@/components/booking/QuickPartsApprovalModal'
+import BookingStatusModal from '@/components/booking/BookingStatusModal'
 import './BookingManagementPage.scss'
 
 // Mock data for booking management
@@ -118,6 +117,10 @@ export default function BookingManagementPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showPartsModal, setShowPartsModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
 
   // Calculate stats
   const totalBookings = mockBookingData.length
@@ -151,6 +154,26 @@ export default function BookingManagementPage() {
       style: 'currency',
       currency: 'VND'
     }).format(amount)
+  }
+
+  const getNumericBookingId = (id: string): number | null => {
+    const n = parseInt(id.replace(/\D/g, ''), 10)
+    return Number.isFinite(n) ? n : null
+  }
+
+  const openRowPartsModal = (mockId: string) => {
+    const numericId = getNumericBookingId(mockId)
+    if (!numericId) return
+    setSelectedBookingId(numericId)
+    setShowPartsModal(true)
+  }
+
+  const openStatusModal = (mockId: string, currentStatus: string) => {
+    const numericId = getNumericBookingId(mockId)
+    if (!numericId) return
+    setSelectedBookingId(numericId)
+    setSelectedStatus((currentStatus || '').toUpperCase())
+    setShowStatusModal(true)
   }
 
   return (
@@ -371,12 +394,12 @@ export default function BookingManagementPage() {
                 <th>Ngày tạo</th>
                 <th>Kỹ thuật viên</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
               {filteredBookings.map((booking) => (
-                <tr key={booking.id}>
+                <tr key={booking.id} onClick={() => openRowPartsModal(booking.id)}>
                   <td>
                     <span className="booking-id">{booking.id}</span>
                   </td>
@@ -397,16 +420,22 @@ export default function BookingManagementPage() {
                       {statusConfig[booking.status as keyof typeof statusConfig].label}
                     </span>
                   </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button className="action-btn view">
-                        <Eye size={16} />
-                      </button>
-                      <button className="action-btn edit">
-                        <Edit size={16} />
-                      </button>
-                      <button className="action-btn delete">
-                        <Trash2 size={16} />
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start' }}>
+                      <button
+                        onClick={() => openStatusModal(booking.id, booking.status)}
+                        title="Đổi trạng thái"
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid var(--border-primary)',
+                          background: 'var(--bg-card)',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        Trạng thái
                       </button>
                     </div>
                   </td>
@@ -416,6 +445,21 @@ export default function BookingManagementPage() {
           </table>
         </div>
       </div>
+      {/* Modal: Quick Parts Approval */}
+      <QuickPartsApprovalModal
+        bookingId={selectedBookingId}
+        open={showPartsModal}
+        onClose={() => setShowPartsModal(false)}
+      />
+
+      {/* Modal: Booking Status */}
+      <BookingStatusModal
+        open={showStatusModal}
+        bookingId={selectedBookingId}
+        currentStatus={selectedStatus}
+        onClose={() => setShowStatusModal(false)}
+        onUpdated={async () => { /* Khi có dữ liệu thật, có thể reload ở đây */ }}
+      />
     </div>
   )
 }
