@@ -814,18 +814,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         )}
       </div>
 
-      {/* Bản fixed cho desktop - ẩn ở bước xác nhận */}
-      {!isConfirmationStep && (
-        <div className="booking-summary-fixed" ref={summaryFixedRef}>
-          <BookingSummary
-            customerInfo={isGuest ? bookingData.customerInfo : undefined}
-            vehicleInfo={bookingData.vehicleInfo}
-            serviceInfo={bookingData.serviceInfo}
-            locationTimeInfo={bookingData.locationTimeInfo}
-            isGuest={isGuest}
-          />
-        </div>
-      )}
+      {/* Bỏ bản fixed; dùng sticky trong cột phải của booking-body */}
 
       {/* CSS Styles */}
       <style>{`
@@ -859,38 +848,15 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         /* Spacer cột phải để giữ layout 2 cột */
         .summary-spacer { min-height: 1px; }
 
-        /* Inline summary chỉ dùng cho mobile/tablet */
-        .booking-summary-inline { display: none; }
-
-        /* Summary dạng fixed cho desktop */
-        .booking-summary-fixed {
-          position: fixed;
-          right: 24px;
-          top: var(--summary-top, 90px); /* dưới tiêu đề + progress bar */
-          bottom: var(--summary-bottom, 24px); /* chừa khoảng tránh footer */
-          width: 360px;
-          /* Giới hạn theo viewport (tránh header/footer) và theo chiều cao nội dung booking */
-          max-height: min(
-            var(--summary-max-height, 100vh),
-            calc(100vh - (var(--summary-top, 120px) + var(--summary-bottom, 24px)))
-          );
-          overflow: auto;
-          z-index: 3;
-          display: block;
-        }
-
-        /* Điều chỉnh vùng nội dung để không bị summary fixed đè lên (khoảng thở bên phải) */
-        .service-booking-form { padding-right: 384px; }
+        /* Inline summary hiển thị cả desktop, sticky xử lý trong BookingSummary */
+        .booking-summary-inline { display: block; }
 
         /* Responsive */
         @media (max-width: 1280px) {
-          .booking-summary-fixed { width: 320px; }
-          .service-booking-form { padding-right: 340px; }
         }
 
         @media (max-width: 1024px) {
           .booking-body { grid-template-columns: 1fr; }
-          .booking-summary-fixed { display: none; }
           .booking-summary-inline { display: block; }
           .service-booking-form { padding-right: 0; }
         }
