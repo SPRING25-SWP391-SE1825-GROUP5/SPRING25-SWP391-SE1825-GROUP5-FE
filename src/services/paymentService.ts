@@ -101,11 +101,27 @@ export class PaymentService {
     }
 
     /**
+     * Tạo link thanh toán VNPay cho Booking (theo spec mới)
+     */
+    static async createBookingVNPayLink(bookingId: number): Promise<{ success: boolean; message: string; vnp_Url?: string }> {
+        const { data } = await api.post(`/Payment/booking/${bookingId}/vnpay-link`)
+        return data
+    }
+
+    /**
      * Tạo thanh toán QR Code
      */
     static async createQRPayment(request: QRPaymentRequest): Promise<QRPaymentResponse> {
         const response = await api.post('/Payment/qr/create', request)
         return response.data
+    }
+
+    /**
+     * Tạo QR Sepay cho Booking (theo spec mới)
+     */
+    static async createBookingSepayQR(bookingId: number): Promise<{ success: boolean; message: string; data?: { qrCode: string; orderCode: string; amount: number } }> {
+        const { data } = await api.post(`/Payment/booking/${bookingId}/sepay-qr`)
+        return data
     }
 
     /**
@@ -148,6 +164,33 @@ export class PaymentService {
             }
         } catch (error) {
             throw error
+        }
+    }
+
+    /**
+     * Lấy kết quả thanh toán (theo spec mới)
+     */
+    static async getPaymentResult(orderCode: string): Promise<PaymentStatusResponse> {
+        const { data } = await api.get(`/payment/result`, { params: { orderCode } })
+        if (data?.success && data?.data) {
+            return {
+                success: true,
+                message: data.message || 'OK',
+                data: {
+                    orderCode: data.data.orderCode || orderCode,
+                    status: data.data.status,
+                    amount: data.data.amount,
+                    bookingId: data.data.bookingId,
+                    paymentMethod: data.data.paymentMethod,
+                    transactionId: data.data.transactionId,
+                    paidAt: data.data.paidAt,
+                },
+            }
+        }
+        return {
+            success: false,
+            message: data?.message || 'Unknown',
+            data: { orderCode, status: 'PENDING', amount: 0 },
         }
     }
 

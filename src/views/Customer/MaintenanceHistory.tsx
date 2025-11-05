@@ -5,6 +5,8 @@ import { BookingData, feedbackService } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
 import './customer.scss'
 import './MaintenanceHistory.scss'
+import { WorkOrderPartService } from '@/services/workOrderPartService'
+import PartsApproval from '@/components/booking/PartsApproval'
 
 export default function MaintenanceHistory() {
   const [bookings, setBookings] = useState<BookingData[]>([])
@@ -13,6 +15,9 @@ export default function MaintenanceHistory() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [feedbackFilter, setFeedbackFilter] = useState('all')
+  const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<BookingData | null>(null)
+  const [parts, setParts] = useState<Record<string, any[]>>({})
+  const [loadingParts, setLoadingParts] = useState(false)
 
   // Load bookings data
   const loadBookings = async () => {
@@ -32,6 +37,23 @@ export default function MaintenanceHistory() {
   useEffect(() => {
     loadBookings()
   }, [])
+
+  const openApprovalModal = async (booking: BookingData) => {
+    setSelectedBookingForApproval(booking)
+    setLoadingParts(true)
+    try {
+      const items = await WorkOrderPartService.list(Number(booking.id))
+      setParts(prev => ({ ...prev, [booking.id]: items }))
+    } catch {
+      setParts(prev => ({ ...prev, [booking.id]: [] }))
+    } finally {
+      setLoadingParts(false)
+    }
+  }
+
+  const closeApprovalModal = () => {
+    setSelectedBookingForApproval(null)
+  }
 
   // Handle feedback submission
   const handleSubmitFeedback = async (bookingId: string, feedback: FeedbackData) => {
@@ -221,14 +243,48 @@ export default function MaintenanceHistory() {
             </div>
           ) : (
             filteredBookings.map((booking) => (
-              <FeedbackCard
-                key={booking.id}
-                booking={booking}
-                onSubmitFeedback={handleSubmitFeedback}
-                onEditFeedback={handleEditFeedback}
-              />
+              <div key={booking.id} style={{ position: 'relative' }}>
+                <FeedbackCard
+                  booking={booking}
+                  onSubmitFeedback={handleSubmitFeedback}
+                  onEditFeedback={handleEditFeedback}
+                />
+                <div style={{ marginTop: 8, textAlign: 'right' }}>
+                  <button
+                    onClick={() => openApprovalModal(booking)}
+                    className="btn-primary"
+                    style={{ padding: '8px 12px' }}
+                  >
+                    Phê duyệt phụ tùng
+                  </button>
+                </div>
+              </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Approval Modal */}
+      {selectedBookingForApproval && (
+        <div className="approval-modal" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ width: 'min(900px, 92vw)', maxHeight: '84vh', overflow: 'auto', background: '#fff', borderRadius: 12, padding: 16, border: '1px solid var(--border-primary)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Phê duyệt phụ tùng — Booking #{selectedBookingForApproval.id}</h3>
+              <button onClick={closeApprovalModal} className="btn-secondary" style={{ background: 'transparent', border: '1px solid var(--border-primary)' }}>Đóng</button>
+            </div>
+            {loadingParts ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>Đang tải danh sách phụ tùng...</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                {(parts[String(selectedBookingForApproval.id)] || []).map((p: any) => (
+                  <PartsApproval key={p.id} bookingId={Number(selectedBookingForApproval.id)} partId={p.partId} partName={p.partName} />
+                ))}
+                {(parts[String(selectedBookingForApproval.id)] || []).length === 0 && (
+                  <div style={{ padding: 16, color: 'var(--text-secondary)' }}>Không có phụ tùng cần phê duyệt.</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </section>
