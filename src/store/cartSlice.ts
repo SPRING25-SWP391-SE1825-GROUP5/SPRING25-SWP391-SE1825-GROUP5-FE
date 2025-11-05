@@ -141,7 +141,9 @@ export const {
   updateQuantity,
   clearCart,
   toggleCart,
-  setCartOpen
+  setCartOpen,
+  setCartItems,
+  setCartId
 } = cartSlice.actions
 
 export default cartSlice.reducer

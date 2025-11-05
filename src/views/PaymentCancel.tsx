@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { XCircle, AlertTriangle, RefreshCw, Home, CreditCard } from 'lucide-react'
+import { OrderService, CustomerService } from '@/services'
+import toast from 'react-hot-toast'
 
 const PaymentCancel: React.FC = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   // Removed auto-redirect countdown
+  const [isRecreating, setIsRecreating] = useState(false)
   
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
+  const orderId = searchParams.get('orderId') || bookingId
   const reason = searchParams.get('reason') || searchParams.get('cancelReason')
   const amount = searchParams.get('amount')
   const error = searchParams.get('error')
@@ -73,7 +77,7 @@ const PaymentCancel: React.FC = () => {
         </div>
         
         {/* Booking Details */}
-        {bookingId && (
+        {orderId && (
           <div className="booking-details">
             <h2>Thông tin đặt lịch</h2>
             
@@ -82,7 +86,7 @@ const PaymentCancel: React.FC = () => {
                 <CreditCard className="detail-icon" />
                 <div className="detail-content">
                   <span className="detail-label">Mã đặt lịch</span>
-                  <span className="detail-value">#{bookingId}</span>
+                  <span className="detail-value">#{orderId}</span>
                 </div>
               </div>
               
@@ -149,10 +153,70 @@ const PaymentCancel: React.FC = () => {
         <div className="action-buttons">
           <button 
             className="btn-secondary"
-            onClick={() => navigate('/booking')}
+            onClick={async () => {
+              try {
+                if (!orderId) {
+                  navigate('/cart')
+                  return
+                }
+                const idNum = Number(orderId)
+                if (Number.isNaN(idNum)) {
+                  navigate('/cart')
+                  return
+                }
+                setIsRecreating(true)
+                // Lấy danh sách items từ đơn cũ
+                const itemsResp = await OrderService.getOrderItems(idNum)
+                const rawItems = Array.isArray(itemsResp?.data) ? itemsResp.data : []
+                if (rawItems.length === 0) {
+                  toast.error('Không lấy được danh sách sản phẩm từ đơn hàng cũ')
+                  setIsRecreating(false)
+                  return
+                }
+                const items = rawItems.map((it: any) => ({
+                  partId: Number(it.partId ?? it.PartId),
+                  quantity: Number(it.quantity ?? it.Quantity ?? 1),
+                })).filter((it: any) => Number.isFinite(it.partId) && it.quantity > 0)
+
+                if (items.length === 0) {
+                  toast.error('Danh sách sản phẩm không hợp lệ để tạo đơn mới')
+                  setIsRecreating(false)
+                  return
+                }
+
+                // Lấy customerId hiện tại
+                let customerId: number | null = null
+                try {
+                  const me = await CustomerService.getCurrentCustomer()
+                  customerId = Number(me?.data?.customerId)
+                } catch {}
+                if (!customerId || Number.isNaN(customerId)) {
+                  toast.error('Vui lòng đăng nhập để tiếp tục thanh toán lại')
+                  navigate('/auth/login')
+                  setIsRecreating(false)
+                  return
+                }
+
+                // Tạo đơn hàng mới từ items cũ
+                const createResp = await OrderService.createOrder(customerId, { items })
+                if (createResp?.success) {
+                  const newId = createResp.data?.orderId ?? createResp.data?.OrderId ?? createResp.data?.id
+                  if (newId) {
+                    toast.success('Đã tạo đơn hàng mới')
+                    navigate(`/confirm-order/${newId}`, { state: { orderId: Number(newId) } })
+                    return
+                  }
+                }
+                toast.error(createResp?.message || 'Không thể tạo đơn hàng mới')
+              } catch (e: any) {
+                toast.error(e?.response?.data?.message || e?.message || 'Có lỗi khi tạo đơn hàng mới')
+              } finally {
+                setIsRecreating(false)
+              }
+            }}
           >
             <RefreshCw size={16} />
-            Thử lại
+            {isRecreating ? 'Đang xử lý...' : 'Thử lại'}
           </button>
           <button 
             className="btn-primary"
