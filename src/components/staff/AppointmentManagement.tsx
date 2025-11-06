@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BookingService, type Booking } from '@/services/bookingService'
 import { StaffService } from '@/services/staffService'
-import { RefreshCw, Calendar, Search, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { RefreshCw, Calendar, Search, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, Wrench, CreditCard } from 'lucide-react'
+import QuickPartsApprovalModal from '@/components/booking/QuickPartsApprovalModal'
+import PaymentModal from '@/components/payment/PaymentModal'
+import toast from 'react-hot-toast'
 
 export default function AppointmentManagement() {
   const [loading, setLoading] = useState(false)
@@ -14,6 +17,17 @@ export default function AppointmentManagement() {
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
+  const [showPartsModal, setShowPartsModal] = useState(false)
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [statusBookingId, setStatusBookingId] = useState<number | null>(null)
+  const [statusCurrent, setStatusCurrent] = useState<string>('')
+  const [statusNew, setStatusNew] = useState<string>('')
+  const [statusUpdating, setStatusUpdating] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null)
+  const [paymentTotalAmount, setPaymentTotalAmount] = useState<number>(0)
+  const [loadingPaymentBooking, setLoadingPaymentBooking] = useState(false)
 
   const loadData = async () => {
     try {
@@ -470,6 +484,7 @@ export default function AppointmentManagement() {
                   <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: 600, border: 'none' }}>Kỹ thuật viên</th>
                   <th style={{ padding: '16px 20px', textAlign: 'left', fontSize: '14px', fontWeight: 600, border: 'none' }}>Thời gian</th>
                   <th style={{ padding: '16px 20px', textAlign: 'center', fontSize: '14px', fontWeight: 600, border: 'none' }}>Trạng thái</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'center', fontSize: '14px', fontWeight: 600, border: 'none', width: 220 }}>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -479,8 +494,10 @@ export default function AppointmentManagement() {
                     style={{
                       borderBottom: '1px solid var(--border-primary)',
                       transition: 'all 0.2s ease',
-                      background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                      background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                      cursor: 'pointer'
                     }}
+                    onClick={() => { setSelectedBookingId(b.bookingId); setShowPartsModal(true) }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-50)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}
                   >
@@ -496,8 +513,113 @@ export default function AppointmentManagement() {
                         background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
                         fontSize: 12, fontWeight: 700
                       }}>
-                        {b.status}
+                        {(b.status || '').toUpperCase()}
                       </span>
+                    </td>
+                    <td style={{ padding: '12px 20px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        {(b.status || '').toUpperCase() === 'PENDING' && (
+                          <button
+                            title="Đổi trạng thái"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setStatusBookingId(b.bookingId)
+                              const current = (b.status || '').toUpperCase()
+                              setStatusCurrent(current)
+                              const next = current === 'PENDING' ? 'CONFIRMED' : ''
+                              setStatusNew(next)
+                              setShowStatusModal(true)
+                            }}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border-primary)',
+                              background: 'var(--bg-card)',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              fontSize: 12,
+                              fontWeight: 600
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-50)'; e.currentTarget.style.borderColor = 'var(--primary-500)' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.borderColor = 'var(--border-primary)' }}
+                          >
+                            <Repeat size={16} />
+                          </button>
+                        )}
+
+                        {(b.status || '').toUpperCase() === 'COMPLETED' && (
+                          <button
+                            title="Thanh toán cho khách"
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              setLoadingPaymentBooking(true)
+                              try {
+                                const detail = await BookingService.getBookingDetail(b.bookingId)
+                                if (detail?.success && detail?.data) {
+                                  setPaymentTotalAmount(detail.data.totalAmount || 0)
+                                  setPaymentBookingId(b.bookingId)
+                                  setShowPaymentModal(true)
+                                } else {
+                                  toast.error('Không thể lấy thông tin booking')
+                                }
+                              } catch (err: any) {
+                                toast.error(err?.message || 'Không thể tải thông tin thanh toán')
+                              } finally {
+                                setLoadingPaymentBooking(false)
+                              }
+                            }}
+                            disabled={loadingPaymentBooking}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--success-200)',
+                              background: 'var(--success-50)',
+                              color: 'var(--success-700)',
+                              cursor: loadingPaymentBooking ? 'not-allowed' : 'pointer',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              opacity: loadingPaymentBooking ? 0.6 : 1
+                            }}
+                            onMouseEnter={(e) => { 
+                              if (!loadingPaymentBooking) {
+                                e.currentTarget.style.background = 'var(--success-100)'
+                                e.currentTarget.style.borderColor = 'var(--success-500)'
+                              }
+                            }}
+                            onMouseLeave={(e) => { 
+                              if (!loadingPaymentBooking) {
+                                e.currentTarget.style.background = 'var(--success-50)'
+                                e.currentTarget.style.borderColor = 'var(--success-200)'
+                              }
+                            }}
+                          >
+                            <CreditCard size={16} />
+                          </button>
+                        )}
+
+                        <button
+                          title="Phê duyệt phụ tùng"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedBookingId(b.bookingId)
+                            setShowPartsModal(true)
+                          }}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-primary)',
+                            background: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            fontWeight: 600
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-50)'; e.currentTarget.style.borderColor = 'var(--primary-500)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.borderColor = 'var(--border-primary)' }}
+                        >
+                          <Wrench size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -506,6 +628,115 @@ export default function AppointmentManagement() {
           </div>
         )}
       </div>
+
+      {/* Modal: Quick Parts Approval */}
+      <QuickPartsApprovalModal
+        bookingId={selectedBookingId}
+        open={showPartsModal}
+        onClose={() => setShowPartsModal(false)}
+      />
+
+      {/* Modal: Payment for Completed Booking */}
+      {showPaymentModal && paymentBookingId && (
+        <PaymentModal
+          bookingId={paymentBookingId}
+          totalAmount={paymentTotalAmount}
+          open={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setPaymentBookingId(null)
+            setPaymentTotalAmount(0)
+          }}
+          onPaymentSuccess={() => {
+            setShowPaymentModal(false)
+            setPaymentBookingId(null)
+            setPaymentTotalAmount(0)
+            loadData() // Reload bookings after payment success
+          }}
+        />
+      )}
+
+      {/* Modal: Update Booking Status */}
+      {showStatusModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+          }}
+          onClick={() => !statusUpdating && setShowStatusModal(false)}
+        >
+          <div
+            style={{
+              width: 'min(520px, 92vw)', background: 'var(--bg-card)', borderRadius: 16,
+              border: '1px solid var(--border-primary)', boxShadow: '0 10px 30px rgba(0,0,0,0.15)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-primary)' }}>
+              <h4 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Cập nhật trạng thái Booking</h4>
+              <p style={{ margin: '6px 0 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                Trạng thái hiện tại: <strong style={{ textTransform: 'uppercase' }}>{statusCurrent || '—'}</strong>
+              </p>
+            </div>
+            <div style={{ padding: 24, display: 'grid', gap: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Chọn trạng thái mới</label>
+              <select
+                value={statusNew}
+                onChange={(e) => setStatusNew(e.target.value)}
+                style={{
+                  padding: '10px 12px', border: '2px solid var(--border-primary)', borderRadius: 10,
+                  background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 14
+                }}
+              >
+                <option value="" disabled>— Chọn —</option>
+                {(statusCurrent === 'PENDING') && <option value="CONFIRMED">CONFIRMED</option>}
+              </select>
+
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                Lưu ý: Chỉ cho phép chuyển tiếp theo quy trình. Không thể lùi trạng thái.
+              </div>
+            </div>
+            <div style={{ padding: 20, borderTop: '1px solid var(--border-primary)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                onClick={() => !statusUpdating && setShowStatusModal(false)}
+                style={{
+                  padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-primary)',
+                  background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-50)'; e.currentTarget.style.borderColor = 'var(--primary-500)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.borderColor = 'var(--border-primary)' }}
+              >
+                Hủy
+              </button>
+              <button
+                disabled={!statusBookingId || !statusNew || statusUpdating}
+                onClick={async () => {
+                  if (!statusBookingId || !statusNew) return
+                  try {
+                    setStatusUpdating(true)
+                    setError(null)
+                    await BookingService.updateBookingStatus(statusBookingId, statusNew.toUpperCase())
+                    await loadData()
+                    setShowStatusModal(false)
+                  } catch (err: any) {
+                    setError(err.message || 'Cập nhật trạng thái thất bại')
+                  } finally {
+                    setStatusUpdating(false)
+                  }
+                }}
+                style={{
+                  padding: '10px 14px', borderRadius: 10, border: '1px solid var(--primary-500)',
+                  background: 'var(--primary-500)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: (!statusBookingId || !statusNew || statusUpdating) ? 0.7 : 1
+                }}
+              >
+                {statusUpdating ? 'Đang cập nhật...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Pagination */}
       <div style={{

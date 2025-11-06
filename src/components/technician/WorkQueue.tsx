@@ -768,14 +768,63 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     e.stopPropagation()
       setUpdatingStatus(prev => new Set(prev).add(workId))
     try {
+      // Xác nhận bằng toast tùy biến thay cho window.confirm
+      const confirmViaToast = (message: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+          const id = toast.custom((t) => (
+            <div style={{
+              background: '#111827',
+              color: '#fff',
+              padding: '12px',
+              borderRadius: 10,
+              border: '1px solid #374151',
+              boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
+              minWidth: 280
+            }}>
+              <div style={{ fontSize: 14, marginBottom: 10 }}>{message}</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => { toast.dismiss(id); resolve(false) }}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    background: '#374151',
+                    color: '#E5E7EB',
+                    border: '1px solid #4B5563',
+                    cursor: 'pointer',
+                    fontSize: 12
+                  }}
+                >Hủy</button>
+                <button
+                  onClick={() => { toast.dismiss(id); resolve(true) }}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    background: '#10B981',
+                    color: '#0B1220',
+                    border: '1px solid #34D399',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600
+                  }}
+                >Xác nhận</button>
+              </div>
+            </div>
+          ), { duration: Infinity })
+        })
+      }
+
       if (newStatus === 'in_progress') {
-        if (!window.confirm('Bắt đầu làm việc cho booking này?')) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+        const ok = await confirmViaToast('Bắt đầu làm việc cho booking này?')
+        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
       }
       if (newStatus === 'completed') {
-        if (!window.confirm('Hoàn thành công việc? Hãy đảm bảo checklist và phụ tùng đã được xác nhận.')) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+        const ok = await confirmViaToast('Hoàn thành công việc? Hãy đảm bảo checklist và phụ tùng đã được xác nhận.')
+        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
       }
       if (newStatus === 'cancelled') {
-        if (!window.confirm('Hủy booking này? Hành động không thể hoàn tác.')) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+        const ok = await confirmViaToast('Hủy booking này? Hành động không thể hoàn tác.')
+        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
       }
       const response = await api.put(`/Booking/${workId}/status`, {
         status: mapStatusToApi(newStatus)
@@ -819,12 +868,6 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     }
   }
 
-  const handleViewBookingDetail = (bookingId: number) => {
-    if (onViewBookingDetail) {
-      onViewBookingDetail(bookingId)
-    }
-  }
-
   // Helper function để map status từ UI sang API format
   const mapStatusToApi = (uiStatus: string): string => {
     const statusMap: { [key: string]: string } = {
@@ -840,13 +883,14 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
 
   // Helper function để kiểm tra trạng thái có thể chuyển được không
   const canTransitionTo = (currentStatus: string, targetStatus: string): boolean => {
+    // Dùng chữ HOA để khớp với mapStatusToApi và dữ liệu từ backend
     const validTransitions: { [key: string]: string[] } = {
-      'pending': ['CONFIRMED', 'CANCELLED'],
-      'confirmed': ['IN_PROGRESS', 'CANCELLED'],
-      'in_progress': ['COMPLETED', 'CANCELLED'], // Đổi từ CONFIRMED thành COMPLETED
-      'completed': ['PAID'],
-      'paid': [], // Terminal state
-      'cancelled': [] // Terminal state
+      'PENDING': ['CONFIRMED', 'CANCELLED'],
+      'CONFIRMED': ['IN_PROGRESS', 'CANCELLED'],
+      'IN_PROGRESS': ['COMPLETED', 'CANCELLED'],
+      'COMPLETED': ['PAID'],
+      'PAID': [],
+      'CANCELLED': []
     }
 
     const currentApiStatus = mapStatusToApi(currentStatus)
@@ -1250,18 +1294,23 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   setExpandedRowId(prev => (prev === work.id ? null : work.id))
                                   ;(async () => {
                                     if (expandedRowId === work.id) return
-                                    if (!technicianId || !work.bookingId) return
+                                    if (!work.bookingId) return
                                     try {
-                                      const detail = await TechnicianService.getBookingDetail(technicianId, work.bookingId)
-                                      if (detail?.success && detail?.data?.maintenanceChecklists?.length > 0) {
-                                        const results = detail.data.maintenanceChecklists[0].results || []
-                                        const mapped = results.map((r: any) => ({
+                                      // Gọi đúng API theo spec: GET /api/maintenance-checklist/{bookingId}
+                                      const checklistRes = await TechnicianService.getMaintenanceChecklist(work.bookingId)
+                                      // API có thể trả về: { success, checklistId, status, items: [...] } hoặc { success, data: { items: [...] } }
+                                      const items = checklistRes?.items || checklistRes?.data?.items || checklistRes?.data?.results || []
+                                      if (items.length > 0 || checklistRes?.success) {
+                                        const mapped = items.map((r: any) => ({
                                           resultId: r.resultId,
-                                          partId: r.partId,
-                                          partName: r.partName,
+                                          partId: r.partId, // optional
+                                          partName: r.partName, // optional
+                                          categoryId: r.categoryId,
+                                          categoryName: r.categoryName,
                                           description: r.description,
                                           result: r.result,
-                                          notes: r.notes
+                                          notes: r.notes,
+                                          status: r.status
                                         }))
                                         setWorkIdToChecklist(prev => ({ ...prev, [work.id]: mapped }))
                                       } else {
@@ -1370,37 +1419,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     justifyContent: 'flex-start',
                                     alignItems: 'center'
                                   }}>
-                                    <button type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
-                                      style={{
-                                        padding: '8px',
-                                        border: '2px solid var(--border-primary)',
-                                        borderRadius: '8px',
-                                        background: '#FFF6D1',
-                                        color: '#111827',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s ease',
-                                        width: '36px',
-                                        height: '36px'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#FFD875'
-                                        e.currentTarget.style.background = '#FFEDB3'
-                                        e.currentTarget.style.transform = 'translateY(-2px)'
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                                        e.currentTarget.style.background = '#FFF6D1'
-                                        e.currentTarget.style.transform = 'translateY(0)'
-                                    }}
-                                    title="Xem chi tiết"
-                                  >
-                                    <Eye size={16} color="#111827" />
-                                  </button>
-                                  {/* Bắt đầu */}
+                                    {/* Bắt đầu */}
                                   <button type="button"
                                     onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
                                     disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')}
@@ -1479,9 +1498,15 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   centerId={work.centerId}
                                   status={work.status}
                                   items={workIdToChecklist[work.id] || []}
-                                  onSetItemResult={async (resultId, partId, newResult, notes) => {
+                                  onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                     try {
-                                      const response = await TechnicianService.updateMaintenanceChecklistItem(work.bookingId || work.id, partId, newResult, notes)
+                                      const response = await TechnicianService.updateMaintenanceChecklistItem(
+                                        work.bookingId || work.id, 
+                                        resultId, 
+                                        newResult, 
+                                        notes,
+                                        replacementInfo
+                                      )
                                       if (response?.success) {
                                         setWorkIdToChecklist(prev => {
                                           const arr = (prev[work.id] || []).map((it) => it.resultId === resultId ? { ...it, result: newResult, notes: notes ?? it.notes } : it)
@@ -1527,18 +1552,23 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                               // Load checklist from booking detail API when expanding the row (lazy)
                               ;(async () => {
                                 if (expandedRowId === work.id) return
-                                if (!technicianId || !work.bookingId) return
+                                if (!work.bookingId) return
                                 try {
-                                  const detail = await TechnicianService.getBookingDetail(technicianId, work.bookingId)
-                                  if (detail?.success && detail?.data?.maintenanceChecklists?.length > 0) {
-                                    const results = detail.data.maintenanceChecklists[0].results || []
-                                    const mapped = results.map((r: any) => ({
+                                  // Gọi đúng API theo spec: GET /api/maintenance-checklist/{bookingId}
+                                  const checklistRes = await TechnicianService.getMaintenanceChecklist(work.bookingId)
+                                  // API có thể trả về: { success, checklistId, status, items: [...] } hoặc { success, data: { items: [...] } }
+                                  const items = checklistRes?.items || checklistRes?.data?.items || checklistRes?.data?.results || []
+                                  if (items.length > 0 || checklistRes?.success) {
+                                    const mapped = items.map((r: any) => ({
                                       resultId: r.resultId,
-                                      partId: r.partId,
-                                      partName: r.partName,
+                                      partId: r.partId, // optional
+                                      partName: r.partName, // optional
+                                      categoryId: r.categoryId,
+                                      categoryName: r.categoryName,
                                       description: r.description,
                                       result: r.result,
-                                      notes: r.notes
+                                      notes: r.notes,
+                                      status: r.status
                                     }))
                                     setWorkIdToChecklist(prev => ({ ...prev, [work.id]: mapped }))
                                   } else {
@@ -1649,36 +1679,6 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                 justifyContent: 'flex-start',
                                 alignItems: 'center'
                               }}>
-                                <button type="button"
-                                  onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
-                                  style={{
-                                    padding: '8px',
-                                    border: '2px solid var(--border-primary)',
-                                    borderRadius: '8px',
-                                    background: '#FFF6D1',
-                                    color: '#111827',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
-                                    width: '36px',
-                                    height: '36px'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.borderColor = '#FFD875'
-                                    e.currentTarget.style.background = '#FFEDB3'
-                                    e.currentTarget.style.transform = 'translateY(-2px)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                                    e.currentTarget.style.background = '#FFF6D1'
-                                    e.currentTarget.style.transform = 'translateY(0)'
-                                }}
-                                title="Xem chi tiết"
-                              >
-                                <Eye size={16} color="#111827" />
-                              </button>
                                 {/* Bắt đầu */}
                                 <button type="button"
                                   onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
@@ -1758,9 +1758,15 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                               centerId={work.centerId}
                               status={work.status}
                               items={workIdToChecklist[work.id] || []}
-                              onSetItemResult={async (resultId, partId, newResult, notes) => {
+                              onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                 try {
-                                  const response = await TechnicianService.updateMaintenanceChecklistItem(work.bookingId || work.id, partId, newResult, notes)
+                                  const response = await TechnicianService.updateMaintenanceChecklistItem(
+                                    work.bookingId || work.id, 
+                                    resultId, 
+                                    newResult, 
+                                    notes,
+                                    replacementInfo
+                                  )
                                   if (response?.success) {
                                     setWorkIdToChecklist(prev => {
                                       const arr = (prev[work.id] || []).map((it) => it.resultId === resultId ? { ...it, result: newResult, notes: notes ?? it.notes } : it)
