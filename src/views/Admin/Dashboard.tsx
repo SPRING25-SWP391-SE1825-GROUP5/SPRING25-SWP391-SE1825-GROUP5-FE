@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
@@ -68,6 +68,7 @@ import SystemSettings from './SystemSettings'
 import ServiceTemplateManagement from './ServiceTemplateManagement'
 import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
+import OrdersManagement from '../../components/admin/OrdersManagement'
 import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
 import { CenterService, type Center } from '../../services/centerService'
 import { ReportsService } from '../../services/reportsService'
@@ -220,6 +221,8 @@ export default function AdminDashboard() {
     serviceRevenue: number
     partsRevenue: number
   } | null>(null)
+  const [loadingSummary, setLoadingSummary] = useState(false)
+  const summaryLoadingRef = useRef<string | null>(null) // Track đang load với params nào
   const [revenueByStore, setRevenueByStore] = useState<{
     stores: Array<{
       storeId: number
@@ -283,31 +286,81 @@ export default function AdminDashboard() {
 
   // Load dashboard summary
   const loadDashboardSummary = async () => {
-    try {
-      const params: { centerId?: number; fromDate?: string; toDate?: string } = {}
-      
-      if (selectedCenterId !== 'all') {
-        params.centerId = selectedCenterId
-      }
-      // Use the same time range as the revenue chart filters
-      params.fromDate = revenueDateRange.fromDate
-      params.toDate = revenueDateRange.toDate
+    const params: { centerId?: number; fromDate?: string; toDate?: string } = {}
+    
+    if (selectedCenterId !== 'all') {
+      params.centerId = selectedCenterId
+    }
+    // Use the same time range as the revenue chart filters
+    params.fromDate = revenueDateRange.fromDate
+    params.toDate = revenueDateRange.toDate
 
+    // Tạo key để track request, tránh gọi duplicate
+    const requestKey = `${params.centerId || 'all'}_${params.fromDate}_${params.toDate}`
+    
+    // Nếu đang load với cùng params, skip
+    if (summaryLoadingRef.current === requestKey) {
+      return
+    }
+
+    summaryLoadingRef.current = requestKey
+    setLoadingSummary(true)
+
+    try {
       const response = await ReportsService.getDashboardSummary(params)
-      if (response?.success && response.data?.summary) {
-        const s: any = response.data.summary
-        const mapped = {
-          totalRevenue: Number(s.totalRevenue ?? s.TotalRevenue ?? 0),
-          totalEmployees: Number(s.totalEmployees ?? s.TotalEmployees ?? 0),
-          totalCompletedBookings: Number(s.totalCompletedBookings ?? s.TotalCompletedBookings ?? 0),
-          serviceRevenue: Number(s.serviceRevenue ?? s.ServiceRevenue ?? 0),
-          partsRevenue: Number(s.partsRevenue ?? s.PartsRevenue ?? 0),
+      
+      if (response?.success && response.data) {
+        const data: any = response.data
+        // Thử lấy từ summary trước
+        if (data.summary) {
+          const s: any = data.summary
+          const mapped = {
+            totalRevenue: Number(s.totalRevenue ?? s.TotalRevenue ?? 0),
+            totalEmployees: Number(s.totalEmployees ?? s.TotalEmployees ?? 0),
+            totalCompletedBookings: Number(s.totalCompletedBookings ?? s.TotalCompletedBookings ?? 0),
+            serviceRevenue: Number(s.serviceRevenue ?? s.ServiceRevenue ?? 0),
+            partsRevenue: Number(s.partsRevenue ?? s.PartsRevenue ?? 0),
+          }
+          setDashboardSummary(mapped)
+        } else {
+          // Nếu không có summary, thử lấy trực tiếp từ data (fallback)
+          const mapped = {
+            totalRevenue: Number(data.totalRevenue ?? data.TotalRevenue ?? 0),
+            totalEmployees: Number(data.totalEmployees ?? data.TotalEmployees ?? 0),
+            totalCompletedBookings: Number(data.totalCompletedBookings ?? data.TotalCompletedBookings ?? 0),
+            serviceRevenue: Number(data.serviceRevenue ?? data.ServiceRevenue ?? 0),
+            partsRevenue: Number(data.partsRevenue ?? data.PartsRevenue ?? 0),
+          }
+          setDashboardSummary(mapped)
         }
-        setDashboardSummary(mapped)
+      } else {
+        // Set default values nếu API không trả về dữ liệu
+        setDashboardSummary({
+          totalRevenue: 0,
+          totalEmployees: 0,
+          totalCompletedBookings: 0,
+          serviceRevenue: 0,
+          partsRevenue: 0,
+        })
       }
     } catch (err: any) {
       console.error('Failed to load dashboard summary:', err)
-      // Don't show error toast for summary, just log it
+      // Set default values khi API fail
+      setDashboardSummary({
+        totalRevenue: 0,
+        totalEmployees: 0,
+        totalCompletedBookings: 0,
+        serviceRevenue: 0,
+        partsRevenue: 0,
+      })
+    } finally {
+      setLoadingSummary(false)
+      // Clear ref sau 100ms để cho phép reload nếu cần
+      setTimeout(() => {
+        if (summaryLoadingRef.current === requestKey) {
+          summaryLoadingRef.current = null
+        }
+      }, 100)
     }
   }
 
@@ -356,14 +409,37 @@ export default function AdminDashboard() {
   }
 
   // Load booking status (per center or all centers aggregated)
+  // Tối ưu: Nếu centers chưa load xong, đợi một chút hoặc skip
   const loadBookingStatus = async () => {
     try {
+      // Nếu centers chưa load, đợi một chút (tối đa 2 giây)
+      if (centers.length === 0) {
+        let retries = 0
+        const maxRetries = 4 // 4 lần x 500ms = 2 giây
+        while (centers.length === 0 && retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          retries++
+        }
+        if (centers.length === 0) {
+          // Không log warning nữa vì đây là behavior bình thường khi component mount
+          return
+        }
+      }
+
       const from = revenueDateRange.fromDate
       const to = revenueDateRange.toDate
       if (bookingStatusCenterId === 'all') {
         const activeCenters = centers && centers.length > 0 ? centers.filter(c => c.isActive) : []
+        
+        // Giới hạn số lượng centers để tránh quá nhiều API calls
+        // Nếu có quá nhiều centers, có thể cần tối ưu backend để có API aggregate
+        if (activeCenters.length > 10) {
+          console.warn(`Quá nhiều centers (${activeCenters.length}), chỉ load 10 centers đầu tiên`)
+        }
+        const centersToLoad = activeCenters.slice(0, 10)
+        
         const results = await Promise.allSettled(
-          activeCenters.map(c => ReportsService.getBookingStatusCounts(c.centerId, { from, to }))
+          centersToLoad.map(c => ReportsService.getBookingStatusCounts(c.centerId, { from, to }))
         )
         const itemsMap = new Map<string, number>()
         let total = 0
@@ -391,6 +467,7 @@ export default function AdminDashboard() {
         })
       }
     } catch (err) {
+      console.error('Failed to load booking status:', err)
       setBookingStatus(null)
     }
   }
@@ -510,13 +587,19 @@ export default function AdminDashboard() {
   }
 
   // Load all dashboard pieces in parallel to speed up perceived load and avoid duplicate calls
+  // Tách loadDashboardSummary ra để không block các API khác (API này có thể chậm)
   const loadAllDashboardData = async () => {
+    // Load các API nhanh trước (không chờ summary)
     await Promise.allSettled([
       (async () => { await loadDashboardData() })(),
       (async () => { await loadServicesStats() })(),
-      (async () => { await loadDashboardSummary() })(),
       (async () => { await loadRevenueByStore() })(),
     ])
+    
+    // Load summary riêng (có thể chậm, không block UI)
+    loadDashboardSummary().catch(err => {
+      console.error('Dashboard summary failed (non-blocking):', err)
+    })
   }
 
   // Aggregate revenue data from multiple centers
@@ -621,12 +704,8 @@ export default function AdminDashboard() {
 
   
 
-  // Load dashboard data when center selection or user clicks Apply on revenue filters
-  useEffect(() => {
-    loadAllDashboardData()
-    loadBookingStatus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCenterId, revenueFilterApplyKey])
+  // Ref để tránh gọi API nhiều lần khi component mount
+  const initialLoadRef = useRef(false)
 
   // Ensure first visit shows last-7-days stats by triggering an initial apply
   useEffect(() => {
@@ -634,46 +713,53 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Also fetch once immediately on mount to avoid any race before apply key updates
+  // Load dashboard data when center selection or user clicks Apply on revenue filters
+  // Chỉ gọi một lần khi mount, sau đó chỉ gọi khi filter thay đổi
   useEffect(() => {
-    loadAllDashboardData()
-    loadBookingStatus()
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true
+      // Load lần đầu tiên - đợi centers load xong trước
+      const loadData = async () => {
+        // Đợi centers load (nếu chưa có)
+        if (centers.length === 0) {
+          let retries = 0
+          while (centers.length === 0 && retries < 4) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            retries++
+          }
+        }
+        await loadAllDashboardData()
+        // Chỉ load booking status nếu đã có centers
+        if (centers.length > 0) {
+          loadBookingStatus()
+        }
+      }
+      loadData()
+    } else {
+      // Chỉ reload khi filter thay đổi (không phải lần đầu)
+      loadAllDashboardData()
+      // Chỉ load booking status nếu đã có centers
+      if (centers.length > 0) {
+        loadBookingStatus()
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedCenterId, revenueFilterApplyKey])
 
-  // Reload booking status when user switches the dropdown center
+  // Reload booking status khi centers đã load xong hoặc khi user switches the dropdown center
   useEffect(() => {
-    loadBookingStatus()
+    // Chỉ load khi đã có centers
+    if (centers.length > 0 && initialLoadRef.current) {
+      loadBookingStatus()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingStatusCenterId])
-
-  // (kept) separate calls handled above
-
-  // Load revenue by store when clicking Apply
-  useEffect(() => {
-    loadRevenueByStore()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revenueFilterApplyKey])
+  }, [bookingStatusCenterId, centers.length])
 
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
       case 'orders':
-        return (
-      <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Đơn hàng
-            </h2>
-      <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Quản lý đơn hàng sẽ được hiển thị ở đây...</p>
-      </div>
-    </div>
-  )
+        return <OrdersManagement />
       case 'bookings':
         return <BookingManagement />
       case 'feedback':
@@ -849,17 +935,23 @@ export default function AdminDashboard() {
       : []
 
     // Prepare stats strictly from dashboard summary API (already filtered by global time range)
-    const summaryData = dashboardSummary || {
-      totalRevenue: 0,
-      totalEmployees: 0,
-      totalCompletedBookings: 0,
-      serviceRevenue: 0,
-      partsRevenue: 0
-    }
+    // Sử dụng useMemo để tránh tính toán lại mỗi lần render
+    const summaryData = useMemo(() => {
+      // Nếu đang loading, giữ giá trị cũ (nếu có) hoặc null để hiển thị loading state
+      if (loadingSummary && dashboardSummary) {
+        return dashboardSummary
+      }
+      // Nếu có data, dùng data
+      if (dashboardSummary) {
+        return dashboardSummary
+      }
+      // Nếu không có data và không loading, trả về null để hiển thị placeholder
+      return null
+    }, [dashboardSummary, loadingSummary])
 
-    const totalRevenue = summaryData.totalRevenue
+    const totalRevenue = summaryData?.totalRevenue || 0
     const totalBookings = summary?.totalBookings || summary?.TotalBookings || 0
-    const completedBookings = summaryData.totalCompletedBookings
+    const completedBookings = summaryData?.totalCompletedBookings || 0
     const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : '0'
 
     const quickActions: Array<{ title: string; description: string; icon: any; page: string; route?: string; color: string }> = [
@@ -911,53 +1003,63 @@ export default function AdminDashboard() {
       }
     ]
 
-    const stats = [
-      {
-        title: 'Tổng doanh thu',
-        value: totalRevenue.toLocaleString('vi-VN'),
-        unit: 'VND',
-        change: dashboardSummary ? '' : '+12.5%', // Hide change percentage if using API data
-        changeType: 'positive' as const,
-        icon: DollarSign,
-        color: 'var(--primary-500)'
-      },
-      {
-        title: 'Tổng nhân viên',
-        value: summaryData.totalEmployees.toString(),
-        unit: 'người',
-        change: dashboardSummary ? '' : '+8.2%',
-        changeType: 'positive' as const,
-        icon: UserCheck,
-        color: 'var(--success-500)'
-      },
-      {
-        title: 'Đơn hoàn thành',
-        value: completedBookings.toString(),
-        unit: 'đơn',
-        change: dashboardSummary ? '' : '+5.1%',
-        changeType: 'positive' as const,
-        icon: Users,
-        color: 'var(--info-500)'
-      },
-      {
-        title: 'Doanh thu từ dịch vụ',
-        value: summaryData.serviceRevenue.toLocaleString('vi-VN'),
-        unit: 'VND',
-        change: dashboardSummary ? '' : '',
-        changeType: 'positive' as const,
-        icon: Wrench,
-        color: 'var(--warning-500)'
-      },
-      {
-        title: 'Doanh thu từ phụ tùng',
-        value: summaryData.partsRevenue.toLocaleString('vi-VN'),
-        unit: 'VND',
-        change: dashboardSummary ? '' : '',
-        changeType: 'positive' as const,
-        icon: Package,
-        color: 'var(--info-500)'
-      }
-    ]
+    // Sử dụng useMemo để tránh tính toán lại stats mỗi lần render
+    const stats = useMemo(() => {
+      const isLoading = loadingSummary && !summaryData
+      
+      return [
+        {
+          title: 'Tổng doanh thu',
+          value: isLoading ? '...' : totalRevenue.toLocaleString('vi-VN'),
+          unit: 'VND',
+          change: summaryData ? '' : '+12.5%', // Hide change percentage if using API data
+          changeType: 'positive' as const,
+          icon: DollarSign,
+          color: 'var(--primary-500)',
+          isLoading
+        },
+        {
+          title: 'Tổng nhân viên',
+          value: isLoading ? '...' : (summaryData?.totalEmployees || 0).toString(),
+          unit: 'người',
+          change: summaryData ? '' : '+8.2%',
+          changeType: 'positive' as const,
+          icon: UserCheck,
+          color: 'var(--success-500)',
+          isLoading
+        },
+        {
+          title: 'Đơn hoàn thành',
+          value: isLoading ? '...' : completedBookings.toString(),
+          unit: 'đơn',
+          change: summaryData ? '' : '+5.1%',
+          changeType: 'positive' as const,
+          icon: Users,
+          color: 'var(--info-500)',
+          isLoading
+        },
+        {
+          title: 'Doanh thu từ dịch vụ',
+          value: isLoading ? '...' : (summaryData?.serviceRevenue || 0).toLocaleString('vi-VN'),
+          unit: 'VND',
+          change: summaryData ? '' : '',
+          changeType: 'positive' as const,
+          icon: Wrench,
+          color: 'var(--warning-500)',
+          isLoading
+        },
+        {
+          title: 'Doanh thu từ phụ tùng',
+          value: isLoading ? '...' : (summaryData?.partsRevenue || 0).toLocaleString('vi-VN'),
+          unit: 'VND',
+          change: summaryData ? '' : '',
+          changeType: 'positive' as const,
+          icon: Package,
+          color: 'var(--info-500)',
+          isLoading
+        }
+      ]
+    }, [summaryData, loadingSummary, totalRevenue, completedBookings])
 
     return (
       <>

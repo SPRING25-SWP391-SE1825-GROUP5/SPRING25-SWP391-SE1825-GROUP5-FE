@@ -69,6 +69,35 @@ export const OrderService = {
     const { data } = await api.get(`/Order/${orderId}/payment/link`)
     return data
   },
+  // Admin: Get all orders
+  async getAdminOrders(params?: {
+    pageNumber?: number
+    pageSize?: number
+    searchTerm?: string
+    status?: string
+    fromDate?: string
+    toDate?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<{
+    success: boolean
+    message?: string
+    data?: {
+      items?: any[]
+      Items?: any[]
+      totalCount?: number
+      TotalCount?: number
+      totalPages?: number
+      TotalPages?: number
+      pageNumber?: number
+      PageNumber?: number
+      pageSize?: number
+      PageSize?: number
+    }
+  }> {
+    const { data } = await api.get('/Order/admin', { params })
+    return data
+  },
   // Ghi chú: Endpoint apply-coupon không tồn tại trong BE hiện tại. Chờ BE bổ sung.
 }
 

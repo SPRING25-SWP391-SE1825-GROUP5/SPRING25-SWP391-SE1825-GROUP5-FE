@@ -3,7 +3,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://localhost:5001/api',
   withCredentials: false,
-  timeout: 10000,
+  timeout: 30000, // Tăng timeout từ 10s lên 30s cho các API report/summary
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
