@@ -25,7 +25,6 @@ import {
   WorkQueue,
   WorkSchedule
 } from '@/components/technician'
-import BookingDetail from '@/components/technician/BookingDetail'
 import TechnicianProfile from '@/components/technician/TechnicianProfile'
 import NotificationBell from '@/components/common/NotificationBell'
 import './technician.scss'
@@ -341,7 +340,6 @@ export default function TechnicianDashboard() {
   const [activePage, setActivePage] = useState('work-queue')
   const [selectedWork, setSelectedWork] = useState<any>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null)
   
   // State cho thông tin kỹ thuật viên và trung tâm
   const [technicianInfo, setTechnicianInfo] = useState<any>(null)
@@ -443,39 +441,22 @@ export default function TechnicianDashboard() {
         return <WorkQueue onViewDetails={(work) => {
           setSelectedWork(work)
           setIsDetailModalOpen(true)
-        }} onViewBookingDetail={handleViewBookingDetail} />
+        }} />
       case 'work-schedule':
         return <WorkSchedule />
-      case 'booking-detail':
-        return selectedBookingId ? (
-          <BookingDetail 
-            bookingId={selectedBookingId}
-            onBack={handleBackFromBookingDetail}
-          />
-        ) : null
       case 'profile':
         return <TechnicianProfile />
       default:
         return <WorkQueue onViewDetails={(work) => {
           setSelectedWork(work)
           setIsDetailModalOpen(true)
-        }} onViewBookingDetail={handleViewBookingDetail} />
+        }} />
     }
   }
 
 
   const getPageTitle = () => {
     return centerInfo?.centerName || 'Dashboard'
-  }
-
-  const handleViewBookingDetail = (bookingId: number) => {
-    setSelectedBookingId(bookingId)
-    setActivePage('booking-detail')
-  }
-
-  const handleBackFromBookingDetail = () => {
-    setSelectedBookingId(null)
-    setActivePage('work-queue')
   }
 
 
