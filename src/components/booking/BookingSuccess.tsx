@@ -45,7 +45,6 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
       setIsProcessingPayment(true)
       setPaymentError(null)
 
-      console.log('Creating payment for booking:', bookingId)
 
       // Create payment request
       const paymentRequest: PaymentRequest = {
@@ -57,24 +56,19 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
         cancelUrl: `${window.location.origin}/booking/payment/cancel`
       }
 
-      console.log('Payment request:', paymentRequest)
 
       // Call payment API
       const paymentResponse = await PaymentService.createPayment(paymentRequest)
-      console.log('Payment response:', paymentResponse)
 
       // If payment URL is returned, redirect to payment gateway
       if (paymentResponse.paymentUrl) {
-        console.log('Redirecting to payment URL:', paymentResponse.paymentUrl)
         window.location.href = paymentResponse.paymentUrl
       } else {
         // If no payment URL, show success (for testing)
-        console.log('No payment URL returned, showing success')
         onPaymentSuccess()
       }
 
     } catch (error: any) {
-      console.error('Payment error:', error)
       setPaymentError(error.message || 'Có lỗi xảy ra khi tạo thanh toán')
     } finally {
       setIsProcessingPayment(false)

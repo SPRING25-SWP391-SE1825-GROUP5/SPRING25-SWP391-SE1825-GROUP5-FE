@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ServiceManagementService, type Service as BackendService } from '@/services/serviceManagementService'
 import type { ServicePackage } from '@/services/serviceManagementService'
 import { CustomerService } from '@/services/customerService'
@@ -7,6 +7,18 @@ import CreateVehicleModal from './CreateVehicleModal'
 import api from '@/services/api'
 import { ServiceCategoryService, type ServiceCategory } from '@/services/serviceCategoryService'
 import { ServiceChecklistTemplateService, type ServiceChecklistTemplate } from '@/services/serviceChecklistTemplateService'
+import { vehicleModelService, type VehicleModelResponse } from '@/services/vehicleModelManagement'
+// Ảnh dự phòng nếu không có ảnh model trong public/vehicle-models
+import fallbackVehicleImg from '@/assets/images/dich-vu-sua-chua-chung-vinfast_0.webp'
+
+// Cloudinary helpers: dựng URL theo modelId nếu có cấu hình
+const CLOUD_NAME = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
+const CLOUD_FOLDER = ((import.meta as any).env?.VITE_CLOUDINARY_MODEL_FOLDER as string | undefined) || 'vehicle-models'
+const buildModelImageUrl = (modelId?: number) => {
+  if (!modelId || !CLOUD_NAME) return undefined
+  // ví dụ: https://res.cloudinary.com/<cloud>/image/upload/vehicle-models/123.webp
+  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${CLOUD_FOLDER}/${modelId}.webp`
+}
 
 interface VehicleInfo {
   carModel: string
@@ -20,6 +32,8 @@ interface VehicleInfo {
   brand?: string
   // Bảo dưỡng fields
   lastMaintenanceDate?: string
+  purchaseDate?: string // Ngày mua xe (dùng khi chưa bảo dưỡng)
+  hasMaintenanceHistory?: boolean // Đã bảo dưỡng chưa?
   // Sửa chữa fields
   vehicleCondition?: string
   repairChecklist?: string[]
@@ -69,17 +83,40 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [vehiclesLoading, setVehiclesLoading] = useState(false)
   // Removed vehicle models state - now handled in CreateVehicleModal
   const [openCreate, setOpenCreate] = useState(false)
+  // Map modelId -> imageUrl
+  const [modelImages, setModelImages] = useState<Record<number, string>>({})
+  // Map vehicleId -> modelId (dùng khi API danh sách xe không có modelId)
+  const [vehicleModelMap, setVehicleModelMap] = useState<Record<number, number>>({})
   
   // Category states
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(serviceData.categoryId)
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | undefined>(undefined)
+  const vehicleScrollerRef = useRef<HTMLDivElement | null>(null)
+  const [vehicleIndex, setVehicleIndex] = useState(0)
+  useEffect(() => {
+    // đảm bảo index hợp lệ khi danh sách thay đổi
+    if (!vehicles || vehicles.length === 0) {
+      setVehicleIndex(0)
+    } else if (vehicleIndex >= vehicles.length) {
+      setVehicleIndex(vehicles.length - 1)
+    }
+  }, [vehicles, vehicleIndex])
+  const showPrevVehicle = () => {
+    if (!vehicles || vehicles.length === 0) return
+    setVehicleIndex((prev) => (prev - 1 + vehicles.length) % vehicles.length)
+  }
+  const showNextVehicle = () => {
+    if (!vehicles || vehicles.length === 0) return
+    setVehicleIndex((prev) => (prev + 1) % vehicles.length)
+  }
   
   // Recommendation states
   const [recommendedServices, setRecommendedServices] = useState<ServiceChecklistTemplate[]>([])
   const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
+  const [selectedServiceDetail, setSelectedServiceDetail] = useState<ServiceChecklistTemplate | null>(null)
   // Ràng buộc nhập liệu cho Km gần đây
   const [recentMileageError, setRecentMileageError] = useState<string | null>(null)
   
@@ -94,19 +131,27 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadCategories = async () => {
       setCategoriesLoading(true)
       try {
-        console.log('🔄 Loading categories...')
         const cats = await ServiceCategoryService.getActiveCategories()
-        console.log('✅ Loaded categories:', cats)
-        console.log('✅ Categories count:', cats.length)
         setCategories(cats)
+        
+        // Tự động chọn category "bảo dưỡng" làm mặc định
+        if (cats.length > 0) {
+          const maintenanceCategory = cats.find(cat => 
+            cat.categoryName?.toLowerCase().includes('bảo dưỡng')
+          )
+          if (maintenanceCategory) {
+            setSelectedCategoryId(maintenanceCategory.categoryId)
+            onUpdateService({ categoryId: maintenanceCategory.categoryId, services: [], packageId: undefined, packageCode: undefined })
+          }
+        }
       } catch (error) {
-        console.error('❌ Error loading categories:', error)
         setCategories([])
       } finally {
         setCategoriesLoading(false)
       }
     }
     loadCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Load active services (filter by category if selected)
@@ -114,15 +159,12 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadServices = async () => {
       setServicesLoading(true)
       try {
-        console.log('Loading services with categoryId:', selectedCategoryId)
         const res = await ServiceManagementService.getActiveServices({ 
           pageSize: 100,
           categoryId: selectedCategoryId 
         })
-        console.log('Services loaded:', res.services)
         setServices(res.services || [])
       } catch (_e) {
-        console.error('Error loading services:', _e)
         setServices([])
       } finally {
         setServicesLoading(false)
@@ -136,35 +178,23 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadPackages = async () => {
       setPackagesLoading(true)
       try {
-        console.log('Loading packages with categoryId:', selectedCategoryId)
         const res = await ServiceManagementService.getActiveServicePackages({ pageSize: 100 })
-        console.log('Packages loaded (before filter):', res.packages)
-        console.log('Total packages from API:', res.packages?.length || 0)
         
         // Filter packages by category
         let filteredPackages = res.packages || []
         if (selectedCategoryId) {
-          console.log('Filtering packages by category:', selectedCategoryId)
           // Get services for this category
           const categoryServices = await ServiceManagementService.getActiveServices({ 
             pageSize: 100,
             categoryId: selectedCategoryId 
           })
-          console.log('Services in category:', categoryServices.services)
-          console.log('Service IDs in category:', categoryServices.services.map(s => s.id))
           const serviceIds = categoryServices.services.map(s => s.id)
-          console.log('Filtering packages. Total packages before filter:', filteredPackages.length)
           filteredPackages = filteredPackages.filter(pkg => {
-            const matches = serviceIds.includes(pkg.serviceId)
-            console.log(`Package ${pkg.packageId} (serviceId: ${pkg.serviceId}) matches:`, matches)
-            return matches
+            return serviceIds.includes(pkg.serviceId)
           })
-          console.log('Total packages after filter:', filteredPackages.length)
         }
-        console.log('Final packages loaded:', filteredPackages)
         setPackages(filteredPackages)
       } catch (_e) {
-        console.error('Error loading packages:', _e)
         setPackages([])
       } finally {
         setPackagesLoading(false)
@@ -174,6 +204,92 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   }, [selectedCategoryId])
 
   // Vehicle models loading moved to CreateVehicleModal
+
+  // Load active vehicle models to map imageUrl by modelId
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const res = await vehicleModelService.getActive()
+        const models: VehicleModelResponse[] = Array.isArray(res)
+          ? res
+          : (res as any)?.data || (res as any)?.items || []
+        const map: Record<number, string> = {}
+        ;(models || []).forEach((m: VehicleModelResponse) => {
+          if (m?.modelId && (m as any)?.imageUrl) map[m.modelId] = (m as any).imageUrl as string
+        })
+        setModelImages(map)
+      } catch (_e) {
+        setModelImages({})
+      }
+    }
+    loadModels()
+  }, [])
+
+  // Sau khi load danh sách xe, đảm bảo có ảnh cho từng modelId bằng cách gọi getById
+  useEffect(() => {
+    const ensureModelImages = async () => {
+      const ids = Array.from(
+        new Set(
+          (vehicles || [])
+            .map(v => v.modelId || vehicleModelMap[v.vehicleId as number])
+            .filter(Boolean)
+        )
+      ) as number[]
+      if (ids.length === 0) return
+      const newMap: Record<number, string> = { ...modelImages }
+      const fetchIds: number[] = ids.filter(id => !newMap[id])
+      if (fetchIds.length === 0) return
+      try {
+        const results = await Promise.all(
+          fetchIds.map(async (id) => {
+            try {
+              const m = await vehicleModelService.getById(id)
+              return m
+            } catch {
+              return null
+            }
+          })
+        )
+        results.forEach((m) => {
+          if (m && (m as any).modelId && (m as any).imageUrl) {
+            newMap[(m as any).modelId as number] = (m as any).imageUrl as string
+          }
+        })
+        setModelImages(newMap)
+      } catch {
+        // ignore
+      }
+    }
+    ensureModelImages()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicles, vehicleModelMap])
+
+  // Khi danh sách xe không có modelId, gọi chi tiết từng xe để lấy modelId
+  useEffect(() => {
+    const enrichVehiclesWithModel = async () => {
+      const missing = (vehicles || []).filter(v => !v.modelId && v.vehicleId)
+      if (missing.length === 0) return
+      try {
+        const results = await Promise.all(
+          missing.map(async (v) => {
+            try {
+              const detail = await VehicleService.getVehicleById(Number(v.vehicleId))
+              return { id: v.vehicleId as number, modelId: (detail as any)?.data?.modelId ?? (detail as any)?.modelId }
+            } catch {
+              return { id: v.vehicleId as number, modelId: undefined }
+            }
+          })
+        )
+        const map: Record<number, number> = { ...vehicleModelMap }
+        results.forEach(r => { if (r.modelId) map[r.id] = Number(r.modelId) })
+        setVehicleModelMap(map)
+      } catch {
+        // ignore
+      }
+    }
+    enrichVehiclesWithModel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicles])
 
   // Load current customer's vehicles
   useEffect(() => {
@@ -203,22 +319,26 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     // Reset recommendations when category changes
     setRecommendedServices([])
     setShowRecommendations(false)
+    // Reset maintenance history question when category changes to non-maintenance
+    const newCategory = categoryId ? categories.find(c => c.categoryId === categoryId) : undefined
+    if (!newCategory?.categoryName?.toLowerCase().includes('bảo dưỡng')) {
+      onUpdateVehicle({ hasMaintenanceHistory: undefined, lastMaintenanceDate: undefined, purchaseDate: undefined })
+    }
   }
 
   // Function to get recommended services
   const getRecommendedServices = async () => {
-    if (!vehicleData.mileage || !vehicleData.lastMaintenanceDate || !selectedCategoryId) {
-      console.log('Missing required info for recommendation:', {
-        mileage: vehicleData.mileage,
-        lastMaintenanceDate: vehicleData.lastMaintenanceDate,
-        categoryId: selectedCategoryId
-      })
+    // Use lastMaintenanceDate if has maintenance history, otherwise use purchaseDate
+    const dateToUse = vehicleData.hasMaintenanceHistory 
+      ? vehicleData.lastMaintenanceDate 
+      : vehicleData.purchaseDate
+    
+    if (!vehicleData.mileage || !dateToUse || !selectedCategoryId) {
       return
     }
 
     const currentKm = parseInt(vehicleData.mileage)
     if (isNaN(currentKm)) {
-      console.log('Invalid mileage:', vehicleData.mileage)
       return
     }
 
@@ -226,14 +346,13 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     try {
       const response = await ServiceChecklistTemplateService.getRecommendedServices({
         currentKm,
-        lastMaintenanceDate: vehicleData.lastMaintenanceDate,
+        lastMaintenanceDate: dateToUse,
         categoryId: selectedCategoryId
       })
       
       setRecommendedServices(response.data)
       setShowRecommendations(true)
     } catch (error) {
-      console.error('Error getting recommended services:', error)
       setRecommendedServices([])
     } finally {
       setRecommendationLoading(false)
@@ -262,6 +381,33 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const recentKm = Number(vehicleData.recentMileage || '')
     const invalidRecent = isVehicleSelected && !!vehicleData.recentMileage && !isNaN(recentKm) && recentKm < baseKm
     if (invalidRecent) return false
+    
+    // Kiểm tra yêu cầu cho dịch vụ bảo dưỡng
+    const isMaintenanceCategory = selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng')
+    if (isMaintenanceCategory) {
+      // Nếu đã chọn loại dịch vụ bảo dưỡng, phải trả lời câu hỏi và nhập ngày tương ứng
+      if (vehicleData.hasMaintenanceHistory === undefined) return false
+      
+      if (vehicleData.hasMaintenanceHistory) {
+        if (!vehicleData.lastMaintenanceDate) return false
+        // Kiểm tra ngày bảo dưỡng không được là hôm nay hoặc tương lai
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+        const yesterdayStr = yesterday.toISOString().split('T')[0]
+        const todayStr = today.toISOString().split('T')[0]
+        if (vehicleData.lastMaintenanceDate >= todayStr) return false
+      }
+      
+      if (!vehicleData.hasMaintenanceHistory) {
+        if (!vehicleData.purchaseDate) return false
+        // Kiểm tra ngày mua xe không được là tương lai
+        const todayStr = new Date().toISOString().split('T')[0]
+        if (vehicleData.purchaseDate > todayStr) return false
+      }
+    }
+    
     return (
       (serviceData.services.length > 0 || serviceData.packageId) &&
       !!vehicleData.carModel &&
@@ -278,262 +424,172 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     <div className="combined-service-vehicle-step">
       <h2 className="csv-title">Dịch vụ & Thông tin xe</h2>
       <p className="csv-subheading">Chọn dịch vụ hoặc gói dịch vụ và cung cấp thông tin xe để tiếp tục đặt lịch</p>
-      <form onSubmit={handleSubmit} className="csv-grid">
-        <div className="csv-section card">
+      <form onSubmit={handleSubmit}>
+        {/* Phần chọn loại dịch vụ - đưa lên đầu tiên */}
+        <div className="csv-section card category-section">
           <div className="form-group">
-            <label>Loại dịch vụ <span className="required-star">*</span></label>
+            <label className="csv-section-title">1. Loại dịch vụ <span className="required-star">*</span></label>
             {categoriesLoading ? (
               <div>Đang tải...</div>
             ) : (
-              <select
-                value={selectedCategoryId || ''}
-                onChange={(e) => handleCategoryChange(e.target.value ? Number(e.target.value) : undefined)}
-                required
-              >
-                <option value="">-- Chọn loại dịch vụ --</option>
-                {categories.map(cat => (
-                  <option key={cat.categoryId} value={cat.categoryId}>
-                    {cat.categoryName}
-                  </option>
-                ))}
-              </select>
+              <div className="category-grid">
+                {categories.map(cat => {
+                  const active = selectedCategoryId === cat.categoryId
+                  return (
+                    <div key={cat.categoryId} className={`category-card ${active ? 'active' : ''}`}>
+                      <button
+                        type="button"
+                        className="category-main"
+                        onClick={() => handleCategoryChange(cat.categoryId)}
+                      >
+                        <span className="category-name">{cat.categoryName}</span>
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             )}
-          </div>
-
-          {selectedCategoryId && (
-            <>
-          <h3 className="csv-section-title">Chọn dịch vụ</h3>
-              {servicesLoading && <div>Đang tải dịch vụ...</div>}
-              {!servicesLoading && (
-                <div className="service-list">
-                  {services.length === 0 ? (
-                    <div style={{ padding: '1rem', color: 'var(--csv-muted)' }}>
-                      Không có dịch vụ nào trong danh mục này
-                    </div>
-                  ) : (
-                    services.map(service => (
-                      <label key={service.id} className="service-item">
-                        <input
-                          type="checkbox"
-                          checked={serviceData.services[0] === String(service.id)}
-                          onChange={() => handleServiceToggle(String(service.id))}
-                        />
-                        <span>{service.name}</span>
-                      </label>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {/* Recommendation Section for Maintenance Category - Only show when vehicle info is complete */}
-              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               vehicleData.mileage && 
-               vehicleData.lastMaintenanceDate && (
-                <div className="recommendation-section">
-                  <div className="recommendation-header">
-                    <h4 className="csv-subtitle">💡 Gợi ý dịch vụ phù hợp</h4>
-                    <button
-                      type="button"
-                      className="btn-recommend"
-                      onClick={getRecommendedServices}
-                      disabled={recommendationLoading || !vehicleData.mileage || !vehicleData.lastMaintenanceDate}
-                    >
-                      {recommendationLoading ? 'Đang tìm...' : 'Tìm dịch vụ phù hợp'}
-                    </button>
-                  </div>
-
-                  {showRecommendations && (
-                    <div className="recommendation-results">
-                      {recommendedServices.length === 0 ? (
-                        <div className="no-recommendations">
-                          <p>Không tìm thấy dịch vụ phù hợp với thông tin xe của bạn.</p>
-                          <p>Vui lòng chọn dịch vụ từ danh sách trên.</p>
-                        </div>
-                      ) : (
-                        <div className="recommended-services">
-                          <p className="recommendation-message">
-                            Dựa trên số km hiện tại ({vehicleData.mileage} km) và ngày bảo dưỡng cuối ({vehicleData.lastMaintenanceDate}), 
-                            chúng tôi gợi ý các dịch vụ sau:
-                          </p>
-                          {recommendedServices.map((template, index) => (
-                            <div key={template.templateId} className="recommended-service-card">
-                              <div className="recommendation-badge">
-                                #{index + 1} Phù hợp nhất
-                              </div>
-                              <div className="recommended-service-content">
-                                <h5>{template.serviceName}</h5>
-                                <p className="template-name">{template.templateName}</p>
-                                {template.description && (
-                                  <p className="template-description">{template.description}</p>
-                                )}
-                                <div className="recommendation-criteria">
-                                  {template.minKm && (
-                                    <span className="criteria-item">
-                                      📏 Km tối thiểu: {template.minKm.toLocaleString()}
-                                    </span>
-                                  )}
-                                  {template.maxDate && (
-                                    <span className="criteria-item">
-                                      📅 Ngày tối đa: {template.maxDate} ngày
-                                    </span>
-                                  )}
-                                  {template.maxOverdueDays && (
-                                    <span className="criteria-item">
-                                      ⏰ Trễ tối đa: {template.maxOverdueDays} ngày
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                {/* Warnings */}
-                                {template.warnings && template.warnings.length > 0 && (
-                                  <div className="recommendation-warnings">
-                                    {template.warnings.map((warning, warningIndex) => (
-                                      <div key={warningIndex} className="warning-item">
-                                        {warning}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                
-                                {/* Recommendation Reason */}
-                                {template.recommendationReason && (
-                                  <div className="recommendation-reason">
-                                    <strong>Lý do:</strong> {template.recommendationReason}
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  className="btn-select-recommended"
-                                  onClick={() => handleServiceToggle(String(template.serviceId))}
-                                >
-                                  Chọn dịch vụ này
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Show instruction when maintenance category is selected but vehicle info is incomplete */}
-              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               (!vehicleData.mileage || !vehicleData.lastMaintenanceDate) && (
-                <div className="recommendation-instruction">
-                  <div className="instruction-content">
-                    <h4 className="csv-subtitle">💡 Để nhận gợi ý dịch vụ phù hợp</h4>
-                    <p>Vui lòng nhập đầy đủ thông tin xe bên dưới:</p>
-                    <ul>
-                      <li>✅ Số km đã đi</li>
-                      <li>✅ Ngày bảo dưỡng cuối</li>
-                    </ul>
-                    <p>Sau đó hệ thống sẽ gợi ý các dịch vụ phù hợp nhất với tình trạng xe của bạn.</p>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          <h4 className="csv-subtitle">Gói dịch vụ</h4>
-          {packagesLoading && <div>Đang tải gói dịch vụ...</div>}
-          {!packagesLoading && packages.length === 0 && (
-            <div style={{ padding: '1rem', color: 'var(--csv-muted)', textAlign: 'center' }}>
-              Không có gói dịch vụ nào trong danh mục này
-            </div>
-          )}
-          {!packagesLoading && packages.length > 0 && (
-            <div className="pkg-grid">
-              {packages.map(pkg => {
-                const price = typeof pkg.price === 'number' ? pkg.price : Number((pkg as any).price || 0)
-                const priceText = price.toLocaleString('vi-VN')
-                const selected = serviceData.packageId === pkg.packageId
-                return (
-                  <div
-                    key={pkg.packageId}
-                    className={`pkg-card ${selected ? 'selected' : ''}`}
-                    onClick={() => handleSelectPackage(pkg)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="pkg-head">
-                      <h5 className="pkg-name">{pkg.packageName}</h5>
-                      {pkg.discountPercent ? (
-                        <span className="pkg-badge">-{pkg.discountPercent}%</span>
-                      ) : null}
-                    </div>
-                    <div className="pkg-meta">
-                      <span className="pkg-service">{pkg.serviceName ?? ''}</span>
-                      {pkg.totalCredits ? (
-                        <span className="pkg-dot">•</span>
-                      ) : null}
-                      {pkg.totalCredits ? (
-                        <span className="pkg-credits">{pkg.totalCredits} lượt</span>
-                      ) : null}
-                    </div>
-                    <div className="pkg-price">{priceText} VNĐ</div>
-                    <div className="pkg-action">{selected ? 'Đã chọn' : 'Chọn gói'}</div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          <div className="form-group">
-            <label>{selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') ? 'Tình trạng xe / ghi chú' : 'Ghi chú thêm'}</label>
-            <textarea
-              value={serviceData.notes}
-              onChange={(e) => onUpdateService({ notes: e.target.value })}
-              rows={3}
-            />
           </div>
         </div>
 
-        <div className="csv-section card">
-          <h3 className="csv-section-title">Thông tin xe</h3>
-          {/* Select existing vehicle to autofill */}
-          <div className="form-group">
-            <label>Chọn xe có sẵn<span className="required-star">*</span></label>
-            <select
-              value={selectedVehicleId || ''}
-              onChange={(e) => {
-                const vid = Number(e.target.value)
-                const v = vehicles.find(x => x.vehicleId === vid)
-                if (v) {
-                  setSelectedVehicleId(vid)
-                  onUpdateVehicle({ 
-                    licensePlate: v.licensePlate, 
-                    carModel: v.vin,
-                    mileage: v.currentMileage?.toString() || ''
-                  })
-                } else {
+        {/* Grid 2 cột: Thông tin xe và Chọn dịch vụ */}
+        <div className="csv-grid">
+          <div className="csv-section card">
+            <div className="form-group">
+              <label className="csv-section-title">2. Chọn xe<span className="required-star">*</span></label>
+              {/* Grid ảnh chọn xe thay cho dropdown */}
+              {vehiclesLoading ? (
+                <div>Đang tải...</div>
+              ) : (
+                <>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button type="button" aria-label="Prev" onClick={showPrevVehicle} style={{ position: 'absolute', left: -6, top: '40%', transform: 'translateY(-50%)', zIndex: 2, width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--csv-border)', background: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>‹</button>
+                  <div ref={vehicleScrollerRef} style={{ width: 320, maxWidth: '100%' }}>
+                  {vehicles.length === 0 && (
+                    <div style={{ color: 'var(--csv-muted)' }}>Chưa có xe. Vui lòng tạo xe mới.</div>
+                  )}
+                  {vehicles.length > 0 && (() => {
+                    const v = vehicles[vehicleIndex]
+                    const active = selectedVehicleId === v.vehicleId
+                    const modelId = v.modelId || vehicleModelMap[v.vehicleId as number] || 0
+                    // Ưu tiên lấy ảnh Cloudinary theo modelId nếu đã cấu hình; nếu không, thử public/vehicle-models; cuối cùng dùng ảnh dự phòng.
+                    const cloudFromVehicle = (() => {
+                      const raw = (v as any).modelImageUrl as string | undefined
+                      if (!raw) return undefined
+                      const s = String(raw).trim()
+                      // Chỉ nhận URL hợp lệ bắt đầu bằng http/https
+                      return /^https?:\/\//i.test(s) ? s : undefined
+                    })()
+                    const cloudFromModel = cloudFromVehicle || modelImages[modelId]
+                    const cloudUrl = cloudFromModel || buildModelImageUrl(modelId)
+                    const imgSrc = cloudUrl || (modelId ? `/vehicle-models/${modelId}.webp` : fallbackVehicleImg)
+                    return (
+                      <button
+                        key={v.vehicleId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVehicleId(v.vehicleId)
+                          onUpdateVehicle({
+                            licensePlate: v.licensePlate,
+                            carModel: v.vin,
+                            mileage: v.currentMileage?.toString() || '',
+                            modelId: v.modelId || undefined
+                          })
+                        }}
+                        className={`vehicle-card ${active ? 'selected' : ''}`}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'stretch',
+                          gap: 10,
+                          background: '#ffffff',
+                          border: active ? `2px solid var(--progress-current)` : '1px solid var(--csv-border)',
+                          borderRadius: 14,
+                          cursor: 'pointer',
+                          transition: 'transform .18s ease, box-shadow .22s ease, border-color .22s ease',
+                          textAlign: 'left',
+                          boxShadow: active ? '0 8px 26px rgba(30,199,116,.18)' : '0 6px 18px rgba(2,6,23,.06)',
+                          padding: 12,
+                          minHeight: 270
+                        }}
+                        aria-pressed={active}
+                      >
+                        <div
+                          style={{
+                            width: '100%',
+                            aspectRatio: '16 / 9',
+                            borderRadius: 12,
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <img
+                            src={imgSrc}
+                            alt={`Model xe ${modelId || ''}`}
+                            onError={(e) => {
+                              // Nếu cloud/public fail, rơi về ảnh dự phòng local
+                              (e.currentTarget as HTMLImageElement).src = fallbackVehicleImg
+                            }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem', letterSpacing: '.1px' }}>{v.licensePlate}</div>
+                          <div style={{ fontSize: 12, color: '#64748b', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
+                            VIN: <span style={{ color: '#334155' }}>{v.vin}</span>
+                          </div>
+                        </div>
+                        {active && (
+                          <div style={{
+                            marginTop: 2,
+                            fontSize: 12,
+                            color: 'var(--progress-current)',
+                            fontWeight: 700
+                          }}>
+                            ✓ Đã chọn
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })()}
+                  </div>
+                  <button type="button" aria-label="Next" onClick={showNextVehicle} style={{ position: 'absolute', right: -6, top: '40%', transform: 'translateY(-50%)', zIndex: 2, width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--csv-border)', background: '#fff', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>›</button>
+                </div>
+                {vehicles && vehicles.length > 0 && !selectedVehicleId && (
+                  <div style={{
+                    marginTop: 8,
+                    color: '#475569',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    padding: '8px 10px',
+                    borderRadius: 10
+                  }}>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>Lưu ý:</span>
+                    Vui lòng chọn xe trước khi tiếp tục.
+                  </div>
+                )}
+                </>
+              )}
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => {
+                  setOpenCreate(true)
                   setSelectedVehicleId(undefined)
-                  onUpdateVehicle({ licensePlate: '', carModel: '', mileage: '' })
-                }
-              }}
-            >
-              <option value="">—</option>
-              {vehiclesLoading && <option value="" disabled>Đang tải...</option>}
-              {!vehiclesLoading && vehicles.map(v => (
-                <option key={v.vehicleId} value={v.vehicleId}>{v.licensePlate} — {v.vin}</option>
-              ))}
-            </select>
-            <button 
-              type="button" 
-              className="btn-secondary" 
-              onClick={() => {
-                setOpenCreate(true)
-                // Reset selected vehicle khi tạo xe mới
-                setSelectedVehicleId(undefined)
-              }} 
-              style={{ marginTop: 8 }}
-            >
-              + Tạo xe mới
-            </button>
-          </div>
+                }} 
+                style={{ marginTop: 8 }}
+              >
+                + Tạo xe mới
+              </button>
+            </div>
           {/* Model selection moved to CreateVehicleModal */}
           <div className="form-group">
-            <label>Số km đã đi<span className="required-star">*</span></label>
+            <label>Số Km hiện tại<span className="required-star">*</span></label>
             <input
               type="text"
               value={vehicleData.mileage}
@@ -545,7 +601,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           {/* Km gần đây: chỉ hiển thị khi chọn xe có sẵn, dùng để cập nhật km hiện tại */}
           {isVehicleSelected && (
             <div className="form-group">
-              <label>Km gần đây (tùy chọn)</label>
+              <label>Số Km gần đây khi mang xe đến (tùy chọn)</label>
               <input
                 type="number"
                 value={vehicleData.recentMileage || ''}
@@ -594,42 +650,129 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
           {/* Fields riêng cho Bảo dưỡng */}
           {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && (
-            <div className="form-group">
-              <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
-              {(() => {
-                const todayStr = new Date().toISOString().split('T')[0]
-                const selectedDate = vehicleData.lastMaintenanceDate || ''
-                const isFuture = !!selectedDate && selectedDate > todayStr
-                return (
-                  <>
+            <>
+              <div className="form-group">
+                <label>Bạn đã bảo dưỡng chưa? <span className="required-star">*</span></label>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                     <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
-                      max={todayStr}
-                      required
-                      aria-invalid={isFuture}
-                      style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
-                        borderRadius: '12px',
-                        fontSize: '16px',
-                        background: '#ffffff',
-                        color: '#111827',
-                        transition: 'all 0.2s ease',
-                        boxSizing: 'border-box'
+                      type="radio"
+                      name="hasMaintenanceHistory"
+                      checked={vehicleData.hasMaintenanceHistory === true}
+                      onChange={() => {
+                        onUpdateVehicle({ 
+                          hasMaintenanceHistory: true,
+                          purchaseDate: undefined // Clear purchase date when selecting "yes"
+                        })
                       }}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
-                    {isFuture && (
-                      <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
-                        Ngày này không thể chọn trong tương lai
-                      </div>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
+                    <span>Có</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="hasMaintenanceHistory"
+                      checked={vehicleData.hasMaintenanceHistory === false}
+                      onChange={() => {
+                        onUpdateVehicle({ 
+                          hasMaintenanceHistory: false,
+                          lastMaintenanceDate: undefined // Clear maintenance date when selecting "no"
+                        })
+                      }}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span>Chưa</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Hiển thị trường ngày bảo dưỡng cuối nếu đã bảo dưỡng */}
+              {vehicleData.hasMaintenanceHistory === true && (
+                <div className="form-group">
+                  <label>Ngày bảo dưỡng cuối <span className="required-star">*</span></label>
+                  {(() => {
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    const yesterday = new Date(today)
+                    yesterday.setDate(yesterday.getDate() - 1)
+                    const yesterdayStr = yesterday.toISOString().split('T')[0]
+                    const todayStr = today.toISOString().split('T')[0]
+                    const selectedDate = vehicleData.lastMaintenanceDate || ''
+                    const isFuture = !!selectedDate && selectedDate > yesterdayStr
+                    const isToday = selectedDate === todayStr
+                    return (
+                      <>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => onUpdateVehicle({ lastMaintenanceDate: e.target.value })}
+                          max={yesterdayStr}
+                          required
+                          aria-invalid={isFuture || isToday}
+                          style={{
+                            width: '100%',
+                            padding: '14px 16px',
+                            border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                            borderRadius: '12px',
+                            fontSize: '16px',
+                            background: '#ffffff',
+                            color: '#111827',
+                            transition: 'all 0.2s ease',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        {(isFuture || isToday) && (
+                          <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
+                            {isToday ? 'Không thể chọn ngày hôm nay' : 'Ngày này không thể chọn trong tương lai'}
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+
+              {/* Hiển thị trường ngày mua xe nếu chưa bảo dưỡng */}
+              {vehicleData.hasMaintenanceHistory === false && (
+                <div className="form-group">
+                  <label>Ngày mua xe <span className="required-star">*</span></label>
+                  {(() => {
+                    const todayStr = new Date().toISOString().split('T')[0]
+                    const selectedDate = vehicleData.purchaseDate || ''
+                    const isFuture = !!selectedDate && selectedDate > todayStr
+                    return (
+                      <>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => onUpdateVehicle({ purchaseDate: e.target.value })}
+                          max={todayStr}
+                          required
+                          aria-invalid={isFuture}
+                          style={{
+                            width: '100%',
+                            padding: '14px 16px',
+                            border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                            borderRadius: '12px',
+                            fontSize: '16px',
+                            background: '#ffffff',
+                            color: '#111827',
+                            transition: 'all 0.2s ease',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                        {isFuture && (
+                          <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>
+                            Ngày này không thể chọn trong tương lai
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+            </>
           )}
 
           {/* Fields riêng cho Sửa chữa */}
@@ -666,13 +809,203 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               </div>
             </>
           )}
+          </div>
+        <div className="csv-section card">
+          {/* Hiển thị phần chọn dịch vụ và gói dịch vụ khi đã chọn loại dịch vụ */}
+          {selectedCategoryId && (
+            <>
+              <h3 className="csv-section-title">3. Chi tiết dịch vụ <span className="required-star">*</span></h3>
+              {servicesLoading && <div>Đang tải dịch vụ...</div>}
+              {!servicesLoading && (
+                <div className="service-list">
+                  {services.length === 0 ? (
+                    <div style={{ padding: '1rem', color: 'var(--csv-muted)' }}>
+                      Không có dịch vụ nào trong danh mục này
+                    </div>
+                  ) : (
+                    services.map(service => (
+                      <label key={service.id} className="service-item">
+                        <input
+                          type="checkbox"
+                          checked={serviceData.services[0] === String(service.id)}
+                          onChange={() => handleServiceToggle(String(service.id))}
+                        />
+                        <span>{service.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Recommendation Section for Maintenance Category - Only show when vehicle info is complete */}
+              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
+               vehicleData.mileage && 
+               vehicleData.hasMaintenanceHistory !== undefined &&
+               ((vehicleData.hasMaintenanceHistory && vehicleData.lastMaintenanceDate) || 
+                (!vehicleData.hasMaintenanceHistory && vehicleData.purchaseDate)) && (
+                <div className="recommendation-section">
+                  <div className="recommendation-header">
+                    <h4 className="csv-subtitle">💡 Gợi ý dịch vụ phù hợp</h4>
+                    <button
+                      type="button"
+                      className="btn-recommend"
+                      onClick={getRecommendedServices}
+                      disabled={
+                        recommendationLoading || 
+                        !vehicleData.mileage || 
+                        (vehicleData.hasMaintenanceHistory ? !vehicleData.lastMaintenanceDate : !vehicleData.purchaseDate)
+                      }
+                    >
+                      {recommendationLoading ? 'Đang tìm...' : 'Tìm dịch vụ phù hợp'}
+                    </button>
+                  </div>
+
+                  {showRecommendations && (
+                    <div className="recommendation-results">
+                      {recommendedServices.length === 0 ? (
+                        <div className="no-recommendations">
+                          <p>Không tìm thấy dịch vụ phù hợp với thông tin xe của bạn.</p>
+                          <p>Vui lòng chọn dịch vụ từ danh sách trên.</p>
+                        </div>
+                      ) : (
+                        <div className="recommended-services">
+                          <p className="recommendation-message">
+                            Dựa trên số km hiện tại ({vehicleData.mileage} km) và {vehicleData.hasMaintenanceHistory ? 'ngày bảo dưỡng cuối' : 'ngày mua xe'} ({vehicleData.hasMaintenanceHistory ? vehicleData.lastMaintenanceDate : vehicleData.purchaseDate}), 
+                            chúng tôi gợi ý các dịch vụ sau:
+                          </p>
+                          {recommendedServices.map((template, index) => (
+                            <div key={template.templateId} className="recommended-service-card">
+                              <div className="recommendation-badge">
+                                #{index + 1} Phù hợp nhất
+                              </div>
+                              <div className="recommended-service-content">
+                                <div className="recommended-service-header">
+                                  <div>
+                                    <h5>{template.serviceName}</h5>
+                                    <p className="template-name">{template.templateName}</p>
+                                  </div>
+                                </div>
+                                
+                                {/* Thông tin tóm tắt - luôn hiển thị */}
+                                <div className="recommendation-summary">
+                                  {template.minKm && (
+                                    <span className="summary-item">
+                                      📏 {template.minKm.toLocaleString()} km
+                                    </span>
+                                  )}
+                                  {template.maxDate && (
+                                    <span className="summary-item">
+                                      📅 {template.maxDate} ngày
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div className="recommended-service-actions">
+                                  <button
+                                    type="button"
+                                    className="btn-toggle-details"
+                                    onClick={() => setSelectedServiceDetail(template)}
+                                  >
+                                    Xem chi tiết
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-select-recommended"
+                                    onClick={() => handleServiceToggle(String(template.serviceId))}
+                                  >
+                                    Chọn dịch vụ
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Show instruction when maintenance category is selected but vehicle info is incomplete */}
+              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
+               (!vehicleData.mileage || 
+                vehicleData.hasMaintenanceHistory === undefined ||
+                (vehicleData.hasMaintenanceHistory && !vehicleData.lastMaintenanceDate) ||
+                (!vehicleData.hasMaintenanceHistory && !vehicleData.purchaseDate)) && (
+                <div className="recommendation-instruction">
+                  <div className="instruction-content">
+                    <h4 className="csv-subtitle">💡 Để nhận gợi ý dịch vụ phù hợp</h4>
+                    <p>Vui lòng nhập đầy đủ thông tin xe bên dưới:</p>
+                    <ul>
+                      <li>✅ Số km đã đi</li>
+                      <li>✅ Trả lời câu hỏi "Bạn đã bảo dưỡng chưa?"</li>
+                      <li>✅ {vehicleData.hasMaintenanceHistory === true ? 'Ngày bảo dưỡng cuối' : vehicleData.hasMaintenanceHistory === false ? 'Ngày mua xe' : 'Ngày bảo dưỡng cuối hoặc ngày mua xe'}</li>
+                    </ul>
+                    <p>Sau đó hệ thống sẽ gợi ý các dịch vụ phù hợp nhất với tình trạng xe của bạn.</p>
+                  </div>
+                </div>
+              )}
+
+              <h4 className="csv-subtitle">Gói dịch vụ</h4>
+              {packagesLoading && <div>Đang tải gói dịch vụ...</div>}
+              {!packagesLoading && packages.length === 0 && (
+                <div style={{ padding: '1rem', color: 'var(--csv-muted)', textAlign: 'center' }}>
+                  Không có gói dịch vụ nào trong danh mục này
+                </div>
+              )}
+              {!packagesLoading && packages.length > 0 && (
+                <div className="pkg-grid">
+                  {packages.map(pkg => {
+                    const price = typeof pkg.price === 'number' ? pkg.price : Number((pkg as any).price || 0)
+                    const priceText = price.toLocaleString('vi-VN')
+                    const selected = serviceData.packageId === pkg.packageId
+                    return (
+                      <div
+                        key={pkg.packageId}
+                        className={`pkg-card ${selected ? 'selected' : ''}`}
+                        onClick={() => handleSelectPackage(pkg)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="pkg-head">
+                          <h5 className="pkg-name">{pkg.packageName}</h5>
+                          {pkg.discountPercent ? (
+                            <span className="pkg-badge">-{pkg.discountPercent}%</span>
+                          ) : null}
+                        </div>
+                        <div className="pkg-meta">
+                          <span className="pkg-service">{pkg.serviceName ?? ''}</span>
+                          {pkg.totalCredits ? (
+                            <span className="pkg-dot">•</span>
+                          ) : null}
+                          {pkg.totalCredits ? (
+                            <span className="pkg-credits">{pkg.totalCredits} lượt</span>
+                          ) : null}
+                        </div>
+                        <div className="pkg-price">{priceText} VNĐ</div>
+                        <div className="pkg-action">{selected ? 'Đã chọn' : 'Chọn gói'}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="form-group">
+                <label>{selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') ? 'Tình trạng xe / ghi chú' : 'Ghi chú thêm'}</label>
+                <textarea
+                  value={serviceData.notes}
+                  onChange={(e) => onUpdateService({ notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
+        </div>
         </div>
 
         <CreateVehicleModal
           open={openCreate}
           onClose={() => setOpenCreate(false)}
           onCreated={(veh, customerId) => {
-            console.log('CombinedServiceVehicleStep received customerId:', customerId)
             setVehicles((list) => [veh, ...list])
             
             // Reset selected vehicle (since new vehicle was created)
@@ -692,10 +1025,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
             
             // Nếu có customerId từ guest, truyền về ServiceBookingForm
             if (customerId && onGuestCustomerCreated) {
-              console.log('Calling onGuestCustomerCreated with customerId:', customerId)
               onGuestCustomerCreated(customerId)
-            } else {
-              console.log('Not calling onGuestCustomerCreated:', { customerId, onGuestCustomerCreated: !!onGuestCustomerCreated })
             }
             
             setOpenCreate(false)
@@ -713,6 +1043,100 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         </div>
       </form>
 
+      {/* Modal chi tiết dịch vụ */}
+      {selectedServiceDetail && (
+        <div className="service-detail-modal-overlay" onClick={() => setSelectedServiceDetail(null)}>
+          <div className="service-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Chi tiết dịch vụ</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setSelectedServiceDetail(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-service-info">
+                <h4>{selectedServiceDetail.serviceName}</h4>
+                <p className="modal-template-name">{selectedServiceDetail.templateName}</p>
+              </div>
+              
+              {selectedServiceDetail.description && (
+                <div className="modal-section">
+                  <h5>Mô tả</h5>
+                  <p className="modal-description">{selectedServiceDetail.description}</p>
+                </div>
+              )}
+              
+              <div className="modal-section">
+                <h5>Tiêu chí</h5>
+                <div className="modal-criteria">
+                  {selectedServiceDetail.minKm && (
+                    <div className="modal-criteria-item">
+                      <span className="criteria-label">📏 Km tối thiểu:</span>
+                      <span className="criteria-value">{selectedServiceDetail.minKm.toLocaleString()} km</span>
+                    </div>
+                  )}
+                  {selectedServiceDetail.maxDate && (
+                    <div className="modal-criteria-item">
+                      <span className="criteria-label">📅 Ngày tối đa:</span>
+                      <span className="criteria-value">{selectedServiceDetail.maxDate} ngày</span>
+                    </div>
+                  )}
+                  {selectedServiceDetail.maxOverdueDays && (
+                    <div className="modal-criteria-item">
+                      <span className="criteria-label">⏰ Trễ tối đa:</span>
+                      <span className="criteria-value">{selectedServiceDetail.maxOverdueDays} ngày</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {selectedServiceDetail.warnings && selectedServiceDetail.warnings.length > 0 && (
+                <div className="modal-section">
+                  <h5>Cảnh báo</h5>
+                  <div className="modal-warnings">
+                    {selectedServiceDetail.warnings.map((warning, warningIndex) => (
+                      <div key={warningIndex} className="modal-warning-item">
+                        {warning}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {selectedServiceDetail.recommendationReason && (
+                <div className="modal-section">
+                  <h5>Lý do gợi ý</h5>
+                  <p className="modal-reason">{selectedServiceDetail.recommendationReason}</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-modal-secondary"
+                onClick={() => setSelectedServiceDetail(null)}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={() => {
+                  handleServiceToggle(String(selectedServiceDetail.serviceId))
+                  setSelectedServiceDetail(null)
+                }}
+              >
+                Chọn dịch vụ này
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         :root {
           --csv-surface: #ffffff;
@@ -724,25 +1148,34 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           --csv-text: #0f172a;
           --csv-muted: #64748b;
         }
-        .combined-service-vehicle-step { background: linear-gradient(180deg, #ffffff 0%, #f6fbf8 100%); padding-bottom: .5rem; }
+        .vehicle-carousel{ -ms-overflow-style: none; }
+        .vehicle-carousel::-webkit-scrollbar{ display: none; }
+        .combined-service-vehicle-step { background: transparent; padding-bottom: .5rem; }
         .csv-title { font-size: 1.75rem; font-weight: 800; color: var(--csv-text); margin: 0 0 .25rem 0; letter-spacing: .2px; }
         .csv-subheading { margin: 0 0 1rem 0; color: var(--csv-muted); }
-        .csv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
+        .csv-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1.25rem; align-items: start; margin-top: 1.25rem; }
+        .category-section { margin-bottom: 1.25rem; }
         .card { 
-          background: var(--csv-surface); 
-          border: 1px solid var(--csv-border); 
-          border-radius: 14px; 
+          background: rgba(255, 255, 255, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.45);
+          border-radius: 16px; 
           padding: 1.25rem; 
-          box-shadow: var(--csv-shadow);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
+          backdrop-filter: blur(18px) saturate(160%);
+          -webkit-backdrop-filter: blur(18px) saturate(160%);
           box-sizing: border-box;
           /* Cho phép menu dropdown render ra ngoài card */
           overflow: visible;
         }
-        .card:hover { box-shadow: var(--csv-shadow-hover); transform: translateY(-1px); border-color: #dbe1e8; }
+        .card:hover { box-shadow: 0 22px 48px rgba(0, 0, 0, 0.18); transform: translateY(-1px); border-color: rgba(255,255,255,0.6); }
         .csv-section-title { margin: 0 0 .75rem 0; font-size: 1.1rem; font-weight: 700; color: var(--csv-text); }
         .csv-subtitle { margin: .5rem 0 .5rem; font-size: .95rem; font-weight: 700; color: var(--csv-muted); }
         .service-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin-bottom: 1rem; }
         .pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: .5rem; }
+        .category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+        .category-card { display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-primary); border-radius: 12px; padding: .5rem; background: #fff; }
+        .category-card.active { border-color: var(--progress-current); box-shadow: 0 2px 10px rgba(0,64,48,.12); }
+        .category-main { width: 100%; text-align: center; background: transparent; border: none; color: var(--text-primary); font-weight: 700; padding: .5rem .75rem; border-radius: 10px; cursor: pointer; }
         .service-item { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
         .service-item input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
         .service-item span { display: inline-block; padding: .5rem .75rem; border: 1px solid var(--border-primary); border-radius: 999px; background: #fff; color: var(--text-primary); transition: all .2s ease; user-select: none; }
@@ -763,7 +1196,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .pkg-card.selected { border-color: var(--progress-current); box-shadow: 0 10px 20px rgba(28, 199, 116, .18); }
         .pkg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .pkg-name { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); }
-        .pkg-badge { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 700; }
+        .pkg-badge { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 700; }
         .pkg-meta { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: .9rem; }
         .pkg-dot { color: #cbd5e1; }
         .pkg-price { margin-top: 4px; font-weight: 800; color: var(--progress-current); letter-spacing: .2px; }
@@ -790,10 +1223,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-secondary { background: #fff; color: var(--csv-text); border: 1px solid var(--csv-border); border-radius: 10px; padding: .75rem 1.1rem; font-weight: 700; }
         
         /* Recommendation Instruction Styles */
-        .recommendation-instruction { margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 12px; }
-        .instruction-content h4 { margin: 0 0 0.75rem 0; color: #92400e; }
-        .instruction-content p { margin: 0.5rem 0; color: #a16207; font-size: 0.9rem; }
-        .instruction-content ul { margin: 0.5rem 0; padding-left: 1.5rem; color: #a16207; }
+        .recommendation-instruction { margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; }
+        .instruction-content h4 { margin: 0 0 0.75rem 0; color: var(--text-primary); }
+        .instruction-content p { margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem; }
+        .instruction-content ul { margin: 0.5rem 0; padding-left: 1.5rem; color: var(--text-secondary); }
         .instruction-content li { margin: 0.25rem 0; font-size: 0.9rem; }
         
         /* Recommendation Styles */
@@ -804,20 +1237,54 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-recommend:disabled { opacity: 0.6; cursor: not-allowed; }
         .recommendation-results { margin-top: 1rem; }
         .no-recommendations { text-align: center; padding: 1rem; color: var(--csv-muted); }
-        .recommended-services { display: flex; flex-direction: column; gap: 1rem; }
-        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 10px; padding: 1rem; position: relative; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1); }
-        .recommendation-badge { position: absolute; top: -8px; right: 12px; background: #0ea5e9; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
-        .recommended-service-content h5 { margin: 0 0 0.5rem 0; color: var(--csv-text); font-size: 1rem; font-weight: 700; }
-        .template-name { margin: 0 0 0.5rem 0; color: var(--csv-primary); font-weight: 600; font-size: 0.9rem; }
-        .template-description { margin: 0 0 0.75rem 0; color: var(--csv-muted); font-size: 0.875rem; line-height: 1.4; }
-        .recommendation-criteria { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-        .criteria-item { background: #f0f9ff; color: #0369a1; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.8rem; font-weight: 500; }
-        .btn-select-recommended { background: var(--csv-primary); color: white; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .recommended-services { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.08); }
+        .recommendation-badge { position: absolute; top: -6px; right: 8px; background: #0ea5e9; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; }
+        .recommended-service-content h5 { margin: 0 0 0.25rem 0; color: var(--csv-text); font-size: 0.875rem; font-weight: 700; line-height: 1.2; }
+        .template-name { margin: 0 0 0.5rem 0; color: var(--csv-primary); font-weight: 600; font-size: 0.8rem; line-height: 1.2; }
+        .recommended-service-header { margin-bottom: 0.5rem; }
+        .recommendation-summary { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+        .summary-item { background: #f0f9ff; color: #0369a1; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; }
+        .recommended-service-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .btn-toggle-details { background: #f0f9ff; color: #0ea5e9; border: 1px solid #bae6fd; border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; }
+        .btn-toggle-details:hover { background: #e0f2fe; border-color: #0ea5e9; }
+        .btn-select-recommended { background: var(--csv-primary); color: white; border: none; border-radius: 6px; padding: 0.4rem 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; font-size: 0.75rem; }
         .btn-select-recommended:hover { background: #16a34a; transform: translateY(-1px); }
+        
+        /* Modal Styles */
+        .service-detail-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+        .service-detail-modal { background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; }
+        .modal-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--csv-text); }
+        .modal-close { background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s ease; }
+        .modal-close:hover { background: #f3f4f6; color: #111827; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .modal-service-info { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+        .modal-service-info h4 { margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 700; color: var(--csv-text); }
+        .modal-template-name { margin: 0; color: var(--csv-primary); font-weight: 600; font-size: 0.95rem; }
+        .modal-section { margin-bottom: 1.5rem; }
+        .modal-section h5 { margin: 0 0 0.75rem 0; font-size: 0.95rem; font-weight: 700; color: var(--csv-text); }
+        .modal-description { margin: 0; color: var(--csv-muted); font-size: 0.9rem; line-height: 1.5; }
+        .modal-criteria { display: flex; flex-direction: column; gap: 0.5rem; }
+        .modal-criteria-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f0f9ff; border-radius: 6px; }
+        .criteria-label { font-weight: 600; color: #0369a1; font-size: 0.85rem; }
+        .criteria-value { color: #0369a1; font-size: 0.85rem; }
+        .modal-warnings { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 0.75rem; }
+        .modal-warning-item { margin: 0.25rem 0; font-size: 0.85rem; line-height: 1.4; color: #92400e; }
+        .modal-reason { margin: 0; padding: 0.75rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; font-size: 0.9rem; line-height: 1.5; color: #0369a1; }
+        .modal-footer { display: flex; gap: 0.75rem; padding: 1.25rem 1.5rem; border-top: 1px solid #e5e7eb; justify-content: flex-end; }
+        .btn-modal-secondary { background: white; color: var(--csv-text); border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .btn-modal-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+        .btn-modal-primary { background: var(--csv-primary); color: white; border: none; border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .btn-modal-primary:hover { background: #16a34a; transform: translateY(-1px); }
         .recommendation-message { margin: 0 0 1rem 0; color: var(--csv-text); font-size: 0.9rem; line-height: 1.4; }
-        .recommendation-warnings { margin: 0.75rem 0; padding: 0.75rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; }
-        .warning-item { margin: 0.25rem 0; font-size: 0.85rem; line-height: 1.4; color: #92400e; }
-        .recommendation-reason { margin: 0.75rem 0; padding: 0.75rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; font-size: 0.85rem; line-height: 1.4; color: #0369a1; }
+        .recommendation-warnings { margin: 0.5rem 0; padding: 0.5rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; }
+        .warning-item { margin: 0.2rem 0; font-size: 0.7rem; line-height: 1.3; color: #92400e; }
+        .recommendation-reason { margin: 0.5rem 0; padding: 0.5rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; font-size: 0.7rem; line-height: 1.3; color: #0369a1; }
+        
+        @media (max-width: 768px) {
+          .recommended-services { grid-template-columns: 1fr; }
+        }
         .required-star { color: #ef4444; margin-left: 4px; }
         
         @media (max-width: 768px) { 

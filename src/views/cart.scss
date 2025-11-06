@@ -34,6 +34,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-wrap: wrap;
 
     .back-btn {
       display: flex;
@@ -57,6 +58,8 @@
       color: #111111;
       margin: 0;
     }
+
+    /* moved select-all styling into items section */
   }
 
   /* Empty Cart */
@@ -84,17 +87,18 @@
 
     .continue-shopping-btn {
       padding: 12px 24px;
-      background: #111111;
-      color: white;
-      border: none;
+      background: #FFD875; /* vàng chủ đạo */
+      color: #111111;
+      border: 1px solid #FFD875;
       font-size: 16px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      border-radius: 4px;
-      transition: background 0.2s ease;
+      border-radius: 6px;
+      transition: background 0.2s ease, border-color 0.2s ease;
 
       &:hover {
-        background: #333333;
+        background: #e6c85f;
+        border-color: #e6c85f;
       }
     }
   }
@@ -148,6 +152,40 @@
       }
     }
 
+    /* Select-all row below header divider */
+    .select-all-row {
+      width: 100%;
+      margin: 12px 0 12px 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .select-all-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #FFF6D1; /* vàng rất nhạt */
+      border: 1px solid #FFD875; /* viền vàng */
+      border-radius: 10px;
+      color: #44444E;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .select-all-checkbox {
+      width: 22px;
+      height: 22px;
+      accent-color: #FFD875; /* màu vàng hệ thống */
+      cursor: pointer;
+    }
+
+    .select-all-summary {
+      color: #6b7280;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
     .items-list {
       display: flex;
       flex-direction: column;
@@ -164,6 +202,7 @@
       align-items: center;
       gap: 16px;
       margin-bottom: 16px;
+      position: relative; /* để đặt checkbox nổi góc dưới bên phải */
 
       .item-image {
         width: 120px;
@@ -172,12 +211,44 @@
         background: white;
         border-radius: 8px;
         overflow: hidden;
+        display: block;
 
         img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
+
+        /* bỏ select ở dưới ảnh, chuyển qua góc dưới bên phải card */
+      }
+
+      /* Checkbox nổi ở góc dưới bên phải của mỗi mục */
+      .item-select-floating {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        z-index: 1;
+      }
+
+      .item-select-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0;
+        background: transparent;
+        border: none;
+        color: inherit;
+        padding: 0;
+        border-radius: 0;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: none;
+      }
+
+      .item-select-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: #FFD875; /* vàng khi checked */
+        cursor: pointer;
       }
 
       .item-content {
@@ -275,6 +346,20 @@
           min-width: 120px;
         }
 
+        .item-actions-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-left: auto; /* đẩy sang phải */
+        }
+
+        .item-select-checkbox {
+          width: 18px;
+          height: 18px;
+          accent-color: #FFD875; /* vàng khi checked */
+          cursor: pointer;
+        }
+
         .remove-btn {
           width: 32px;
           height: 32px;
@@ -357,12 +442,12 @@
           display: flex;
           align-items: center;
           gap: 0;
-          border: 1px solid #16a34a; /* viền xanh */
+          border: 1px solid #FFD875; /* viền vàng */
           border-radius: 6px;
-          background: #f0fdf4; /* nền xanh rất nhạt */
+          background: #FFF6D1; /* nền vàng rất nhạt */
 
           .promo-icon {
-            color: #16a34a; /* icon xanh */
+            color: #B88600; /* vàng đậm cho icon */
             margin-left: 12px;
           }
 
@@ -378,15 +463,15 @@
             }
 
             &::placeholder {
-              color: #86efac; /* placeholder xanh nhạt */
+              color: #A2892A; /* placeholder vàng nhạt */
             }
           }
 
           .apply-promo-btn {
             padding: 12px 16px;
-            background: #16a34a; /* nút xanh */
-            color: white;
-            border: 1px solid #16a34a;
+            background: #FFD875; /* nút vàng */
+            color: #111111;
+            border: 1px solid #FFD875;
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
@@ -394,8 +479,8 @@
             transition: background 0.2s ease, border-color 0.2s ease;
 
             &:hover {
-              background: #15803d; /* xanh đậm hơn */
-              border-color: #15803d;
+              background: #e6c85f; /* vàng đậm hơn chút */
+              border-color: #e6c85f;
             }
           }
         }
@@ -409,9 +494,9 @@
         .checkout-btn {
           width: 100%;
           padding: 16px;
-          background: #16a34a; /* xanh lá chủ đạo */
-          color: white;
-          border: 1px solid #16a34a;
+          background: #FFD875; /* vàng chủ đạo */
+          color: #111111;
+          border: 1px solid #FFD875;
           font-size: 16px;
           font-weight: 600;
           cursor: pointer;
@@ -419,26 +504,31 @@
           transition: background 0.2s ease, border-color 0.2s ease;
 
           &:hover {
-            background: #15803d;
-            border-color: #15803d;
+            background: #e6c85f;
+            border-color: #e6c85f;
+          }
+
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
           }
         }
 
         .continue-shopping-btn {
           width: 100%;
           padding: 14px;
-          background: #fff; /* outline */
-          color: #16a34a;
-          border: 1px solid #16a34a;
+          background: #FFD875; /* vàng chủ đạo */
+          color: #111111;
+          border: 1px solid #FFD875;
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           border-radius: 6px;
-          transition: background 0.2s ease, color 0.2s ease;
+          transition: background 0.2s ease, border-color 0.2s ease;
 
           &:hover {
-            background: #f0fdf4; /* xanh lá rất nhạt */
-            color: #15803d;
+            background: #e6c85f;
+            border-color: #e6c85f;
           }
         }
       }

@@ -1,0 +1,205 @@
+.promotion-form-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+
+  &__overlay {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 20px;
+    padding: 32px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid #f1f5f9;
+    position: relative;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  &__decorative-circle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.05;
+
+    &--top-right {
+      top: -30px;
+      right: -30px;
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    }
+
+    &--bottom-left {
+      bottom: -20px;
+      left: -20px;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    position: relative;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+
+    &--add {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+      color: white;
+    }
+
+    &--edit {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+      color: white;
+    }
+  }
+
+  &__title {
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 4px 0;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  &__subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+  }
+
+  &__close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &:hover {
+      background: #e5e7eb;
+      transform: rotate(90deg);
+    }
+
+    &:active {
+      transform: rotate(90deg) scale(0.95);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Form input fields styles - đổi từ đen sang xám
+.promotion-form-modal__overlay {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    background-color: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border: 2px solid #d1d5db !important;
+
+    &::placeholder {
+      color: #9ca3af !important;
+    }
+
+    &:focus {
+      background-color: #fff !important;
+      border-color: #FFD875 !important;
+      outline: none !important;
+    }
+
+    &:disabled {
+      background-color: #f3f4f6 !important;
+      color: #6b7280 !important;
+      cursor: not-allowed;
+    }
+  }
+
+  // Error state styles - override default styles
+  &__input--error,
+  input.promotion-form-modal__input--error,
+  textarea.promotion-form-modal__input--error,
+  select.promotion-form-modal__input--error,
+  input[style*="border: 2px solid #ef4444"],
+  input[style*="border:2px solid #ef4444"],
+  textarea[style*="border: 2px solid #ef4444"],
+  textarea[style*="border:2px solid #ef4444"],
+  select[style*="border: 2px solid #ef4444"],
+  select[style*="border:2px solid #ef4444"] {
+    background-color: #fef2f2 !important;
+    border: 2px solid #ef4444 !important;
+    border-color: #ef4444 !important;
+
+    &:focus {
+      background-color: #fee2e2 !important;
+      border-color: #dc2626 !important;
+      outline: none !important;
+    }
+  }
+}
+

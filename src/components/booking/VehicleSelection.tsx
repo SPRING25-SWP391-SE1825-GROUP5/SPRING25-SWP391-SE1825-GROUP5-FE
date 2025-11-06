@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Car, MapPin, Phone, Plus, ArrowLeft, ArrowRight } from 'lucide-react'
 import { Vehicle } from '@/services/vehicleService'
 import { CenterService, Center } from '@/services/centerService'
+import carPlaceholder from '@/assets/images/10.webp'
 
 interface VehicleSelectionProps {
   vehicles: Vehicle[]
@@ -37,26 +38,36 @@ const VehicleSelection: React.FC<VehicleSelectionProps> = ({
     purchaseDate: new Date().toISOString().split('T')[0]
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
+
+  const getScrollByAmount = () => {
+    if (!scrollerRef.current) return 0
+    const card = scrollerRef.current.querySelector('.vehicle-card') as HTMLDivElement | null
+    return card ? card.offsetWidth + 16 : 280
+  }
+
+  const scrollLeft = () => {
+    if (scrollerRef.current) scrollerRef.current.scrollBy({ left: -getScrollByAmount(), behavior: 'smooth' })
+  }
+
+  const scrollRight = () => {
+    if (scrollerRef.current) scrollerRef.current.scrollBy({ left: getScrollByAmount(), behavior: 'smooth' })
+  }
 
   // Load active centers
   useEffect(() => {
     const loadCenters = async () => {
       setCentersLoading(true)
       try {
-        console.log('Loading active centers...')
         const response = await CenterService.getActiveCenters()
-        console.log('Centers response:', response)
         
         // Handle the response format from your API
         if (response.centers) {
           setCenters(response.centers)
-          console.log('Centers loaded:', response.centers)
         } else {
-          console.log('No centers found in response')
           setCenters([])
         }
       } catch (error) {
-        console.error('Error loading centers:', error)
         setCenters([])
       } finally {
         setCentersLoading(false)
@@ -193,183 +204,163 @@ const VehicleSelection: React.FC<VehicleSelectionProps> = ({
       )}
       
       {!loading && !error && Array.isArray(vehicles) && vehicles.length > 0 && (
-        <div style={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          marginBottom: '2rem',
-          maxWidth: '600px',
-          margin: '0 auto 2rem auto'
-        }}>
-          {vehicles.map((vehicle) => (
-            <div 
-              key={vehicle.vehicleId}
-              className={`vehicle-card ${selectedVehicle?.vehicleId === vehicle.vehicleId ? 'selected' : ''}`}
+          <div style={{ position: 'relative', margin: '0 auto 1.25rem auto', maxWidth: '100%' }}>
+            <button
+              aria-label="Previous"
+              onClick={scrollLeft}
               style={{
-                background: '#fff',
-                borderRadius: '16px',
-                padding: '20px',
-                border: `2px solid ${selectedVehicle?.vehicleId === vehicle.vehicleId ? '#10b981' : '#e5e7eb'}`,
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: selectedVehicle?.vehicleId === vehicle.vehicleId 
-                  ? '0 8px 32px rgba(16, 185, 129, 0.2)' 
-                  : '0 2px 12px rgba(0, 0, 0, 0.08)',
-                position: 'relative',
-                overflow: 'hidden',
-                transform: selectedVehicle?.vehicleId === vehicle.vehicleId ? 'translateY(-2px)' : 'translateY(0)'
-              }}
-              onClick={() => onSelectVehicle(vehicle)}
-              onMouseEnter={(e) => {
-                if (selectedVehicle?.vehicleId !== vehicle.vehicleId) {
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.12)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedVehicle?.vehicleId !== vehicle.vehicleId) {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.08)'
-                }
+                position: 'absolute',
+                left: 0,
+                top: '40%',
+                transform: 'translateY(-50%)',
+                zIndex: 2,
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
               }}
             >
-              {/* Selection indicator */}
-              {selectedVehicle?.vehicleId === vehicle.vehicleId && (
-                <div style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#10b981',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  ✓
-                </div>
-              )}
-              
-              {/* Vehicle header */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                marginBottom: '16px',
-                paddingBottom: '12px',
-                borderBottom: '1px solid #f1f5f9'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    backgroundColor: selectedVehicle?.vehicleId === vehicle.vehicleId ? '#10b981' : '#f8fafc',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '12px',
-                    transition: 'all 0.3s ease'
-                  }}>
-                    <Car size={24} color={selectedVehicle?.vehicleId === vehicle.vehicleId ? '#fff' : '#10b981'} />
-                  </div>
-                  <div>
-                    <h3 style={{ 
-                      fontSize: '1.25rem', 
-                      fontWeight: '700', 
-                      color: '#1e293b', 
-                      margin: '0 0 4px 0',
-                      letterSpacing: '-0.025em'
-                    }}>
-                      {vehicle.licensePlate}
-                    </h3>
-                    <p style={{
-                      fontSize: '0.875rem',
-                      color: '#64748b',
-                      margin: 0,
-                      fontFamily: 'monospace',
-                      fontWeight: '500'
-                    }}>
-                      VIN: {vehicle.vin}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Vehicle details as tags */}
-              <div style={{ 
+              <ArrowLeft size={18} />
+            </button>
+
+            <div
+              ref={scrollerRef}
+              className="vehicle-scroller"
+              onWheel={(e) => {
+                if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                  e.preventDefault()
+                  if (scrollerRef.current) scrollerRef.current.scrollBy({ left: e.deltaY, behavior: 'auto' })
+                }
+              }}
+              style={{
                 display: 'flex',
-                flexWrap: 'wrap',
-                gap: '6px',
-                marginBottom: '16px'
-              }}>
-                {/* Mileage tag */}
-                <div style={{
-                  background: '#f0fdf4',
-                  color: '#166534',
-                  padding: '4px 8px',
-                  borderRadius: '16px',
-                  fontSize: '0.7rem',
-                  fontWeight: '600',
-                  border: '1px solid #bbf7d0'
-                }}>
-                  {vehicle.currentMileage?.toLocaleString()} km
-                </div>
-
-                {/* Year tag */}
-                {vehicle.purchaseDate && (
-                  <div style={{
-                    background: '#fef3c7',
-                    color: '#92400e',
-                    padding: '4px 8px',
-                    borderRadius: '16px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    border: '1px solid #fde68a'
-                  }}>
-                    {new Date(vehicle.purchaseDate).getFullYear()}
-                  </div>
-                )}
-
-                {/* Color tag */}
-                {vehicle.color && (
-                  <div style={{
-                    background: '#f3f4f6',
-                    color: '#374151',
-                    padding: '4px 8px',
-                    borderRadius: '16px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    border: '1px solid #d1d5db',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
+                gap: '12px',
+                overflowX: 'auto',
+                padding: '4px 48px',
+                scrollSnapType: 'x mandatory',
+                scrollbarWidth: 'none'
+              }}
+            >
+              {vehicles.map((vehicle) => (
+                <div
+                  key={vehicle.vehicleId}
+                  className={`vehicle-card ${selectedVehicle?.vehicleId === vehicle.vehicleId ? 'selected' : ''}`}
+                  style={{
+                    minWidth: 220,
+                    maxWidth: 260,
+                    flex: '0 0 auto',
+                    background: 'transparent',
+                    borderRadius: 16,
+                    border: '1px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease',
+                    boxShadow: selectedVehicle?.vehicleId === vehicle.vehicleId
+                      ? '0 0 0 2px #10b981'
+                      : '0 2px 10px rgba(0, 0, 0, 0.07)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    scrollSnapAlign: 'start'
+                  }}
+                  onClick={() => onSelectVehicle(vehicle)}
+                  onMouseEnter={(e) => {
+                    if (selectedVehicle?.vehicleId !== vehicle.vehicleId) {
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.12)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedVehicle?.vehicleId !== vehicle.vehicleId) {
+                      e.currentTarget.style.transform = 'translateY(0)'
+                      e.currentTarget.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.08)'
+                    }
+                  }}
+                >
+                  {selectedVehicle?.vehicleId === vehicle.vehicleId && (
                     <div style={{
-                      width: '8px',
-                      height: '8px',
+                      position: 'absolute',
+                      top: '12px',
+                      right: '12px',
+                      width: '28px',
+                      height: '28px',
+                      backgroundColor: '#10b981',
                       borderRadius: '50%',
-                      backgroundColor: vehicle.color.toLowerCase(),
-                      border: '1px solid #9ca3af'
-                    }} />
-                    {vehicle.color}
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                      animation: 'pulse 2s infinite'
+                    }}>
+                      ✓
+                    </div>
+                  )}
+
+                  <div style={{ width: '100%', aspectRatio: '16 / 9' }}>
+                    <img
+                      src={carPlaceholder}
+                      alt={vehicle.vin || vehicle.licensePlate}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
                   </div>
-                )}
 
-                {/* Status tag - removed per requirement */}
+                  <div style={{ padding: '8px 10px 10px 10px', background: '#fff' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#111827', margin: 0, marginBottom: 4 }}>{vehicle.licensePlate}</h3>
+                    <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>VIN: {vehicle.vin}</p>
 
-                {/* Center info tags - removed per requirement */}
-              </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                      <div style={{ background: '#f0fdf4', color: '#166534', padding: '3px 8px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 600, border: '1px solid #bbf7d0' }}>
+                        {vehicle.currentMileage?.toLocaleString()} km
+                      </div>
+                      {vehicle.purchaseDate && (
+                        <div style={{ background: '#fef3c7', color: '#92400e', padding: '3px 8px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 600, border: '1px solid #fde68a' }}>
+                          {new Date(vehicle.purchaseDate).getFullYear()}
+                        </div>
+                      )}
+                      {vehicle.color && (
+                        <div style={{ background: '#f3f4f6', color: '#374151', padding: '3px 8px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 600, border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: (vehicle.color || '').toLowerCase(), border: '1px solid #9ca3af' }} />
+                          {vehicle.color}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+
+            <button
+              aria-label="Next"
+              onClick={scrollRight}
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '40%',
+                transform: 'translateY(-50%)',
+                zIndex: 2,
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <ArrowRight size={18} />
+            </button>
+          </div>
+        )}
       
       {!loading && !error && (!Array.isArray(vehicles) || vehicles.length === 0) && (
         <div style={{ 
@@ -870,6 +861,8 @@ const VehicleSelection: React.FC<VehicleSelectionProps> = ({
             opacity: 0.5;
           }
         }
+        .vehicle-scroller { -ms-overflow-style: none; }
+        .vehicle-scroller::-webkit-scrollbar { display: none; }
         
         @media (max-width: 480px) {
           .vehicle-form-grid {

@@ -66,7 +66,7 @@
   .pill-select select { appearance:none; -webkit-appearance:none; -moz-appearance:none; background:transparent; border:none; outline:none; color:var(--text-primary); font-size:14px; padding:0 28px 0 0; cursor:pointer; line-height:1; }
   .pill-select select:focus { outline:none; }
   .pill-select select::-ms-expand { display:none; }
-  /* When using headless trigger */
+  /* When using headless trigger - scoped to admin-users */
   .pill-trigger { background:transparent; border:none; color:var(--text-primary); font-size:14px; padding-right:18px; cursor:pointer; }
   .pill-select::after { content:""; display:none; }
   .pill-select .caret { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); pointer-events:none; z-index:2; }
@@ -543,86 +543,89 @@
   }
 }
 
-.pill-select .pill-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0;
-  font-size: 13px;
-  padding: 0 16px 0 4px;
-}
-.pill-select .icon {
-  flex: none;
-  margin-right: 4px;
-  margin-left: 0;
-}
-.pill-select .caret {
-  margin-left: 2px;
-  margin-right: 0;
-  position: static;
-}
+/* Scope to admin-users only */
+.admin-users {
+  .pill-select .pill-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    font-size: 13px;
+    padding: 0 16px 0 4px;
+  }
+  .pill-select .icon {
+    flex: none;
+    margin-right: 4px;
+    margin-left: 0;
+  }
+  .pill-select .caret {
+    margin-left: 2px;
+    margin-right: 0;
+    position: static;
+  }
 
-// Force spacing cho pill-select để icon–chữ luôn sát (overwrite mọi css global)
-.pill-select .pill-trigger {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 0 !important;
-  font-size: 12px !important;
-  padding: 0 2px 0 2px !important;
-  height: 24px !important;
-  min-width: 0 !important;
-  line-height: 1.2 !important;
-}
-.pill-select .icon {
-  margin-right: 2px !important;
-  margin-left: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  width: 14px !important;
-  height: 14px !important;
-  font-size: 12px !important;
-}
-.pill-select .caret {
-  margin-left: 3px !important;
-  margin-right: 0 !important;
-  position: static !important;
-  top: auto !important;
-  transform: none !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  vertical-align: middle !important;
-  width: 12px !important;
-  height: 16px !important;
-}
+  // Force spacing cho pill-select để icon–chữ luôn sát (overwrite mọi css global)
+  .pill-select .pill-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    font-size: 12px !important;
+    padding: 0 2px 0 2px !important;
+    height: 24px !important;
+    min-width: 0 !important;
+    line-height: 1.2 !important;
+  }
+  .pill-select .icon {
+    margin-right: 2px !important;
+    margin-left: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: 14px !important;
+    height: 14px !important;
+    font-size: 12px !important;
+  }
+  .pill-select .caret {
+    margin-left: 3px !important;
+    margin-right: 0 !important;
+    position: static !important;
+    top: auto !important;
+    transform: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+    width: 12px !important;
+    height: 16px !important;
+  }
 
-.pill-select.status-filter .pill-trigger {
-  min-width: 90px !important;
-  max-width: 120px !important;
-  width: auto !important;
-  white-space: nowrap !important;
-  font-size: 12px !important;
-  padding: 0 4px 0 4px !important;
-  height: 24px !important;
-}
-.pill-select.status-filter {
-  width: auto !important;
-}
+  .pill-select.status-filter .pill-trigger {
+    min-width: 90px !important;
+    max-width: 120px !important;
+    width: auto !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    padding: 0 4px 0 4px !important;
+    height: 24px !important;
+  }
+  .pill-select.status-filter {
+    width: auto !important;
+  }
 
-.pagination-info .pill-select {
-  width: 52px !important;
-  min-width: 0 !important;
-}
-.pagination-info .pill-select .pill-trigger {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 52px !important;
-  min-width: 0 !important;
-  max-width: 60px !important;
-  height: 28px !important;
-  padding: 0 4px !important;
-  font-size: 14px !important;
+  .pagination-info .pill-select {
+    width: 52px !important;
+    min-width: 0 !important;
+  }
+  .pagination-info .pill-select .pill-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 52px !important;
+    min-width: 0 !important;
+    max-width: 60px !important;
+    height: 28px !important;
+    padding: 0 4px !important;
+    font-size: 14px !important;
+  }
 }
 #admin-users .pagination-info .pill-select .caret {
   width: 22px !important;

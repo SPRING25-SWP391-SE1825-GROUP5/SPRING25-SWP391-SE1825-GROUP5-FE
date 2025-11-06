@@ -41,6 +41,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
     technicianName?: string;
     status: string;
     technicianSlotId?: number;
+    displayTime?: string;
   }>>([])
   const [loadingCenters, setLoadingCenters] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -58,6 +59,21 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   // States for timeslot validation
   const [allTechnicianSlots, setAllTechnicianSlots] = useState<any[]>([])
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set())
+  // Ngày khả dụng toàn tháng (dùng để disable các ngày kín lịch trên calendar)
+  const [availableDatesMonth, setAvailableDatesMonth] = useState<Set<string>>(new Set())
+  // Khi chưa tải xong availability theo tháng, không disable ngày (tránh khoá nhầm)
+  const [monthlyLoaded, setMonthlyLoaded] = useState<boolean>(false)
+  // Tick dùng để kích hoạt reload timeslot theo chu kỳ
+  const [refreshTick, setRefreshTick] = useState<number>(0)
+  // Đề xuất KTV có nhiều slot trống nhất
+  const [recommendedTechnician, setRecommendedTechnician] = useState<{ id: number; name?: string } | null>(null)
+
+  // Chuẩn hoá hiển thị giờ: loại bỏ hậu tố SA/CH, chỉ giữ HH:mm
+  const formatDisplayTime = (value?: string) => {
+    if (!value) return ''
+    const match = value.match(/(\d{1,2}:\d{2})/)
+    return match ? match[1] : value
+  }
 
   // Load centers from API
   useEffect(() => {
@@ -130,8 +146,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       const lat = position.coords.latitude
       const lng = position.coords.longitude
       
-      console.log('Current position:', { lat, lng })
-      
       // Gọi API tìm trung tâm gần nhất
       const nearbyCenters = await CenterService.getNearbyCenters({
         lat: lat,
@@ -140,11 +154,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         limit: 10, // Tối đa 10 trung tâm
         serviceId: serviceId // Nếu có serviceId
       })
-      
-      console.log('Nearby centers API response:', nearbyCenters)
-      console.log('Response type:', typeof nearbyCenters)
-      console.log('Response length:', nearbyCenters?.length)
-      console.log('Response keys:', nearbyCenters ? Object.keys(nearbyCenters) : 'null')
       
       // Handle different response formats
       let centersData: any[] = []
@@ -155,8 +164,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       } else if (nearbyCenters && (nearbyCenters as any).centers && Array.isArray((nearbyCenters as any).centers)) {
         centersData = (nearbyCenters as any).centers
       }
-      
-      console.log('Processed centers data:', centersData)
       
       if (centersData && centersData.length > 0) {
         // Cập nhật danh sách trung tâm với khoảng cách
@@ -185,20 +192,16 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           if (geocodingData && geocodingData.display_name) {
             const address = geocodingData.display_name
             onUpdate({ address: address })
-            console.log('Reverse geocoded address:', address)
           }
         } catch (geocodingError) {
-          console.warn('Reverse geocoding failed:', geocodingError)
           // Fallback: sử dụng tọa độ làm địa chỉ
           onUpdate({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` })
         }
         
       } else {
-        console.log('No nearby centers found, loading all centers as fallback')
         // Fallback: Load all centers if no nearby centers found
         try {
           const allCentersResponse = await CenterService.getActiveCenters()
-          console.log('Fallback centers response:', allCentersResponse)
           
           if (allCentersResponse.centers && allCentersResponse.centers.length > 0) {
             // Calculate distance for each center (approximate)
@@ -216,7 +219,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             // Sort by distance (closest first)
             fallbackCenters.sort((a, b) => a.distance - b.distance)
             
-            console.log('Fallback centers processed:', fallbackCenters)
             setCenters(fallbackCenters)
             
             // Auto-select the first (closest) center
@@ -233,14 +235,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             setLocationError('Không tìm thấy trung tâm nào trong hệ thống')
           }
         } catch (fallbackError) {
-          console.error('Fallback error:', fallbackError)
           setLocationError('Không thể tải danh sách trung tâm')
         }
       }
       
-    } catch (error: any) {
-      console.error('Location error:', error)
-      setLocationError(error.message || 'Không thể lấy vị trí hiện tại')
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      setLocationError(err.message || 'Không thể lấy vị trí hiện tại')
     } finally {
       setLoadingLocation(false)
     }
@@ -259,7 +260,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       setAddressSuggestions(suggestions)
       setShowSuggestions(true)
     } catch (error) {
-      console.warn('Address search failed:', error)
       setAddressSuggestions([])
     }
   }
@@ -292,22 +292,23 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         }
       }
     } catch (error) {
-      console.warn('Failed to find nearby centers:', error)
+      // Silently handle error
     }
   }
 
   // Load all timeslots when center, date, or technician are selected
   useEffect(() => {
-    const loadAllTimeslots = async () => {
+    const loadAllTimeslots = () => {
       if (!data.centerId || !data.date) { 
         setAllTechnicianSlots([])
         setAvailableDates(new Set())
         setSlots([])
-        return 
+        return () => {}
       }
-      
-      setLoadingSlots(true)
-      try {
+      const controller = new AbortController()
+      const debounceId = setTimeout(async () => {
+        setLoadingSlots(true)
+        try {
         // Load tất cả timeslots của center trong ngày đã chọn
         // Sử dụng API Booking/available-times để lấy timeslots theo center và date
         const params: any = {
@@ -318,25 +319,19 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         // Nếu đã chọn kỹ thuật viên cụ thể, truyền technicianId
         if (data.technicianId && data.technicianId !== '') {
           params.technicianId = data.technicianId
-          console.log('Truyền technicianId vào API:', data.technicianId)
-        } else {
-          console.log('Không có technicianId, API sẽ trả về tất cả timeslots của center')
         }
         
         let response
         
         // Nếu đã chọn kỹ thuật viên cụ thể, sử dụng API TechnicianTimeSlot
         if (data.technicianId && data.technicianId !== '') {
-          console.log('Sử dụng API TechnicianTimeSlot cho technician:', data.technicianId)
           response = await api.get(`/TechnicianTimeSlot/technician/${data.technicianId}/center/${data.centerId}`)
         } else {
-          console.log('Sử dụng API Booking available-times (tất cả technicians)')
-          response = await api.get(`/Booking/available-times`, {
-            params: params
+          response = await api.get(`/Booking/availability`, {
+            params: params,
+            signal: controller.signal as any
           })
         }
-        
-        console.log('API response:', response.data)
         
         if (response.data && response.data.success) {
           let responseData
@@ -352,11 +347,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               availableTimeSlots: response.data.data || [],
               availableServices: [] // Sẽ lấy từ API khác nếu cần
             }
-            console.log('TechnicianTimeSlot response processed:', responseData)
           } else {
             // API Booking available-times
             responseData = response.data.data
-            console.log('Booking available-times response:', responseData)
           }
           
           // Tìm timeslots trong response data
@@ -365,7 +358,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           if (data.technicianId && data.technicianId !== '') {
             // API TechnicianTimeSlot trả về array trực tiếp
             allSlots = responseData.availableTimeSlots || []
-            console.log('TechnicianTimeSlot slots found:', allSlots.length)
           } else {
             // API Booking available-times
             if (responseData.timeslots && Array.isArray(responseData.timeslots)) {
@@ -378,18 +370,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               allSlots = responseData.availableSlots
             } else if (responseData.technicianSlots && Array.isArray(responseData.technicianSlots)) {
               allSlots = responseData.technicianSlots
-            } else {
-              console.log('No timeslots found in response, checking if data is array...')
-              if (Array.isArray(responseData)) {
-                allSlots = responseData
-              } else {
-                console.log('Available keys in responseData:', Object.keys(responseData))
-                console.log('Full responseData:', responseData)
-              }
+            } else if (Array.isArray(responseData)) {
+              allSlots = responseData
             }
           }
-          
-          console.log('Found timeslots:', allSlots.length, allSlots)
           setAllTechnicianSlots(allSlots)
           
           // Tính toán các ngày có timeslots available
@@ -421,7 +405,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           })
           
           setAvailableDates(dates)
-          console.log('Available dates:', Array.from(dates))
           
           // Filter timeslots cho ngày đã chọn
           const slotsForDate = allSlots
@@ -446,7 +429,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               } else {
                 slotDate = fallbackDate
               }
-              return slotDate === data.date && slot.isAvailable && !slot.bookingId
+              // Không lọc theo availability/bookingId để vẫn hiện các slot đã đặt (sẽ disable ở bước map)
+              return slotDate === data.date
             })
             .map((slot: any) => {
               // Check if timeslot is in the past for today
@@ -471,55 +455,163 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         // Xử lý khác nhau cho TechnicianTimeSlot vs Booking available-times
         if (data.technicianId && data.technicianId !== '') {
           // TechnicianTimeSlot API - slot có cấu trúc khác
-          return {
+            return {
             slotId: slot.slotId,
             slotTime: slot.slotTime,
             slotLabel: slot.slotLabel,
-            isAvailable: slot.isAvailable && !isPastSlot,
+              isAvailable: (slot.isAvailable ?? true) && !slot.bookingId && (slot.isBooked ? !slot.isBooked : true) && !isPastSlot,
             isRealtimeAvailable: slot.isRealtimeAvailable || false,
             technicianId: slot.technicianId,
             technicianName: slot.technicianName,
             status: slot.status || 'AVAILABLE',
             workDate: slot.workDate || (responseData.date || data.date),
-            technicianSlotId: slot.technicianSlotId || slot.slotId // Ensure technicianSlotId is available
+              technicianSlotId: slot.technicianSlotId || slot.slotId, // Ensure technicianSlotId is available
+              displayTime: formatDisplayTime(slot.slotTime)
           }
         } else {
           // Booking available-times API
-          return {
+            const slotAvailable = (slot.isAvailable ?? true) && !slot.bookingId && (slot.isBooked ? !slot.isBooked : true) && !isPastSlot
+            return {
             slotId: slot.slotId,
             slotTime: slot.slotTime,
             slotLabel: slot.slotLabel,
-            isAvailable: !isPastSlot, // Disable if past slot
+            isAvailable: slotAvailable,
             isRealtimeAvailable: slot.isRealtimeAvailable || false,
             technicianId: slot.technicianId,
             technicianName: slot.technicianName,
             status: slot.status || 'AVAILABLE',
             workDate: slot.workDate || (responseData.date || data.date),
-            technicianSlotId: slot.technicianSlotId || slot.slotId // Ensure technicianSlotId is available
+              technicianSlotId: slot.technicianSlotId || slot.slotId, // Ensure technicianSlotId is available
+              displayTime: formatDisplayTime(slot.slotTime)
           }
         }
             })
           
-          console.log('Timeslots for selected date:', data.date, slotsForDate)
           setSlots(slotsForDate)
+          // Cập nhật nhãn đề xuất theo số slot trống (không auto chọn)
+          if (slotsForDate.length > 0) {
+            const countByTech = new Map<number, { name?: string; count: number }>()
+            for (const s of slotsForDate) {
+              if (!s.technicianId || !s.isAvailable) continue
+              const entry = countByTech.get(s.technicianId) || { name: s.technicianName, count: 0 }
+              entry.count += 1
+              entry.name = entry.name || s.technicianName
+              countByTech.set(s.technicianId, entry)
+            }
+            let bestId: number | null = null
+            let best = -1
+            let bestName = ''
+            for (const [tid, info] of countByTech.entries()) {
+              if (info.count > best) { best = info.count; bestId = tid; bestName = info.name || '' }
+            }
+            if (bestId && best > 0) setRecommendedTechnician({ id: bestId, name: bestName })
+            else setRecommendedTechnician(null)
+          }
         } else {
-          console.warn('No timeslots data received from API', response.data)
           setAllTechnicianSlots([])
           setAvailableDates(new Set())
           setSlots([])
         }
-      } catch (error) {
-        console.error('Error loading available timeslots:', error)
-        setAllTechnicianSlots([])
-        setAvailableDates(new Set())
-        setSlots([])
+      } catch (error: any) {
+        if (error?.name !== 'CanceledError') {
+          setAllTechnicianSlots([])
+          setAvailableDates(new Set())
+          setSlots([])
+        }
       } finally {
         setLoadingSlots(false)
       }
+      }, 200)
+      return () => { clearTimeout(debounceId); controller.abort() }
     }
     
-    loadAllTimeslots()
-  }, [data.centerId, data.date, data.technicianId])
+    const cleanup = loadAllTimeslots()
+    return () => { if (typeof cleanup === 'function') cleanup() }
+  }, [data.centerId, data.date, data.technicianId, refreshTick])
+
+  // Tải availability theo trung tâm cho cả tháng hiện tại để disable ngày kín lịch
+  useEffect(() => {
+    const fetchMonthlyAvailability = () => {
+      if (!data.centerId) {
+        setAvailableDatesMonth(new Set())
+        setMonthlyLoaded(false)
+        return () => {}
+      }
+      const controller = new AbortController()
+      const debounceId = setTimeout(async () => {
+      try {
+        const start = new Date(year, month, 1)
+        const end = new Date(year, month + 1, 0)
+        const startStr = formatISO(start)
+        const endStr = formatISO(end)
+
+        try {
+          // Ưu tiên dùng endpoint public tổng hợp theo ngày
+          const res = await api.get(`/TechnicianTimeSlot/centers/${data.centerId}/availability`, {
+            params: { startDate: startStr, endDate: endStr, page: 1, pageSize: 60 },
+            signal: controller.signal as any
+          })
+
+          const days: any[] = res?.data?.data || res?.data || []
+          const monthSet = new Set<string>()
+          days.forEach((d: any) => {
+            const available = (d.availableSlots ?? ((d.totalSlots ?? 0) - (d.bookedSlots ?? 0))) > 0
+            if (available && typeof d.date === 'string') monthSet.add(d.date)
+          })
+
+          setAvailableDatesMonth(monthSet)
+          setMonthlyLoaded(true)
+
+          // Gợi ý KTV có nhiều slot trống nhất cho ngày đang chọn (không auto chọn)
+          if (data.date) {
+            const entry = days.find((x: any) => x.date === data.date)
+            if (entry && Array.isArray(entry.technicians)) {
+              let bestId: number | null = null
+              let bestName = ''
+              let bestAvail = -1
+              for (const t of entry.technicians) {
+                const total = t.totalSlots ?? 0
+                const booked = t.bookedSlots ?? 0
+                const avail = total - booked
+                if (avail > bestAvail) {
+                  bestAvail = avail
+                  bestId = t.technicianId ?? t.TechnicianId ?? null
+                  bestName = t.name ?? t.Name ?? ''
+                }
+              }
+              if (bestId && bestAvail > 0) setRecommendedTechnician({ id: bestId, name: bestName })
+              else setRecommendedTechnician(null)
+            }
+          }
+        } catch (_e: any) {
+          // Không fallback quét từng ngày để tránh chậm; đánh dấu loaded rỗng
+          setAvailableDatesMonth(new Set())
+          setMonthlyLoaded(true)
+        }
+      } catch (_e) {
+        setAvailableDatesMonth(new Set())
+        setMonthlyLoaded(false)
+      }
+      }, 200)
+      return () => { clearTimeout(debounceId); controller.abort() }
+    }
+
+    const cleanup = fetchMonthlyAvailability()
+    return () => { if (typeof cleanup === 'function') cleanup() }
+  }, [data.centerId, month, year, data.date])
+
+  // Auto-refresh timeslots theo chu kỳ để hạn chế đặt trùng (poll mỗi 15s)
+  useEffect(() => {
+    if (!data.centerId || !data.date) return
+
+    const intervalId = setInterval(() => {
+      // Chỉ refresh khi tab đang hiển thị (nếu trình duyệt hỗ trợ)
+      if (typeof document !== 'undefined' && (document as any).hidden) return
+      setRefreshTick((t) => t + 1)
+    }, 15000)
+
+    return () => clearInterval(intervalId)
+  }, [data.centerId, data.date])
 
   // Filter timeslots when technician changes
   useEffect(() => {
@@ -541,7 +633,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               slotDate = data.date || ''
             }
           }
-          return slotDate === data.date && slot.isAvailable && !slot.bookingId
+          // Không loại bỏ slot đã đặt; trả về tất cả slot trong ngày
+          return slotDate === data.date
         })
 
       // Không cần filter theo technician nữa vì API đã trả về timeslots của technician cụ thể
@@ -568,21 +661,21 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           }
         }
         
-        return {
+      return {
           slotId: slot.slotId,
           slotTime: slot.slotTime,
           slotLabel: slot.slotLabel,
-          isAvailable: !isPastSlot, // Disable if past slot
+          isAvailable: (slot.isAvailable ?? true) && !slot.bookingId && (slot.isBooked ? !slot.isBooked : true) && !isPastSlot,
           isRealtimeAvailable: slot.isRealtimeAvailable || false,
           technicianId: slot.technicianId,
           technicianName: slot.technicianName,
           status: slot.status || 'AVAILABLE',
           workDate: slot.workDate,
-          technicianSlotId: slot.technicianSlotId || slot.slotId // Ensure technicianSlotId is available
+        technicianSlotId: slot.technicianSlotId || slot.slotId, // Ensure technicianSlotId is available
+        displayTime: formatDisplayTime(slot.slotTime)
         }
       })
       
-      console.log('Timeslots for selected date and technician:', data.date, data.technicianId, slotsForDate)
       setSlots(slotsForDate)
     } else if (!data.date) {
       setSlots([])
@@ -668,7 +761,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           const d = new Date(year, month, day)
           const dateString = formatISO(d)
           const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate())
-          const hasAvailableSlots = availableDates.has(dateString)
+          // Khi chưa load xong dữ liệu tháng, không disable theo availability để user vẫn chọn ngày
+          const hasAvailableSlots = monthlyLoaded ? availableDatesMonth.has(dateString) : true
           const isDisabled = isPast || !hasAvailableSlots
           
           row.push({ date: d, disabled: isDisabled })
@@ -678,7 +772,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       grid.push(row)
     }
     return grid
-  }, [month, year, availableDates])
+  }, [month, year, availableDatesMonth, monthlyLoaded])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -869,16 +963,16 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               ))}
                 {days.flat().map((cell, idx) => {
                   const isPast = cell.date ? cell.date < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false
-                  
+                  const disabled = !cell.date || isPast || cell.disabled
                   return (
                 <button
                   key={idx}
                   type="button"
-                  className={`cal-cell ${cell.date ? '' : 'empty'} ${isPast ? 'disabled' : ''} ${cell.date && data.date === formatISO(cell.date) ? 'selected' : ''}`}
-                  onClick={() => cell.date && !isPast && onUpdate({ date: formatISO(cell.date) })}
-                  disabled={!cell.date || isPast}
+                  className={`cal-cell ${cell.date ? '' : 'empty'} ${disabled ? 'disabled' : ''} ${cell.date && data.date === formatISO(cell.date) ? 'selected' : ''}`}
+                  onClick={() => cell.date && !disabled && onUpdate({ date: formatISO(cell.date) })}
+                  disabled={disabled}
                       title={cell.date ? (
-                        isPast ? 'Ngày đã qua' : 
+                        disabled ? (isPast ? 'Ngày đã qua' : 'Trung tâm đã kín lịch ngày này') : 
                         'Chọn ngày này'
                       ) : ''}
                 >
@@ -924,7 +1018,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  minHeight: '48px'
+                  minHeight: '48px',
+                  position: 'relative'
                 }}
                 onMouseEnter={(e) => {
                   if (data.technicianId !== String(t.technicianId)) {
@@ -971,210 +1066,147 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                     </div>
                   </div>
                 </div>
+                {recommendedTechnician && recommendedTechnician.id === t.technicianId && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '8px',
+                    padding: '2px 6px',
+                    fontSize: '0.7rem',
+                    color: '#065f46',
+                    backgroundColor: '#d1fae5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '9999px'
+                  }}>Đề xuất</span>
+                )}
               </button>
             ))}
-            {data.centerId && data.date && !loadingTechs && technicians.length > 0 && (
-              <button
-                type="button"
-                className={`tech-item ${!data.technicianId ? 'selected' : ''}`}
-                onClick={() => onUpdate({ technicianId: '' })}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: !data.technicianId ? '1px solid #d1d5db' : '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: !data.technicianId ? '#f9fafb' : 'white',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  marginBottom: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  minHeight: '48px'
-                }}
-                onMouseEnter={(e) => {
-                  if (data.technicianId) {
-                    e.currentTarget.style.borderColor = '#9ca3af'
-                    e.currentTarget.style.backgroundColor = '#f9fafb'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (data.technicianId) {
-                    e.currentTarget.style.borderColor = '#d1d5db'
-                    e.currentTarget.style.backgroundColor = 'white'
-                  }
-                }}
-              >
-                <div className="tech-meta" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: !data.technicianId ? '#6b7280' : '#d1d5db',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontWeight: '500',
-                    fontSize: '0.75rem'
-                  }}>
-                    🤖
-                  </div>
-                  <div>
-                    <div className="tech-name" style={{
-                      fontWeight: '500',
-                      color: '#374151',
-                      fontSize: '0.875rem'
-                    }}>
-                      Để hệ thống tự chọn kỹ thuật viên
-                    </div>
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: '#9ca3af',
-                      marginTop: '1px'
-                    }}>
-                      Hệ thống sẽ chọn kỹ thuật viên phù hợp
-                    </div>
-                  </div>
-                </div>
-              </button>
-            )}
+            {/* Nút "Để hệ thống tự chọn kỹ thuật viên" đã được gỡ bỏ theo yêu cầu */}
           </div>
           <input type="hidden" value={data.technicianId} required readOnly />
         </div>
-        <div className="form-group lt-times">
-          <label style={{
-            display: 'block',
-            fontWeight: 'var(--font-weight-semibold)',
-            fontSize: 'var(--font-size-sm)',
-            marginBottom: 'var(--spacing-sm)',
-            color: 'var(--text-primary)'
-          }}>Khung giờ *</label>
-          <div className="time-slots" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: 'var(--spacing-sm)',
-            marginTop: 'var(--spacing-sm)'
-          }}>
-            {!data.centerId && (
-              <div style={{ 
-                color: 'var(--text-tertiary)', 
-                padding: 'var(--spacing-md)', 
-                textAlign: 'center',
-                fontSize: 'var(--font-size-sm)',
-                gridColumn: '1 / -1'
-              }}>Vui lòng chọn trung tâm trước</div>
-            )}
-            {data.centerId && !data.date && (
-              <div style={{ 
-                color: 'var(--text-tertiary)', 
-                padding: 'var(--spacing-md)', 
-                textAlign: 'center',
-                fontSize: 'var(--font-size-sm)',
-                gridColumn: '1 / -1'
-              }}>Vui lòng chọn ngày trước</div>
-            )}
-            {data.centerId && data.date && loadingSlots && (
-              <div style={{
-                color: 'var(--text-secondary)',
-                padding: 'var(--spacing-md)',
-                textAlign: 'center',
-                fontSize: 'var(--font-size-sm)',
-                gridColumn: '1 / -1'
-              }}>Đang tải khung giờ...</div>
-            )}
-            {data.centerId && data.date && !loadingSlots && slots.length === 0 && (
-              <div style={{ 
-                color: 'var(--error-500)', 
-                padding: 'var(--spacing-md)', 
-                textAlign: 'center',
-                fontSize: 'var(--font-size-sm)',
-                gridColumn: '1 / -1'
-              }}>
-                Không có khung giờ khả dụng trong ngày đã chọn
-              </div>
-            )}
-            {data.centerId && data.date && !loadingSlots && slots.map((s, index) => {
-              // Sử dụng slotTime để so sánh vì BE không trả về technicianSlotId
-              const isSelected = data.time === s.slotTime
-              return (
-                <button
-                  key={`${s.slotId || index}-${s.technicianId || 'auto'}-${index}`}
-                  type="button"
-                  className={`time-slot ${isSelected ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
-                  onClick={() => {
-                    if (s.isAvailable) {
-                      console.log('Selecting timeslot:', s)
-                      console.log('Current data.time:', data.time)
-                      console.log('Slot time:', s.slotTime)
-                      console.log('SlotId from slot:', s.slotId)
-                      console.log('TechnicianSlotId from slot:', s.technicianSlotId)
-                      console.log('TechnicianId from slot:', s.technicianId)
-                      
-                      // Use the correct TechnicianSlotId from the API response
-                      onUpdate({ 
-                        time: s.slotTime,
-                        technicianName: s.technicianName || data.technicianName, 
-                        technicianSlotId: s.technicianSlotId, // Use the actual technicianSlotId from the slot
-                        technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
-                      })
-                    }
-                  }}
-                  disabled={!s.isAvailable}
-                  title={!s.isAvailable ? 'Khung giờ này đã qua hoặc không khả dụng' : (isSelected ? 'Đã chọn khung giờ này' : 'Chọn khung giờ này')}
-                  style={{
-                    padding: 'var(--spacing-md)',
-                    border: isSelected ? `2px solid var(--primary-500)` : `1px solid var(--border-secondary)`,
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: isSelected ? 'var(--primary-50)' : (s.isAvailable ? 'var(--bg-card)' : 'var(--bg-secondary)'),
-                    color: isSelected ? 'var(--primary-700)' : (s.isAvailable ? 'var(--text-primary)' : 'var(--text-tertiary)'),
-                    cursor: s.isAvailable ? 'pointer' : 'not-allowed',
-                    fontWeight: isSelected ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
-                    fontSize: 'var(--font-size-sm)',
-                    fontFamily: 'var(--font-family-primary)',
-                    transition: 'var(--transition-fast)',
-                    textAlign: 'center',
-                    position: 'relative',
-                    boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
-                    outline: 'none',
-                    minHeight: '48px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (s.isAvailable && !isSelected) {
-                      e.currentTarget.style.borderColor = 'var(--primary-400)'
-                      e.currentTarget.style.backgroundColor = 'var(--hover-bg)'
-                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (s.isAvailable && !isSelected) {
-                      e.currentTarget.style.borderColor = 'var(--border-secondary)'
-                      e.currentTarget.style.backgroundColor = 'var(--bg-card)'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }
-                  }}
-                >
-                  {s.slotTime}
-                  {isSelected && (
-                    <span style={{
-                      position: 'absolute',
-                      top: 'var(--spacing-xs)',
-                      right: 'var(--spacing-sm)',
-                      fontSize: 'var(--font-size-xs)',
-                      color: 'var(--primary-600)',
-                      fontWeight: 'var(--font-weight-bold)'
-                    }}>✓</span>
-                  )}
-                  {!s.isAvailable && <span className="slot-status">Đã đặt</span>}
-                </button>
-              )
-            })}
+        {/* Khung giờ - đặt trong form, tách riêng và span full grid */}
+        <div className="lt-times">
+          <div className="timeslot-section">
+            <label className="timeslot-label">Khung giờ *</label>
+            <div className="time-slots" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: 'var(--spacing-sm)',
+              marginTop: 'var(--spacing-sm)'
+            }}>
+              {!data.centerId && (
+                <div style={{ 
+                  color: 'var(--text-tertiary)', 
+                  padding: 'var(--spacing-md)', 
+                  textAlign: 'center',
+                  fontSize: 'var(--font-size-sm)',
+                  gridColumn: '1 / -1'
+                }}>Vui lòng chọn trung tâm trước</div>
+              )}
+              {data.centerId && !data.date && (
+                <div style={{ 
+                  color: 'var(--text-tertiary)', 
+                  padding: 'var(--spacing-md)', 
+                  textAlign: 'center',
+                  fontSize: 'var(--font-size-sm)',
+                  gridColumn: '1 / -1'
+                }}>Vui lòng chọn ngày trước</div>
+              )}
+              {data.centerId && data.date && loadingSlots && (
+                <div style={{
+                  color: 'var(--text-secondary)',
+                  padding: 'var(--spacing-md)',
+                  textAlign: 'center',
+                  fontSize: 'var(--font-size-sm)',
+                  gridColumn: '1 / -1'
+                }}>Đang tải khung giờ...</div>
+              )}
+              {data.centerId && data.date && !loadingSlots && slots.length === 0 && (
+                <div style={{ 
+                  color: 'var(--error-500)', 
+                  padding: 'var(--spacing-md)', 
+                  textAlign: 'center',
+                  fontSize: 'var(--font-size-sm)',
+                  gridColumn: '1 / -1'
+                }}>
+                  Không có khung giờ khả dụng trong ngày đã chọn
+                </div>
+              )}
+              {data.centerId && data.date && !loadingSlots && slots.map((s, index) => {
+                const isSelected = data.time === s.slotTime
+                return (
+                  <button
+                    key={`${s.slotId || index}-${s.technicianId || 'auto'}-${index}`}
+                    type="button"
+                    className={`time-slot ${isSelected ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (s.isAvailable) {
+                        onUpdate({ 
+                          time: s.slotTime,
+                          technicianName: s.technicianName || data.technicianName, 
+                          technicianSlotId: s.technicianSlotId,
+                          technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
+                        })
+                      }
+                    }}
+                    disabled={!s.isAvailable}
+                    title={!s.isAvailable ? 'Khung giờ này đã qua hoặc không khả dụng' : (isSelected ? 'Đã chọn khung giờ này' : 'Chọn khung giờ này')}
+                    style={{
+                      padding: 'var(--spacing-md)',
+                      border: isSelected ? `2px solid var(--primary-500)` : `1px solid var(--border-secondary)`,
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: isSelected ? 'var(--primary-50)' : (s.isAvailable ? 'var(--bg-card)' : 'var(--bg-secondary)'),
+                      color: isSelected ? 'var(--primary-700)' : (s.isAvailable ? 'var(--text-primary)' : 'var(--text-tertiary)'),
+                      cursor: s.isAvailable ? 'pointer' : 'not-allowed',
+                      fontWeight: isSelected ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontFamily: 'var(--font-family-primary)',
+                      transition: 'var(--transition-fast)',
+                      textAlign: 'center',
+                      position: 'relative',
+                      boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
+                      outline: 'none',
+                      minHeight: '48px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (s.isAvailable && !isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--primary-400)'
+                        e.currentTarget.style.backgroundColor = 'var(--hover-bg)'
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (s.isAvailable && !isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--border-secondary)'
+                        e.currentTarget.style.backgroundColor = 'var(--bg-card)'
+                        e.currentTarget.style.boxShadow = 'none'
+                      }
+                    }}
+                  >
+                    {s.displayTime || s.slotTime}
+                    {isSelected && (
+                      <span style={{
+                        position: 'absolute',
+                        top: 'var(--spacing-xs)',
+                        right: 'var(--spacing-sm)',
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--primary-600)',
+                        fontWeight: 'var(--font-weight-bold)'
+                      }}>✓</span>
+                    )}
+                    {/* Slot đã đặt: không hiển thị chữ để gọn UI; trạng thái disabled + tooltip là đủ */}
+                  </button>
+                )
+              })}
+            </div>
+            <input type="hidden" value={data.time} required readOnly />
           </div>
-          <input type="hidden" value={data.time} required readOnly />
         </div>
+
         <div className="form-actions">
           <button type="button" onClick={onPrev} className="btn-secondary">
             Quay lại
@@ -1229,20 +1261,17 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           border-radius: 8px; 
           padding: .6rem .75rem; 
         }
-        /* Đưa map sang cột phải, sticky như ảnh mẫu */
-        .lt-address-map { display: contents; }
-        .lt-address-map label { grid-column: 1; }
-        .lt-address-map input { grid-column: 1; }
+        /* Map không dùng cột phải nữa, đặt bên dưới phần chi nhánh/địa chỉ */
+        .lt-address-map { display: block; }
         .map-container { 
-          grid-column: 2; 
-          grid-row: 1 / span 10; 
+          grid-column: 1 / -1; 
           border: 1px solid var(--border-primary); 
           border-radius: 8px; 
           overflow: hidden; 
           background: #fff; 
-          height: 360px; 
-          position: sticky; 
-          top: 96px; 
+          height: 320px; 
+          position: static; 
+          margin-top: .5rem;
         }
         .map-container iframe { 
           border: 0; 
@@ -1278,10 +1307,26 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         .cal-cell.empty { background: #f9fafb; cursor: default; }
         .cal-cell.disabled { color: #9ca3af; background: #f3f4f6; cursor: not-allowed; }
         .cal-cell.selected { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
-        .time-slots { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .5rem; }
+        /* Phần Khung giờ tách riêng, căn giữa */
+        .timeslot-section {
+          width: 100%;
+          max-width: 900px;
+          margin: 1.5rem auto 0;
+          padding-top: 1.5rem;
+          border-top: 1px solid var(--border-primary);
+        }
+        .lt-times { grid-column: 1 / -1; }
+        .timeslot-label {
+          display: block;
+          font-weight: 600;
+          font-size: 0.95rem;
+          margin-bottom: 0.5rem;
+          color: var(--text-primary);
+        }
+        .time-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; }
         .time-slot { padding: .6rem .75rem; background: #fff; border: 1px solid var(--border-primary); border-radius: 8px; cursor: pointer; }
         .time-slot.selected { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
-        .time-slot.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+        .time-slot.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: .65; }
         /* Thanh hành động ở cuối, căn phải giống ảnh */
         .form-actions { 
           display: flex; 
@@ -1293,11 +1338,11 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         }
         .btn-primary { background: var(--progress-current); color: #fff; border: 1px solid var(--progress-current); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
         .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
-        @media (max-width: 1180px) { .lt-grid { grid-template-columns: 1fr 440px; } .map-container { height: 320px; } }
+        @media (max-width: 1180px) { .lt-grid { grid-template-columns: 1fr 440px; } .map-container { height: 300px; } }
         @media (max-width: 1024px) { 
           .lt-grid { grid-template-columns: 1fr; }
           .lt-address-map { display: block; }
-          .map-container { position: static; height: 260px; grid-column: auto; grid-row: auto; margin-top: .5rem; }
+          .map-container { position: static; height: 260px; grid-column: 1 / -1; grid-row: auto; margin-top: .5rem; }
           .tech-list { grid-template-columns: 1fr; }
           .time-slots { grid-template-columns: 1fr; }
         }

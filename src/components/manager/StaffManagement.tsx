@@ -13,11 +13,16 @@ import {
   Briefcase,
   Calendar,
   Star,
-  MoreVertical,
   X,
   UserPlus,
   Check,
-  User
+  User,
+  LayoutGrid,
+  List as ListIcon,
+  EyeOff,
+  SlidersHorizontal,
+  Lock,
+  Shield
 } from 'lucide-react'
 import { ManagerService, Employee, AvailableUser } from '@/services/managerService'
 import { useAppSelector } from '@/store/hooks'
@@ -29,6 +34,7 @@ export default function StaffManagement() {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -40,21 +46,45 @@ export default function StaffManagement() {
   const [selectedUsers, setSelectedUsers] = useState<number[]>([])
   const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false)
   const [assigning, setAssigning] = useState(false)
+  // Selection for main table
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([])
 
   useEffect(() => {
     loadEmployees()
-  }, [currentPage, searchTerm, filterRole])
+  }, [currentPage, searchTerm, filterRole, filterStatus])
 
   const loadEmployees = async () => {
     try {
       setLoading(true)
       // Sử dụng centerId từ user hoặc mặc định là 2 (Chi nhánh Quận 7)
       const centerId = user?.centerId || 2
-      const response = await ManagerService.getEmployees(centerId, currentPage, pageSize, searchTerm, filterRole === 'all' ? null : filterRole)
+      const statusParam = filterStatus === 'all' ? null : (filterStatus === 'active' ? 'active' : 'inactive')
+      const response = await ManagerService.getEmployees(
+        centerId,
+        currentPage,
+        pageSize,
+        searchTerm || null,
+        (filterRole === 'all' ? null : (filterRole as 'STAFF' | 'TECHNICIAN')),
+        statusParam as any
+      )
       if (response.success) {
-        setEmployees(response.data.employees)
-        setTotalPages(response.data.totalPages)
-        setTotalCount(response.data.totalCount)
+        // Fallback filter on FE in case BE doesn't filter as expected
+        let list = response.data.employees || []
+        if (filterRole !== 'all') {
+          const roleKey = (filterRole || '').toUpperCase()
+          list = list.filter(emp => (emp.type?.toUpperCase?.() === roleKey) || (emp.role?.toUpperCase?.() === roleKey))
+        }
+        if (filterStatus !== 'all') {
+          const wantActive = filterStatus === 'active'
+          list = list.filter(emp => Boolean(emp.isActive) === wantActive)
+        }
+
+        setEmployees(list)
+        const count = list.length
+        setTotalCount(count)
+        const pages = Math.max(1, Math.ceil(count / pageSize))
+        setTotalPages(pages)
+        if (currentPage > pages) setCurrentPage(1)
       } else {
         toast.error(response.message || 'Không thể tải danh sách nhân viên')
       }
@@ -76,8 +106,28 @@ export default function StaffManagement() {
     setCurrentPage(1) // Reset về trang 1 khi filter
   }
 
+  const handleStatusChange = (value: string) => {
+    setFilterStatus(value)
+  }
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+  }
+
+  const toggleEmployeeSelection = (userId: number) => {
+    setSelectedEmployeeIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    )
+  }
+
+  const toggleSelectAllCurrentPage = () => {
+    const currentIds = employees.map((e) => e.userId)
+    const allSelected = currentIds.every((id) => selectedEmployeeIds.includes(id))
+    if (allSelected) {
+      setSelectedEmployeeIds((prev) => prev.filter((id) => !currentIds.includes(id)))
+    } else {
+      setSelectedEmployeeIds((prev) => Array.from(new Set([...prev, ...currentIds])))
+    }
   }
 
   // Modal functions
@@ -164,36 +214,7 @@ export default function StaffManagement() {
     ? employees.reduce((sum, emp) => sum + (emp.rating || 0), 0) / employees.length
     : 0
 
-  const stats = [
-    {
-      title: 'Tổng nhân viên',
-      value: totalEmployees.toString(),
-      unit: 'người',
-      icon: Users,
-      color: '#FFD875'
-    },
-    {
-      title: 'Đang làm việc',
-      value: activeEmployees.toString(),
-      unit: 'người',
-      icon: CheckCircle,
-      color: '#22C55E'
-    },
-    {
-      title: 'Kỹ thuật viên',
-      value: technicians.toString(),
-      unit: 'người',
-      icon: Wrench,
-      color: '#3B82F6'
-    },
-    {
-      title: 'Đánh giá TB',
-      value: avgRating.toFixed(1),
-      unit: '⭐',
-      icon: TrendingUp,
-      color: '#F59E0B'
-    }
-  ]
+  // Removed stats display per request
 
   const getInitials = (name: string) => {
     return name
@@ -209,9 +230,9 @@ export default function StaffManagement() {
   }
 
   return (
-    <div>
+    <div style={{ marginTop: -12 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <div>
           <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
             Nhân viên
@@ -230,180 +251,72 @@ export default function StaffManagement() {
             </div>
           </div>
         </div>
-        <button 
-          onClick={openAddModal}
-          style={{
-          padding: '10px 20px',
-            background: '#FFD875',
-            color: '#000',
-          border: 'none',
-          borderRadius: '8px',
-          fontSize: '14px',
-          fontWeight: '500',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#F4C430'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#FFD875'
-        }}>
-          <Plus size={16} />
-          Thêm nhân viên
-        </button>
+        {/* Nút thêm nhân viên được chuyển xuống thanh công cụ bên phải */}
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats removed */}
+
+      {/* Toolbar giống Admin Users: Search + Filter Pills */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px'
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 8,
+        paddingBottom: 8,
+        borderBottom: '1px solid #E5E7EB'
       }}>
-        {stats.map((stat, index) => (
-          <div 
-            key={index}
-            style={{
-              background: 'white',
-              padding: '16px',
-              borderRadius: '12px',
-              border: '0.5px solid #F1F5F9',
-              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: `${stat.color}20`,
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <stat.icon size={20} style={{ color: stat.color }} />
-              </div>
-              <div>
-                <p style={{ 
-                    fontSize: '24px', 
-                    fontWeight: '700', 
-                  color: '#111827',
-                  margin: '0 0 4px 0'
-                  }}>
-                    {stat.value}
-                </p>
-                <p style={{ 
-                    fontSize: '12px', 
-                  color: '#6B7280',
-                  margin: 0 
-                  }}>
-                  {stat.title}
-                </p>
-              </div>
-            </div>
+          {/* Search inline */}
+          <div style={{ position: 'relative', minWidth: 240 }}>
+            <Search size={16} style={{ position: 'absolute', top: '50%', left: 10, transform: 'translateY(-50%)', color: '#94A3B8' }} />
+            <input
+              placeholder="Tìm kiếm"
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              style={{
+                width: 260, padding: '8px 10px 8px 32px', borderRadius: 8,
+                border: 'none', background: '#fff', fontSize: 14,
+                outline: 'none'
+              }}
+            />
           </div>
-        ))}
+
+        {/* Right actions */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+        </div>
       </div>
 
-      {/* Search and Filter */}
-      <div style={{
-        background: 'white',
-        padding: '20px',
-        borderRadius: '12px',
-        border: '0.5px solid #F1F5F9',
-        marginBottom: '16px',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
-      }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          {/* Search Input */}
-        <div style={{ 
-            flex: 1,
-            position: 'relative'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px 16px',
-              background: '#F8FAFC',
-              borderRadius: '10px',
-              border: '2px solid #E2E8F0',
-              transition: 'all 0.2s ease'
-            }}>
-              <Search size={20} style={{ color: '#64748B' }} />
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo tên, email, số điện thoại..."
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  flex: 1,
-                  fontSize: '14px',
-                  color: '#1E293B',
-                  fontWeight: '500'
-                }}
-              />
-            </div>
-            </div>
-
-          {/* Role Filter */}
-          <div style={{
-            position: 'relative',
-            minWidth: '200px'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '12px 16px',
-              background: filterRole === 'all' ? '#F8FAFC' : '#FFD875',
-              borderRadius: '10px',
-              border: `2px solid ${filterRole === 'all' ? '#E2E8F0' : '#FFD875'}`,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: filterRole !== 'all' ? '0 2px 4px rgba(255, 216, 117, 0.2)' : 'none'
-            }}>
-              <Filter size={20} style={{ 
-                color: filterRole === 'all' ? '#64748B' : '#1E293B' 
-              }} />
-              <select
-                value={filterRole}
-                onChange={(e) => handleRoleChange(e.target.value)}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: '14px',
-                  color: filterRole === 'all' ? '#64748B' : '#1E293B',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  appearance: 'none',
-                  flex: 1
-                }}
-              >
-                <option value="all">Tất cả vai trò</option>
-                <option value="STAFF">Nhân viên</option>
-                <option value="TECHNICIAN">Kỹ thuật viên</option>
-              </select>
-            </div>
-            </div>
+      {/* Filter Pills row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer' }}>
+            <Shield size={14} className="icon" />
+            <select value={filterRole} onChange={(e)=>handleRoleChange(e.target.value)} style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer' }}>
+              <option value="all">Tất cả vai trò</option>
+              <option value="STAFF">Nhân viên</option>
+              <option value="TECHNICIAN">Kỹ thuật viên</option>
+            </select>
           </div>
         </div>
+
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer' }}>
+            <Lock size={14} className="icon" />
+            <select value={filterStatus} onChange={(e)=>handleStatusChange(e.target.value)} style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer' }}>
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Hoạt động</option>
+              <option value="inactive">Không hoạt động</option>
+            </select>
+          </div>
+        </div>
+      </div>
         
       {/* Table */}
       <div style={{
         background: 'white',
-        borderRadius: '12px',
-        border: '0.5px solid #F1F5F9',
+        borderRadius: '0px',
+        border: 'none',
         overflow: 'hidden',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+        boxShadow: 'none'
       }}>
         {loading ? (
           <div style={{ padding: '80px 40px', textAlign: 'center' }}>
@@ -411,18 +324,45 @@ export default function StaffManagement() {
           </div>
         ) : employees.length > 0 ? (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
-                <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                  <th style={{ textAlign: 'left', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}>
-                    Tên nhân viên
+                <tr style={{ background: '#FFF6D1', borderBottom: '1px solid #FFE08A' }}>
+                  <th style={{ textAlign: 'left', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: 0.2 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <User size={14} style={{ color: '#94A3B8' }} />
+                      Họ và tên
+                    </span>
                   </th>
-                  <th style={{ textAlign: 'center', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}>Vai trò</th>
-                  <th style={{ textAlign: 'center', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}>Đánh giá</th>
-                  <th style={{ textAlign: 'center', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}>Email</th>
-                  <th style={{ textAlign: 'center', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}>Số điện thoại</th>
-                  <th style={{ textAlign: 'center', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}>Trạng thái</th>
-                  <th style={{ textAlign: 'center', padding: '16px', fontSize: '12px', fontWeight: '600', color: '#6B7280' }}></th>
+                  <th style={{ textAlign: 'center', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <Mail size={14} style={{ color: '#94A3B8' }} />
+                      Email
+                    </span>
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <Phone size={14} style={{ color: '#94A3B8' }} />
+                      Số điện thoại
+                    </span>
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <Briefcase size={14} style={{ color: '#94A3B8' }} />
+                      Vai trò
+                    </span>
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <CheckCircle size={14} style={{ color: '#94A3B8' }} />
+                      Trạng thái
+                    </span>
+                  </th>
+                  <th style={{ textAlign: 'center', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                      <Star size={14} style={{ color: '#94A3B8' }} />
+                      Đánh giá
+                    </span>
+                  </th>
               </tr>
             </thead>
             <tbody>
@@ -430,110 +370,80 @@ export default function StaffManagement() {
                   <tr 
                     key={employee.userId}
                     style={{ 
-                      borderBottom: index < employees.length - 1 ? '1px solid #F3F4F6' : 'none',
-                      transition: 'background 0.2s ease'
+                      borderBottom: 'none',
+                      transition: 'background 0.2s ease',
+                      background: index % 2 === 0 ? '#FFFFFF' : '#F8FAFC'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#F9FAFB'
+                      e.currentTarget.style.background = '#FFFDF6'
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent'
+                      e.currentTarget.style.background = index % 2 === 0 ? '#FFFFFF' : '#F8FAFC'
                     }}
                   >
-                    <td style={{ padding: '16px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                          background: '#FFD875',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                          color: '#000',
-                        fontWeight: '600',
-                          fontSize: '14px',
-                          flexShrink: 0
-                      }}>
-                          {getInitials(employee.fullName)}
-                      </div>
-                        <div style={{ flex: 1, textAlign: 'left' }}>
-                        <p style={{ 
-                          fontSize: '14px', 
-                            fontWeight: '500', 
-                            color: '#111827',
-                            margin: '0'
-                          }}>
-                            {employee.fullName}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                      fontSize: '12px', 
-                        fontWeight: '500',
-                        background: employee.role === 'TECHNICIAN' ? '#FFF8E5' : '#F3F4F6',
-                        color: employee.role === 'TECHNICIAN' ? '#FFD875' : '#6B7280'
+                    <td style={{ padding: '6px 10px', textAlign: 'left' }}>
+                    <p style={{ 
+                      fontSize: '14px', 
+                      fontWeight: '500', 
+                      color: 'var(--text-primary)',
+                      margin: '0'
                     }}>
-                        {employee.role === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Nhân viên'}
-                      </span>
+                      {employee.fullName}
+                    </p>
                   </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      {employee.rating ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-                          <Star size={14} style={{ color: '#FFD875', fill: '#FFD875' }} />
-                          <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                            {employee.rating}
-                      </span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '14px', color: '#9CA3AF' }}>-</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#3B82F6', fontSize: '14px', justifyContent: 'center' }}>
-                        <Mail size={14} />
-                        {employee.email}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#3B82F6', fontSize: '14px', justifyContent: 'center' }}>
-                        <Phone size={14} />
-                        {employee.phoneNumber}
-                    </div>
+                  {/* Email */}
+                  <td style={{ padding: '6px 10px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                    {employee.email}
                   </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
+                  {/* Phone */}
+                  <td style={{ padding: '6px 10px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                    {employee.phoneNumber}
+                  </td>
+                  {/* Role */}
+                  <td style={{ padding: '6px 10px', textAlign: 'left' }}>
                     <span style={{
-                        padding: '4px 10px',
-                        borderRadius: '12px',
+                      padding: '4px 10px',
+                      borderRadius: '9999px',
                       fontSize: '12px',
-                        fontWeight: '500',
-                        background: employee.isActive ? '#F0FDF4' : '#FEF2F2',
-                        color: employee.isActive ? '#16A34A' : '#DC2626'
-                      }}>
-                        {employee.isActive ? 'Đang làm việc' : 'Nghỉ việc'}
+                      fontWeight: '600',
+                      background: employee.role === 'TECHNICIAN' ? '#FFF4CC' : '#F3F4F6',
+                      color: employee.role === 'TECHNICIAN' ? '#92400E' : '#475569',
+                      border: employee.role === 'TECHNICIAN' ? '1px solid #FFE08A' : '1px solid #E5E7EB'
+                    }}>
+                      {employee.role === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Nhân viên'}
                     </span>
                   </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <button style={{
-                        padding: '6px',
-                        border: 'none',
-                        borderRadius: '6px',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        color: '#6B7280'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#F3F4F6'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent'
-                      }}>
-                        <MoreVertical size={18} />
-                      </button>
+                  {/* Status */}
+                  <td style={{ padding: '6px 10px', textAlign: 'left' }}>
+                    <span style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      background: '#FFFFFF',
+                      color: employee.isActive ? '#065F46' : '#991B1B',
+                      border: '1px solid #E5E7EB',
+                      boxShadow: '0 1px 0 rgba(0,0,0,0.02)'
+                    }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: employee.isActive ? '#22C55E' : '#EF4444' }} />
+                      {employee.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                    </span>
+                  </td>
+                  {/* Rating */}
+                  <td style={{ padding: '6px 10px', textAlign: 'left' }}>
+                    {employee.rating ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Star size={14} style={{ color: '#FFD875', fill: '#FFD875' }} />
+                        <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                          {employee.rating}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '14px', color: '#9CA3AF' }}>-</span>
+                    )}
                   </td>
                 </tr>
               ))}

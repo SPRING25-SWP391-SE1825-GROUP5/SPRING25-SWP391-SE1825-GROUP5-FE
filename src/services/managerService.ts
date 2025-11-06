@@ -55,11 +55,12 @@ export interface EmployeesResponse {
 export const ManagerService = {
   // Lấy danh sách nhân viên
   async getEmployees(
-    centerId: number = 2, 
-    pageNumber: number = 1, 
-    pageSize: number = 10, 
-    searchTerm?: string | null, 
-    role?: string | null
+    centerId: number = 2,
+    pageNumber: number = 1,
+    pageSize: number = 10,
+    searchTerm?: string | null,
+    type?: 'STAFF' | 'TECHNICIAN' | null,
+    status?: 'active' | 'inactive' | null
   ): Promise<EmployeesResponse> {
     try {
       const params = new URLSearchParams({
@@ -69,7 +70,9 @@ export const ManagerService = {
       })
       
       if (searchTerm) params.append('searchTerm', searchTerm)
-      if (role) params.append('isActive', 'true') // Chỉ lấy nhân viên đang hoạt động
+      if (type) params.append('type', type)
+      if (status === 'active') params.append('isActive', 'true')
+      if (status === 'inactive') params.append('isActive', 'false')
       
       const { data } = await api.get(`/StaffManagement/employees?${params.toString()}`)
       return data

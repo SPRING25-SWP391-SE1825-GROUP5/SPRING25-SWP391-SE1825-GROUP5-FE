@@ -7,13 +7,13 @@
 .main-content {
   flex: 1;
   min-height: calc(100vh - 120px);
-  padding-top: 56px; /* Offset đúng bằng chiều cao header (56px) */
+  padding-top: 64px; /* Offset = header-height (64px) */
   position: relative;
   z-index: 1; /* Below header and dropdown */
 }
 
 /* Khi có banner email verification - tính toán chính xác */
 .main-content.has-email-banner {
-  padding-top: 112px; /* 56px header + ~56px banner */
+  padding-top: 120px; /* Offset = header-height (64px) + banner (56px) */
 }
 

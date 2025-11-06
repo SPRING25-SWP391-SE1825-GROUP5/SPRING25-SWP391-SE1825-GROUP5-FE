@@ -15,8 +15,8 @@ import {
   Brain,
   Calendar,
   LogOut,
-  UserCircle,
-  ChevronDown
+  ChevronDown,
+  LayoutDashboard
 } from 'lucide-react'
 import NotificationBell from '@/components/common/NotificationBell'
 import NavigationDropdown, { type MenuItem } from './NavigationDropdown'
@@ -32,18 +32,15 @@ const NewAppHeader: React.FC = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
+  const cart = useAppSelector((s) => s.cart)
 
   // Sync localStorage on mount
   useEffect(() => {
-    console.log('AppHeader: Syncing from localStorage...')
     dispatch(syncFromLocalStorage())
   }, [dispatch])
 
   // Debug user state
   useEffect(() => {
-    console.log('AppHeader: User state changed:', user)
-    console.log('AppHeader: localStorage token:', localStorage.getItem('authToken') || localStorage.getItem('token'))
-    console.log('AppHeader: localStorage user:', localStorage.getItem('user'))
   }, [user])
 
   // Close dropdown when clicking outside
@@ -65,7 +62,6 @@ const NewAppHeader: React.FC = () => {
       try {
         await AuthService.logout()
       } catch (apiError) {
-        console.log('API logout failed (token may be expired):', apiError)
         // Continue with local logout even if API fails
       }
       
@@ -74,12 +70,47 @@ const NewAppHeader: React.FC = () => {
       toast.success('Đăng xuất thành công!')
       navigate('/')
     } catch (error) {
-      console.error('Logout error:', error)
       // Force clear local state even if everything fails
     dispatch(logout())
     toast.success('Đăng xuất thành công!')
     navigate('/')
   }
+  }
+
+  const renderAvatar = () => {
+    const size = 28
+    const borderRadius = '9999px'
+    const style: React.CSSProperties = {
+      width: size,
+      height: size,
+      borderRadius,
+      objectFit: 'cover',
+      background: '#e5e7eb',
+      display: 'block'
+    }
+    const initials = (user?.fullName || user?.email || 'U')
+      .split(' ')
+      .map((p) => p.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('')
+
+    if (user?.avatar) {
+      return <img src={String(user.avatar)} alt={user.fullName || 'User'} style={style} />
+    }
+    return (
+      <div style={{
+        ...style,
+        color: '#ffffff',
+        background: '#f97316',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 12,
+        fontWeight: 700
+      }}>
+        {initials}
+      </div>
+    )
   }
 
   // Menu items
@@ -151,6 +182,32 @@ const NewAppHeader: React.FC = () => {
     }
   ]
 
+  // Hàm lấy dashboard URL dựa trên role
+  const getDashboardUrl = (): string | null => {
+    if (!user?.role) return null
+    
+    const role = user.role.toUpperCase()
+    switch (role) {
+      case 'STAFF':
+        return '/staff'
+      case 'TECHNICIAN':
+        return '/technician'
+      case 'MANAGER':
+        return '/manager'
+      case 'ADMIN':
+        return '/admin'
+      default:
+        return null
+    }
+  }
+
+  // Kiểm tra user có role cần hiển thị nút dashboard không
+  const shouldShowDashboardButton = (): boolean => {
+    if (!user?.role) return false
+    const role = user.role.toUpperCase()
+    return ['STAFF', 'TECHNICIAN', 'MANAGER', 'ADMIN'].includes(role)
+  }
+
   // Right items (icons and buttons)
   const rightItems = (
     <>
@@ -169,7 +226,9 @@ const NewAppHeader: React.FC = () => {
         aria-label="Shopping cart"
       >
         <ShoppingCart size={20} />
-        <span className="cart-badge">3</span>
+        {cart.itemCount > 0 && (
+          <span className="cart-badge">{cart.itemCount}</span>
+        )}
       </NavLink>
       )}
 
@@ -182,7 +241,7 @@ const NewAppHeader: React.FC = () => {
             onMouseLeave={() => setShowUserDropdown(false)}
             aria-label="User menu"
           >
-            <UserCircle size={20} />
+            {renderAvatar()}
             </button>
             
           <div 
@@ -191,21 +250,24 @@ const NewAppHeader: React.FC = () => {
             onMouseLeave={() => setShowUserDropdown(false)}
           >
             <div className="dropdown-simple-content">
-              {/* Show user full name on hover */}
-              {user?.fullName && (
-                <div className="dropdown-item">
-                  <div className="dropdown-link" style={{ cursor: 'default' }}>
-                    <User size={16} />
-                    <span className="dropdown-label">{user.fullName}</span>
-                  </div>
-                </div>
-              )}
               <div className="dropdown-item">
                 <NavLink to="/profile" className="dropdown-link">
-                  <User size={16} />
-                  <span className="dropdown-label">Hồ sơ</span>
-                </NavLink>
+                  {renderAvatar()}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="dropdown-label" style={{ fontWeight: 700 }}>{user?.fullName || 'Người dùng'}</span>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>{user?.email || ''}</span>
                   </div>
+                </NavLink>
+              </div>
+              {/* Dashboard Link - Only show for staff, technician, manager, admin */}
+              {shouldShowDashboardButton() && getDashboardUrl() && (
+                <div className="dropdown-item">
+                  <NavLink to={getDashboardUrl()!} className="dropdown-link">
+                    <LayoutDashboard size={16} />
+                    <span className="dropdown-label">Quay lại Dashboard</span>
+                  </NavLink>
+                </div>
+              )}
               <div className="dropdown-item">
                   <button 
                   className="dropdown-link dropdown-link--logout"
@@ -258,13 +320,13 @@ const NewAppHeader: React.FC = () => {
         rightItems={rightItems}
         className="modern-header"
         transitionDuration={300}
-        mobileBreakpoint={1024}
+        mobileBreakpoint={0}
         showMobileMenu={showMobileMenu}
         onMobileMenuToggle={setShowMobileMenu}
       headerHeight="56px"
         dropdownShadow="0 8px 30px rgba(0, 0, 0, 0.12)"
-      hoverColor="rgba(16, 185, 129, 0.1)"
-      activeColor="#10b981"
+      hoverColor="#FFD875"
+      activeColor="#FFD875"
     />
   )
 }

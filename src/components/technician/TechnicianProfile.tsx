@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { updateUser } from '@/store/authSlice'
 import { AuthService } from '@/services/authService'
+import { TechnicianService } from '@/services/technicianService'
 import { Camera, Lock, X, Edit, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import './TechnicianProfile.scss'
 
@@ -30,14 +31,14 @@ const PopupNotification = ({ message, type, onClose }: { message: string; type: 
 export default function TechnicianProfile() {
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [popup, setPopup] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  
+
   // Edit modes
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)
-  
+
   // Profile data
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -46,7 +47,9 @@ export default function TechnicianProfile() {
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [avatar, setAvatar] = useState<string | null>(null)
-  
+
+  // Center information removed
+
   // Password change
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -63,11 +66,11 @@ export default function TechnicianProfile() {
 
   // Helper functions for notifications
   const setSuccessMessage = (message: string) => {
-    setSuccess(message)
+    setPopup({ message, type: 'success' })
   }
 
   const setErrorMessage = (message: string) => {
-    setError(message)
+    setPopup({ message, type: 'error' })
   }
 
   useEffect(() => {
@@ -77,9 +80,10 @@ export default function TechnicianProfile() {
   const loadProfile = async () => {
     try {
       setLoading(true)
-      
+
+      // Load user profile
       const response = await AuthService.getProfile()
-      
+
       if (response.success && response.data) {
         const userData = response.data
         setFullName(userData.fullName || '')
@@ -89,6 +93,8 @@ export default function TechnicianProfile() {
         setDateOfBirth(userData.dateOfBirth || '')
         setGender(userData.gender as 'MALE' | 'FEMALE' || 'MALE')
         setAvatar(userData.avatar || null)
+
+        // Center info removed
       } else {
         setPopup({ message: response.message || 'Không thể tải thông tin cá nhân', type: 'error' })
       }
@@ -99,25 +105,27 @@ export default function TechnicianProfile() {
     }
   }
 
+  // Center info functions removed
+
   const validatePassword = () => {
     const errors: { [key: string]: string } = {}
-    
+
     if (!currentPassword) {
       errors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại'
     }
-    
+
     if (!newPassword) {
       errors.newPassword = 'Vui lòng nhập mật khẩu mới'
     } else if (newPassword.length < 6) {
       errors.newPassword = 'Mật khẩu phải có ít nhất 6 ký tự'
     }
-    
+
     if (!confirmPassword) {
       errors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới'
     } else if (newPassword !== confirmPassword) {
       errors.confirmPassword = 'Mật khẩu xác nhận không khớp'
     }
-    
+
     setPasswordErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -125,7 +133,7 @@ export default function TechnicianProfile() {
   const handleSaveProfile = async () => {
     try {
       setSaving(true)
-      
+
       const response = await AuthService.updateProfile({
         fullName,
         email,
@@ -134,16 +142,16 @@ export default function TechnicianProfile() {
         dateOfBirth,
         gender
       })
-      
+
       if (response.success && response.data) {
         dispatch(updateUser(response.data))
-        setSuccess('Cập nhật thông tin thành công!')
+        setPopup({ message: 'Cập nhật thông tin thành công!', type: 'success' })
         setIsEditingPersonal(false)
       } else {
-        setError(response.message || 'Cập nhật thông tin thất bại')
+        setPopup({ message: response.message || 'Cập nhật thông tin thất bại', type: 'error' })
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật')
+      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -151,27 +159,27 @@ export default function TechnicianProfile() {
 
   const handleChangePassword = async () => {
     if (!validatePassword()) return
-    
+
     try {
       setSaving(true)
-      
+
       const response = await AuthService.changePassword({
         currentPassword,
         newPassword,
         confirmNewPassword: confirmPassword
       })
-      
+
       if (response.success) {
-        setSuccess('Đổi mật khẩu thành công!')
+        setPopup({ message: 'Đổi mật khẩu thành công!', type: 'success' })
         setShowPasswordModal(false)
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       } else {
-        setError(response.message || 'Đổi mật khẩu thất bại')
+        setPopup({ message: response.message || 'Đổi mật khẩu thất bại', type: 'error' })
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu')
+      setPopup({ message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi đổi mật khẩu', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -180,11 +188,11 @@ export default function TechnicianProfile() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     try {
       setSaving(true)
       const response = await AuthService.uploadAvatar(file)
-      
+
       if (response.success && response.data) {
         setAvatar(response.data.avatarUrl || response.data.avatar)
         setSuccessMessage('Cập nhật ảnh đại diện thành công')
@@ -207,7 +215,7 @@ export default function TechnicianProfile() {
   }
 
   const { firstName, lastName } = splitName(fullName)
-  
+
   // Get role from user data
   const getRole = () => {
     if (user?.role === 'TECHNICIAN') return 'Kỹ thuật viên'
@@ -220,26 +228,32 @@ export default function TechnicianProfile() {
   if (loading) {
     return (
       <div className="technician-profile">
-        <div className="loading-state">Đang tải thông tin cá nhân...</div>
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Đang tải thông tin cá nhân...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="technician-profile">
-      <h1 className="page-title">Thông tin cá nhân</h1>
+      <div className="profile-header">
+        <h1 className="page-title">Thông tin cá nhân</h1>
+        <p className="page-subtitle">Quản lý và cập nhật thông tin tài khoản của bạn</p>
+      </div>
 
       {/* Popup Notification */}
       {popup && (
-        <PopupNotification 
-          message={popup.message} 
-          type={popup.type} 
-          onClose={() => setPopup(null)} 
+        <PopupNotification
+          message={popup.message}
+          type={popup.type}
+          onClose={() => setPopup(null)}
         />
       )}
 
       {/* Profile Summary Card */}
-      <div className="profile-card">
+      <div className="profile-card profile-card--hero">
         <div className="profile-summary">
           <div className="profile-avatar-section">
             <div className="profile-avatar">
@@ -250,8 +264,8 @@ export default function TechnicianProfile() {
                   {fullName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <label className="avatar-upload-btn">
-                <Camera size={16} />
+              <label className="avatar-upload-btn" title="Thay đổi ảnh đại diện">
+                <Camera size={18} />
                 <input
                   type="file"
                   accept="image/*"
@@ -262,11 +276,10 @@ export default function TechnicianProfile() {
             </div>
           </div>
           <div className="profile-info">
-            <h2 className="profile-name">{fullName}</h2>
-            <p className="profile-title">{getRole()}</p>
-            <p className="profile-location">
-              {user?.centerName || 'Chưa có thông tin'}
-            </p>
+            <h2 className="profile-name">{fullName || 'Người dùng'}</h2>
+            <div className="profile-meta">
+              <span className="profile-badge">{getRole()}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -274,12 +287,16 @@ export default function TechnicianProfile() {
       {/* Personal Information Card */}
       <div className="profile-card">
         <div className="card-header">
-          <h3 className="card-title">Thông tin cá nhân</h3>
+          <div className="card-header-content">
+            <h3 className="card-title">Thông tin cá nhân</h3>
+            <p className="card-subtitle">Quản lý thông tin cá nhân và liên hệ</p>
+          </div>
           <button
-            className="btn-edit"
+            className={`btn-edit ${isEditingPersonal ? 'active' : ''}`}
             onClick={() => setIsEditingPersonal(!isEditingPersonal)}
+            title={isEditingPersonal ? 'Hủy chỉnh sửa' : 'Chỉnh sửa thông tin'}
           >
-            <Edit size={14} />
+            {isEditingPersonal ? <X size={14} /> : <Edit size={14} />}
           </button>
         </div>
         <div className="info-grid">
@@ -388,27 +405,37 @@ export default function TechnicianProfile() {
         )}
       </div>
 
+      {/* Center Information removed */}
+
       {/* Change Password Section */}
       <div className="profile-card">
         <div className="card-header">
-          <h3 className="card-title">Bảo mật</h3>
+          <div className="card-header-content">
+            <h3 className="card-title">Bảo mật</h3>
+            <p className="card-subtitle">Bảo vệ tài khoản của bạn bằng mật khẩu mạnh</p>
+          </div>
           <button
             className="btn-edit"
             onClick={() => setShowPasswordModal(true)}
+            title="Đổi mật khẩu"
           >
             <Lock size={14} />
           </button>
         </div>
-        <div className="info-grid">
-          <div className="info-item">
-            <label>Mật khẩu</label>
-            <span className="info-value">••••••••</span>
+        <div className="security-content">
+          <div className="security-info">
+            <Lock size={20} className="security-icon" />
+            <div className="security-details">
+              <label>Mật khẩu</label>
+              <span className="info-value">••••••••</span>
+            </div>
           </div>
           <button
             className="btn-change-password"
             onClick={() => setShowPasswordModal(true)}
           >
-            Đổi mật khẩu
+            <Lock size={16} />
+            <span>Đổi mật khẩu</span>
           </button>
         </div>
       </div>
@@ -418,8 +445,16 @@ export default function TechnicianProfile() {
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Đổi mật khẩu</h3>
-              <button className="close-btn" onClick={() => setShowPasswordModal(false)}>
+              <div className="modal-header-content">
+                <div className="modal-icon">
+                  <Lock size={24} />
+                </div>
+                <div>
+                  <h3>Đổi mật khẩu</h3>
+                  <p className="modal-subtitle">Vui lòng nhập mật khẩu hiện tại và mật khẩu mới</p>
+                </div>
+              </div>
+              <button className="close-btn" onClick={() => setShowPasswordModal(false)} title="Đóng">
                 <X size={20} />
               </button>
             </div>

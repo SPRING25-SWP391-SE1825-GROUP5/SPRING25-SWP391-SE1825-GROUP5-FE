@@ -9,6 +9,7 @@ import TechnicianLayout from '@/components/layout/TechnicianLayout'
 import StaffLayout from '@/components/layout/StaffLayout'
 import ManagerLayout from '@/components/layout/ManagerLayout'
 import RequireAuth from '@/components/routes/RequireAuth'
+import RequireEmailVerified from '@/components/routes/RequireEmailVerified'
 import TimeSlotManagement from '../views/Admin/TimeSlotManagement';
 import Cart from '@/views/Cart'
 
@@ -18,6 +19,7 @@ const About = lazy(() => import('@/views/About'))
 const Services = lazy(() => import('@/views/Services'))
 const ProtectedContact = lazy(() => import('@/views/ProtectedContact'))
 const Products = lazy(() => import('@/views/Products'))
+const ProductDetail = lazy(() => import('@/views/ProductDetail'))
 const Promotions = lazy(() => import('@/views/Promotions'))
 const ServiceBookingView = lazy(() => import('@/views/ServiceBookingView'))
 const BookingSuccess = lazy(() => import('@/views/BookingSuccess'))
@@ -29,6 +31,7 @@ const Login = lazy(() => import('@/views/auth/Login'))
 const Register = lazy(() => import('@/views/auth/Register'))
 const ForgotPasswordRequest = lazy(() => import('../views/auth/ForgotPasswordRequest'))
 const ForgotPasswordConfirm = lazy(() => import('../views/auth/ForgotPasswordConfirm'))
+const EmailVerification = lazy(() => import('../views/auth/EmailVerification'))
 const Dashboard = lazy(() => import('@/views/Dashboard'))
 const Profile = lazy(() => import('@/views/Profile'))
 const Users = lazy(() => import('@/views/Users'))
@@ -51,6 +54,8 @@ const StaffChat = lazy(() => import('@/views/Staff/StaffChat'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
+const ServiceTemplateManagement = lazy(() => import('@/views/Admin/ServiceTemplateManagement'))
+const SystemSettings = lazy(() => import('@/views/Admin/SystemSettings'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
 
@@ -69,6 +74,7 @@ const router = createBrowserRouter([
       { path: 'about', element: suspense(<About />) },
       { path: 'services', element: suspense(<Services />) },
       { path: 'products', element: suspense(<Products />) },
+      { path: 'product/:id', element: suspense(<ProductDetail />) },
       { path: 'cart', element: suspense(<Cart />) },
       { path: 'promotions', element: suspense(<Promotions />) },
       { path: 'contact', element: suspense(<ProtectedContact />) },
@@ -89,12 +95,12 @@ const router = createBrowserRouter([
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
       { path: 'map-demo', element: suspense(<MapDemo />) },
 
-      { path: 'dashboard', element: <RequireAuth>{suspense(<Dashboard />)}</RequireAuth> },
-      { path: 'profile', element: suspense(<Profile />) },
+      { path: 'dashboard', element: <RequireEmailVerified>{suspense(<Dashboard />)}</RequireEmailVerified> },
+      { path: 'profile', element: <RequireEmailVerified>{suspense(<Profile />)}</RequireEmailVerified> },
 
       // Customer
-      { path: 'my-vehicles', element: <RequireAuth>{suspense(<MyVehicles />)}</RequireAuth> },
-      { path: 'maintenance-history', element: <RequireAuth>{suspense(<MaintenanceHistory />)}</RequireAuth> },
+      { path: 'my-vehicles', element: <RequireEmailVerified>{suspense(<MyVehicles />)}</RequireEmailVerified> },
+      { path: 'maintenance-history', element: <RequireEmailVerified>{suspense(<MaintenanceHistory />)}</RequireEmailVerified> },
 
       { path: '*', element: suspense(<NotFound />) },
     ],
@@ -137,9 +143,22 @@ const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: suspense(<AdminDashboard />) },
-      { path: 'users', element: suspense(<Users />) },
-      { path: 'reports', element: suspense(<AdminReports />) },
-      { path: 'time-slots', element: <RequireAuth><TimeSlotManagement /></RequireAuth> },
+      { path: 'orders', element: suspense(<AdminDashboard />) },
+      { path: 'bookings', element: suspense(<AdminDashboard />) },
+      { path: 'feedback', element: suspense(<AdminDashboard />) },
+      { path: 'users', element: suspense(<AdminDashboard />) },
+      { path: 'staff', element: suspense(<AdminDashboard />) },
+      { path: 'services', element: suspense(<AdminDashboard />) },
+      { path: 'service-packages', element: suspense(<AdminDashboard />) },
+      { path: 'parts-management', element: suspense(<AdminDashboard />) },
+      { path: 'inventory', element: suspense(<AdminDashboard />) },
+      { path: 'service-centers', element: suspense(<AdminDashboard />) },
+      { path: 'vehicle-models', element: suspense(<AdminDashboard />) },
+      { path: 'time-slots', element: <RequireAuth><AdminDashboard /></RequireAuth> },
+      { path: 'maintenance-checklist', element: suspense(<AdminDashboard />) },
+      { path: 'promotions', element: suspense(<AdminDashboard />) },
+      { path: 'reports', element: suspense(<AdminDashboard />) },
+      { path: 'settings', element: suspense(<AdminDashboard />) },
     ],
   },
   // Auth routes without header/footer
@@ -149,6 +168,7 @@ const router = createBrowserRouter([
     children: [
       { path: 'login', element: suspense(<Login />) },
       { path: 'register', element: suspense(<Register />) },
+      { path: 'verify-email', element: suspense(<EmailVerification />) },
       { path: 'forgot-password', element: suspense(<ForgotPasswordRequest />) },
       { path: 'forgot-password/confirm', element: suspense(<ForgotPasswordConfirm />) },
     ],

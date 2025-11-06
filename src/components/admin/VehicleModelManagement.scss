@@ -1,0 +1,32 @@
+// Import all Vehicle Model Management partials
+@use './VehicleModel/_vehicle-model-base' as *;
+@use './VehicleModel/_vehicle-model-animations' as *;
+@use './VehicleModel/_vehicle-model-header' as *;
+@use './VehicleModel/_vehicle-model-empty' as *;
+@use './VehicleModel/_vehicle-model-table' as *;
+@use './VehicleModel/_vehicle-model-modal' as *;
+
+// Override for vehicle model table to ensure borders
+.admin-vehicle-model .vehicle-model-table.users-table,
+.admin-vehicle-models .vehicle-model-table.users-table {
+  thead th:first-child,
+  tbody td:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+}
+
+// Override từ Users.scss
+.admin-vehicle-models .users-table th:first-child,
+.admin-vehicle-models .users-table td:first-child {
+  border-left: 1px solid #e5e7eb !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+// Override từ global.scss
+.admin-vehicle-models table.vehicle-model-table.users-table th:first-child,
+.admin-vehicle-models table.vehicle-model-table.users-table td:first-child {
+  border-left: 1px solid #e5e7eb !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+

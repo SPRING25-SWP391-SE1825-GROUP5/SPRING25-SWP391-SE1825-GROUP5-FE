@@ -1,18 +1,22 @@
 import React from 'react'
-import { User, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
+import { Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
 
 interface StepsProgressIndicatorProps {
   currentStep: number
   completedSteps: number[]
   onStepClick: (step: number) => void
   isGuest: boolean
+  orientation?: 'horizontal' | 'vertical'
+  size?: 'default' | 'compact'
 }
 
 const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
   currentStep,
   completedSteps,
   onStepClick,
-  isGuest
+  isGuest,
+  orientation = 'horizontal',
+  size = 'default'
 }) => {
   const steps = isGuest ? [
     // Khách vãng lai: 4 bước (1. Thông tin liên hệ -> 2. Dịch vụ & Xe -> 3. Địa điểm & Thời gian -> 4. Xác nhận)
@@ -76,22 +80,29 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
 
   const getStepColor = (stepNumber: number) => {
     const status = getStepStatus(stepNumber)
+    const brandColors = [
+      'var(--primary-700)',
+      'var(--primary-400)',
+      'var(--secondary-400)',
+      'var(--success-500)'
+    ]
+    const brand = brandColors[(stepNumber - 1) % brandColors.length]
     
     switch (status) {
       case 'completed':
         return {
-          circle: '#004030', // Brand primary color
-          text: '#004030',
+          circle: brand,
+          text: brand,
           background: '#e6f2f0',
-          border: '#004030',
-          icon: '#ffffff'
+          border: brand,
+          icon: '#ffffff',
         }
       case 'current':
         return {
-          circle: '#4A9782', // Brand secondary color
-          text: '#4A9782',
+          circle: brand,
+          text: brand,
           background: '#cce5e0',
-          border: '#4A9782',
+          border: brand,
           icon: '#ffffff'
         }
       case 'pending':
@@ -120,8 +131,11 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
     }
   }
 
+  const isVertical = orientation === 'vertical'
+  const isCompact = size === 'compact'
+
   return (
-    <div className="steps-progress-indicator">
+    <div className={`steps-progress-indicator ${isVertical ? 'vertical' : 'horizontal'} ${isCompact ? 'compact' : ''}`}>
       <div className="steps-container">
         {steps.map((step, index) => {
           const IconComponent = step.icon
@@ -155,9 +169,9 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
                 }}
               >
                 {status === 'completed' ? (
-                  <CheckCircle size={20} strokeWidth={2.5} />
+                  <CheckCircle size={isCompact ? 14 : 20} strokeWidth={2.5} />
                 ) : (
-                  <IconComponent size={20} strokeWidth={2} />
+                  <IconComponent size={isCompact ? 14 : 20} strokeWidth={2} />
                 )}
               </div>
 
@@ -183,7 +197,7 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
                   <div 
                     className="connector-line"
                     style={{
-                      backgroundColor: completedSteps.includes(step.number) ? '#004030' : '#e5e7eb'
+                      backgroundColor: completedSteps.includes(step.number) ? getStepColor(step.number).circle : '#e5e7eb'
                     }}
                   />
                 </div>
@@ -196,12 +210,11 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
       {/* CSS Styles */}
       <style>{`
         .steps-progress-indicator {
-          margin: 2rem 0 3rem 0;
-          padding: 0 1rem;
-          background: linear-gradient(135deg, #e6f2f0 0%, #cce5e0 100%);
-          border-radius: 20px;
-          padding: 2rem 1rem;
-          box-shadow: 0 4px 20px rgba(74, 151, 130, 0.15);
+          margin: 0.5rem 0;
+          padding: 0.75rem 1rem;
+          background: rgba(255, 255, 255, 0.6);
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .steps-container {
@@ -237,6 +250,17 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
+        /* Compact size adjustments */
+        .steps-progress-indicator.compact .step-circle {
+          width: 32px;
+          height: 32px;
+          border-width: 2px;
+        }
+        .steps-progress-indicator.compact .step-content {
+          margin-top: 6px;
+          max-width: 120px;
+          padding: 0 4px;
+        }
         .step-circle.completed {
           animation: completedPulse 0.8s ease-out;
           box-shadow: 0 8px 30px rgba(0, 64, 48, 0.3);
@@ -256,6 +280,15 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           text-align: center;
           max-width: 160px;
           padding: 0 8px;
+        }
+
+        .steps-progress-indicator.compact .step-label {
+          font-size: 0.75rem;
+          margin-bottom: 2px;
+        }
+
+        .steps-progress-indicator.compact .step-description {
+          font-size: 0.65rem;
         }
 
         .step-label {
@@ -282,6 +315,11 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
           right: -50%;
           height: 4px;
           z-index: 1;
+        }
+
+        .steps-progress-indicator.compact .step-connector {
+          top: 16px;
+          height: 2px;
         }
 
         .connector-line {
@@ -329,6 +367,53 @@ const StepsProgressIndicator: React.FC<StepsProgressIndicatorProps> = ({
 
         .step-item:hover .step-description {
           opacity: 1;
+        }
+
+        /* Vertical layout */
+        .steps-progress-indicator.vertical {
+          margin: 0;
+          padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+          background: transparent;
+          box-shadow: none;
+        }
+        .steps-progress-indicator.vertical .steps-container {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 6rem;
+          max-width: none;
+          margin: 0;
+        }
+        .steps-progress-indicator.vertical .step-item {
+          flex-direction: row;
+          align-items: flex-start;
+          gap: 16px;
+          flex: none;
+          padding: 4px 0;
+        }
+        .steps-progress-indicator.vertical .step-circle {
+          flex-shrink: 0;
+        }
+        .steps-progress-indicator.vertical .step-content {
+          margin-top: 0;
+          text-align: left;
+          max-width: none;
+          padding: 0;
+        }
+        .steps-progress-indicator.vertical .step-label {
+          margin-bottom: 2px;
+        }
+        .steps-progress-indicator.vertical .step-connector {
+          position: absolute;
+          top: auto;
+          left: 18px;
+          right: auto;
+          height: calc(100% + 16px);
+          width: 2px;
+          margin-top: 4px;
+        }
+        .steps-progress-indicator.vertical .connector-line {
+          width: 2px;
+          height: 10rem;
         }
 
         /* Responsive Design */

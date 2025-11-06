@@ -1,0 +1,11 @@
+// Base styles for Booking Management
+.admin-booking,
+.admin-bookings {
+  padding: 0px 24px 16px 24px;
+  background: transparent;
+  min-height: calc(100vh - 96px);
+  animation: fadeIn 0.5s ease-out;
+  width: 100%;
+  box-sizing: border-box;
+}
+

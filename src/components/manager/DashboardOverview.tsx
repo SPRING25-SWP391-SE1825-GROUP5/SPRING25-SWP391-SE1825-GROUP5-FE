@@ -122,8 +122,8 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
   const stats = [
     {
       title: 'Doanh thu tháng này',
-      value: dashboardData?.revenue?.summary?.totalRevenue ? (dashboardData.revenue.summary.totalRevenue / 1000000).toFixed(1) : '0',
-      unit: 'triệu VNĐ',
+      value: (dashboardData?.revenue?.summary?.totalRevenue ? Number(dashboardData.revenue.summary.totalRevenue) : 0).toLocaleString('vi-VN'),
+      unit: 'VNĐ',
       change: dashboardData?.revenue?.summary?.growthRate || '+0%',
       changeType: 'positive',
       icon: DollarSign,
@@ -152,8 +152,8 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
   // Prepare chart data
   const revenueData = dashboardData?.revenue?.revenueByPeriod?.map((item: any) => ({
     month: item.period,
-    revenue: item.revenue / 1000000, // Convert to millions
-    profit: (item.revenue * 0.3) / 1000000 // Estimate profit as 30% of revenue
+    revenue: item.revenue,
+    profit: (item.revenue * 0.3)
   })) || []
 
   const staffPerformanceData = dashboardData?.technicians?.technicians?.slice(0, 5).map((tech: any) => ({
@@ -209,7 +209,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
                 <YAxis 
                   stroke="var(--text-secondary)"
                   fontSize={12}
-                  tickFormatter={(value) => `${value}M`}
+                  tickFormatter={(value: number) => Number(value).toLocaleString('vi-VN')}
                 />
                 <Tooltip 
                   contentStyle={{
@@ -219,7 +219,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
                     color: 'var(--text-primary)'
                   }}
                   formatter={(value, name) => [
-                    `${value} triệu VNĐ`,
+                    `${Number(value).toLocaleString('vi-VN')} VNĐ`,
                     name === 'revenue' ? 'Doanh thu' : 'Lợi nhuận'
                   ]}
                 />
@@ -229,6 +229,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
                   stroke="#FFD875"
                   fill="rgba(255, 216, 117, 0.1)"
                   strokeWidth={2}
+                  dot
                 />
                 <Area
                   type="monotone"
@@ -236,6 +237,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
                   stroke="#22C55E"
                   fill="rgba(34, 197, 94, 0.1)"
                   strokeWidth={2}
+                  dot
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -286,6 +288,7 @@ export default function DashboardOverview({ onNavigate }: DashboardOverviewProps
       {/* Staff List */}
       <div className="quick-actions">
         <h2>Danh sách nhân viên của trung tâm</h2>
+        {/* Luôn hiển thị điểm dữ liệu; bỏ checkbox tùy chọn */}
         <div className="staff-list">
           {staffList.length > 0 ? (
             staffList.slice(0, 5).map((staff: any) => (

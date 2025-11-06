@@ -23,20 +23,20 @@ export const TechnicianService = {
     // Lấy technicianId từ userId bằng cách gọi API Technician list
     async getTechnicianIdByUserId(userId: number) {
         try {
-            const response = await api.get('/Technician', { 
-                params: { 
+            const response = await api.get('/Technician', {
+                params: {
                     pageSize: 1000,
-                } 
+                }
             })
-            
+
             if (response?.data?.success && response.data.data) {
                 const technicians = response.data.data.technicians || response.data.data
-                
+
                 if (Array.isArray(technicians)) {
                     const technician = technicians.find((t: any) => {
                         return t.userId === userId || t.user?.id === userId
                     })
-                    
+
                     if (technician && technician.technicianId) {
                         return {
                             success: true,
@@ -49,7 +49,7 @@ export const TechnicianService = {
                     }
                 }
             }
-            
+
             return {
                 success: false,
                 data: null,
@@ -167,7 +167,7 @@ export const TechnicianService = {
       if (date) {
         params.date = date
       }
-      
+
       const { data } = await api.get(`/Technician/${technicianId}/bookings`, { params })
       return data
     } catch (error) {
@@ -193,10 +193,39 @@ export const TechnicianService = {
     }
   },
 
-  // Cập nhật maintenance checklist item
-  async updateMaintenanceChecklistItem(bookingId: number, partId: number, result: string) {
+  // Cập nhật maintenance checklist item theo resultId (đúng spec backend)
+  async updateMaintenanceChecklistItem(
+    bookingId: number, 
+    resultId: number, 
+    result: string, 
+    notes?: string,
+    replacementInfo?: {
+      requireReplacement?: boolean
+      replacementPartId?: number
+      replacementQuantity?: number
+    }
+  ): Promise<{ success: boolean; message?: string }> {
     try {
-      const { data } = await api.put(`/maintenance-checklist/${bookingId}/parts/${partId}`, { result })
+      // Khi result là FAIL, BE yêu cầu field "description" thay vì "notes"
+      const payload: any = {
+        result,
+        description: result === 'FAIL' || result === 'fail' ? (notes || '') : undefined,
+        notes: result !== 'FAIL' && result !== 'fail' ? notes : undefined
+      }
+      
+      // Nếu có thông tin phụ tùng thay thế, thêm vào payload
+      if (replacementInfo) {
+        payload.requireReplacement = replacementInfo.requireReplacement ?? false
+        // Chỉ gửi replacementPartId và replacementQuantity khi thực sự có phụ tùng
+        if (replacementInfo.requireReplacement && replacementInfo.replacementPartId && replacementInfo.replacementPartId > 0) {
+          payload.replacementPartId = replacementInfo.replacementPartId
+        }
+        if (replacementInfo.requireReplacement && replacementInfo.replacementQuantity && replacementInfo.replacementQuantity > 0) {
+          payload.replacementQuantity = replacementInfo.replacementQuantity
+        }
+      }
+      
+      const { data } = await api.put(`/maintenance-checklist/${bookingId}/results/${resultId}`, payload)
       return data
     } catch (error) {
       return {
@@ -219,11 +248,35 @@ export const TechnicianService = {
     }
   },
 
+  // Lấy danh sách maintenance checklist theo bookingId (theo spec: GET /api/maintenance-checklist/{bookingId})
+  async getMaintenanceChecklist(bookingId: number) {
+    try {
+      const { data } = await api.get(`/maintenance-checklist/${bookingId}`)
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: 'Không thể tải danh sách checklist'
+      }
+    }
+  },
+
   // Xác nhận hoàn thành maintenance checklist
   async confirmMaintenanceChecklist(bookingId: number) {
     try {
-      const { data } = await api.post(`/maintenance-checklist/${bookingId}/confirm`)
-      return data
+      // Thử POST trước, nếu không được thì thử PUT
+      try {
+        const { data } = await api.post(`/maintenance-checklist/${bookingId}/confirm`)
+        return data
+      } catch (postError: any) {
+        // Nếu POST trả về 405, thử PUT
+        if (postError?.response?.status === 405) {
+          const { data } = await api.put(`/maintenance-checklist/${bookingId}/confirm`)
+          return data
+        }
+        throw postError
+      }
     } catch (error) {
       return {
         success: false,

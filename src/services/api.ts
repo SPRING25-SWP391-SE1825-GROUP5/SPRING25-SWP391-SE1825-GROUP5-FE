@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://localhost:5001/api',
@@ -13,6 +13,13 @@ const api = axios.create({
 let tokenGetter: (() => string | null) | null = null
 let unauthorizedHandler: (() => void) | null = null
 
+// Retry configuration
+const MAX_RETRIES = 3
+const RETRY_DELAY = 5000 // 5 seconds - wait longer for backend to fully initialize
+const BACKEND_RESTART_ERROR_CODES = [404, 500, 502, 503, 504]
+const AUTH_ERROR_CODES = [401, 403]
+
+
 export function attachTokenGetter(getter: () => string | null) {
   tokenGetter = getter
 }
@@ -21,34 +28,174 @@ export function attachUnauthorizedHandler(handler: () => void) {
   unauthorizedHandler = handler
 }
 
-api.interceptors.request.use((config) => {
-  const token = tokenGetter ? tokenGetter() : null
-  if (token) {
-    if (!config.headers) {
-      config.headers = {} as any
-    }
-    config.headers.Authorization = `Bearer ${token}`
+/**
+ * Check if error is likely due to backend restart
+ */
+function isBackendRestartError(error: AxiosError): boolean {
+  if (!error.response) {
+    return error.code === 'ECONNREFUSED' ||
+           error.code === 'ETIMEDOUT' ||
+           error.message.includes('ERR_CONNECTION_REFUSED') ||
+           error.message.includes('timeout')
   }
+
+  const status = error.response.status
+
+  // 401/403 with valid token might be backend restart
+  if (AUTH_ERROR_CODES.includes(status)) {
+    const token = tokenGetter ? tokenGetter() : null
+    if (token) {
+      // Check if it's a generic auth error (likely restart) vs specific (token expired)
+      const errorData = error.response.data as any
+      const errorMessage = (errorData?.message || errorData?.error || '').toLowerCase()
+
+      // Real auth errors have specific messages
+      const realAuthMessages = [
+        'token expired',
+        'token không hợp lệ',
+        'token invalid',
+        'phiên đăng nhập đã kết thúc'
+      ]
+
+      // If not a real auth error message, likely backend restart
+      return !realAuthMessages.some(msg => errorMessage.includes(msg))
+    }
+  }
+
+  if (status === 404) {
+    const errorData = error.response.data as any
+    const errorMessage = (errorData?.message || errorData?.error || '').toLowerCase()
+    const genericMessages = ['không tìm thấy', 'not found', 'tài nguyên yêu cầu']
+    return genericMessages.some(msg => errorMessage.includes(msg))
+  }
+
+  return BACKEND_RESTART_ERROR_CODES.includes(status)
+}
+
+/**
+ * Check if error is real authentication error (not backend restart)
+ */
+function isAuthError(error: AxiosError): boolean {
+  if (!error.response) return false
+
+  const status = error.response.status
+  if (!AUTH_ERROR_CODES.includes(status)) return false
+
+  const token = tokenGetter ? tokenGetter() : null
+
+  // No token + 401 = real auth error
+  if (!token && status === 401) return true
+
+  // With token, check error message for real auth errors
+  if (token) {
+    const errorData = error.response.data as any
+    const errorMessage = (errorData?.message || errorData?.error || '').toLowerCase()
+    const realAuthMessages = [
+      'token expired',
+      'token không hợp lệ',
+      'token invalid',
+      'phiên đăng nhập đã kết thúc'
+    ]
+    return realAuthMessages.some(msg => errorMessage.includes(msg))
+  }
+
+  return false
+}
+
+/**
+ * Get request cache key
+ */
+function getRequestKey(config: InternalAxiosRequestConfig): string {
+  return `${config.method?.toUpperCase()}_${config.url}_${JSON.stringify(config.params)}_${JSON.stringify(config.data)}`
+}
+
+/**
+ * Sleep utility
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+api.interceptors.request.use((config) => {
+  // Try to get token - if tokenGetter is not ready, try localStorage directly
+  let token: string | null = null
+
+  try {
+    if (tokenGetter) {
+      token = tokenGetter()
+    }
+
+    // Fallback: if tokenGetter returns null but we might have token in localStorage
+    // This can happen during app initialization before Redux store is ready
+    if (!token && typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('authToken') || localStorage.getItem('token')
+    }
+
+    if (token) {
+      if (!config.headers) {
+        config.headers = {} as any
+      }
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  } catch (error) {
+    // If tokenGetter throws, try localStorage as fallback
+    if (typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('authToken') || localStorage.getItem('token')
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
+  }
+
+  // Add retry count to config if not present
+  if (!(config as any).__retryCount) {
+    (config as any).__retryCount = 0
+  }
+
   return config
 })
 
 api.interceptors.response.use(
   (res) => res,
-  async (error) => {
+  async (error: AxiosError) => {
     const status = error?.response?.status
-    const originalRequest = error.config
+    const originalRequest = error.config as InternalAxiosRequestConfig & { __retryCount?: number }
+    const retryCount = originalRequest?.__retryCount || 0
 
-    // Handle 401 Unauthorized
-    if (status === 401) {
-      // Log token expiration for debugging
-      console.warn('Token expired - user will be logged out')
+    // Check if it's a real auth error (don't retry, logout immediately)
+    if (isAuthError(error)) {
+      if (status === 401 && unauthorizedHandler) {
+        unauthorizedHandler()
+      }
 
-      if (unauthorizedHandler) unauthorizedHandler()
+      const errorData = error.response?.data as any
+      const errorMessage = errorData?.message ||
+                          (status === 401 ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : 'Bạn không có quyền thực hiện hành động này.')
+
       return Promise.reject({
         ...error,
-        message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
-        userMessage: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+        message: errorMessage,
+        userMessage: errorMessage,
+        isAuthError: true
       })
+    }
+
+    // Check if error is due to backend restart
+    const mightBeBackendRestart = isBackendRestartError(error)
+
+    // Retry logic for backend restart scenarios
+    if (mightBeBackendRestart && retryCount < MAX_RETRIES && originalRequest) {
+      // Simple approach: just wait longer and retry
+      // For auth errors with valid token, wait longer (backend needs time to initialize auth)
+      const waitTime = AUTH_ERROR_CODES.includes(status || 0) && tokenGetter && tokenGetter()
+        ? RETRY_DELAY * (retryCount + 2) // Longer wait for auth initialization
+        : RETRY_DELAY * Math.pow(1.5, retryCount) // Exponential backoff for others
+
+      await sleep(waitTime)
+
+      // Increment retry count and retry
+      originalRequest.__retryCount = retryCount + 1
+      return api(originalRequest)
     }
 
     // Handle network errors
@@ -56,8 +203,9 @@ api.interceptors.response.use(
       if (error.code === 'ECONNREFUSED' || error.message.includes('ERR_CONNECTION_REFUSED')) {
         return Promise.reject({
           ...error,
-          message: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.',
-          userMessage: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.'
+          message: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc đợi server khởi động lại.',
+          userMessage: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc đợi server khởi động lại.',
+          isNetworkError: true
         })
       }
 
@@ -65,18 +213,20 @@ api.interceptors.response.use(
         return Promise.reject({
           ...error,
           message: 'Kết nối quá chậm. Vui lòng thử lại sau.',
-          userMessage: 'Kết nối quá chậm. Vui lòng thử lại sau.'
+          userMessage: 'Kết nối quá chậm. Vui lòng thử lại sau.',
+          isTimeoutError: true
         })
       }
 
       return Promise.reject({
         ...error,
         message: 'Lỗi kết nối. Vui lòng thử lại sau.',
-        userMessage: 'Lỗi kết nối. Vui lòng thử lại sau.'
+        userMessage: 'Lỗi kết nối. Vui lòng thử lại sau.',
+        isNetworkError: true
       })
     }
 
-    // Handle HTTP status errors
+    // Handle HTTP status errors with improved messages
     const errorMessages: { [key: number]: string } = {
       400: 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.',
       403: 'Bạn không có quyền thực hiện hành động này.',
@@ -90,15 +240,20 @@ api.interceptors.response.use(
       504: 'Máy chủ phản hồi quá chậm. Vui lòng thử lại sau.'
     }
 
-    const userMessage = errorMessages[status] ||
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
+    // Get error message from response first, then fallback to status message
+    const errorData = error.response.data as any
+    const responseMessage = errorData?.message || errorData?.error
+    const userMessage = responseMessage ||
+      errorMessages[status] ||
       'Đã xảy ra lỗi. Vui lòng thử lại sau.'
+
 
     return Promise.reject({
       ...error,
       message: userMessage,
-      userMessage: userMessage
+      userMessage: userMessage,
+      isBackendRestart: mightBeBackendRestart,
+      retryCount
     })
   }
 )

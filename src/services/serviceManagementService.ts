@@ -199,6 +199,33 @@ export const ServiceManagementService = {
     }
   },
 
+  // Export services to a file (Excel/CSV depending on backend)
+  async exportServices(params: ServiceListParams = {}): Promise<{ blob: Blob; filename?: string }> {
+    // Pass through filters if needed; backend may ignore unknown ones
+    const backendParams = {
+      pageNumber: params.pageNumber,
+      pageSize: params.pageSize,
+      searchTerm: params.searchTerm || params.search,
+      categoryId: params.categoryId,
+    }
+
+    const response = await api.get('/Service/export', {
+      params: backendParams,
+      responseType: 'blob',
+      headers: { Accept: 'application/octet-stream' }
+    })
+
+    // Try read filename from Content-Disposition
+    const disposition = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition']
+    let filename: string | undefined
+    if (disposition && typeof disposition === 'string') {
+      const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i)
+      filename = decodeURIComponent(match?.[1] || match?.[2] || '') || undefined
+    }
+
+    return { blob: response.data as Blob, filename }
+  },
+
   // Get active services only
   async getActiveServices(params: ServiceListParams = {}): Promise<ServiceListResponse> {
     const backendParams = {

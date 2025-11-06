@@ -1,7 +1,7 @@
 /**
  * Services Index
  * Centralized export for all service modules
- * 
+ *
  * @description This file provides a single point of import for all services,
  * making it easier to import and manage service dependencies across the application.
  */
@@ -21,7 +21,7 @@ export type {
   ChangePasswordRequest
 } from './authService'
 
-// User Management Services  
+// User Management Services
 export { UserService } from './userService'
 export type {
   UpdateUserProfileRequest,
@@ -51,6 +51,15 @@ export type {
 export { ServiceChecklistTemplateService } from './serviceChecklistTemplateService'
 export type {
   ServiceChecklistTemplate,
+  ServiceChecklistTemplateItem,
+  TemplateItemDto,
+  TemplateCreateRequest,
+  TemplateUpdateRequest,
+  UpsertItemsRequest,
+  ActivateRequest,
+  BatchPartsRequest,
+  TemplateItemResponse,
+  GetItemsResponse,
   RecommendationRequest,
   RecommendationResponse
 } from './serviceChecklistTemplateService'
@@ -119,6 +128,25 @@ export type {
   PartFilters
 } from './partService'
 
+// Configuration Services
+export { ConfigurationService } from './configurationService'
+export type {
+  LoginLockoutConfigRequest,
+  UpdateBookingRealtimeRequest,
+  UpdatePayOsSettingsRequest,
+  UpdateGuestSessionSettingsRequest,
+  UpdateMaintenanceReminderSettingsRequest,
+  LoginLockoutConfig,
+  BookingRealtimeSettings,
+  PayOsSettings,
+  GuestSessionSettings,
+  MaintenanceReminderSettings,
+  LockoutStatus,
+  Features,
+  BusinessRules,
+  PublicSettings
+} from './configurationService'
+
 // Order Services
 export { OrderService } from './orderService'
 export type { QuickOrderRequest, QuickOrderResponse } from './orderService'
@@ -127,3 +155,7 @@ export type { QuickOrderRequest, QuickOrderResponse } from './orderService'
 export { PromotionService } from './promotionService'
 
 // TODO: Add other services as they are created
+
+// Cart Services
+export { CartService } from './cartService'
+export type { AddCartItemRequest } from './cartService'

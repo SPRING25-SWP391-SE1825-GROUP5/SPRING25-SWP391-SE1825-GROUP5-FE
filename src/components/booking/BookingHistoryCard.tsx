@@ -6,7 +6,8 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   StarIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline'
 import { BaseButton } from '@/components/common'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
@@ -41,15 +42,33 @@ interface BookingHistoryCardProps {
   }
   onFeedback?: (bookingId: number, feedback: FeedbackData) => Promise<void> | void
   onEditFeedback?: (bookingId: number, feedback: FeedbackData) => Promise<void> | void
+  onPayment?: (bookingId: number) => Promise<void> | void
+  isProcessingPayment?: boolean
+  isCancelling?: boolean
+  onCancel?: (bookingId: number) => Promise<void> | void
+  isNewest?: boolean
+  isExpanded?: boolean
+  onToggle?: () => void
 }
 
 export default function BookingHistoryCard({ 
   booking, 
   onFeedback, 
-  onEditFeedback 
+  onEditFeedback,
+  onPayment,
+  isProcessingPayment = false,
+  isCancelling = false,
+  onCancel,
+  isNewest = false,
+  isExpanded = false,
+  onToggle
 }: BookingHistoryCardProps) {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false) // Mặc định thu gọn
+  const [internalExpanded, setInternalExpanded] = useState(isExpanded)
+  
+  // Sử dụng isExpanded từ props nếu có, nếu không thì dùng state internal
+  const expanded = onToggle !== undefined ? isExpanded : internalExpanded
+  const handleToggle = onToggle || (() => setInternalExpanded(!internalExpanded))
 
   // Kiểm tra xem có thể đánh giá không - chỉ cho phép khi status là COMPLETED
   const canGiveFeedback = () => {
@@ -59,6 +78,13 @@ export default function BookingHistoryCard({
   // Kiểm tra xem có thể sửa đánh giá không - chỉ cho phép khi status là COMPLETED
   const canEditFeedback = () => {
     return booking.status === 'COMPLETED' && booking.hasFeedback
+  }
+
+  // Kiểm tra xem có thể thanh toán không - chỉ cần status COMPLETED
+  const canPay = () => {
+    if (!onPayment) return false
+    const status = (booking.status || '').trim().toUpperCase()
+    return status === 'COMPLETED'
   }
 
   // Lấy màu sắc cho trạng thái
@@ -130,17 +156,71 @@ export default function BookingHistoryCard({
 
   return (
     <>
-      <div className="booking-history-card" onClick={() => setIsExpanded(!isExpanded)}>
+      <div className="booking-history-card" onClick={handleToggle}>
         {/* Header - Always visible */}
         <div className="booking-card-header">
           <div className="booking-info">
             <h4 className="booking-title">{booking.serviceName}</h4>
             <p className="booking-code">Mã đặt lịch: {booking.bookingCode}</p>
           </div>
-          <div className="booking-status">
-            <span className={`status-badge ${getStatusColor(booking.status)}`}>
-              {getStatusText(booking.status)}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 10 }}>
+            {/* Nút thanh toán - hiển thị ngay trong header nếu status COMPLETED */}
+            {canPay() && onPayment && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('[Payment Button] Clicked for booking:', booking.bookingId)
+                    }
+                    if (onPayment) {
+                      const result = onPayment(booking.bookingId)
+                      if (result instanceof Promise) {
+                        result.catch(err => console.error('Payment error:', err))
+                      }
+                    }
+                  }}
+                  disabled={isProcessingPayment}
+                  className="payment-button"
+                  style={{
+                    background: '#10B981',
+                    border: '1px solid #10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    position: 'relative',
+                    zIndex: 10, // Đảm bảo nút luôn ở trên expand-indicator
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', // Thêm shadow để nổi bật
+                    cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isProcessingPayment) {
+                      e.currentTarget.style.background = '#059669'
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isProcessingPayment) {
+                      e.currentTarget.style.background = '#10B981'
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)'
+                    }
+                  }}
+                >
+                  <CreditCardIcon className="w-4 h-4" />
+                  {isProcessingPayment ? 'Đang xử lý...' : 'Thanh toán'}
+                </button>
+            )}
+            <div className="booking-status" style={{ position: 'relative', zIndex: 10 }}>
+              <span className={`status-badge ${getStatusColor(booking.status)}`}>
+                {getStatusText(booking.status)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -167,7 +247,7 @@ export default function BookingHistoryCard({
         </div>
 
         {/* Expandable Details */}
-        {isExpanded && (
+        {expanded && (
           <div className="booking-expanded-content">
             {/* Detailed Info */}
             <div className="booking-basic-info">
@@ -230,6 +310,81 @@ export default function BookingHistoryCard({
               </div>
             )}
 
+            {/* Payment Section - chỉ hiển thị khi status COMPLETED */}
+            {canPay() && onPayment && (
+              <div className="booking-payment-section" style={{
+                marginTop: '20px',
+                padding: '20px',
+                borderTop: '2px solid #e5e7eb',
+                background: '#f9fafb',
+                borderRadius: '8px',
+                border: '2px solid #10B981'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '12px'
+                }}>
+                  <div>
+                    <h5 className="detail-section-title" style={{ margin: '0 0 4px 0', color: '#111827', fontSize: '16px', fontWeight: 700 }}>💳 Thanh toán dịch vụ</h5>
+                    <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
+                      {booking.actualCost ? 
+                        `Tổng tiền: ${booking.actualCost.toLocaleString('vi-VN')} VNĐ` : 
+                        booking.estimatedCost ? 
+                        `Ước tính: ${booking.estimatedCost.toLocaleString('vi-VN')} VNĐ` :
+                        'Vui lòng thanh toán để hoàn tất dịch vụ'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (onPayment) {
+                      const result = onPayment(booking.bookingId)
+                      if (result instanceof Promise) {
+                        result.catch(err => console.error('Payment error:', err))
+                      }
+                    }
+                  }}
+                  disabled={isProcessingPayment}
+                  style={{
+                    background: '#10B981',
+                    border: '1px solid #10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    width: '100%',
+                    justifyContent: 'center',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: isProcessingPayment ? 0.7 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isProcessingPayment) {
+                      e.currentTarget.style.background = '#059669'
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isProcessingPayment) {
+                      e.currentTarget.style.background = '#10B981'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }
+                  }}
+                >
+                  <CreditCardIcon className="w-5 h-5" />
+                  {isProcessingPayment ? 'Đang xử lý...' : 'Chọn phương thức thanh toán'}
+                </button>
+              </div>
+            )}
+
             {/* Additional Details */}
             {booking.notes && (
               <div className="detail-section">
@@ -237,29 +392,6 @@ export default function BookingHistoryCard({
                 <p className="detail-section-content">{booking.notes}</p>
               </div>
             )}
-
-            {/* Debug Feedback Data */}
-            {(() => {
-              console.log('🔍 Booking feedback debug:', {
-                bookingId: booking.bookingId,
-                hasFeedback: booking.hasFeedback,
-                feedback: booking.feedback,
-                status: booking.status
-              })
-              return null
-            })()}
-
-            {/* Debug Feedback Info */}
-            {(() => {
-              console.log('🔍 BookingHistoryCard - Feedback debug:', {
-                bookingId: booking.bookingId,
-                status: booking.status,
-                hasFeedback: booking.hasFeedback,
-                feedback: booking.feedback,
-                feedbackExists: !!booking.feedback
-              })
-              return null
-            })()}
 
             {/* Feedback Section */}
             {((booking.hasFeedback && booking.feedback) || (booking.feedback && booking.feedback.technicianRating > 0)) && (
@@ -325,6 +457,51 @@ export default function BookingHistoryCard({
 
             {/* Actions */}
             <div className="booking-actions">
+              {/* Nút thanh toán - chỉ hiển thị khi COMPLETED và chưa PAID */}
+              {canPay() && onPayment && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (onPayment) {
+                      const result = onPayment(booking.bookingId)
+                      if (result instanceof Promise) {
+                        result.catch(err => console.error('Payment error:', err))
+                      }
+                    }
+                  }}
+                  disabled={isProcessingPayment}
+                  className="payment-button"
+                  style={{
+                    background: '#10B981',
+                    border: '1px solid #10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    color: '#fff',
+                    cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: isProcessingPayment ? 0.7 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isProcessingPayment) {
+                      e.currentTarget.style.background = '#059669'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isProcessingPayment) {
+                      e.currentTarget.style.background = '#10B981'
+                    }
+                  }}
+                >
+                  <CreditCardIcon className="w-4 h-4" />
+                  {isProcessingPayment ? 'Đang xử lý...' : 'Thanh toán'}
+                </button>
+              )}
+
               {canGiveFeedback() && (
                 <BaseButton
                   variant="primary"
@@ -367,8 +544,8 @@ export default function BookingHistoryCard({
 
         {/* Expand/Collapse Indicator */}
         <div className="expand-indicator">
-          <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>
-            {isExpanded ? '▲' : '▼'}
+          <span className={`expand-icon ${expanded ? 'expanded' : ''}`}>
+            {expanded ? '▲' : '▼'}
           </span>
         </div>
       </div>

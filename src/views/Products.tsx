@@ -12,10 +12,10 @@ import {
   BoltIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { PartService, Part, PartFilters, OrderService, CustomerService } from '@/services'
+import { PartService, Part, PartFilters, OrderService, CustomerService, CartService } from '@/services'
 import toast from 'react-hot-toast'
 import './products.scss'
-import { addToCart } from '@/store/cartSlice'
+import { addToCart, setCartId } from '@/store/cartSlice'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 
 export default function Products() {
@@ -32,17 +32,23 @@ export default function Products() {
   const [categories, setCategories] = useState<string[]>([])
   const [brands, setBrands] = useState<string[]>([])
   
-  // State cho filters
+  // State cho filters 
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedBrand, setSelectedBrand] = useState('Tất cả thương hiệu')
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
+  const [showMoreBrands, setShowMoreBrands] = useState(false)
   const [priceRange, setPriceRange] = useState([0, 30000000])
   const [sortBy, setSortBy] = useState('newest')
   const [showFilters, setShowFilters] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 9
   const [buyingId, setBuyingId] = useState<number | null>(null)
+  const [minPrice, setMinPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(30000000)
+  const [minPriceInput, setMinPriceInput] = useState('0')
+  const [maxPriceInput, setMaxPriceInput] = useState('30.000.000')
 
   // Load data từ API
   useEffect(() => {
@@ -66,9 +72,10 @@ export default function Products() {
 
       const filters: PartFilters = {
         searchTerm: searchTerm || undefined,
-        brand: selectedBrand !== 'Tất cả thương hiệu' ? selectedBrand : undefined,
-        minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-        maxPrice: priceRange[1] < 30000000 ? priceRange[1] : undefined,
+        // khi chọn nhiều brand sẽ lọc client-side, không gửi brand lên API
+        brand: selectedBrands.length === 1 ? selectedBrands[0] : (selectedBrand !== 'Tất cả thương hiệu' && selectedBrands.length === 0 ? selectedBrand : undefined),
+        minPrice: minPrice > 0 ? minPrice : undefined,
+        maxPrice: maxPrice < 30000000 ? maxPrice : undefined,
         inStock: true, // Chỉ hiển thị phụ tùng có sẵn
         pageSize: 100 // Load nhiều để có thể filter local
       }
@@ -76,9 +83,6 @@ export default function Products() {
       const response = await PartService.getPartAvailability(filters)
       
       if (response.success) {
-        console.log('Parts data from API:', response.data)
-        console.log('First part unitPrice:', response.data[0]?.unitPrice)
-        console.log('First part unitPrice type:', typeof response.data[0]?.unitPrice)
         setParts(response.data)
       } else {
         setError(response.message)
@@ -91,6 +95,17 @@ export default function Products() {
     } finally {
       setLoading(false)
     }
+  }
+  // Keep input string in sync when slider changes
+  useEffect(() => {
+    const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
+    setMinPriceInput(fmt(minPrice))
+    setMaxPriceInput(fmt(maxPrice))
+  }, [minPrice, maxPrice])
+
+  const parseNumber = (s: string): number => {
+    const digits = s.replace(/[^0-9]/g, '')
+    return digits ? Number(digits) : 0
   }
 
   const loadCategoriesAndBrands = () => {
@@ -168,16 +183,13 @@ export default function Products() {
   ]
 
   const formatPrice = (price: number | undefined | null) => {
-    console.log('formatPrice called with:', price, 'type:', typeof price)
     if (!price || isNaN(price) || price <= 0) {
-      console.log('Price is invalid, returning "Liên hệ"')
       return 'Liên hệ'
     }
     const formatted = new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
     }).format(price)
-    console.log('Formatted price:', formatted)
     return formatted
   }
 
@@ -215,18 +227,44 @@ export default function Products() {
   }
 
   // Xử lý thêm vào giỏ hàng
-  const handleAddToCart = (part: Part, e: React.MouseEvent) => {
+  const handleAddToCart = async (part: Part, e: React.MouseEvent) => {
     e.stopPropagation()
     dispatch(addToCart({
-      id: String(part.partId),
-      name: part.partName,
-      price: part.unitPrice,
-      image: '', // Có thể lấy ảnh từ API nếu có, nếu không để rỗng.
-      brand: part.brand,
-      category: '', // Nếu part có category, gán vào đây.
-      inStock: !part.isOutOfStock
+      item: {
+        id: String(part.partId),
+        name: part.partName,
+        price: part.unitPrice,
+        image: part.imageUrl || '',
+        brand: part.brand,
+        category: '', // Nếu part có category, gán vào đây.
+        inStock: !part.isOutOfStock
+      },
+      userId: user?.id ?? null
     }))
     toast.success(`Đã thêm ${part.partName} vào giỏ hàng`)
+
+    // Sync BE cart: lấy cartId theo customer -> thêm item
+    try {
+      const userId = user?.id
+      const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
+      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem(cartIdKey)) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cartIdKey))
+      let cartId: number | null = storedCartId ? Number(storedCartId) : null
+
+      if (!cartId && user?.customerId) {
+        const resp = await CartService.getCartByCustomer(Number(user.customerId))
+        const id = (resp?.data as any)?.cartId
+        if (id) {
+          cartId = Number(id)
+          dispatch(setCartId({ cartId, userId: user?.id ?? null }))
+        }
+      }
+
+      if (cartId) {
+        await CartService.addItem(cartId, { partId: part.partId, quantity: 1 })
+      }
+    } catch (_) {
+      // Silently ignore BE sync errors to keep UX smooth
+    }
   }
 
   // Xử lý mua ngay
@@ -280,10 +318,14 @@ export default function Products() {
       part.brand.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     
     // Lọc theo thương hiệu
-    const matchesBrand = selectedBrand === 'Tất cả thương hiệu' || part.brand === selectedBrand
+    const matchesBrand =
+      (selectedBrands.length === 0 && (selectedBrand === 'Tất cả thương hiệu' || part.brand === selectedBrand)) ||
+      (selectedBrands.length > 0 && selectedBrands.includes(part.brand))
     
     // Lọc theo giá
-    const matchesPrice = part.unitPrice >= priceRange[0] && part.unitPrice <= priceRange[1]
+    const low = Number.isFinite(minPrice) ? minPrice : 0
+    const high = Number.isFinite(maxPrice) ? maxPrice : Number.MAX_SAFE_INTEGER
+    const matchesPrice = part.unitPrice >= low && part.unitPrice <= high
     
     return matchesSearch && matchesBrand && matchesPrice
   })
@@ -322,27 +364,131 @@ export default function Products() {
   // Reset về trang 1 khi filters thay đổi
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchTerm, selectedCategory, selectedBrand, priceRange, sortBy])
+  }, [debouncedSearchTerm, selectedCategory, selectedBrand, minPrice, maxPrice, sortBy])
 
   return (
     <div className="products-page">
-
-      {/* Main Content */}
-      <div className="main-content">
-        <div className="container">
-          <div className="content-wrapper">
-
-            {/* Products Content */}
-            <div className="products-content">
-              {/* Page Title */}
-              <div className="page-title-section">
-                <h2 className="page-title">Cửa hàng phụ tùng</h2>
+      <div className="container products-scroll">
+        <div className="products-container">
+        {/* Sidebar */}
+        <aside className="products-sidebar">
+          <div className="sidebar-section">
+            <div className="sidebar-title">Giá</div>
+            <div className="price-slider">
+              <div className="slider-track">
+                <input
+                  type="range"
+                  min={0}
+                  max={30000000}
+                  step={50000}
+                  value={minPrice}
+                  onChange={(e) => {
+                    const v = Math.min(Number(e.target.value), maxPrice)
+                    setMinPrice(v)
+                  }}
+                />
+                <input
+                  type="range"
+                  min={0}
+                  max={30000000}
+                  step={50000}
+                  value={maxPrice}
+                  onChange={(e) => {
+                    const v = Math.max(Number(e.target.value), minPrice)
+                    setMaxPrice(v)
+                  }}
+                />
               </div>
+            </div>
+            {/* Manual price inputs */}
+            <div className="price-row" style={{ marginTop: 8 }}>
+              <input
+                type="text"
+                className="price-input"
+                min={0}
+                value={minPriceInput}
+                onChange={(e) => {
+                  setMinPriceInput(e.target.value)
+                  const num = parseNumber(e.target.value)
+                  if (!Number.isNaN(num)) setMinPrice(Math.min(num, maxPrice))
+                }}
+                onBlur={() => {
+                  if (minPrice > maxPrice) setMinPrice(maxPrice)
+                  setMinPriceInput(new Intl.NumberFormat('vi-VN').format(minPrice))
+                }}
+                placeholder="Từ"
+              />
+              <span className="price-sep">-</span>
+              <input
+                type="text"
+                className="price-input"
+                min={0}
+                value={maxPriceInput}
+                onChange={(e) => {
+                  setMaxPriceInput(e.target.value)
+                  const num = parseNumber(e.target.value)
+                  if (!Number.isNaN(num)) setMaxPrice(Math.max(num, minPrice))
+                }}
+                onBlur={() => {
+                  if (maxPrice < minPrice) setMaxPrice(minPrice)
+                  setMaxPriceInput(new Intl.NumberFormat('vi-VN').format(maxPrice))
+                }}
+                placeholder="Đến"
+              />
+            </div>
+            <button className="btn-apply" onClick={loadPartsData}>Áp dụng</button>
+          </div>
 
-              {/* Search and Filters */}
-              <div className="filters-section">
-                <div className="filters-container">
-                  <div className="search-input">
+          <div className="sidebar-section">
+            <div className="sidebar-title">Thương hiệu</div>
+            <div className="brand-list">
+              <label className={`brand-item ${selectedBrands.length === 0 && selectedBrand === 'Tất cả thương hiệu' ? 'active' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={selectedBrands.length === 0 && selectedBrand === 'Tất cả thương hiệu'}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedBrands([])
+                      setSelectedBrand('Tất cả thương hiệu')
+                    }
+                  }}
+                />
+                <span>Tất cả</span>
+              </label>
+              {(showMoreBrands ? brands : brands.slice(0, 8)).map((b) => (
+                <label key={b} className={`brand-item ${selectedBrands.includes(b) ? 'active' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedBrands.includes(b)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedBrand('Tất cả thương hiệu')
+                        setSelectedBrands([...selectedBrands, b])
+                      } else {
+                        setSelectedBrands(selectedBrands.filter((x) => x !== b))
+                      }
+                    }}
+                  />
+                  <span>{b}</span>
+                </label>
+              ))}
+              {brands.length > 8 && (
+                <button className="btn-show-more" onClick={() => setShowMoreBrands(!showMoreBrands)}>
+                  {showMoreBrands ? 'Ẩn bớt' : 'Hiển thị thêm'}
+                </button>
+              )}
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="products-main">
+          <div className="content-wrapper">
+            <div className="products-content">
+
+              {/* Search and Sort Bar */}
+              <div className="toolbar">
+                <div className="search-input">
                     <MagnifyingGlassIcon className="search-icon" />
                     <input
                       type="text"
@@ -351,61 +497,20 @@ export default function Products() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  
-                  <div className="filters-row">
-                    <div className="filter-group">
-                      <label className="filter-label">Thương hiệu</label>
-                      <select 
-                        className="filter-select"
-                        value={selectedBrand}
-                        onChange={(e) => setSelectedBrand(e.target.value)}
-                      >
-                        <option value="Tất cả thương hiệu">Tất cả thương hiệu</option>
-                        {brands.map(brand => (
-                          <option key={brand} value={brand}>
-                            {brand}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="filter-group">
-                      <label className="filter-label">Giá</label>
-                      <select 
-                        className="filter-select"
-                        value={priceRange[1] === 5000000 ? 'under-5m' : 
-                               priceRange[1] === 10000000 ? '5m-10m' : 
-                               priceRange[1] === 20000000 ? '10m-20m' : 'over-20m'}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          if (value === 'under-5m') setPriceRange([0, 5000000])
-                          else if (value === '5m-10m') setPriceRange([5000000, 10000000])
-                          else if (value === '10m-20m') setPriceRange([10000000, 20000000])
-                          else setPriceRange([20000000, 30000000])
-                        }}
-                      >
-                        <option value="under-5m">Dưới 5 triệu</option>
-                        <option value="5m-10m">5 - 10 triệu</option>
-                        <option value="10m-20m">10 - 20 triệu</option>
-                        <option value="over-20m">Trên 20 triệu</option>
-                      </select>
-                    </div>
-                    
-                    <div className="filter-group">
-                      <label className="filter-label">Sắp xếp</label>
-                      <select 
-                        className="filter-select"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                      >
-                        {sortOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                <div className="sort-group">
+                  <AdjustmentsHorizontalIcon className="sort-icon" />
+                  <label className="sort-label">Sắp xếp</label>
+                  <select 
+                    className="sort-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    {sortOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -454,10 +559,21 @@ export default function Products() {
                       className="product-card"
                       onClick={() => navigate(`/product/${part.partId}`)}
                     >
-                      <div className="placeholder-image">
-                        <div className="placeholder-icon">🔧</div>
-                        <div className="placeholder-text">{part.partName}</div>
-                      </div>
+                      {part.imageUrl ? (
+                        <img
+                          src={part.imageUrl}
+                          alt={part.partName}
+                          className="product-image"
+                          style={{ width: '100%', height: 180, objectFit: 'cover', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
+                          loading="lazy"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                        />
+                      ) : (
+                        <div className="placeholder-image">
+                          <div className="placeholder-icon">🔧</div>
+                          <div className="placeholder-text">{part.partName}</div>
+                        </div>
+                      )}
 
                       <div className="product-info">
                         <h3 className="product-name">{part.partName}</h3>
@@ -536,6 +652,7 @@ export default function Products() {
               )}
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

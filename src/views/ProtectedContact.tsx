@@ -1,250 +1,201 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useAppSelector } from '@/store/hooks'
 import { useNavigate } from 'react-router-dom'
 import ChatInterface from '@/components/chat/ChatInterface'
 import './Contact.scss'
 
+/**
+ * Utility function để đảm bảo guestSessionId tồn tại
+ * Tạo guest session ID nếu chưa có (cho khách chưa đăng nhập)
+ */
+const ensureGuestSessionId = (): string => {
+  if (typeof localStorage === 'undefined') {
+    return `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  }
+  
+  let guestSessionId = localStorage.getItem('guestSessionId')
+  if (!guestSessionId) {
+    guestSessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    localStorage.setItem('guestSessionId', guestSessionId)
+  }
+  
+  return guestSessionId
+}
+
 const ProtectedContact: React.FC = () => {
   const user = useAppSelector((state) => state.auth.user)
   const navigate = useNavigate()
+  const [showLoginBanner, setShowLoginBanner] = useState(true)
 
-  // Nếu user đã đăng nhập, hiển thị ChatInterface bình thường
-  if (user) {
-    return (
-      <div className="contact-page">
-        <ChatInterface />
-      </div>
-    )
-  }
+  // Đảm bảo guestSessionId tồn tại nếu chưa đăng nhập
+  useEffect(() => {
+    if (!user) {
+      ensureGuestSessionId()
+    }
+  }, [user])
 
-  // Nếu chưa đăng nhập, hiển thị popup thông báo
+  // Luôn cho phép hiển thị ChatInterface (cả cho guest và user đã đăng nhập)
   return (
     <div className="contact-page">
-      {/* Overlay */}
-      <div className="login-overlay" onClick={() => navigate('/')}>
-        {/* Modal */}
-        <div className="login-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h3>🔒 Yêu cầu đăng nhập</h3>
-            <button 
-              className="close-btn" 
-              onClick={() => navigate('/')}
-              aria-label="Đóng"
-            >
-              ×
-            </button>
-          </div>
-          
-          <div className="modal-body">
-            <div className="icon-wrapper">
-              <div className="lock-icon">🔐</div>
+      {/* Banner nhắc đăng nhập (chỉ hiển thị cho guest và có thể đóng) */}
+      {!user && showLoginBanner && (
+        <div className="guest-login-banner">
+          <div className="banner-content">
+            <div className="banner-icon">💬</div>
+            <div className="banner-text">
+              <p className="banner-title">Bạn đang chat với tư cách khách</p>
+              <p className="banner-description">
+                Đăng nhập để lưu lịch sử chat và nhận hỗ trợ tốt hơn
+              </p>
             </div>
-            <p className="message">
-              Bạn phải đăng nhập để sử dụng tính năng này
-            </p>
-            <p className="sub-message">
-              Đăng nhập để có thể trò chuyện với nhân viên hỗ trợ
-            </p>
-          </div>
-          
-          <div className="modal-footer">
-            <button 
-              className="cancel-btn"
-              onClick={() => navigate('/')}
-            >
-              Hủy
-            </button>
-            <button 
-              className="login-btn"
-              onClick={() => navigate('/auth/login?redirect=' + encodeURIComponent('/contact'))}
-            >
-              Đăng nhập ngay
-            </button>
+            <div className="banner-actions">
+              <button
+                className="banner-login-btn"
+                onClick={() => navigate('/auth/login?redirect=' + encodeURIComponent('/contact'))}
+              >
+                Đăng nhập
+              </button>
+              <button
+                className="banner-close-btn"
+                onClick={() => setShowLoginBanner(false)}
+                aria-label="Đóng"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* CSS Styles */}
+      {/* ChatInterface luôn được hiển thị */}
+      <ChatInterface />
+
+      {/* CSS Styles cho banner */}
       <style>{`
-        .login-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          backdrop-filter: blur(4px);
+        .guest-login-banner {
+          background: linear-gradient(135deg, #4A9782 0%, #004030 100%);
+          color: white;
+          padding: 1rem 1.5rem;
+          margin-bottom: 1rem;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(74, 151, 130, 0.2);
+          animation: slideDown 0.3s ease-out;
         }
 
-        .login-modal {
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-          max-width: 400px;
-          width: 90%;
-          max-height: 90vh;
-          overflow: hidden;
-          animation: modalSlideIn 0.3s ease-out;
-        }
-
-        @keyframes modalSlideIn {
+        @keyframes slideDown {
           from {
             opacity: 0;
-            transform: translateY(-20px) scale(0.95);
+            transform: translateY(-10px);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
           }
         }
 
-        .modal-header {
+        .banner-content {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 1.5rem 1.5rem 0 1.5rem;
-          border-bottom: 1px solid #e5e7eb;
-          margin-bottom: 1rem;
-
-          h3 {
-            margin: 0;
-            font-family: var(--font-family-primary);
-            font-size: var(--font-size-lg);
-            font-weight: var(--font-weight-semibold);
-            color: var(--text-primary);
-          }
-
-          .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: #9ca3af;
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: 4px;
-            transition: all 0.2s;
-            line-height: 1;
-
-            &:hover {
-              background: #f3f4f6;
-              color: #6b7280;
-            }
-          }
+          gap: 1rem;
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
-        .modal-body {
-          padding: 0 1.5rem 1.5rem 1.5rem;
-          text-align: center;
-
-          .icon-wrapper {
-            margin-bottom: 1rem;
-
-            .lock-icon {
-              font-size: 3rem;
-              margin: 0 auto;
-              width: 80px;
-              height: 80px;
-              background: linear-gradient(135deg, #e6f2f0, #cce5e0);
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0 auto 1rem auto;
-              box-shadow: 0 4px 12px rgba(74, 151, 130, 0.2);
-            }
-          }
-
-          .message {
-            font-family: var(--font-family-primary);
-            font-size: var(--font-size-base);
-            font-weight: var(--font-weight-medium);
-            color: var(--text-primary);
-            margin: 0 0 0.5rem 0;
-            line-height: var(--line-height-normal);
-          }
-
-          .sub-message {
-            font-family: var(--font-family-primary);
-            font-size: var(--font-size-sm);
-            color: var(--text-secondary);
-            margin: 0;
-            line-height: var(--line-height-normal);
-          }
+        .banner-icon {
+          font-size: 1.5rem;
+          flex-shrink: 0;
         }
 
-        .modal-footer {
+        .banner-text {
+          flex: 1;
+        }
+
+        .banner-title {
+          font-weight: 600;
+          font-size: 0.95rem;
+          margin: 0 0 0.25rem 0;
+          line-height: 1.4;
+        }
+
+        .banner-description {
+          font-size: 0.85rem;
+          margin: 0;
+          opacity: 0.95;
+          line-height: 1.4;
+        }
+
+        .banner-actions {
           display: flex;
+          align-items: center;
           gap: 0.75rem;
-          padding: 0 1.5rem 1.5rem 1.5rem;
-
-          button {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            font-family: var(--font-family-primary);
-            font-size: var(--font-size-sm);
-            font-weight: var(--font-weight-medium);
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-
-            &.cancel-btn {
-              background: #f3f4f6;
-              color: var(--text-secondary);
-              border: 1px solid #e5e7eb;
-
-              &:hover {
-                background: #e5e7eb;
-                color: var(--text-primary);
-              }
-            }
-
-            &.login-btn {
-              background: linear-gradient(135deg, #4A9782, #004030);
-              color: white;
-              box-shadow: 0 2px 4px rgba(74, 151, 130, 0.2);
-
-              &:hover {
-                background: linear-gradient(135deg, #004030, #4A9782);
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(74, 151, 130, 0.3);
-              }
-
-              &:active {
-                transform: translateY(0);
-              }
-            }
-          }
+          flex-shrink: 0;
         }
 
-        /* Responsive */
-        @media (max-width: 480px) {
-          .login-modal {
-            margin: 1rem;
-            width: calc(100% - 2rem);
+        .banner-login-btn {
+          background: white;
+          color: #004030;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          font-weight: 600;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .banner-login-btn:hover {
+          background: #f3f4f6;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .banner-close-btn {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          border: none;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          font-size: 1.25rem;
+          line-height: 1;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .banner-close-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+          .banner-content {
+            flex-wrap: wrap;
+            gap: 0.75rem;
           }
 
-          .modal-header,
-          .modal-body,
-          .modal-footer {
-            padding-left: 1rem;
-            padding-right: 1rem;
+          .banner-text {
+            flex-basis: 100%;
           }
 
-          .modal-footer {
-            flex-direction: column;
-            gap: 0.5rem;
+          .banner-actions {
+            flex: 1;
+            justify-content: flex-end;
+          }
 
-            button {
-              width: 100%;
-            }
+          .banner-title,
+          .banner-description {
+            font-size: 0.8rem;
+          }
+
+          .banner-login-btn {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
           }
         }
       `}</style>
+
     </div>
   )
 }

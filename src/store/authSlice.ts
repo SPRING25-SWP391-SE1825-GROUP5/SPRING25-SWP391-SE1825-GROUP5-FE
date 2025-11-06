@@ -5,6 +5,7 @@ import { AuthService } from '@/services/authService'
 export type User = {
   id: number | null
   userId?: number | null
+  customerId?: number | null
   fullName: string
   email: string
   role: string
@@ -184,7 +185,18 @@ const slice = createSlice({
           const data = payload.data ?? payload
           const token = data?.token ?? null
           const refreshToken = data?.refreshToken ?? null
-          const user = data?.user ?? null
+          const user = data?.user ? {
+            id: data.user.userId ?? data.user.id ?? data.userId ?? null,
+            userId: data.user.userId ?? data.user.id ?? data.userId ?? null,
+            customerId: data.customerId ?? data.user.customerId ?? null,
+            fullName: data.user.fullName ?? '',
+            email: data.user.email ?? '',
+            role: data.user.role ?? 'customer',
+            emailVerified: Boolean(data.user.emailVerified ?? false),
+            avatar: data.user.avatar ?? data.user.avatarUrl ?? null,
+            centerId: data.user.centerId ?? data.centerId ?? null,
+            centerName: data.user.centerName ?? data.centerName ?? null,
+          } : null
 
           state.token = token
           state.refreshToken = refreshToken
@@ -211,12 +223,17 @@ const slice = createSlice({
         const data = payload.data ?? payload
         const token = data?.accessToken ?? data?.token ?? null
         const refreshToken = data?.refreshToken ?? null
-        const user = data?.user ?? data?.userId ? {
-          id: data.userId,
-          fullName: data.fullName,
-          email: data.email,
-          role: data.role,
-          emailVerified: data.emailVerified ?? false
+        const user = data?.user ? {
+          id: data.user.userId ?? data.user.id ?? data.userId ?? null,
+          userId: data.user.userId ?? data.user.id ?? data.userId ?? null,
+          customerId: data.customerId ?? data.user.customerId ?? null,
+          fullName: data.user.fullName ?? '',
+          email: data.user.email ?? '',
+          role: data.user.role ?? 'customer',
+          emailVerified: Boolean(data.user.emailVerified ?? false),
+          avatar: data.user.avatar ?? data.user.avatarUrl ?? null,
+          centerId: data.user.centerId ?? data.centerId ?? null,
+          centerName: data.user.centerName ?? data.centerName ?? null,
         } : null
 
         state.token = token
@@ -239,7 +256,13 @@ const slice = createSlice({
       })
       .addCase(getCurrentUser.fulfilled, (state, action: PayloadAction<User | null>) => {
         state.loading = false
-        if (action.payload) state.user = action.payload
+        if (action.payload) {
+          state.user = action.payload
+          // Update localStorage to keep it in sync
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('user', JSON.stringify(action.payload))
+          }
+        }
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.loading = false

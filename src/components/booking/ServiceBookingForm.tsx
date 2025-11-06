@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { getCurrentUser, type User } from '@/store/authSlice'
@@ -9,11 +9,11 @@ import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
 import LocationTimeStep from './LocationTimeStep'
 import AccountStep from './AccountStep'
 import ConfirmationStep from './ConfirmationStep'
+import BookingSummary from './BookingSummary'
 import { VehicleService } from '@/services/vehicleService'
 import { CustomerService } from '@/services/customerService'
 import { ServiceManagementService } from '@/services/serviceManagementService'
-import { createBooking, createBookingPaymentLink, holdSlot, releaseHold } from '@/services/bookingFlowService'
-import { PayOSService } from '@/services/payOSService'
+import { createBooking, holdSlot, releaseHold } from '@/services/bookingFlowService'
 import { PromotionBookingService } from '@/services/promotionBookingService'
 
 // Types
@@ -35,6 +35,8 @@ interface VehicleInfo {
   brand?: string
   // Bảo dưỡng fields
   lastMaintenanceDate?: string
+  purchaseDate?: string // Ngày mua xe (dùng khi chưa bảo dưỡng)
+  hasMaintenanceHistory?: boolean // Đã bảo dưỡng chưa?
   // Sửa chữa fields
   vehicleCondition?: string
   repairChecklist?: string[]
@@ -87,9 +89,18 @@ interface ServiceBookingFormProps {
     promotionCode?: string
     discountAmount?: number
   }
+  showStepper?: boolean
+  externalStep?: number
+  onStateChange?: (state: { currentStep: number; completedSteps: number[]; isGuest: boolean }) => void
+  progressBarProps?: {
+    currentStep: number
+    completedSteps: number[]
+    onStepClick: (step: number) => void
+    isGuest: boolean
+  }
 }
 
-const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false }) => {
+const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode = false, showStepper = true, externalStep, onStateChange, progressBarProps }) => {
   const [currentStep, setCurrentStep] = useState(1)
   const [isGuest, setIsGuest] = useState(true) // Mặc định là khách vãng lai
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
@@ -98,7 +109,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const auth = useAppSelector((s) => s.auth)
   const dispatch = useAppDispatch()
-  
+
   const [bookingData, setBookingData] = useState<BookingData>({
     customerInfo: {
       fullName: '',
@@ -133,6 +144,21 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       discountAmount: 0
     }
   })
+  // Nhận điều hướng từ progressbar bên ngoài
+  useEffect(() => {
+    if (externalStep && externalStep !== currentStep) {
+      const maxSteps = isGuest ? 4 : 3
+      if (externalStep >= 1 && externalStep <= maxSteps) {
+        setCurrentStep(externalStep)
+      }
+    }
+  }, [externalStep, isGuest])
+
+  // Báo trạng thái ra ngoài để progressbar hiển thị đúng
+  useEffect(() => {
+    onStateChange?.({ currentStep, completedSteps, isGuest })
+  }, [currentStep, completedSteps, isGuest, onStateChange])
+
 
   // Đồng bộ trạng thái đăng nhập và tự điền thông tin khách hàng
   useEffect(() => {
@@ -146,15 +172,10 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     setIsGuest(!loggedIn)
 
     if (loggedIn && auth.user) {
-      console.log('Auth user data:', auth.user)
-      console.log('Auth user phoneNumber:', auth.user.phoneNumber)
-      
       // Nếu không có phoneNumber, gọi API để lấy profile đầy đủ
       if (!auth.user.phoneNumber) {
-        console.log('No phoneNumber in auth.user, fetching full profile...')
         dispatch(getCurrentUser()).then((result) => {
           if (result.payload) {
-            console.log('Full profile loaded:', result.payload)
             const user = result.payload as User
             setBookingData((prev) => ({
               ...prev,
@@ -192,7 +213,6 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           const firstServiceId = svcList.services[0]?.id
           setCurrentServiceId(firstServiceId)
         } catch (error) {
-          console.error('Error fetching services:', error)
           setCurrentServiceId(undefined)
         }
       } else {
@@ -275,37 +295,24 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
   }
 
   const updateBookingData = (section: keyof BookingData, data: Record<string, any>) => {
-    console.log(`updateBookingData - Section: ${section}, Data:`, data)
-    setBookingData(prev => {
-      const newData = {
+    setBookingData(prev => ({
         ...prev,
         [section]: { ...(prev[section] as any), ...data }
-      }
-      console.log(`updateBookingData - New bookingData:`, newData)
-      return newData
-    })
+    }))
   }
 
   const handleGuestCustomerCreated = (customerId: number) => {
-    console.log('Guest customer created with ID:', customerId)
-    setBookingData(prev => {
-      console.log('Setting guestCustomerId in bookingData:', customerId)
-      return {
+    setBookingData(prev => ({
         ...prev,
         guestCustomerId: customerId
-      }
-    })
+    }))
   }
 
   const handleSubmit = async () => {
     try {
-      console.log('=== STARTING BOOKING SUBMISSION ===')
-      console.log(' Booking data:', JSON.stringify(bookingData, null, 2))
-      console.log('guestCustomerId:', bookingData.guestCustomerId)
-      
       // Validate required fields first
       const validationErrors: string[] = []
-      
+
       if (!bookingData.customerInfo.fullName?.trim()) {
         validationErrors.push('Thiếu họ tên khách hàng')
       }
@@ -339,9 +346,8 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       if (!bookingData.locationTimeInfo.technicianSlotId) {
         validationErrors.push('Chưa chọn slot kỹ thuật viên')
       }
-      
+
       if (validationErrors.length > 0) {
-        console.error('Validation errors:', validationErrors)
         alert('Dữ liệu không hợp lệ:\n' + validationErrors.join('\n'))
         return
       }
@@ -351,7 +357,6 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       let ensuredGuestCustomerId: number | undefined = bookingData.guestCustomerId
       if (isGuest && !ensuredGuestCustomerId) {
         try {
-          console.log('Guest flow detected and no guestCustomerId. Creating quick customer...')
           const { fullName, phone, email } = bookingData.customerInfo
           if (!fullName || !phone || !email) {
             throw new Error('Thiếu thông tin khách hàng để tạo nhanh (họ tên/số điện thoại/email)')
@@ -369,7 +374,6 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           // Persist to bookingData for subsequent steps/navigation
           setBookingData(prev => ({ ...prev, guestCustomerId: createdId }))
         } catch (e) {
-          console.error('Failed to quick-create guest customer:', e)
           alert('Không thể tạo khách vãng lai. Vui lòng kiểm tra lại thông tin liên hệ hoặc thử lại.')
           return
         }
@@ -382,11 +386,10 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           const service = services.services?.find(s => s.id === Number(serviceId))
           return (await sum) + (service?.price || 0)
         } catch (error) {
-          console.error('Error fetching service price:', error)
           return await sum
         }
       }, Promise.resolve(0))
-      
+
       const finalTotalPrice = await totalPrice
       // apply promotion if available from ConfirmationStep persisted into bookingData
       const payableAmount = Math.max(0, finalTotalPrice - (bookingData.promotionInfo?.discountAmount || 0))
@@ -394,66 +397,52 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       console.log('Payable amount after promotion:', payableAmount)
 
       // Resolve current user -> customerId
-      console.log('Getting current customer...')
       let me: any = null
       if (!isGuest) {
         me = await CustomerService.getCurrentCustomer()
-        console.log('Current customer response:', me)
-      } else {
-        console.log('Skip getCurrentCustomer for guest flow')
       }
-      
+
       // Sử dụng guestCustomerId nếu có (khi staff tạo booking cho khách vãng lai)
       let customerId: number | null = null
       if (ensuredGuestCustomerId || bookingData.guestCustomerId) {
         customerId = ensuredGuestCustomerId ?? bookingData.guestCustomerId!
-        console.log('✅ Using guest customer ID:', customerId)
       } else {
         customerId = me?.data?.customerId || null
-        console.log('❌ Using staff customer ID:', customerId, '(guestCustomerId was:', bookingData.guestCustomerId, ')')
       }
-      
+
       if (!customerId) throw new Error('Không xác định được khách hàng')
 
       // Resolve vehicle: nếu đã có xe theo biển số -> dùng luôn, ngược lại tạo mới
       const license = bookingData.vehicleInfo.licensePlate.trim()
       if (!license) throw new Error('Thiếu biển số xe')
-      console.log('License plate:', license)
 
       // Thử lấy danh sách xe của khách và tìm theo biển số
       let vehicleId: number | null = null
       try {
-        console.log('Getting customer vehicles...')
         const list = await VehicleService.getCustomerVehicles(customerId)
-        console.log('Customer vehicles response:', list)
         const found = list?.data?.vehicles?.find?.((v: any) => (v.licensePlate || '').toLowerCase() === license.toLowerCase())
         if (found?.vehicleId) {
           vehicleId = Number(found.vehicleId)
-          console.log('Found existing vehicle ID:', vehicleId)
         }
       } catch (error) {
-        console.error('Error getting customer vehicles:', error)
+        // Silently fail, will try other methods
       }
 
       // Nếu chưa có, thử API search theo VIN/biển số
       if (!vehicleId) {
         try {
-          console.log('Searching vehicle by license...')
           const sr = await VehicleService.searchVehicle(license)
-          console.log('Vehicle search response:', sr)
           if (sr?.data?.vehicleId) {
             vehicleId = Number(sr.data.vehicleId)
-            console.log('Found vehicle by search ID:', vehicleId)
           }
         } catch (error) {
-          console.error('Error searching vehicle:', error)
+          // Silently fail, will create new vehicle
         }
       }
 
       // Nếu vẫn chưa có, tạo xe mới
       let createdNewVehicle = false
       if (!vehicleId) {
-        console.log('Creating new vehicle...')
         const createVeh = await VehicleService.createVehicle({
           customerId,
           vin: bookingData.vehicleInfo.carModel || 'UNKNOWN',
@@ -462,9 +451,8 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
           lastServiceDate: undefined,
           purchaseDate: undefined,
-          modelId: bookingData.vehicleInfo.modelId // Thêm modelId
+          modelId: bookingData.vehicleInfo.modelId
         })
-        console.log('Create vehicle response:', createVeh)
         vehicleId = Number(createVeh?.data?.vehicleId)
         console.log('Created vehicle ID:', vehicleId)
         createdNewVehicle = true
@@ -492,15 +480,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       if (bookingData.serviceInfo.services.length > 0) {
         // Get the selected service ID from bookingData.serviceInfo.services
         const selectedServiceIdStr = bookingData.serviceInfo.services[0]
-        console.log('Selected service ID string:', selectedServiceIdStr)
-        
+
         // Convert string to number
         const selectedServiceIdNum = Number(selectedServiceIdStr)
         if (!isNaN(selectedServiceIdNum) && selectedServiceIdNum > 0) {
           serviceId = selectedServiceIdNum
-          console.log('Using selected service ID:', serviceId)
         } else {
-          console.error('Invalid service ID:', selectedServiceIdStr)
           throw new Error('Dịch vụ không hợp lệ')
         }
       }
@@ -509,22 +494,17 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       if (!bookingData.locationTimeInfo.technicianSlotId || !bookingData.locationTimeInfo.centerId) {
         throw new Error('Thiếu slot hoặc trung tâm')
       }
-      
-      console.log('Location time info:', bookingData.locationTimeInfo)
-      console.log('Holding slot...')
-      
+
       try {
-        const hold = await holdSlot({
+        await holdSlot({
           centerId: Number(bookingData.locationTimeInfo.centerId),
           technicianSlotId: Number(bookingData.locationTimeInfo.technicianSlotId),
           technicianId: bookingData.locationTimeInfo.technicianId ? Number(bookingData.locationTimeInfo.technicianId) : 0,
           date: bookingData.locationTimeInfo.date
         })
-        console.log('Hold response:', hold)
       } catch (holdError: any) {
-        console.error('Hold slot error:', holdError)
         // Check if it's a slot conflict error
-        if (holdError.response?.data?.message?.includes('Slot đang được giữ bởi người khác') || 
+        if (holdError.response?.data?.message?.includes('Slot đang được giữ bởi người khác') ||
             holdError.message?.includes('Slot đang được giữ bởi người khác')) {
           setSubmitError('Slot này đang được giữ bởi người khác. Vui lòng chọn slot khác hoặc thử lại sau.')
           setIsSubmitting(false)
@@ -550,16 +530,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         currentMileage: Number(bookingData.vehicleInfo.mileage || 0),
         licensePlate: bookingData.vehicleInfo.licensePlate
       }
-       console.log('Creating booking with data:', bookingPayload)
+
        const resp = await createBooking(bookingPayload)
-       console.log('Booking created successfully:', resp)
 
        // Extract bookingId from response - check different possible structures
        let bookingId: string | null = null
-       
-       // Log full response to debug
-       console.log('Full booking response:', JSON.stringify(resp, null, 2))
-       
+
        // Try different possible response structures
        if (resp && typeof resp === 'object') {
          // Direct properties
@@ -576,17 +552,8 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
            }
          }
        }
-       
-       console.log('Extracted booking ID:', bookingId)
-       console.log('Full response data:', resp.data)
-       
+
        if (!bookingId) {
-         console.error('Invalid booking ID:', bookingId, 'from response:', resp)
-         console.log('Response structure:', {
-           hasData: !!resp.data,
-           dataKeys: resp.data ? Object.keys(resp.data) : 'no data',
-           dataValues: resp.data
-         })
          // Redirect to booking success page even without valid booking ID
          const fallbackUrl = `/booking-success?bookingId=unknown&amount=${finalTotalPrice}`
          window.location.href = fallbackUrl
@@ -613,33 +580,20 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         console.warn('Apply promotion failed (continue with client-side discount + server safety-net):', applyErr)
       }
 
-      // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
-      console.log('Creating PayOS payment link for booking ID:', bookingId)
-      const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId), Math.round(payableAmount))
-      
-      if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
-        console.log('PayOS payment link created successfully:', paymentResponse.data.checkoutUrl)
-        
-        // Redirect trực tiếp đến PayOS checkout - đơn giản như ban đầu
-        console.log('Redirecting to PayOS checkout...')
-        window.location.href = paymentResponse.data.checkoutUrl
-        
-        // Đánh dấu bước cuối cùng là completed khi booking được tạo thành công
+      // Bỏ thanh toán: điều hướng tới trang thành công và thông báo đặt lịch xong (status PENDING)
+      try {
         const finalStep = isGuest ? 4 : 3
         setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
-      } else {
-        console.error('Failed to create PayOS payment link:', paymentResponse.message)
-        setSubmitError('Không thể tạo link thanh toán: ' + (paymentResponse.message || 'Lỗi không xác định'))
-      }
+      } catch {}
+
+      // Điều hướng trang thành công, truyền bookingId và số tiền để hiển thị nếu cần
+      window.location.href = `/booking-success?bookingId=${encodeURIComponent(bookingId)}&amount=${encodeURIComponent(payableAmount)}`
       return
-    } catch (error: any) {
-      console.error('Error submitting booking:', error)
-      console.error('Error response:', error.response?.data)
-      console.error('Error status:', error.response?.status)
-      console.error('Error message:', error.message)
-      
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string }
+
       // Show user-friendly error message directly on the page
-      const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đặt lịch'
+      const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi tạo đặt lịch'
       setSubmitError(errorMessage)
     } finally {
       setIsSubmitting(false)
@@ -744,13 +698,70 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
     }
   }
 
+  // refs để giới hạn chiều cao summary theo vùng nội dung
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const summaryFixedRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const TOP_OFFSET = 120 // khớp với CSS top của summary fixed
+    const updateSummaryMaxHeight = () => {
+      const contentEl = contentRef.current
+      const summaryEl = summaryFixedRef.current
+      if (!contentEl || !summaryEl) return
+      const contentRect = contentEl.getBoundingClientRect()
+      // Giới hạn tổng: không vượt quá chiều cao nội dung booking và không vượt quá viewport khả dụng
+      const viewportCap = Math.max(200, window.innerHeight - (TOP_OFFSET + 20))
+      const contentCap = Math.max(200, contentRect.height)
+      const maxH = Math.min(viewportCap, contentCap)
+      summaryEl.style.setProperty('--summary-max-height', `${Math.floor(maxH)}px`)
+    }
+    updateSummaryMaxHeight()
+    const onResize = () => updateSummaryMaxHeight()
+    const onImagesLoad = () => updateSummaryMaxHeight()
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    // Khi nội dung form thay đổi (bước khác), chờ next tick rồi đo lại
+    const id = setTimeout(updateSummaryMaxHeight, 0)
+    // fallback khi hình ảnh/maps load trễ
+    window.addEventListener('load', onImagesLoad)
+    return () => {
+      clearTimeout(id)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+      window.removeEventListener('load', onImagesLoad)
+    }
+  }, [currentStep])
+
+  const isConfirmationStep = isGuest ? currentStep === 4 : currentStep === 3
+
   return (
-    <div className="service-booking-form">
+    <div className="service-booking-form" style={{ paddingRight: isConfirmationStep ? 0 : undefined }}>
       {/* Header */}
       <div className="booking-header">
         <h1 className="booking-title">ĐẶT LỊCH DỊCH VỤ</h1>
-        <p className="booking-subtitle">Điền thông tin để đặt lịch dịch vụ xe điện</p>
       </div>
+
+      {/* Progress Bar dưới tiêu đề */}
+      {progressBarProps && (
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '0.75rem 1.25rem',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ maxWidth: '900px', width: '100%' }}>
+            <StepsProgressIndicator
+              currentStep={progressBarProps.currentStep}
+              completedSteps={progressBarProps.completedSteps}
+              onStepClick={progressBarProps.onStepClick}
+              isGuest={progressBarProps.isGuest}
+              orientation="horizontal"
+              size="compact"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {submitError && (
@@ -761,7 +772,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               <h3>Không thể đặt lịch</h3>
               <p>{submitError}</p>
             </div>
-            <button 
+            <button
               className="error-close"
               onClick={() => setSubmitError(null)}
             >
@@ -771,32 +782,104 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         </div>
       )}
 
-      {/* Steps Progress Indicator */}
-      <StepsProgressIndicator
-        currentStep={currentStep}
-        completedSteps={completedSteps}
-        onStepClick={handleStepClick}
-        isGuest={isGuest}
-      />
+      {/* Layout mới: Progress bar ngang ở trên, Form bên trái, Summary bên phải */}
+      {showStepper && (
+        <StepsProgressIndicator
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepClick={handleStepClick}
+          isGuest={isGuest}
+          orientation="horizontal"
+          size="default"
+        />
+      )}
 
-      {/* Current Step Content */}
-      <div className="booking-content">
-        {renderCurrentStep()}
+      <div className="booking-body">
+        <div className="booking-content" ref={contentRef}>
+          {renderCurrentStep()}
+        </div>
+        {/* Summary chỉ hiển thị trước bước xác nhận */}
+        {!isConfirmationStep && (
+          <div className="summary-spacer">
+            <div className="booking-summary-inline">
+              <BookingSummary
+                customerInfo={isGuest ? bookingData.customerInfo : undefined}
+                vehicleInfo={bookingData.vehicleInfo}
+                serviceInfo={bookingData.serviceInfo}
+                locationTimeInfo={bookingData.locationTimeInfo}
+                isGuest={isGuest}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Bỏ bản fixed; dùng sticky trong cột phải của booking-body */}
 
       {/* CSS Styles */}
       <style>{`
         .service-booking-form {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 2rem;
-          background: var(--bg-card);
+          width: 100%;
+          max-width: 100%;
+          margin: 0;
+          padding: 0;
+          background: transparent;
           min-height: 100vh;
+          box-sizing: border-box;
+          position: relative;
+          left: 0;
+          right: 0;
         }
 
         .booking-header {
           text-align: center;
-          margin-bottom: 3rem;
+          margin-bottom: 2rem;
+          padding: 1.5rem 1.25rem 0 1.25rem;
+        }
+
+        .booking-body {
+          display: grid;
+          grid-template-columns:6.5fr 2fr;
+          gap: 1.5rem;
+          align-items: start;
+          padding: 1.25rem;
+        }
+
+        /* Spacer cột phải để giữ layout 2 cột */
+        .summary-spacer { min-height: 1px; }
+
+        /* Inline summary hiển thị cả desktop, sticky xử lý trong BookingSummary */
+        .booking-summary-inline { display: block; }
+
+        /* Responsive */
+        @media (max-width: 1280px) {
+        }
+
+        @media (max-width: 1024px) {
+          .booking-body { grid-template-columns: 1fr; }
+          .booking-summary-inline { display: block; }
+          .service-booking-form { padding-right: 0; }
+        }
+
+        .booking-summary-sidebar {
+          position: sticky;
+          top: 80px; // chừa khoảng cho tiêu đề/progressbar
+          align-self: start;
+          z-index: 2;
+          height: fit-content;
+          max-height: calc(100vh - 100px);
+          overflow: auto;
+        }
+
+        .booking-content {
+          background: rgba(255, 255, 255, 0.18);
+          border-radius: 18px;
+          padding: 2rem;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.28);
+          backdrop-filter: blur(14px) saturate(160%);
+          -webkit-backdrop-filter: blur(14px) saturate(160%);
+          z-index: 1; // tránh chồng lấn lên sidebar
         }
 
         .booking-title {
@@ -865,23 +948,24 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           background: #fecaca;
         }
 
-        .booking-content {
-          background: var(--bg-card);
-          border-radius: 16px;
-          padding: 2rem;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          border: 1px solid var(--border-primary);
-        }
-
         @media (max-width: 768px) {
           .service-booking-form {
-            padding: 1rem;
+            padding: 0;
           }
-          
+
+          .booking-header {
+            padding: 1rem 1rem 0 1rem;
+          }
+
+          .booking-body {
+            padding: 1rem;
+            display: block;
+          }
+
           .booking-title {
             font-size: 1.5rem;
           }
-          
+
           .booking-content {
             padding: 1.5rem;
           }
