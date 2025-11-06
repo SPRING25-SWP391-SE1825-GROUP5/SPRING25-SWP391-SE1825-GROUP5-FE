@@ -7,6 +7,8 @@ interface PartsApprovalProps {
   workOrderPartId: number // ID của work order part (bắt buộc)
   partId?: number // ID của part (optional, chỉ để hiển thị)
   partName?: string
+  unitPrice?: number
+  quantity?: number
   defaultNote?: string
   onApproved?: (approved: boolean) => void
   mode?: 'customer' | 'staff' // Mode: customer hoặc staff
@@ -18,6 +20,8 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
   workOrderPartId, 
   partId, // Giữ lại để backward compatible
   partName, 
+  unitPrice,
+  quantity,
   defaultNote, 
   onApproved,
   mode = 'customer', // Mặc định là customer mode
@@ -77,6 +81,21 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
       <div style={{ fontWeight: 700, marginBottom: 8 }}>Phê duyệt thay thế phụ tùng</div>
       {partName && (
         <div style={{ marginBottom: 8, color: 'var(--text-secondary)' }}>Phụ tùng: <strong style={{ color: 'var(--text-primary)' }}>{partName}</strong></div>
+      )}
+      {(unitPrice !== undefined || quantity !== undefined) && (
+        <div style={{ marginBottom: 8, color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {unitPrice !== undefined && (
+              <span>Đơn giá: <strong style={{ color: 'var(--text-primary)' }}>{(unitPrice || 0).toLocaleString('vi-VN')} VNĐ</strong></span>
+            )}
+            {quantity !== undefined && (
+              <span>Số lượng: <strong style={{ color: 'var(--text-primary)' }}>{quantity}</strong></span>
+            )}
+            {unitPrice !== undefined && quantity !== undefined && (
+              <span>Thành tiền: <strong style={{ color: 'var(--text-primary)' }}>{((unitPrice || 0) * (quantity || 0)).toLocaleString('vi-VN')} VNĐ</strong></span>
+            )}
+          </div>
+        </div>
       )}
       
       {/* Hiển thị trạng thái nếu đã được tiêu thụ hoặc từ chối */}

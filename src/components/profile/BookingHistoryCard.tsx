@@ -1,5 +1,6 @@
 import type { CustomerBooking } from '@/services/bookingService'
 import { BookingService } from '@/services/bookingService'
+import { WorkOrderPartService } from '@/services/workOrderPartService'
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 
@@ -20,6 +21,7 @@ interface BookingPart {
   partName: string
   quantityUsed: number
   status: string
+  unitPrice?: number
 }
 
 const formatDate = (dateString: string) => {
@@ -93,9 +95,22 @@ export default function BookingHistoryCard({
   const loadParts = async () => {
     try {
       setLoadingParts(true)
-      const response = await BookingService.getBookingParts(booking.bookingId)
-      if (response.success && response.data) {
-        setParts(response.data.items || [])
+      // Ưu tiên lấy từ WorkOrderPartService để có unitPrice/quantity chính xác
+      const items = await WorkOrderPartService.list(Number(booking.bookingId))
+      if (Array.isArray(items) && items.length > 0) {
+        setParts(items.map(it => ({
+          workOrderPartId: it.id,
+          partId: it.partId,
+          partName: it.partName || '',
+          quantityUsed: it.quantity,
+          status: it.status || 'DRAFT',
+          unitPrice: it.unitPrice
+        })))
+      } else {
+        const response = await BookingService.getBookingParts(booking.bookingId)
+        if (response.success && response.data) {
+          setParts(response.data.items || [])
+        }
       }
     } catch (error) {
       console.error('Error loading parts:', error)
@@ -541,6 +556,8 @@ export default function BookingHistoryCard({
                       <tr style={{ background: '#f9fafb' }}>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
                         <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Số lượng</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Đơn giá</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Thành tiền</th>
                         <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Trạng thái</th>
                         <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Hành động</th>
                       </tr>
@@ -550,6 +567,8 @@ export default function BookingHistoryCard({
                         <tr key={part.workOrderPartId} style={{ borderBottom: '1px solid #e5e7eb' }}>
                           <td style={{ padding: '12px', fontSize: '14px', color: '#374151' }}>{part.partName}</td>
                           <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#374151' }}>{part.quantityUsed}</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#374151' }}>{part.unitPrice !== undefined ? `${Number(part.unitPrice || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#111827', fontWeight: 600 }}>{part.unitPrice !== undefined ? `${Number((part.unitPrice || 0) * (part.quantityUsed || 0)).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
                             <span style={{
                               display: 'inline-block',
