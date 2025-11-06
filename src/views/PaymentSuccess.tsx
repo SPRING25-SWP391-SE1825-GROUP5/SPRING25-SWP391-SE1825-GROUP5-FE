@@ -295,7 +295,7 @@ export default function PaymentSuccess() {
               <div className="services-section">
                 <h3 className="services-title">Dịch vụ đã đặt</h3>
                 <div className="space-y-2">
-                  {paymentResult.bookingInfo.services.map((service, index) => (
+                  {(paymentResult.bookingInfo.services || []).map((service, index) => (
                     <div key={index} className="service-item">
                       <div className="service-info">
                         <p className="service-name">{service.serviceName}</p>
