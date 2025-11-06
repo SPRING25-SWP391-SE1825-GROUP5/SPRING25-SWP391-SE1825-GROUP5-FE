@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { OrderService, PromotionService, CustomerService } from '@/services'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { OrderService } from '@/services'
 import './order-confirmation.scss'
 import toast from 'react-hot-toast'
 
@@ -21,22 +21,17 @@ type OrderDetail = {
 }
 
 export default function OrderConfirmationPage() {
-  const { orderId: orderIdParam } = useParams()
   const location = useLocation() as { state?: { orderId?: number } }
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [applying, setApplying] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
-  const [couponCode, setCouponCode] = useState('')
   const [discount, setDiscount] = useState<number>(0)
-  const [savedPromos, setSavedPromos] = useState<Array<{ code?: string; description?: string; discountAmount?: number; status?: string }>>([])
-  const [couponError, setCouponError] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
       const idFromState = location?.state?.orderId
       const idFromSession = sessionStorage.getItem('currentOrderId')
-      const resolvedId = Number(idFromState ?? orderIdParam ?? idFromSession)
+      const resolvedId = Number(idFromState ?? idFromSession)
       if (!resolvedId || Number.isNaN(resolvedId)) {
         toast.error('Không xác định được đơn hàng')
         navigate('/')
@@ -111,89 +106,14 @@ export default function OrderConfirmationPage() {
       }
     }
     load()
-  }, [orderIdParam, location?.state?.orderId])
-
-  // Load saved promotions of current customer - Hiển thị các mã chưa sử dụng (SAVED và APPLIED)
-  // Không hiển thị USED (đã sử dụng = đã thanh toán thành công)
-  useEffect(() => {
-    const loadSaved = async () => {
-      try {
-        const me = await CustomerService.getCurrentCustomer()
-        const cid = me?.data?.customerId
-        if (!cid) return
-        const promos = await PromotionService.getSavedPromotionsByCustomer(Number(cid))
-        if (promos?.success && Array.isArray(promos?.data)) {
-          // Hiển thị promotions có status = "SAVED" hoặc "APPLIED" (có thể sử dụng)
-          // Không hiển thị "USED" (đã sử dụng)
-          const availablePromos = promos.data.filter((p: any) => {
-            const status = String(p.status || '').toUpperCase()
-            return status === 'SAVED' || status === 'APPLIED' // Hiển thị các mã chưa sử dụng
-          })
-          setSavedPromos(availablePromos)
-        }
-      } catch {
-        // ignore silently
-      }
-    }
-    loadSaved()
-  }, [])
-
-  // Load applied coupon code từ sessionStorage khi reload
-  useEffect(() => {
-    const orderId = order?.orderId || Number(sessionStorage.getItem('currentOrderId'))
-    if (orderId) {
-      const savedCoupon = sessionStorage.getItem(`appliedCoupon_${orderId}`)
-      if (savedCoupon) {
-        setCouponCode(savedCoupon)
-      }
-    }
-  }, [order])
-
-  const applyCoupon = async () => {
-    const id = order?.orderId || Number(sessionStorage.getItem('currentOrderId'))
-    if (!id) return
-    if (!couponCode.trim()) {
-      const msg = 'Vui lòng nhập mã khuyến mãi'
-      setCouponError(msg)
-      toast.error(msg)
-      return
-    }
-    try {
-      setApplying(true)
-      // Chỉ validate để không đánh dấu sử dụng trước thanh toán
-      const resp = await PromotionService.validatePublic(couponCode.trim(), order?.subtotal ?? 0, 'ORDER')
-      if (resp?.success && (resp?.data?.isValid ?? true)) {
-        const discountAmount = Number(resp?.data?.discountAmount ?? 0)
-        setDiscount(discountAmount)
-        if (order) {
-          const newTotal = Math.max(0, order.subtotal - discountAmount)
-          setOrder({ ...order, discount: discountAmount, total: newTotal, couponCode: couponCode.trim() })
-        }
-        setCouponError(null)
-        // Lưu mã vào sessionStorage để giữ khi reload trang
-        const orderId = order?.orderId || Number(sessionStorage.getItem('currentOrderId'))
-        if (orderId) {
-          sessionStorage.setItem(`appliedCoupon_${orderId}`, couponCode.trim())
-          sessionStorage.setItem('pendingCouponCode', couponCode.trim())
-        }
-        toast.success('Mã hợp lệ. Sẽ áp dụng khi thanh toán thành công')
-      } else {
-        const msg = resp?.message || 'Không thể áp dụng mã khuyến mãi'
-        setCouponError(msg)
-        toast.error(msg)
-      }
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.userMessage || e?.message || 'Lỗi áp dụng mã khuyến mãi'
-      setCouponError(msg)
-      toast.error(msg)
-    } finally {
-      setApplying(false)
-    }
-  }
+  }, [location?.state?.orderId, navigate])
 
   const goToPayment = async () => {
     const id = order?.orderId || Number(sessionStorage.getItem('currentOrderId'))
-    if (!id) return
+    if (!id) {
+      toast.error('Không xác định được đơn hàng')
+      return
+    }
 
     try {
       // Ưu tiên dùng checkoutUrl đã cache trong session để đi nhanh
@@ -205,12 +125,15 @@ export default function OrderConfirmationPage() {
 
       // Gọi tạo link thanh toán PayOS
       const createResp = await OrderService.checkoutOnline(Number(id))
-      let checkoutUrl = (createResp as any)?.checkoutUrl
+      console.log('OrderConfirmationPage - checkoutOnline response:', createResp)
+      
+      let checkoutUrl = createResp?.checkoutUrl
 
       // Nếu BE trả báo đã tồn tại/không có link, thử lấy link hiện có
       if (!checkoutUrl) {
         const linkResp = await OrderService.getPaymentLink(Number(id))
-        checkoutUrl = (linkResp as any)?.checkoutUrl
+        console.log('OrderConfirmationPage - getPaymentLink response:', linkResp)
+        checkoutUrl = linkResp?.checkoutUrl
       }
 
       if (checkoutUrl) {
@@ -219,9 +142,13 @@ export default function OrderConfirmationPage() {
         return
       }
 
-      toast.error(createResp?.message || 'Không lấy được link thanh toán')
+      const errorMsg = createResp?.message || 'Không lấy được link thanh toán'
+      console.error('OrderConfirmationPage - Failed to get checkout URL:', { id, createResp })
+      toast.error(errorMsg)
     } catch (e: any) {
-      toast.error(e?.userMessage || e?.message || 'Lỗi chuyển hướng thanh toán')
+      console.error('OrderConfirmationPage - Error in goToPayment:', e)
+      const errorMsg = e?.response?.data?.message || e?.userMessage || e?.message || 'Lỗi chuyển hướng thanh toán'
+      toast.error(errorMsg)
     }
   }
 
@@ -267,48 +194,6 @@ export default function OrderConfirmationPage() {
           <div className="item-meta" style={{ padding: '8px 0' }}>Chưa có sản phẩm trong đơn hàng</div>
         )}
 
-            <div style={{ marginTop: 24 }}>
-              <div className="section-title">Mã khuyến mãi</div>
-              <div className="coupon-row">
-                <input
-                  className={`input${couponError ? ' input--error' : ''}`}
-                  placeholder="Nhập mã khuyến mãi"
-                  value={couponCode}
-                  onChange={(e) => { setCouponCode(e.target.value); if (couponError) setCouponError(null) }}
-                />
-                <button className="btn-primary" disabled={applying || loading} onClick={applyCoupon}>
-                  {applying ? 'Đang áp dụng...' : 'Áp dụng'}
-                </button>
-              </div>
-              {couponError && (
-                <div className="item-meta" style={{ color: 'var(--error-600)', marginTop: 8, minHeight: '20px' }}>
-                  {couponError}
-                </div>
-              )}
-              {!couponError && <div style={{ minHeight: '20px', marginTop: 8 }}></div>}
-              <div style={{ marginTop: 16 }}>
-                <div className="item-meta" style={{ marginBottom: 8 }}>Mã đã lưu:</div>
-                {savedPromos && savedPromos.length > 0 ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, minHeight: '36px' }}>
-                    {savedPromos.map((p, i) => (
-                      <button
-                        key={`${p.code}-${i}`}
-                        className="btn-primary"
-                        style={{ padding: '6px 12px', borderRadius: 9999, backgroundColor: 'var(--secondary-500)', borderColor: 'var(--secondary-500)', fontSize: '13px' }}
-                        onClick={() => { setCouponCode(String(p.code || '')); setCouponError(null) }}
-                        title={p.description || ''}
-                      >
-                        {p.code}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ minHeight: '36px', display: 'flex', alignItems: 'center' }}>
-                    <span className="item-meta" style={{ color: 'var(--text-secondary)' }}>Chưa có mã khuyến mãi đã lưu</span>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           <div className="section section--spaced">

@@ -80,7 +80,6 @@ const router = createBrowserRouter([
       { path: 'contact', element: suspense(<ProtectedContact />) },
       { path: 'booking', element: suspense(<ServiceBookingView />) },
       { path: 'confirm-order', element: <RequireEmailVerified>{suspense(<OrderConfirmationPage />)}</RequireEmailVerified> },
-      { path: 'confirm-order/:orderId', element: <RequireEmailVerified>{suspense(<OrderConfirmationPage />)}</RequireEmailVerified> },
       { path: 'booking-success', element: suspense(<BookingSuccess />) },
       { path: 'payment-success', element: suspense(<PaymentSuccess />) },
       { path: 'payment-cancel', element: suspense(<PaymentCancel />) },
