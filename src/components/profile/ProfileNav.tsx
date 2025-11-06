@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 export type ProfileTabKey =
+  | 'overview'
   | 'info'
   | 'vehicles'
   | 'history'
