@@ -91,9 +91,10 @@ export default function Cart() {
       return
     }
 
-    if (!auth.user?.customerId) {
+    // Kiểm tra user đã đăng nhập chưa
+    if (!auth.user || !auth.token) {
       toast.error('Vui lòng đăng nhập để tiếp tục')
-      navigate('/auth/login')
+      navigate('/auth/login', { state: { redirect: '/cart' } })
       return
     }
 
@@ -103,10 +104,24 @@ export default function Cart() {
       // Get customerId from user or fetch from API
       let customerId = auth.user.customerId
       if (!customerId) {
-        const me = await CustomerService.getCurrentCustomer()
-        customerId = me?.data?.customerId
-        if (!customerId) {
-          toast.error('Không tìm thấy thông tin khách hàng')
+        try {
+          const me = await CustomerService.getCurrentCustomer()
+          if (me?.success && me?.data?.customerId) {
+            customerId = me.data.customerId
+          } else {
+            toast.error('Không tìm thấy thông tin khách hàng. Vui lòng đăng nhập lại.')
+            navigate('/auth/login', { state: { redirect: '/cart' } })
+            return
+          }
+        } catch (customerError: any) {
+          console.error('Error fetching customer:', customerError)
+          // Nếu lỗi 401, user đã bị logout bởi interceptor
+          if (customerError?.response?.status === 401 || customerError?.isAuthError) {
+            toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+            navigate('/auth/login', { state: { redirect: '/cart' } })
+            return
+          }
+          toast.error('Không thể lấy thông tin khách hàng. Vui lòng thử lại.')
           return
         }
       }
@@ -125,6 +140,10 @@ export default function Cart() {
       if (response.success) {
         const orderId = response.data?.orderId ?? response.data?.OrderId ?? response.data?.id
         if (orderId) {
+          // Lưu selectedIds vào sessionStorage để xóa khỏi cart sau khi thanh toán thành công
+          const orderIdStr = String(orderId)
+          sessionStorage.setItem(`orderSelectedIds_${orderIdStr}`, JSON.stringify(Array.from(selectedIds)))
+          
           toast.success('Tạo đơn hàng thành công')
           // Navigate to order confirmation page
           navigate(`/confirm-order/${orderId}`, { state: { orderId: Number(orderId) } })
@@ -136,7 +155,17 @@ export default function Cart() {
       }
     } catch (error: any) {
       console.error('Error creating order:', error)
-      toast.error(error?.response?.data?.message || error?.message || 'Có lỗi khi tạo đơn hàng')
+      
+      // Xử lý lỗi authentication
+      if (error?.response?.status === 401 || error?.isAuthError) {
+        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+        navigate('/auth/login', { state: { redirect: '/cart' } })
+        return
+      }
+      
+      // Xử lý các lỗi khác
+      const errorMessage = error?.response?.data?.message || error?.userMessage || error?.message || 'Có lỗi khi tạo đơn hàng'
+      toast.error(errorMessage)
     } finally {
       setIsCreatingOrder(false)
     }
