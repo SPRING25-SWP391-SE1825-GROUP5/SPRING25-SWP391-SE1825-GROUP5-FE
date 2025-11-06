@@ -94,10 +94,10 @@ export default function PaymentPage() {
             appliedDiscount = promoResp.data.data.reduce((sum: number, p: any) => {
               return sum + (Number(p.discountAmount ?? p.DiscountAmount ?? 0))
             }, 0)
-            console.log('PaymentPage - Found applied promotions in backend:', appliedDiscount)
+
           }
         } catch (e) {
-          console.warn('PaymentPage - No promotions applied in backend yet (expected if not paid)')
+          ')
         }
         
         // Nếu không có discount từ backend và có pendingCouponCode, validate lại để tính discount
@@ -107,37 +107,20 @@ export default function PaymentPage() {
             const validateResp = await PromotionService.validatePublic(pendingCouponCode, subtotal, 'ORDER')
             if (validateResp?.success && validateResp?.data?.isValid) {
               appliedDiscount = Number(validateResp?.data?.discountAmount ?? 0)
-              console.log('PaymentPage - Calculated discount from validated coupon:', appliedDiscount)
+
             }
           } catch (e) {
-            console.warn('PaymentPage - Failed to validate coupon for discount calculation:', e)
+
           }
         }
         
         // Tính discount: dùng appliedDiscount đã tính ở trên (từ backend hoặc validate)
         // Nếu không có, lấy từ order (fallback)
         let discount = appliedDiscount > 0 ? appliedDiscount : Number(o.DiscountAmount ?? o.discountAmount ?? 0)
-        
-        console.log('PaymentPage - Order data from API:', {
-          DiscountAmount: o.DiscountAmount,
-          discountAmount: o.discountAmount,
-          TotalAmount: o.TotalAmount,
-          totalAmount: o.totalAmount,
-          calculatedDiscount: discount,
-          appliedDiscountFromPromotions: appliedDiscount,
-        })
-        
+
         // LUÔN tính total = subtotal - discount (không dùng TotalAmount từ API vì có thể không chính xác)
         const total = Math.max(0, subtotal - discount)
-        
-        console.log('PaymentPage - Calculated values:', {
-          subtotal,
-          discount,
-          total,
-          calculated: subtotal - discount,
-          apiTotalAmount: o.TotalAmount ?? o.totalAmount,
-        })
-        
+
         const finalOrder = {
           orderId: o.OrderId ?? o.orderId ?? o.Id ?? resolvedId,
           orderNumber: o.OrderNumber ?? o.orderNumber,
@@ -147,8 +130,7 @@ export default function PaymentPage() {
           discount,
           total,
         }
-        
-        console.log('PaymentPage - Final order:', finalOrder)
+
         setOrder(finalOrder)
         
         // Tự động tạo payment link/QR code với giá cuối cùng đã áp mã giảm giá
@@ -181,7 +163,7 @@ export default function PaymentPage() {
               setShowQR(true)
             }
           } catch (qrError) {
-            console.warn('Could not get QR code, using checkout URL only:', qrError)
+
             // Vẫn có checkoutUrl, hiển thị link
             setShowQR(true)
           }
@@ -209,7 +191,7 @@ export default function PaymentPage() {
             }
           } catch {}
         } else {
-          console.error('Error creating payment link:', e)
+
         }
       } finally {
         setProcessing(false)
@@ -240,7 +222,7 @@ export default function PaymentPage() {
             setQrCode(qrResp.data.qrCode)
           }
         } catch (qrError) {
-          console.warn('Could not get QR code:', qrError)
+
         }
         setShowQR(true)
       } else {

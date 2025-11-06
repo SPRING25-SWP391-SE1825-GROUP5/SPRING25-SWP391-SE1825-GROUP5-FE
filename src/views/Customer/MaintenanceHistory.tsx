@@ -23,7 +23,7 @@ export default function MaintenanceHistory() {
       setBookings(data)
     } catch (err: any) {
       setError('Không thể tải dữ liệu lịch sử bảo dưỡng')
-      console.error('Error loading bookings:', err)
+
     } finally {
       setLoading(false)
     }
@@ -41,7 +41,7 @@ export default function MaintenanceHistory() {
       await loadBookings()
     } catch (err: any) {
       setError('Không thể gửi đánh giá')
-      console.error('Error submitting feedback:', err)
+
     }
   }
 
@@ -53,7 +53,7 @@ export default function MaintenanceHistory() {
       await loadBookings()
     } catch (err: any) {
       setError('Không thể cập nhật đánh giá')
-      console.error('Error updating feedback:', err)
+
     }
   }
 

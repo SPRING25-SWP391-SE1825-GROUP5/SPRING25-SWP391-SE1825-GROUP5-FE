@@ -1,15 +1,11 @@
 /**
  * ChatInterface - Trang nhắn tin đầy đủ với giao diện 3 cột
- * 
- * Đây là trang chat đầy đủ tính năng, khác biệt hoàn toàn với:
- * - ChatWidget: Hộp thoại tin nhắn nhỏ ở góc màn hình
- * 
+ *
  * Tính năng:
  * - Giao diện 3 cột: danh sách cuộc trò chuyện, khu vực chat, thông tin đối phương
  * - Quản lý nhiều cuộc trò chuyện
  * - Tìm kiếm cuộc trò chuyện
  * - Thông tin chi tiết về người dùng
- * - State riêng biệt, không ảnh hưởng đến ChatWidget
  */
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
@@ -25,7 +21,7 @@ const ChatInterface: React.FC = () => {
   const dispatch = useAppDispatch()
   const [showInfo, setShowInfo] = useState(false)
   const [showNewChatModal, setShowNewChatModal] = useState(false)
-  
+
   const authUser = useAppSelector((state) => state.auth.user)
   const { conversations, activeConversationId } = useAppSelector((state) => state.chat)
   const selectedConversation = conversations.find(conv => conv.id === activeConversationId) || null
@@ -41,14 +37,14 @@ const ChatInterface: React.FC = () => {
       }
     }
     // Guest user: sử dụng guestSessionId từ localStorage
-    const guestSessionId = typeof localStorage !== 'undefined' 
+    const guestSessionId = typeof localStorage !== 'undefined'
       ? localStorage.getItem('guestSessionId') || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       : `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
+
     if (typeof localStorage !== 'undefined' && !localStorage.getItem('guestSessionId')) {
       localStorage.setItem('guestSessionId', guestSessionId)
     }
-    
+
     return {
       id: guestSessionId,
       name: 'Khách',
@@ -73,7 +69,7 @@ const ChatInterface: React.FC = () => {
         dispatch(setActiveConversation(convs[0].id))
       }
     } catch (error) {
-      console.error('Error loading conversations:', error)
+
     }
   }
 
@@ -94,7 +90,7 @@ const ChatInterface: React.FC = () => {
         setShowInfo(false)
       }
     } catch (error) {
-      console.error('Error creating new chat:', error)
+
     }
   }
 
@@ -152,7 +148,7 @@ const ChatInterface: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h3>Tạo cuộc trò chuyện mới</h3>
-              <button 
+              <button
                 className="close-btn"
                 onClick={() => setShowNewChatModal(false)}
               >

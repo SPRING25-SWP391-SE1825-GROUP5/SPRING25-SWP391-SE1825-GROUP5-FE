@@ -55,7 +55,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
       dispatch(setConversations(response))
     } catch (err: any) {
       setError('Không thể tải danh sách cuộc trò chuyện')
-      console.error('Error loading conversations:', err)
+
     } finally {
       setIsLoading(false)
     }
@@ -68,7 +68,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
       dispatch(setMessages({ conversationId, messages: response }))
     } catch (err: any) {
       setError('Không thể tải tin nhắn')
-      console.error('Error loading messages:', err)
+
     } finally {
       setIsLoading(false)
     }
@@ -93,7 +93,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
       dispatch(addMessage({ conversationId: activeConversationId, message: newMessage }))
     } catch (err: any) {
       setError('Không thể gửi tin nhắn')
-      console.error('Error sending message:', err)
+
     }
   }
 

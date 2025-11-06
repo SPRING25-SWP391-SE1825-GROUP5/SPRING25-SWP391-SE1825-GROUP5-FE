@@ -95,7 +95,7 @@ export const StaffService = {
       }
       return { users, pagination }
     } catch (error: any) {
-      console.error('Error getting available users:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể lấy danh sách người dùng có thể làm nhân viên')
     }
   },
@@ -120,7 +120,7 @@ export const StaffService = {
       const { data } = await api.get<{ success: boolean; data: EmployeeListResponse }>('/StaffManagement/employees', { params: normalizedParams })
       return data.data
     } catch (error: any) {
-      console.error('Error getting center employees:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể lấy danh sách nhân viên')
     }
   },
@@ -133,8 +133,7 @@ export const StaffService = {
       const { data } = await api.post<{ success: boolean; data: Employee[] }>('/StaffManagement/assign-employees', request)
       return data.data
     } catch (error: any) {
-      console.error('Error assigning employees:', error)
-      
+
       if (error.response?.status === 400) {
         throw new Error(error.response?.data?.message || 'Dữ liệu không hợp lệ')
       } else if (error.response?.status === 401) {
@@ -228,7 +227,7 @@ export const StaffService = {
         }
       }
     } catch (error: any) {
-      console.error('Error creating staff from user:', error)
+
       throw error
     }
   },
@@ -312,7 +311,7 @@ export const StaffService = {
         }
       }
     } catch (error: any) {
-      console.error('Error creating technician from user:', error)
+
       throw error
     }
   },
@@ -355,7 +354,7 @@ export const StaffService = {
         inactiveTechnicians: technicians.filter(t => !t.isActive).length
       }
     } catch (error) {
-      console.error('Error getting staff stats:', error)
+
       return {
         totalStaff: 0,
         activeStaff: 0,

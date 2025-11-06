@@ -46,7 +46,7 @@ export const vehicleModelService = {
       const response = await api.get('/VehicleModel');
       return response.data;
     } catch (error) {
-      console.error('Error fetching vehicle models:', error);
+
       throw error;
     }
   },
@@ -57,7 +57,7 @@ export const vehicleModelService = {
       const response = await api.get(`/VehicleModel/${id}`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching vehicle model ${id}:`, error);
+
       throw error;
     }
   },
@@ -68,7 +68,7 @@ export const vehicleModelService = {
       const response = await api.get(`/VehicleModel/brand/${encodeURIComponent(brand)}`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching vehicle models by brand ${brand}:`, error);
+
       throw error;
     }
   },
@@ -79,7 +79,7 @@ export const vehicleModelService = {
       const response = await api.get('/VehicleModel/active');
       return response.data;
     } catch (error) {
-      console.error('Error fetching active vehicle models:', error);
+
       throw error;
     }
   },
@@ -90,7 +90,7 @@ export const vehicleModelService = {
       const response = await api.get(`/VehicleModel/search?searchTerm=${encodeURIComponent(searchTerm)}`);
       return response.data;
     } catch (error) {
-      console.error(`Error searching vehicle models with term ${searchTerm}:`, error);
+
       throw error;
     }
   },
@@ -101,7 +101,7 @@ export const vehicleModelService = {
       const response = await api.post('/VehicleModel', data);
       return response.data;
     } catch (error) {
-      console.error('Error creating vehicle model:', error);
+
       throw error;
     }
   },
@@ -112,7 +112,7 @@ export const vehicleModelService = {
       const response = await api.put(`/VehicleModel/${id}`, data);
       return response.data;
     } catch (error) {
-      console.error(`Error updating vehicle model ${id}:`, error);
+
       throw error;
     }
   },
@@ -123,7 +123,7 @@ export const vehicleModelService = {
       await api.delete(`/VehicleModel/${id}`);
       return true;
     } catch (error) {
-      console.error(`Error deleting vehicle model ${id}:`, error);
+
       throw error;
     }
   },
@@ -134,7 +134,7 @@ export const vehicleModelService = {
       const response = await api.patch(`/VehicleModel/${id}/toggle-active`);
       return response.status === 200;
     } catch (error) {
-      console.error(`Error toggling active status for vehicle model ${id}:`, error);
+
       throw error;
     }
   }

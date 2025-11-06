@@ -253,7 +253,7 @@ export default function Users() {
         admins: allUsers.filter((u) => u.role === "ADMIN").length,
       });
     } catch (err) {
-      console.error("Không thể tải thống kê:", err);
+
     }
   };
 
@@ -400,8 +400,7 @@ export default function Users() {
       toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} người dùng "${user.fullName}"`);
       
     } catch (err: any) {
-      console.error('Error toggling user status:', err);
-      
+
       // Extract error message from response
       let errorMessage = 'Không thể cập nhật trạng thái người dùng';
       
@@ -455,7 +454,7 @@ export default function Users() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Export users failed:', err);
+
       alert('Không thể xuất danh sách người dùng. Vui lòng thử lại!');
     } finally {
       setExporting(false);

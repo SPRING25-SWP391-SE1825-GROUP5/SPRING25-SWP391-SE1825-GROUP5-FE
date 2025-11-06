@@ -73,7 +73,7 @@ export default function Register() {
           })
         }
       } catch (error) {
-        console.error('Email validation error:', error)
+
       } finally {
         setValidatingEmail(false)
       }
@@ -98,7 +98,7 @@ export default function Register() {
           })
         }
       } catch (error) {
-        console.error('Phone validation error:', error)
+
       } finally {
         setValidatingPhone(false)
       }
@@ -323,42 +323,41 @@ export default function Register() {
          }, 100)
        } else {
          // Handle registration failure
-         console.log('Registration failed:', result)
-         console.log('Result type:', typeof result)
-         console.log('Result keys:', Object.keys(result))
+
+
+         )
          
          // Check if there are specific field errors
          const errorResult = result as any
          let hasFieldErrors = false
          
          if (errorResult.errors && Array.isArray(errorResult.errors)) {
-           console.log('Server errors:', errorResult.errors)
+
            const fieldErrors = mapServerErrorsToFields(errorResult.errors)
-           console.log('Mapped field errors:', fieldErrors)
-           
+
            // Set field-specific errors
            if (Object.keys(fieldErrors).length > 0) {
              setErrors(prev => ({ ...prev, ...fieldErrors }))
-             console.log('Set field errors:', fieldErrors)
+
              hasFieldErrors = true
              
              // Debug: Check if phoneNumber error was set
              if (fieldErrors.phoneNumber) {
-               console.log('Phone number error set:', fieldErrors.phoneNumber)
+
              }
            }
          }
          
          // Only show general error message if no field-specific errors
          if (!hasFieldErrors) {
-           console.log('Showing general error:', errorResult.message)
+
            toast.error(errorResult.message || 'Đăng ký thất bại')
          } else {
-           console.log('Field errors set, not showing general toast')
+
          }
        }
      } catch (err: any) {
-       console.log('Unexpected error during registration:', err)
+
        toast.error('Có lỗi xảy ra. Vui lòng thử lại.')
      } finally {
        setSubmitting(false)

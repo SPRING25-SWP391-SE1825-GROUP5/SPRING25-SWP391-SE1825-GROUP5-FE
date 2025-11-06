@@ -102,7 +102,7 @@ export default function ProductDetail() {
           setError('Không tìm thấy sản phẩm')
         }
       } catch (err) {
-        console.error('Error loading product:', err)
+
         setError('Có lỗi xảy ra khi tải sản phẩm')
       } finally {
         setLoading(false)

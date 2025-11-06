@@ -13,27 +13,27 @@ const StaffChat: React.FC = () => {
       try {
         // Set up event handlers
         signalRService.setOnMessageReceived((message: ChatMessage) => {
-          console.log('New message received:', message)
+
           // Handle new message - could trigger notifications, update UI, etc.
         })
 
         signalRService.setOnTypingStarted((userId: string, conversationId: string) => {
-          console.log('User started typing:', userId, conversationId)
+
           // Handle typing indicator
         })
 
         signalRService.setOnTypingStopped((userId: string, conversationId: string) => {
-          console.log('User stopped typing:', userId, conversationId)
+
           // Handle typing indicator
         })
 
         signalRService.setOnUserJoined((userId: string, conversationId: string) => {
-          console.log('User joined conversation:', userId, conversationId)
+
           // Handle user joined
         })
 
         signalRService.setOnUserLeft((userId: string, conversationId: string) => {
-          console.log('User left conversation:', userId, conversationId)
+
           // Handle user left
         })
 
@@ -46,9 +46,9 @@ const StaffChat: React.FC = () => {
 
         // Connect to SignalR
         await signalRService.connect()
-        console.log('SignalR connected successfully')
+
       } catch (error) {
-        console.error('Failed to initialize SignalR:', error)
+
         setConnectionError('Không thể kết nối đến máy chủ chat. Vui lòng thử lại sau.')
       }
     }

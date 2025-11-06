@@ -422,7 +422,7 @@ export const BookingService = {
       })
       return response.data
     } catch (error: any) {
-      console.error('❌ Error fetching booking history:', error)
+
       throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy lịch sử booking')
     }
   },

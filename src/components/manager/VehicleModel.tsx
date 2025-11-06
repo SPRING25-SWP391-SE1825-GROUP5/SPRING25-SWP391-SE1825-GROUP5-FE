@@ -49,7 +49,7 @@ export default function VehicleModel() {
       setModels(data)
     } catch (err: any) {
       setError(err.response?.data?.message || 'Không thể tải danh sách mẫu xe')
-      console.error('Error loading models:', err)
+
     } finally {
       setLoading(false)
     }

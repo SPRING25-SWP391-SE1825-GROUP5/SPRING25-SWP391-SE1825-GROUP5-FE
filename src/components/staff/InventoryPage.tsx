@@ -145,7 +145,7 @@ export default function InventoryPage() {
       // Use mock data
       setInventoryItems(inventoryData)
     } catch (err) {
-      console.error('Error loading inventory:', err)
+
     } finally {
       setInventoryLoading(false)
     }

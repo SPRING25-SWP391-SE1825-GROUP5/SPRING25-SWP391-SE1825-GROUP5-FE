@@ -26,15 +26,15 @@ export default function AppointmentManagement() {
       // Nếu chưa có centerId, cố gắng lấy từ staff assignment
       if (!cid) {
         try {
-          console.log('[AppointmentManagement] Getting current staff assignment...')
+
           const assignment = await StaffService.getCurrentStaffAssignment()
           cid = assignment.centerId
           cname = assignment.centerName
           setCenterId(cid)
           setCenterName(cname)
-          console.log('[AppointmentManagement] Staff assignment:', assignment)
+
         } catch (err: any) {
-          console.warn('[AppointmentManagement] Failed to get staff assignment:', err.message)
+
           // Không throw error, để user có thể chọn manual
         }
       }
@@ -46,10 +46,9 @@ export default function AppointmentManagement() {
       }
 
       // Load bookings by center
-      console.log('[AppointmentManagement] Fetch bookings by center:', { centerId: cid, centerName: cname })
+
       const bookingsResp = await BookingService.getBookingsByCenter(cid)
-      console.log('[AppointmentManagement] Bookings response:', bookingsResp)
-      
+
       const list: Booking[] = bookingsResp?.data?.bookings || []
       setBookings(list)
     } catch (err: any) {

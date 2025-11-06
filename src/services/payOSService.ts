@@ -28,7 +28,6 @@ export class PayOSService {
       if (rounded !== undefined) body.amount = rounded
       if (promotionCode) body.promotionCode = promotionCode
       const response = await api.post(`/payment/booking/${bookingId}/link${query}`, body)
-      console.log('PayOS API response:', response.data)
 
       return {
         success: true,
@@ -41,14 +40,13 @@ export class PayOSService {
         }
       }
     } catch (error: any) {
-      console.error('Error creating PayOS payment link:', error)
 
       // Handle specific error cases
       const errorMessage = error.response?.data?.message || 'Lỗi tạo link thanh toán'
 
       // Nếu đơn thanh toán đã tồn tại, thử lấy link hiện tại
       if (errorMessage.includes('đã tồn tại') || errorMessage.includes('already exists')) {
-        console.log('Payment link already exists, trying to get existing link...')
+
         try {
           // Thử lấy thông tin thanh toán hiện tại
           const existingPayment = await this.getExistingPaymentLink(bookingId)
@@ -56,7 +54,7 @@ export class PayOSService {
             return existingPayment
           }
         } catch (getError) {
-          console.error('Error getting existing payment link:', getError)
+
         }
       }
 
@@ -84,7 +82,7 @@ export class PayOSService {
         }
       }
     } catch (error: any) {
-      console.error('Error getting existing payment link:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi lấy link thanh toán hiện tại'
@@ -100,7 +98,7 @@ export class PayOSService {
       const response = await api.get(`/payment/status/${orderCode}`)
       return response.data
     } catch (error: any) {
-      console.error('Error getting PayOS payment info:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi lấy thông tin thanh toán'
@@ -116,7 +114,7 @@ export class PayOSService {
       const response = await api.get(`/payment/qr/${orderCode}`)
       return response.data
     } catch (error: any) {
-      console.error('Error getting PayOS QR code:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi lấy QR code'
@@ -132,7 +130,7 @@ export class PayOSService {
       const response = await api.delete(`/payment/cancel/${orderCode}`)
       return response.data
     } catch (error: any) {
-      console.error('Error canceling PayOS payment link:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi hủy link thanh toán'

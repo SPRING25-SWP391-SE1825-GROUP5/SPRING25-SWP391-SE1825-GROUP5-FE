@@ -36,7 +36,7 @@ export default function ProfileHistory() {
               currentCustomerId = customerResponse.data.customerId
             }
           } catch (error) {
-            console.error('Error loading customer:', error)
+
             setLoading(false)
             setBookings([])
             return

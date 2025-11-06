@@ -970,7 +970,7 @@ export default function AdminDashboard() {
         const response = await CenterService.getCenters({ pageSize: 1000 })
         setCenters(response.centers || [])
       } catch (err) {
-        console.error('Failed to load centers:', err)
+
       }
     }
     loadCenters()
@@ -1018,7 +1018,7 @@ export default function AdminDashboard() {
               endDate,
               reportType: 'MONTHLY'
             }).catch(err => {
-              console.error(`Failed to load revenue for center ${center.centerId}:`, err)
+
               return null
             })
           )
@@ -1027,7 +1027,7 @@ export default function AdminDashboard() {
           .filter(center => center.isActive)
           .map(center =>
             ReportsService.getBookingsReport(center.centerId).catch(err => {
-              console.error(`Failed to load bookings for center ${center.centerId}:`, err)
+
               return null
             })
           )
@@ -1042,9 +1042,8 @@ export default function AdminDashboard() {
 
         // Aggregate revenue data - backend returns data with Summary, RevenueByPeriod, GroupedData
         const revenueDataArray = validRevenueResponses.map(r => r!.data)
-        console.log('Revenue data from API:', revenueDataArray)
+
         const aggregatedRevenue = aggregateRevenueData(revenueDataArray)
-        console.log('Aggregated revenue:', aggregatedRevenue)
 
         // Aggregate bookings data from bookings report
         const bookingsDataArray = validBookingsResponses.map(r => r!.data)
@@ -1070,8 +1069,6 @@ export default function AdminDashboard() {
           ReportsService.getTodayBookings(selectedCenterId)
         ])
 
-        console.log('Single center revenue response:', revenueResponse.data)
-        console.log('Single center booking response:', bookingResponse.data)
 
         setDashboardData({
           revenue: revenueResponse.data,

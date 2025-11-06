@@ -42,7 +42,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
       const response = await ChatService.getAvailableUsers()
       setAvailableUsers(response)
     } catch (error) {
-      console.error('Error loading available users:', error)
+
     } finally {
       setIsLoading(false)
     }
@@ -56,7 +56,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
       onSelectConversation(conversation.id)
       setShowUserList(false)
     } catch (error) {
-      console.error('Error starting conversation:', error)
+
     }
   }
 

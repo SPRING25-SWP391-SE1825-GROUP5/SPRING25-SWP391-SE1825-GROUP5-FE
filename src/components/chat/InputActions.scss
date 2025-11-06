@@ -1,0 +1,79 @@
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &__btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+
+    &:hover:not(.disabled) {
+      background: #F5F5F5;
+      color: #333;
+    }
+
+    &--send {
+      background: #4285F4;
+      color: white;
+
+      &:hover:not(.disabled) {
+        background: #357AE8;
+      }
+
+      &.disabled {
+        background: #E5E5E5;
+        color: #999;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  &__emoji-container {
+    position: relative;
+  }
+
+  &__emoji-picker {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 8px;
+    background: white;
+    border: 1px solid #E5E5E5;
+    border-radius: 8px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    max-width: 300px;
+  }
+
+  &__emoji-item {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 20px;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #F5F5F5;
+    }
+  }
+}
+

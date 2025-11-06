@@ -1,0 +1,208 @@
+.message-bubble {
+  display: flex;
+  flex-direction: column;
+  max-width: 70%;
+  margin-bottom: 8px;
+  position: relative;
+  animation: fadeIn 0.3s ease-in;
+  transition: transform 0.2s ease-out;
+
+  &--own {
+    align-self: flex-end;
+    align-items: flex-end;
+
+    .message-bubble__content-wrapper {
+      background: #4285F4;
+      color: white;
+      border-radius: 18px 18px 4px 18px;
+    }
+
+    .message-bubble__sender {
+      text-align: right;
+    }
+
+    .message-bubble__actions {
+      right: 0;
+      left: auto;
+    }
+
+    .message-bubble__content-wrapper {
+      a {
+        color: #E3F2FD;
+      }
+    }
+  }
+
+  &--other {
+    align-self: flex-start;
+    align-items: flex-start;
+
+    .message-bubble__content-wrapper {
+      background: #E5E5E5;
+      color: #333;
+      border-radius: 18px 18px 18px 4px;
+    }
+
+    .message-bubble__actions {
+      left: 0;
+      right: auto;
+    }
+  }
+
+  &__sender {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 4px;
+    padding: 0 12px;
+  }
+
+  &__reply {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.05);
+    border-left: 3px solid #4285F4;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  &__reply-content {
+    flex: 1;
+  }
+
+  &__reply-name {
+    font-weight: 600;
+    color: #4285F4;
+    margin-bottom: 2px;
+  }
+
+  &__reply-text {
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__content-wrapper {
+    padding: 10px 14px;
+    word-wrap: break-word;
+    position: relative;
+    transition: all 0.2s;
+  }
+
+  &__edit {
+    width: 100%;
+  }
+
+  &__edit-input {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid #4285F4;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+  }
+
+  &__edited {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+    margin-left: 8px;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 0 12px;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+  }
+
+  &__status-icon {
+    color: rgba(255, 255, 255, 0.7);
+
+    &.delivered {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    &.read {
+      color: #4CAF50;
+    }
+  }
+
+  &__read-receipt {
+    font-size: 12px;
+    color: #4CAF50;
+  }
+
+  &__actions {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+    background: white;
+    padding: 4px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+  }
+
+  &__action-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #F5F5F5;
+      color: #333;
+    }
+  }
+
+  &:hover {
+    .message-bubble__actions {
+      opacity: 1;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-bubble--other .message-bubble__content-wrapper {
+  .message-bubble__edited {
+    color: rgba(0, 0, 0, 0.5);
+  }
+}
+
+.message-bubble:hover {
+  transform: translateY(-1px);
+}
+

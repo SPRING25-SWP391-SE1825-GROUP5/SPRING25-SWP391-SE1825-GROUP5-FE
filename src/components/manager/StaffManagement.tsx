@@ -147,16 +147,16 @@ export default function StaffManagement() {
     try {
       setLoadingAvailableUsers(true)
       const response = await ManagerService.getAvailableUsers()
-      console.log('Available users response:', response) // Debug log
+       // Debug log
       if (response.success) {
         setAvailableUsers(response.data)
-        console.log('Available users data:', response.data) // Debug log
+         // Debug log
       } else {
-        console.error('API error:', response.message) // Debug log
+         // Debug log
         toast.error(response.message || 'Không thể tải danh sách user có sẵn')
       }
     } catch (error) {
-      console.error('Load available users error:', error) // Debug log
+       // Debug log
       toast.error('Không thể tải danh sách user có sẵn')
     } finally {
       setLoadingAvailableUsers(false)

@@ -385,8 +385,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       const finalTotalPrice = await totalPrice
       // apply promotion if available from ConfirmationStep persisted into bookingData
       const payableAmount = Math.max(0, finalTotalPrice - (bookingData.promotionInfo?.discountAmount || 0))
-      console.log('Total price calculated:', finalTotalPrice)
-      console.log('Payable amount after promotion:', payableAmount)
+
 
       // Resolve current user -> customerId
       let me: any = null
@@ -446,7 +445,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           modelId: bookingData.vehicleInfo.modelId
         })
         vehicleId = Number(createVeh?.data?.vehicleId)
-        console.log('Created vehicle ID:', vehicleId)
+
         createdNewVehicle = true
       }
 
@@ -459,12 +458,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
           const recentNum = Number(recent)
           const baseNum = Number(bookingData.vehicleInfo.mileage || 0)
           if (!isNaN(recentNum) && recentNum >= 0 && recentNum >= baseNum) {
-            console.log('Updating vehicle mileage with recentMileage:', recentNum)
+
             await VehicleService.updateMileage(Number(vehicleId), { currentMileage: recentNum })
           }
         }
       } catch (updateErr) {
-        console.error('Failed to update recent mileage (will continue booking):', updateErr)
+        // Error updating mileage
       }
 
       // Choose serviceId or packageCode
@@ -562,18 +561,18 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
       try {
         const promoCode = bookingData.promotionInfo?.promotionCode?.trim()
         if (promoCode) {
-          console.log('Applying promotion to booking on server:', promoCode)
+
           const applyRes = await PromotionBookingService.applyPromotionToBooking({ bookingId: Number(bookingId), code: promoCode })
-          console.log('Apply promotion result:', applyRes)
+
         } else {
-          console.log('No promotion code to apply on server')
+
         }
       } catch (applyErr) {
-        console.warn('Apply promotion failed (continue with client-side discount + server safety-net):', applyErr)
+        // Error applying promotion
       }
 
       // Tạo PayOS payment link và redirect trực tiếp đến PayOS checkout
-      console.log('Creating PayOS payment link for booking ID:', bookingId)
+
       const paymentResponse = await PayOSService.createPaymentLink(Number(bookingId), Math.round(payableAmount))
 
       if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {

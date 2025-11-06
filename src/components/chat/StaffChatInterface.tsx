@@ -124,21 +124,20 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
       const totalUnread = response.reduce((sum, conv) => sum + conv.unreadCount, 0)
       setUnreadCount(totalUnread)
     } catch (error) {
-      console.error('Error loading conversations:', error)
+
     } finally {
       setIsLoading(false)
     }
   }
 
   const selectConversation = async (conversation: ChatConversation) => {
-    console.log('Selecting conversation:', conversation)
-    
+
     // Leave previous conversation if any
     if (selectedConversation) {
       try {
         await signalRService.leaveConversation(selectedConversation.id)
       } catch (error) {
-        console.error('Error leaving conversation:', error)
+
       }
     }
 
@@ -150,31 +149,22 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
       await signalRService.joinConversation(conversation.id)
       
       // Load messages
-      console.log('Loading messages for conversation ID:', conversation.id)
+
       const response = await ChatService.getConversationMessages(parseInt(conversation.id))
-      console.log('Messages API response:', response)
-      console.log('Response success:', response.success)
-      console.log('Response data:', response.data)
-      console.log('Is array:', Array.isArray(response.data))
+
+
+
+      )
       
       if (response.success && response.data && Array.isArray(response.data)) {
         const formattedMessages = response.data.map((msg: any) => {
-          console.log('Processing message:', msg)
-          
+
           // Simple logic: if senderUserId exists, it's a customer, otherwise it's staff
           const isCustomer = msg.senderUserId || msg.senderGuestSessionId
           const senderName = isCustomer ? 
             (msg.senderName || 'Khách hàng') : 
             (msg.senderName || 'Nhân viên hỗ trợ')
-          
-          console.log('Message sender info:', { 
-            senderUserId: msg.senderUserId, 
-            senderGuestSessionId: msg.senderGuestSessionId,
-            senderName: msg.senderName,
-            isCustomer,
-            finalSenderName: senderName
-          })
-          
+
           return {
             id: String(msg.id),
             conversationId: String(conversation.id),
@@ -186,14 +176,14 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
             isRead: true
           }
         })
-        console.log('Formatted messages:', formattedMessages)
+
         setMessages(formattedMessages)
       } else {
-        console.log('No messages found or invalid response format')
+
         setMessages([])
       }
     } catch (error) {
-      console.error('Error loading messages:', error)
+
       setMessages([])
     }
   }
@@ -217,21 +207,20 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
     setMessage('')
 
     try {
-      console.log('Staff sending message to conversation:', selectedConversation.id, 'Content:', messageContent)
-      
+
       // Send via SignalR for real-time delivery
       try {
         await signalRService.sendMessage(selectedConversation.id, messageContent)
       } catch (signalRError) {
-        console.warn('SignalR send failed, continuing with API only:', signalRError)
+
       }
       
       // Also save to database via API
       const response = await ChatService.sendMessageToConversation(parseInt(selectedConversation.id), messageContent)
-      console.log('Staff message sent successfully via API:', response)
+
     } catch (error) {
-      console.error('Error sending message:', error)
-      console.error('Error details:', error.response?.data || error.message)
+
+
       // Show error message to user
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
@@ -386,7 +375,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                 {/* Messages */}
                 <div className="staff-chat-interface__messages">
                   {(() => {
-                    console.log('Rendering messages:', messages)
+
                     return null
                   })()}
                   {messages.length === 0 ? (
@@ -400,9 +389,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                                          msg.senderId === String(user?.userId || 'staff') || 
                                          msg.senderName === (user?.fullName || 'Staff') ||
                                          msg.senderName === 'Nhân viên hỗ trợ'
-                    
-                    console.log('Message:', msg, 'isStaffMessage:', isStaffMessage, 'user:', user)
-                    
+
                     return (
                       <div
                         key={msg.id || `msg-${index}`}

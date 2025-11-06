@@ -58,7 +58,7 @@ class FeedbackService {
       const response = await api.post(`/Feedback/bookings/${bookingId}/technicians/${technicianId}`, feedback)
       return response.data
     } catch (error: any) {
-      console.error('Error submitting feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể gửi đánh giá')
     }
   }
@@ -73,12 +73,12 @@ class FeedbackService {
     partId?: number
   }): Promise<FeedbackResponse> {
     try {
-      console.log('🌐 Submitting booking feedback:', { bookingId, feedbackData })
+
       const response = await api.post(`/Feedback/bookings/${bookingId}`, feedbackData)
-      console.log('✅ Feedback submitted successfully:', response.data)
+
       return response.data
     } catch (error: any) {
-      console.error('❌ Error submitting booking feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể gửi đánh giá')
     }
   }
@@ -89,7 +89,7 @@ class FeedbackService {
       const response = await api.post(`/Feedback/bookings/${bookingId}/parts/${partId}`, feedback)
       return response.data
     } catch (error: any) {
-      console.error('Error submitting parts feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể gửi đánh giá phụ tùng')
     }
   }
@@ -100,7 +100,7 @@ class FeedbackService {
       const response = await api.put(`/Feedback/${feedbackId}`, feedback)
       return response.data
     } catch (error: any) {
-      console.error('Error updating feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể cập nhật đánh giá')
     }
   }
@@ -114,7 +114,7 @@ class FeedbackService {
       if (error.response?.status === 404) {
         return null
       }
-      console.error('Error getting feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể lấy thông tin đánh giá')
     }
   }
@@ -125,7 +125,7 @@ class FeedbackService {
       const response = await api.get('/bookings/feedback')
       return response.data.data
     } catch (error: any) {
-      console.error('Error getting bookings with feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể lấy danh sách đặt lịch')
     }
   }
@@ -136,7 +136,7 @@ class FeedbackService {
       const response = await api.get('/feedback/stats')
       return response.data.data
     } catch (error: any) {
-      console.error('Error getting feedback stats:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể lấy thống kê đánh giá')
     }
   }
@@ -147,7 +147,7 @@ class FeedbackService {
       const response = await api.delete(`/feedback/${bookingId}`)
       return response.data
     } catch (error: any) {
-      console.error('Error deleting feedback:', error)
+
       throw new Error(error.response?.data?.message || 'Không thể xóa đánh giá')
     }
   }

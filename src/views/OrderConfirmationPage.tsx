@@ -49,9 +49,8 @@ export default function OrderConfirmationPage() {
           OrderService.getOrderById(resolvedId),
           OrderService.getOrderItems(resolvedId),
         ])
-        console.log('OrderConfirmationPage - detailResp:', detailResp)
-        console.log('OrderConfirmationPage - itemsResp:', itemsResp)
-        
+
+
         if (!detailResp?.success) {
           toast.error(detailResp?.message || 'Không thể tải chi tiết đơn hàng')
           setLoading(false)
@@ -59,8 +58,7 @@ export default function OrderConfirmationPage() {
         }
         
         const o = detailResp.data as any
-        console.log('OrderConfirmationPage - detail data:', o)
-        
+
         // Xử lý items: kiểm tra cả success và data structure
         let itemsRaw: any[] = []
         if (itemsResp?.success && Array.isArray(itemsResp?.data)) {
@@ -72,15 +70,14 @@ export default function OrderConfirmationPage() {
           itemsRaw = itemsResp.data
         } else if (!itemsResp?.success) {
           // Nếu items API fail, thử dùng OrderItems từ detail response
-          console.warn('Items API failed, trying to use OrderItems from detail response')
+
           if (Array.isArray(o?.OrderItems)) {
             itemsRaw = o.OrderItems
           } else if (Array.isArray(o?.orderItems)) {
             itemsRaw = o.orderItems
           }
         }
-        console.log('OrderConfirmationPage - itemsRaw:', itemsRaw)
-        
+
         const items = itemsRaw.map((it: any) => ({
           productId: it.PartId ?? it.partId,
           partId: it.PartId ?? it.partId,
@@ -89,9 +86,7 @@ export default function OrderConfirmationPage() {
           unitPrice: Number(it.UnitPrice ?? it.unitPrice ?? 0),
           totalPrice: Number(it.Subtotal ?? it.subtotal ?? it.LineTotal ?? it.lineTotal ?? 0),
         }))
-        
-        console.log('OrderConfirmationPage - mapped items:', items)
-        
+
         const subtotal = items.reduce((s, it) => s + (it.totalPrice || 0), 0)
         const mapped: OrderDetail = {
           orderId: o.OrderId ?? o.orderId ?? o.Id ?? resolvedId,
@@ -101,7 +96,7 @@ export default function OrderConfirmationPage() {
           total: Number(o.TotalAmount ?? o.totalAmount ?? subtotal),
           couponCode: o.CouponCode ?? o.couponCode ?? null,
         }
-        console.log('OrderConfirmationPage - final mapped order:', mapped)
+
         setOrder(mapped)
         setDiscount(Number(o.DiscountAmount ?? o.discountAmount ?? 0))
       } catch (e: any) {

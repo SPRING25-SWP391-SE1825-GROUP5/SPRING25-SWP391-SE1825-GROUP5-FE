@@ -27,7 +27,7 @@ export default function ProfilePackages() {
         }
       } catch (error: unknown) {
         const err = error as { message?: string }
-        console.error('Error loading service packages:', error)
+
         toast.error(err.message || 'Không thể tải danh sách gói dịch vụ')
         setPackages([])
       } finally {

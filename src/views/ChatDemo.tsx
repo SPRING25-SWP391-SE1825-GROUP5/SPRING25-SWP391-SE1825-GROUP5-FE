@@ -113,7 +113,7 @@ const ChatDemo: React.FC = () => {
 
   const handleAddTestMessage = () => {
     // Simulate adding a test message to the chat
-    console.log('Test message added to chat')
+
   }
 
   return (

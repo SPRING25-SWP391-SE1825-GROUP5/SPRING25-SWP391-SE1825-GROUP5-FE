@@ -31,7 +31,6 @@ export const BookingStatusService = {
             const { data } = await api.get(`/booking/status/technician/${technicianId}/${date}`)
             return data
         } catch (error) {
-            console.warn('Booking status endpoint not available, using fallback:', error)
 
             // Fallback: Get all time slots and mark as available
             // This ensures we don't show false "booked" status
@@ -64,7 +63,6 @@ export const BookingStatusService = {
             const { data } = await api.get(`/booking/status/center/${centerId}/${date}`)
             return data
         } catch (error) {
-            console.warn('Center booking status endpoint not available, using fallback:', error)
 
             // Fallback: Get all time slots and mark as available
             const { data: timeSlotsResponse } = await api.get('/TimeSlot')

@@ -102,7 +102,7 @@ export default function BookingManagement() {
         setCenters(response.centers);
       }
     } catch (err) {
-      console.error('Failed to fetch centers:', err);
+
     } finally {
       setLoadingCenters(false);
     }
@@ -279,7 +279,7 @@ export default function BookingManagement() {
       setExporting(true);
       toast.success('Chức năng xuất dữ liệu sẽ được triển khai sau');
     } catch (err) {
-      console.error('Export bookings failed:', err);
+
       toast.error('Không thể xuất danh sách đặt lịch. Vui lòng thử lại!');
     } finally {
       setExporting(false);

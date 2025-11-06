@@ -1,157 +1,37 @@
-/**
- * Message List Styles
- * Styles for message list and date grouping
- */
-
 .message-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  height: 100%;
-  overflow-y: auto;
-
-  // Custom scrollbar
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--chat-border);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--chat-text-secondary);
-  }
+  gap: 8px;
+  background: #F5F5F5;
 
   &--empty {
-    justify-content: center;
     align-items: center;
-  }
-}
-
-// Empty State
-.message-list__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  color: var(--chat-text-secondary);
-  text-align: center;
-  padding: 32px;
-}
-
-.message-list__empty-icon {
-  font-size: 48px;
-  opacity: 0.5;
-}
-
-.message-list__empty-text {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--chat-text);
-  margin: 0;
-}
-
-.message-list__empty-subtext {
-  font-size: 14px;
-  color: var(--chat-text-secondary);
-  margin: 0;
-}
-
-// Date Groups
-.message-list__date-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.message-list__date-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 8px 0;
-}
-
-.message-list__date-text {
-  background: var(--chat-bg-secondary);
-  color: var(--chat-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--chat-border);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-// Messages Container
-.message-list__messages {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-// Animation for new messages
-.message-list__date-group {
-  animation: fadeInUp 0.3s ease-out;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-// Responsive Design
-@media (max-width: 480px) {
-  .message-list {
-    padding: 12px;
-    gap: 12px;
+    justify-content: center;
   }
 
-  .message-list__date-group {
-    gap: 8px;
+  &__empty {
+    text-align: center;
+    padding: 40px 20px;
   }
 
-  .message-list__date-header {
-    margin: 6px 0;
+  &__empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
   }
 
-  .message-list__date-text {
-    font-size: 11px;
-    padding: 4px 10px;
+  &__empty-text {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 8px 0;
   }
 
-  .message-list__messages {
-    gap: 2px;
-  }
-
-  .message-list__empty {
-    padding: 24px;
-    gap: 12px;
-  }
-
-  .message-list__empty-icon {
-    font-size: 40px;
-  }
-
-  .message-list__empty-text {
-    font-size: 15px;
-  }
-
-  .message-list__empty-subtext {
-    font-size: 13px;
+  &__empty-subtext {
+    font-size: 14px;
+    color: #999;
+    margin: 0;
   }
 }

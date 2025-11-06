@@ -33,7 +33,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({ conversation, currentUser }) => {
       ]
       setSharedPhotos(mockPhotos)
     } catch (error) {
-      console.error('Error loading shared photos:', error)
+
     } finally {
       setLoading(false)
     }

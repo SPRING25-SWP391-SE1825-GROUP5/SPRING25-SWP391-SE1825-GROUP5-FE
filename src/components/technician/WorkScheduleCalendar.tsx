@@ -50,34 +50,19 @@ export default function WorkScheduleCalendar({
       }
 
       // Step 1: Resolve technicianId from userId
-      console.log('🔍 Resolving technicianId for userId:', user.id)
-      
+
       const technicianInfo = await TechnicianService.getTechnicianIdByUserId(user.id)
-      
-      console.log('👤 Resolved technician info:', technicianInfo)
-      
+
       const technicianId = technicianInfo.data?.technicianId
       const centerId = technicianInfo.data?.centerId
-      
-      console.log('📋 Using resolved IDs:', { 
-        technicianId,
-        centerId,
-        technicianName: technicianInfo.data?.technicianName
-      })
-      
+
       // Update state with resolved IDs
       setTechnicianId(technicianId)
       setCenterId(centerId)
       
       // Step 2: Get work schedule using the resolved technicianId and centerId
-      console.log('🔍 Getting work schedule with resolved IDs:', { 
-        technicianId,
-        centerId
-      })
-      
+
       const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, centerId)
-      
-      console.log('📡 Work schedule response:', scheduleResponse)
 
       if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
         // Process work dates and create a Set of unique work days
@@ -90,15 +75,15 @@ export default function WorkScheduleCalendar({
           workDaysSet.add(normalizedDate)
         })
 
-        console.log('✅ Work days loaded:', Array.from(workDaysSet))
+        )
         setWorkDays(workDaysSet)
         setTimeSlots(scheduleResponse.data)
       } else {
-        console.log('⚠️ No work schedule data found for this technician and center')
+
         setWorkDays(new Set())
       }
     } catch (error: any) {
-      console.error('❌ Error loading work schedule:', error)
+
       setError(error.message || 'Không thể tải lịch làm việc')
       setWorkDays(new Set())
     } finally {

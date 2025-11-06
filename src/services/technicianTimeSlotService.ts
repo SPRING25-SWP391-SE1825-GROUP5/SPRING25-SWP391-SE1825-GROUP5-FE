@@ -118,18 +118,7 @@ export const TechnicianTimeSlotService = {
             const { data } = await api.get<TechnicianTimeSlotResponse>(`/TechnicianTimeSlot/technician/${technicianId}/center/${centerId}`)
             return data
         } catch (error: any) {
-            console.error('❌ API Error details:', {
-                message: error.message,
-                status: error.response?.status,
-                statusText: error.response?.statusText,
-                data: error.response?.data,
-                config: {
-                    url: error.config?.url,
-                    baseURL: error.config?.baseURL,
-                    method: error.config?.method,
-                    headers: error.config?.headers
-                }
-            })
+
             throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy lịch làm việc của technician')
         }
     },
@@ -138,10 +127,10 @@ export const TechnicianTimeSlotService = {
     async getTechnicianById(id: number): Promise<{ success: boolean; data: { id: number; centerId: number; name: string; [key: string]: any } }> {
         try {
             const { data } = await api.get(`/Technician/${id}`)
-            console.log('👤 Technician details response:', data)
+
             return data
         } catch (error: any) {
-            console.error('❌ Error fetching technician by ID:', error)
+
             throw new Error(error.response?.data?.message || 'Có lỗi xảy ra khi lấy thông tin technician')
         }
     },

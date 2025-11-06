@@ -58,7 +58,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       // Mark as read
       await ChatService.markAsRead(conversation.id, [message.id])
     } catch (error) {
-      console.error('Error sending message:', error)
+
     } finally {
       setSending(false)
     }
@@ -75,7 +75,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     const files = e.target.files
     if (files && files.length > 0 && conversation) {
       // Handle file upload
-      console.log('Files to upload:', files)
+
     }
   }
 
