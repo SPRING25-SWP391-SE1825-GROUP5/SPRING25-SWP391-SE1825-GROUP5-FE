@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, CreditCard, QrCode, Wallet } from 'lucide-react'
 import { PaymentService, type PaymentBreakdownResponse } from '@/services/paymentService'
+import { WorkOrderPartService, type WorkOrderPartItem } from '@/services/workOrderPartService'
 import { PayOSService } from '@/services/payOSService'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
@@ -24,11 +25,19 @@ export default function PaymentModal({
   const [processing, setProcessing] = useState(false)
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
   const [breakdown, setBreakdown] = useState<PaymentBreakdownResponse['data'] | null>(null)
+  const [workParts, setWorkParts] = useState<WorkOrderPartItem[]>([])
 
   // Load breakdown khi modal mở
   useEffect(() => {
     if (open && bookingId) {
       loadBreakdown()
+      // Load thêm work order parts để có đơn giá làm fallback
+      ;(async () => {
+        try {
+          const items = await WorkOrderPartService.list(Number(bookingId))
+          setWorkParts(items || [])
+        } catch { /* ignore */ }
+      })()
     }
   }, [open, bookingId])
 
@@ -243,20 +252,34 @@ export default function PaymentModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {breakdown.parts.map((part, idx) => (
+                      {breakdown.parts.map((part, idx) => {
+                        const matched = workParts.find(p => p.partId === (part as any).partId)
+                        const unitPrice = (part as any).unitPrice ?? matched?.unitPrice ?? 0
+                        const qty = (part as any).qty ?? matched?.quantity ?? 0
+                        const amount = (part as any).amount ?? (unitPrice * qty)
+                        return (
                         <tr key={part.partId} style={{ borderBottom: idx < breakdown.parts.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
                           <td style={{ padding: '8px 12px', fontSize: 13, color: '#374151' }}>{part.name}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 13, color: '#374151' }}>{part.qty}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#374151' }}>{part.unitPrice.toLocaleString('vi-VN')}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#111827', fontWeight: 600 }}>{part.amount.toLocaleString('vi-VN')}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 13, color: '#374151' }}>{(part as any).qty ?? matched?.quantity ?? 0}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#374151' }}>{Number(unitPrice).toLocaleString('vi-VN')} VNĐ</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#111827', fontWeight: 600 }}>{Number(amount).toLocaleString('vi-VN')} VNĐ</td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
                   <span style={{ fontSize: 13, color: '#6B7280' }}>Tổng phụ tùng:</span>
-                  <span style={{ fontSize: 14, color: '#111827', fontWeight: 600 }}>{breakdown.partsAmount.toLocaleString('vi-VN')} VNĐ</span>
+                  <span style={{ fontSize: 14, color: '#111827', fontWeight: 600 }}>{(
+                    (typeof breakdown.partsAmount === 'number' ? breakdown.partsAmount : 0)
+                    || breakdown.parts.reduce((sum, part) => {
+                      const matched = workParts.find(p => p.partId === (part as any).partId)
+                      const unitPrice = (part as any).unitPrice ?? matched?.unitPrice ?? 0
+                      const qty = (part as any).qty ?? matched?.quantity ?? 0
+                      return sum + (unitPrice * qty)
+                    }, 0)
+                  ).toLocaleString('vi-VN')} VNĐ</span>
                 </div>
               </div>
             )}
