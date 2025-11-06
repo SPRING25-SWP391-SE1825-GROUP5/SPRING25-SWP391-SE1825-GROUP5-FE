@@ -86,3 +86,5 @@ export default function QuickPartsApprovalModal({ bookingId, open, onClose }: Qu
     </div>
   )
 }
+
+

@@ -10,12 +10,14 @@ export interface WorkOrderPartItem {
   totalStock?: number
   quantity: number
   notes?: string
+  status?: string // DRAFT, CONSUMED, etc.
 }
 
 export const WorkOrderPartService = {
   async list(bookingId: number): Promise<WorkOrderPartItem[]> {
     const { data } = await api.get(`/Booking/${bookingId}/parts`)
-    const rows = (data?.data || data || []) as any[]
+    // API trả về: { success: true, data: { items: [...], totals: {...} } }
+    const rows = data?.data?.items || data?.items || data?.data || (Array.isArray(data) ? data : [])
     return Array.isArray(rows) ? rows.map(r => ({
       id: r.id ?? r.workOrderPartId ?? r.partItemId,
       partId: r.partId,
@@ -24,8 +26,9 @@ export const WorkOrderPartService = {
       brand: r.brand,
       unitPrice: r.unitPrice,
       totalStock: r.totalStock ?? r.stock,
-      quantity: r.quantity ?? 1,
-      notes: r.notes
+      quantity: r.quantity ?? r.quantityUsed ?? 1, // Map quantityUsed thành quantity
+      notes: r.notes,
+      status: r.status // DRAFT, CONSUMED, etc.
     })) : []
   },
 
@@ -41,7 +44,8 @@ export const WorkOrderPartService = {
       unitPrice: r.unitPrice,
       totalStock: r.totalStock ?? r.stock,
       quantity: r.quantity ?? payload.quantity,
-      notes: r.notes
+      notes: r.notes,
+      status: r.status // DRAFT, CONSUMED, etc.
     }
   },
 

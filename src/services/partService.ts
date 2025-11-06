@@ -73,12 +73,27 @@ export const PartService = {
   // Lấy chi tiết phụ tùng
   async getPartById(partId: number): Promise<{ success: boolean; message: string; data?: Part }> {
     try {
-      const { data } = await api.get(`/part/${partId}`)
-      return data
-    } catch (error) {
+      // Thử endpoint với chữ hoa /Part/ trước (theo inventoryService)
+      try {
+        const { data } = await api.get(`/Part/${partId}`)
+        console.log(`[DEBUG] PartService.getPartById(${partId}) - Response:`, data)
+        return data
+      } catch (err1: any) {
+        // Nếu không được, thử endpoint với chữ thường /part/
+        try {
+          const { data } = await api.get(`/part/${partId}`)
+          console.log(`[DEBUG] PartService.getPartById(${partId}) - Response (lowercase):`, data)
+          return data
+        } catch (err2: any) {
+          console.error(`[DEBUG] PartService.getPartById(${partId}) - Both endpoints failed:`, err1, err2)
+          throw err1 || err2
+        }
+      }
+    } catch (error: any) {
+      console.error(`[DEBUG] PartService.getPartById(${partId}) - Error:`, error)
       return {
         success: false,
-        message: 'Không thể tải chi tiết phụ tùng'
+        message: error?.response?.data?.message || error?.message || 'Không thể tải chi tiết phụ tùng'
       }
     }
   },

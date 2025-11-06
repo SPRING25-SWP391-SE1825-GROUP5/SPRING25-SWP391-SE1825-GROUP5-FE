@@ -868,12 +868,6 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     }
   }
 
-  const handleViewBookingDetail = (bookingId: number) => {
-    if (onViewBookingDetail) {
-      onViewBookingDetail(bookingId)
-    }
-  }
-
   // Helper function để map status từ UI sang API format
   const mapStatusToApi = (uiStatus: string): string => {
     const statusMap: { [key: string]: string } = {
@@ -1425,37 +1419,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     justifyContent: 'flex-start',
                                     alignItems: 'center'
                                   }}>
-                                    <button type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
-                                      style={{
-                                        padding: '8px',
-                                        border: '2px solid var(--border-primary)',
-                                        borderRadius: '8px',
-                                        background: '#FFF6D1',
-                                        color: '#111827',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s ease',
-                                        width: '36px',
-                                        height: '36px'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#FFD875'
-                                        e.currentTarget.style.background = '#FFEDB3'
-                                        e.currentTarget.style.transform = 'translateY(-2px)'
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = 'var(--border-primary)'
-                                        e.currentTarget.style.background = '#FFF6D1'
-                                        e.currentTarget.style.transform = 'translateY(0)'
-                                    }}
-                                    title="Xem chi tiết"
-                                  >
-                                    <Eye size={16} color="#111827" />
-                                  </button>
-                                  {/* Bắt đầu */}
+                                    {/* Bắt đầu */}
                                   <button type="button"
                                     onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
                                     disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')}
@@ -1715,36 +1679,6 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                 justifyContent: 'flex-start',
                                 alignItems: 'center'
                               }}>
-                                <button type="button"
-                                  onClick={(e) => { e.stopPropagation(); handleViewBookingDetail(work.bookingId); }}
-                                  style={{
-                                    padding: '8px',
-                                    border: '2px solid var(--border-primary)',
-                                    borderRadius: '8px',
-                                    background: '#FFF6D1',
-                                    color: '#111827',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
-                                    width: '36px',
-                                    height: '36px'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.borderColor = '#FFD875'
-                                    e.currentTarget.style.background = '#FFEDB3'
-                                    e.currentTarget.style.transform = 'translateY(-2px)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--border-primary)'
-                                    e.currentTarget.style.background = '#FFF6D1'
-                                    e.currentTarget.style.transform = 'translateY(0)'
-                                }}
-                                title="Xem chi tiết"
-                              >
-                                <Eye size={16} color="#111827" />
-                              </button>
                                 {/* Bắt đầu */}
                                 <button type="button"
                                   onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
