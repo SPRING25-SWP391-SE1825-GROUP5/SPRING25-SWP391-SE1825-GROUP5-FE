@@ -7,7 +7,6 @@ import toast from 'react-hot-toast'
 import {
   ArrowLeftIcon,
   ShoppingBagIcon,
-  TagIcon,
   TruckIcon,
   TrashIcon
 } from '@heroicons/react/24/outline'
@@ -145,8 +144,8 @@ export default function Cart() {
           sessionStorage.setItem(`orderSelectedIds_${orderIdStr}`, JSON.stringify(Array.from(selectedIds)))
           
           toast.success('Tạo đơn hàng thành công')
-          // Navigate to order confirmation page
-          navigate(`/confirm-order/${orderId}`, { state: { orderId: Number(orderId) } })
+          // Navigate to order confirmation page (ẩn orderId trong URL)
+          navigate('/confirm-order', { state: { orderId: Number(orderId) }, replace: true })
         } else {
           toast.error('Không thể lấy mã đơn hàng từ phản hồi')
         }
@@ -374,17 +373,6 @@ export default function Cart() {
                 <span>{formatPrice(finalTotal)}</span>
               </div>
 
-              <div className="promo-section">
-                <div className="promo-input">
-                  <TagIcon className="w-5 h-5 promo-icon" />
-                  <input 
-                    type="text" 
-                    placeholder="Mã giảm giá"
-                    className="promo-code"
-                  />
-                  <button className="apply-promo-btn">Áp dụng</button>
-                </div>
-              </div>
 
               <div className="checkout-actions">
                 <button 
