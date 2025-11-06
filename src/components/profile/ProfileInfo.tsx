@@ -80,7 +80,7 @@ export default function ProfileInfo() {
     }
   }
 
-  const Input = ({ readOnly, disabled, style, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) => (
+  const Input = ({ readOnly, disabled, style, error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) => (
     <input
       {...props}
       readOnly={readOnly}
@@ -89,7 +89,7 @@ export default function ProfileInfo() {
         width: '100%',
         maxWidth: '450px',
         padding: '8px 10px',
-        border: `1px solid ${('error' in props && (props as { error?: boolean }).error ? '#ef4444' : '#e5e7eb')}`,
+        border: `1px solid ${error ? '#ef4444' : '#e5e7eb'}`,
         borderRadius: 8,
         background: '#ffffff',
         color: '#111827',

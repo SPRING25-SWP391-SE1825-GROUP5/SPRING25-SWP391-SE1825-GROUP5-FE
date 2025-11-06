@@ -101,11 +101,27 @@ export class PaymentService {
     }
 
     /**
+     * Tạo link thanh toán VNPay cho Booking (theo spec mới)
+     */
+    static async createBookingVNPayLink(bookingId: number): Promise<{ success: boolean; message: string; vnp_Url?: string }> {
+        const { data } = await api.post(`/Payment/booking/${bookingId}/vnpay-link`)
+        return data
+    }
+
+    /**
      * Tạo thanh toán QR Code
      */
     static async createQRPayment(request: QRPaymentRequest): Promise<QRPaymentResponse> {
         const response = await api.post('/Payment/qr/create', request)
         return response.data
+    }
+
+    /**
+     * Tạo QR Sepay cho Booking (theo spec mới)
+     */
+    static async createBookingSepayQR(bookingId: number): Promise<{ success: boolean; message: string; data?: { qrCode: string; orderCode: string; amount: number } }> {
+        const { data } = await api.post(`/Payment/booking/${bookingId}/sepay-qr`)
+        return data
     }
 
     /**
@@ -152,6 +168,33 @@ export class PaymentService {
     }
 
     /**
+     * Lấy kết quả thanh toán (theo spec mới)
+     */
+    static async getPaymentResult(orderCode: string): Promise<PaymentStatusResponse> {
+        const { data } = await api.get(`/payment/result`, { params: { orderCode } })
+        if (data?.success && data?.data) {
+            return {
+                success: true,
+                message: data.message || 'OK',
+                data: {
+                    orderCode: data.data.orderCode || orderCode,
+                    status: data.data.status,
+                    amount: data.data.amount,
+                    bookingId: data.data.bookingId,
+                    paymentMethod: data.data.paymentMethod,
+                    transactionId: data.data.transactionId,
+                    paidAt: data.data.paidAt,
+                },
+            }
+        }
+        return {
+            success: false,
+            message: data?.message || 'Unknown',
+            data: { orderCode, status: 'PENDING', amount: 0 },
+        }
+    }
+
+    /**
      * Xử lý callback từ payment gateway
      */
     static async handlePaymentCallback(params: Record<string, string>) {
@@ -182,6 +225,14 @@ export class PaymentService {
             return result
         }
     }
+
+    /**
+     * Lấy breakdown (chi tiết hóa đơn) cho booking
+     */
+    static async getBookingBreakdown(bookingId: number): Promise<PaymentBreakdownResponse> {
+        const { data } = await api.get(`/Payment/booking/${bookingId}/breakdown`)
+        return data
+    }
 }
 
 export interface PaymentStatusResponse {
@@ -205,6 +256,47 @@ export interface ActualPaymentStatusResponse {
     success: boolean
     message: string
     data?: any // Flexible để handle response structure khác nhau
+}
+
+// Payment Breakdown Interfaces
+export interface PaymentBreakdownPart {
+    partId: number
+    name: string
+    qty: number
+    unitPrice: number
+    amount: number
+    referenceUnitPrice?: number // Cho phụ tùng khách cung cấp
+    sourceOrderItemId?: number // Cho phụ tùng khách cung cấp
+}
+
+export interface PaymentBreakdownResponse {
+    success: boolean
+    message?: string
+    data: {
+        bookingId: number
+        service: {
+            name: string
+            basePrice: number
+        }
+        package: {
+            applied: boolean
+            firstTimePrice: number
+            discountAmount: number
+        }
+        // Backend có thể trả về parts là array hoặc object với fromInventory và fromCustomer
+        parts?: PaymentBreakdownPart[] | {
+            fromInventory?: PaymentBreakdownPart[]
+            fromCustomer?: PaymentBreakdownPart[]
+        }
+        partsAmount: number
+        promotion: {
+            applied: boolean
+            discountAmount: number
+        }
+        subtotal: number
+        total: number
+        notes?: string // "Khuyến mãi chỉ áp dụng cho phần dịch vụ/gói; phụ tùng không áp dụng khuyến mãi."
+    }
 }
 
 // Export individual functions for backward compatibility

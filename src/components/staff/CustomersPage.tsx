@@ -308,7 +308,7 @@ export default function CustomersPage() {
               ) : (
                 filteredCustomers.map((customer, i) => (
                   <tr
-                    key={customer.id}
+                    key={customer.id || `customer-${i}`}
                     style={{
                       borderBottom: i < filteredCustomers.length - 1 ? '1px solid var(--border-primary)' : 'none',
                       background: 'var(--bg-card)',
