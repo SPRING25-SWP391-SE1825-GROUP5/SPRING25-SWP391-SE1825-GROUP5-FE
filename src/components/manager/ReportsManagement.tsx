@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { getCurrentUser } from '@/store/authSlice'
 import { 
@@ -48,6 +48,8 @@ export default function ReportsManagement() {
   const user = useAppSelector((state) => state.auth.user)
   const dispatch = useAppDispatch()
   const profileFetchAttempted = useRef(false)
+  const loadingRef = useRef(false) // Prevent duplicate calls
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch profile nếu thiếu centerId (chỉ một lần)
   useEffect(() => {
@@ -87,59 +89,118 @@ export default function ReportsManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.centerId])
 
+  // Cleanup debounce timer khi unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
   const loadReportsData = async (
     overrideFrom?: string,
     overrideTo?: string,
     overrideGranularity?: 'day' | 'week' | 'month' | 'quarter' | 'year'
   ) => {
+    // Prevent duplicate calls
+    if (loadingRef.current) {
+      console.log('[ReportsManagement] Already loading, skip duplicate call')
+      return
+    }
+
     try {
+      loadingRef.current = true
       setLoading(true)
       setError(null)
       
       const centerId = user?.centerId
       
       if (!centerId) {
+        console.error('[ReportsManagement] No centerId found')
         setError('Không tìm thấy thông tin chi nhánh. Vui lòng đăng nhập lại.')
         setLoading(false)
+        loadingRef.current = false
         return
       }
+      
       const startDate = overrideFrom || fromDate
       const endDate = overrideTo || toDate
-
-      // Revenue: luôn dùng API mới theo BE
-      let revenuePayload: any
       const effectiveGran = overrideGranularity || (granularity || deriveGranularity(startDate, endDate))
-      const res = await ReportsService.getCenterRevenue(centerId, {
-        from: startDate,
-        to: endDate,
-        granularity: effectiveGran
-      })
-      const total = res.totalRevenue ?? (res.items?.reduce((s, it) => s + (it.revenue || 0), 0) || 0)
-      revenuePayload = {
-        totalRevenue: total,
-        revenueByPeriod: (res.items || []).map((it: any) => ({
-          period: it.period,
-          revenue: it.revenue,
-          bookings: 0
-        })),
-        revenueByService: []
-      }
+      
+      console.log('[ReportsManagement] Loading reports for centerId:', centerId, 'from:', startDate, 'to:', endDate)
 
-      // Load remaining reports in non-blocking mode
-      const results = await Promise.allSettled([
-        ReportsService.getPartsUsageReport(centerId, { startDate, endDate, reportType: 'DAILY' as any }),
+      // Tối ưu: Gọi TẤT CẢ API song song (kể cả revenue) để giảm thời gian chờ
+      // Tách thành 2 nhóm: Quan trọng (stats cards) và Ít quan trọng (charts chi tiết)
+      
+      // Nhóm 1: API quan trọng cho stats cards (load trước)
+      const criticalAPIs = Promise.allSettled([
+        ReportsService.getCenterRevenue(centerId, {
+          from: startDate,
+          to: endDate,
+          granularity: effectiveGran
+        }),
         ReportsService.getBookingStatusCounts(centerId, { from: startDate, to: endDate }),
+        ReportsService.getRevenueByService(centerId, { from: startDate, to: endDate }),
+        ReportsService.getPartsUsageReport(centerId, { startDate, endDate, reportType: 'DAILY' as any })
+      ])
+
+      // Nhóm 2: API cho charts chi tiết (load sau, không block UI)
+      const detailAPIs = Promise.allSettled([
         ReportsService.getTechnicianPerformance(centerId, 'month'),
         ReportsService.getInventoryUsage(centerId, 'month'),
-        ReportsService.getRevenueByService(centerId, { from: startDate, to: endDate }),
         ReportsService.getInventoryLowStock(centerId, { threshold: 5 }),
         ReportsService.getTechnicianBookingStats(centerId, { from: startDate, to: endDate }),
         ReportsService.getPeakHourStats(centerId, { from: startDate, to: endDate })
       ])
 
-      setRevenueData(revenuePayload)
-      const [partsR, bookingR, techR, invR, revServiceR, lowStockR, techBookingStatsR, peakHourStatsR] = results
-      if (partsR.status === 'fulfilled') setPartsUsageData(partsR.value.data)
+      // Xử lý nhóm 1 trước (quan trọng)
+      const criticalResults = await criticalAPIs
+      const [revenueR, bookingR, revServiceR, partsR] = criticalResults
+
+      // Xử lý Revenue
+      if (revenueR.status === 'fulfilled') {
+        const res = revenueR.value
+        console.log('[ReportsManagement] Revenue response:', res)
+        const total = res.totalRevenue ?? (res.items?.reduce((s: number, it: any) => s + (it.revenue || 0), 0) || 0)
+        const revenuePayload = {
+          totalRevenue: total,
+          revenueByPeriod: (res.items || []).map((it: any) => ({
+            period: it.period,
+            revenue: it.revenue,
+            bookings: 0
+          })),
+          revenueByService: []
+        }
+        setRevenueData(revenuePayload)
+        console.log('[ReportsManagement] Revenue payload set:', {
+          totalRevenue: total,
+          revenueByPeriodLength: revenuePayload.revenueByPeriod?.length || 0
+        })
+      } else {
+        console.error('[ReportsManagement] Failed to fetch revenue:', revenueR.reason)
+        setRevenueData({ totalRevenue: 0, revenueByPeriod: [], revenueByService: [] })
+      }
+
+      // Xử lý Parts Usage
+      if (partsR.status === 'fulfilled') {
+        const partsData = partsR.value?.data || partsR.value
+        console.log('[ReportsManagement] Parts usage data (full):', partsData)
+        console.log('[ReportsManagement] Parts usage totalValue:', partsData?.totalValue)
+        console.log('[ReportsManagement] Parts usage summary:', partsData?.summary)
+        setPartsUsageData(partsData)
+      } else if (partsR.status === 'rejected') {
+        console.error('[ReportsManagement] Failed to fetch parts usage:', partsR.reason)
+        // Set giá trị mặc định để UI vẫn hiển thị được
+        setPartsUsageData({
+          summary: { totalRevenue: 0 },
+          totalValue: 0,
+          hotParts: [],
+          notHotParts: [],
+          unusedParts: [],
+          trends: {}
+        })
+      }
       if (bookingR.status === 'fulfilled') {
         const response = bookingR.value as any
         console.log('[ReportsManagement] Booking status response:', response)
@@ -199,11 +260,13 @@ export default function ReportsManagement() {
         })
       } else if (bookingR.status === 'rejected') {
         console.error('[ReportsManagement] Failed to fetch booking status:', bookingR.reason)
+        setBookingData({ totalBookings: 0, totalAllBookings: 0, paidBookings: 0, cancelledBookings: 0, completedBookings: 0, inProgressBookings: 0, pendingBookings: 0 })
       }
-      if (techR.status === 'fulfilled') setTechnicianData(techR.value.data)
-      if (invR.status === 'fulfilled') setInventoryData(invR.value.data)
+
+      // Xử lý Service Revenue
       if (revServiceR.status === 'fulfilled') {
-        const raw = revServiceR.value?.items || revServiceR.value || []
+        const revServiceValue = revServiceR.value?.data || revServiceR.value
+        const raw = revServiceValue?.items || revServiceValue || []
         const arr: any[] = Array.isArray(raw) ? raw : []
         const normalized = arr.map((it: any) => {
           const name = it.serviceName || it.name || it.ServiceName || 'Không rõ'
@@ -213,12 +276,41 @@ export default function ReportsManagement() {
           ) || 0
           return { serviceName: name, revenue, bookingCount }
         })
+        console.log('[ReportsManagement] Service revenue items (normalized):', normalized)
         setServiceRevenueItems(normalized)
+      } else if (revServiceR.status === 'rejected') {
+        console.error('[ReportsManagement] Failed to fetch service revenue:', revServiceR.reason)
+        setServiceRevenueItems([])
       }
+
+      // Sau khi xử lý xong nhóm 1, cho phép UI render stats cards ngay
+      // Tiếp tục load nhóm 2 (charts chi tiết) ở background
+      setLoading(false) // Cho phép hiển thị stats cards ngay
+      
+      // Load nhóm 2 (charts chi tiết) ở background
+      const detailResults = await detailAPIs
+      const [techR, invR, lowStockR, techBookingStatsR, peakHourStatsR] = detailResults
+
+      // Xử lý Technician Performance
+      if (techR.status === 'fulfilled') {
+        setTechnicianData(techR.value?.data || techR.value)
+      }
+
+      // Xử lý Inventory Usage
+      if (invR.status === 'fulfilled') {
+        setInventoryData(invR.value?.data || invR.value)
+      } else if (invR.status === 'rejected') {
+        console.error('[ReportsManagement] Failed to fetch inventory usage:', invR.reason)
+        setInventoryData(null)
+      }
+
+      // Xử lý Low Stock
       if (lowStockR.status === 'fulfilled') {
-        const items = lowStockR.value?.items || []
+        const items = lowStockR.value?.items || lowStockR.value?.data?.items || []
         setLowStockItems(Array.isArray(items) ? items : [])
       }
+
+      // Xử lý Technician Booking Stats
       if (techBookingStatsR.status === 'fulfilled') {
         const response = techBookingStatsR.value as any
         console.log('[ReportsManagement] Raw technician booking stats response:', response)
@@ -330,11 +422,27 @@ export default function ReportsManagement() {
       }
 
     } catch (err) {
+      console.error('[ReportsManagement] Error loading reports:', err)
       setError('Có lỗi xảy ra khi tải dữ liệu báo cáo')
-    } finally {
       setLoading(false)
+    } finally {
+      loadingRef.current = false // Reset để cho phép load lại
     }
   }
+
+  // Debounced load function cho filter
+  const debouncedLoadReports = useCallback((
+    from: string,
+    to: string,
+    gran: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  ) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      loadReportsData(from, to, gran)
+    }, 300) // Debounce 300ms
+  }, [])
 
   // Bỏ preset: không dùng nữa
 
@@ -410,6 +518,9 @@ export default function ReportsManagement() {
       default: return 'Tháng này'
     }
   }
+
+  // Debug: Log loading state
+  console.log('[ReportsManagement] Render - loading:', loading, 'error:', error, 'revenueData:', revenueData ? 'exists' : 'null')
 
   if (loading) {
     return (
@@ -584,6 +695,49 @@ export default function ReportsManagement() {
     return sum + (Number(item.revenue) || 0)
   }, 0)
 
+  // Tính tổng bookings (tất cả các status)
+  const totalBookings = bookingData?.totalAllBookings ?? 
+                       (bookingData?.totalBookings ?? 0) +
+                       (bookingData?.completedBookings ?? 0) +
+                       (bookingData?.cancelledBookings ?? 0) +
+                       (bookingData?.inProgressBookings ?? 0) +
+                       (bookingData?.pendingBookings ?? 0)
+
+  // Debug: Log tất cả giá trị stats
+  console.log('[ReportsManagement] Stats calculation:', {
+    revenueData: revenueData ? {
+      totalRevenue: revenueData.totalRevenue,
+      hasRevenueByPeriod: !!revenueData.revenueByPeriod,
+      revenueByPeriodLength: revenueData.revenueByPeriod?.length || 0,
+      revenueByPeriod: revenueData.revenueByPeriod?.slice(0, 3) // Show first 3 items
+    } : null,
+    bookingData: bookingData ? {
+      totalBookings: bookingData.totalBookings,
+      totalAllBookings: bookingData.totalAllBookings,
+      calculatedTotal: totalBookings,
+      paidBookings: bookingData.paidBookings,
+      completedBookings: bookingData.completedBookings,
+      cancelledBookings: bookingData.cancelledBookings,
+      inProgressBookings: bookingData.inProgressBookings,
+      pendingBookings: bookingData.pendingBookings
+    } : null,
+    serviceRevenueItems: {
+      count: serviceRevenueItems?.length || 0,
+      items: serviceRevenueItems?.map((item: any) => ({
+        name: item.serviceName,
+        revenue: item.revenue,
+        bookingCount: item.bookingCount
+      })) || []
+    },
+    totalServiceRevenue,
+    partsUsageData: partsUsageData ? {
+      totalValue: partsUsageData.totalValue,
+      summaryTotalRevenue: partsUsageData.summary?.totalRevenue,
+      summary: partsUsageData.summary,
+      hasData: true
+    } : null
+  })
+
   const reportStats = [
     {
       title: 'Tổng doanh thu',
@@ -594,7 +748,7 @@ export default function ReportsManagement() {
     },
     {
       title: 'Lịch hẹn',
-      value: bookingData?.totalBookings?.toString() || '0',
+      value: totalBookings.toString(),
       unit: 'đơn',
       icon: Calendar,
       color: '#22C55E'
@@ -608,7 +762,10 @@ export default function ReportsManagement() {
     },
     {
       title: 'Doanh thu theo phụ tùng',
-      value: (partsUsageData?.totalValue ? Number(partsUsageData.totalValue) : 0).toLocaleString('vi-VN'),
+      value: (partsUsageData?.summary?.totalRevenue 
+        ? Number(partsUsageData.summary.totalRevenue) 
+        : (partsUsageData?.totalValue ? Number(partsUsageData.totalValue) : 0)
+      ).toLocaleString('vi-VN'),
       unit: 'VNĐ',
       icon: Package,
       color: '#A78BFA'
@@ -1352,4 +1509,5 @@ export default function ReportsManagement() {
     </div>
   )
 }
+
 
