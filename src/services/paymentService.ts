@@ -265,6 +265,8 @@ export interface PaymentBreakdownPart {
     qty: number
     unitPrice: number
     amount: number
+    referenceUnitPrice?: number // Cho phụ tùng khách cung cấp
+    sourceOrderItemId?: number // Cho phụ tùng khách cung cấp
 }
 
 export interface PaymentBreakdownResponse {
@@ -281,7 +283,11 @@ export interface PaymentBreakdownResponse {
             firstTimePrice: number
             discountAmount: number
         }
-        parts: PaymentBreakdownPart[]
+        // Backend có thể trả về parts là array hoặc object với fromInventory và fromCustomer
+        parts?: PaymentBreakdownPart[] | {
+            fromInventory?: PaymentBreakdownPart[]
+            fromCustomer?: PaymentBreakdownPart[]
+        }
         partsAmount: number
         promotion: {
             applied: boolean
@@ -289,7 +295,7 @@ export interface PaymentBreakdownResponse {
         }
         subtotal: number
         total: number
-        notes?: string
+        notes?: string // "Khuyến mãi chỉ áp dụng cho phần dịch vụ/gói; phụ tùng không áp dụng khuyến mãi."
     }
 }
 

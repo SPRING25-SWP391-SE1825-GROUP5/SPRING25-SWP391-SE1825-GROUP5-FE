@@ -22,24 +22,40 @@ export class PayOSService {
    */
   static async createPaymentLink(bookingId: number, amount?: number, promotionCode?: string): Promise<PayOSResponse> {
     try {
-      // Vẫn đính kèm amount trên query để tương thích cũ, đồng thời gửi trong body để chắc chắn BE nhận được
-      const rounded = amount && amount > 0 ? Math.round(amount) : undefined
-      const query = rounded ? `?amount=${encodeURIComponent(rounded)}` : ''
-      const body: any = {}
-      if (rounded !== undefined) body.amount = rounded
-      if (promotionCode) body.promotionCode = promotionCode
-      const response = await api.post(`/payment/booking/${bookingId}/link${query}`, body)
+      // API endpoint: POST /api/Payment/booking/{bookingId}/link
+      // Backend tự tính tổng tiền từ booking, không cần truyền amount
+      const response = await api.post(`/Payment/booking/${bookingId}/link`)
       console.log('PayOS API response:', response.data)
 
+      // Response structure: { success: true, message: "...", data: { checkoutUrl: "..." } }
+      const responseData = response.data
+      if (responseData?.success && responseData?.data?.checkoutUrl) {
+        return {
+          success: true,
+          data: {
+            checkoutUrl: responseData.data.checkoutUrl,
+            paymentLink: responseData.data.checkoutUrl, // Alias for compatibility
+            orderCode: bookingId,
+            amount: responseData.data.amount || 0,
+            description: `Thanh toán vé #${bookingId}`,
+            status: 'PENDING'
+          },
+          message: responseData.message || 'Tạo link thanh toán thành công'
+        }
+      }
+
+      // Fallback nếu response structure khác
       return {
-        success: true,
+        success: responseData?.success || false,
         data: {
-          checkoutUrl: response.data.data?.checkoutUrl,
+          checkoutUrl: responseData?.data?.checkoutUrl || responseData?.checkoutUrl || '',
+          paymentLink: responseData?.data?.checkoutUrl || responseData?.checkoutUrl || '',
           orderCode: bookingId,
           amount: 0,
           description: `Thanh toán vé #${bookingId}`,
           status: 'PENDING'
-        }
+        },
+        message: responseData?.message || 'Tạo link thanh toán thành công'
       }
     } catch (error: any) {
       console.error('Error creating PayOS payment link:', error)
