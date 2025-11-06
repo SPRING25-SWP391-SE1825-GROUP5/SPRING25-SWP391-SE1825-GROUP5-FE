@@ -5,6 +5,7 @@ import { useAppSelector } from '@/store/hooks'
 import { PayOSService } from '@/services/payOSService'
 import toast from 'react-hot-toast'
 import BookingHistoryCard from './BookingHistoryCard'
+import PaymentModal from '@/components/payment/PaymentModal'
 
 export default function ProfileHistory() {
   const user = useAppSelector((state) => state.auth.user)
@@ -14,6 +15,8 @@ export default function ProfileHistory() {
   const [expandedBookingId, setExpandedBookingId] = useState<number | null>(null)
   const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(null)
   const [processingPaymentId, setProcessingPaymentId] = useState<number | null>(null)
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<{ bookingId: number; totalAmount: number } | null>(null)
+  const [loadingBookingDetail, setLoadingBookingDetail] = useState(false)
   const itemsPerPage = 5
 
   useEffect(() => {
@@ -129,22 +132,61 @@ export default function ProfileHistory() {
     }
   }
 
-  // Handle payment
+  // Handle payment - mở modal thanh toán
   const handlePayment = async (bookingId: number) => {
+    setProcessingPaymentId(bookingId)
+    setLoadingBookingDetail(true)
     try {
-      setProcessingPaymentId(bookingId)
-      const paymentResponse = await PayOSService.createPaymentLink(bookingId)
-
-      if (paymentResponse.success && paymentResponse.data?.checkoutUrl) {
-        window.location.href = paymentResponse.data.checkoutUrl
+      const bookingDetail = await BookingService.getBookingDetail(bookingId)
+      if (bookingDetail?.success && bookingDetail?.data) {
+        const totalAmount = bookingDetail.data.totalAmount || 0
+        setSelectedBookingForPayment({ bookingId, totalAmount })
       } else {
-        toast.error('Không thể tạo link thanh toán')
+        toast.error('Không thể lấy thông tin booking')
       }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } }; message?: string }
-      toast.error(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi tạo link thanh toán')
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể tải thông tin thanh toán')
     } finally {
+      setLoadingBookingDetail(false)
       setProcessingPaymentId(null)
+    }
+  }
+
+  const handleClosePaymentModal = () => {
+    setSelectedBookingForPayment(null)
+  }
+
+  const handlePaymentSuccess = async () => {
+    // Reload lại danh sách booking sau khi thanh toán thành công
+    if (!user?.id) return
+    
+    try {
+      setLoading(true)
+      let currentCustomerId = user.customerId
+      if (!currentCustomerId) {
+        const customerResponse = await CustomerService.getCurrentCustomer()
+        if (customerResponse.success && customerResponse.data) {
+          currentCustomerId = customerResponse.data.customerId
+        }
+      }
+
+      if (currentCustomerId) {
+        const response = await CustomerService.getCustomerBookings(currentCustomerId, { pageNumber: 1, pageSize: 100 })
+        let bookingsArray: CustomerBooking[] = []
+        if (response && response.data) {
+          if (Array.isArray(response.data)) {
+            bookingsArray = response.data
+          } else if (response.data.bookings && Array.isArray(response.data.bookings)) {
+            bookingsArray = response.data.bookings
+          }
+        }
+        setBookings(bookingsArray)
+      }
+    } catch (error) {
+      console.error('Error reloading bookings:', error)
+    } finally {
+      setLoading(false)
+      handleClosePaymentModal()
     }
   }
 
@@ -193,38 +235,50 @@ export default function ProfileHistory() {
 
   return (
     <div className="profile-v2__section">
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        padding: '16px 0'
-      }}>
-        {currentBookings.map((booking) => (
-          <BookingHistoryCard
-            key={booking.bookingId}
-            booking={booking}
-            isNewest={booking.bookingId === newestBookingId}
-            isExpanded={expandedBookingId === booking.bookingId}
-            onToggle={() => {
-              if (expandedBookingId === booking.bookingId) {
-                setExpandedBookingId(null)
-              } else {
-                setExpandedBookingId(booking.bookingId)
-                // Scroll to details after a short delay for smooth animation
-                setTimeout(() => {
-                  const element = document.getElementById(`booking-details-${booking.bookingId}`)
-                  if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                  }
-                }, 100)
-              }
-            }}
-            onCancel={handleCancelBooking}
-            onPayment={handlePayment}
-            isCancelling={cancellingBookingId === booking.bookingId}
-            isProcessingPayment={processingPaymentId === booking.bookingId}
+      <div className="profile-v2__card" style={{ padding: 16 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          {currentBookings.map((booking) => (
+            <BookingHistoryCard
+              key={booking.bookingId}
+              booking={booking}
+              isNewest={booking.bookingId === newestBookingId}
+              isExpanded={expandedBookingId === booking.bookingId}
+              onToggle={() => {
+                if (expandedBookingId === booking.bookingId) {
+                  setExpandedBookingId(null)
+                } else {
+                  setExpandedBookingId(booking.bookingId)
+                  // Scroll to details after a short delay for smooth animation
+                  setTimeout(() => {
+                    const element = document.getElementById(`booking-details-${booking.bookingId}`)
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    }
+                  }, 100)
+                }
+              }}
+              onCancel={handleCancelBooking}
+              onPayment={handlePayment}
+              isCancelling={cancellingBookingId === booking.bookingId}
+              isProcessingPayment={processingPaymentId === booking.bookingId || loadingBookingDetail}
+            />
+          ))}
+        </div>
+
+        {/* Payment Modal - đặt trong card */}
+        {selectedBookingForPayment && (
+          <PaymentModal
+            bookingId={selectedBookingForPayment.bookingId}
+            totalAmount={selectedBookingForPayment.totalAmount}
+            open={!!selectedBookingForPayment}
+            onClose={handleClosePaymentModal}
+            onPaymentSuccess={handlePaymentSuccess}
           />
-        ))}
+        )}
       </div>
 
       {/* Pagination */}

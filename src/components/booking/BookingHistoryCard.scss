@@ -21,7 +21,8 @@
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 16px;
-    padding-right: 24px; // Space for expand indicator
+    padding-right: 40px; // Tăng padding để có chỗ cho cả nút thanh toán và expand indicator
+    position: relative; // Để nút thanh toán có thể position relative
 
     .booking-info {
       flex: 1;
@@ -41,6 +42,12 @@
         margin: 0;
         font-family: var(--font-family-primary);
       }
+    }
+
+    // Style cho nút thanh toán
+    .payment-button {
+      position: relative !important;
+      z-index: 10 !important; // Đảm bảo nút luôn ở trên expand-indicator
     }
 
     .booking-status {
@@ -134,6 +141,7 @@
     position: absolute;
     top: 16px;
     right: 16px;
+    z-index: 1; // Thấp hơn nút thanh toán (z-index: 10)
     
     .expand-icon {
       font-size: 12px;

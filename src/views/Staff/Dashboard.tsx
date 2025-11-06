@@ -38,7 +38,7 @@ export default function StaffDashboard() {
   const [activePage, setActivePage] = useState('dashboard')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [approvalBookingId, setApprovalBookingId] = useState<number | ''>('')
-  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string }>>([])
+  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string; status?: string }>>([])
   const [loadingParts, setLoadingParts] = useState(false)
 
   const handleLogout = () => {
@@ -426,7 +426,7 @@ export default function StaffDashboard() {
                   setLoadingParts(true)
                   try {
                     const items = await WorkOrderPartService.list(Number(approvalBookingId))
-                    setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName })))
+                    setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName, status: it.status })))
                   } finally {
                     setLoadingParts(false)
                   }
@@ -442,7 +442,27 @@ export default function StaffDashboard() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
                 {parts.map(p => (
-                  <PartsApproval key={p.id} bookingId={Number(approvalBookingId)} partId={p.partId} partName={p.partName} />
+                  <PartsApproval 
+                    key={p.id} 
+                    bookingId={Number(approvalBookingId)} 
+                    workOrderPartId={p.id} 
+                    partId={p.partId} 
+                    partName={p.partName} 
+                    mode="staff"
+                    status={p.status}
+                    onApproved={async () => {
+                      // Reload lại danh sách sau khi approve/reject
+                      if (approvalBookingId) {
+                        setLoadingParts(true)
+                        try {
+                          const items = await WorkOrderPartService.list(Number(approvalBookingId))
+                          setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName, status: it.status })))
+                        } finally {
+                          setLoadingParts(false)
+                        }
+                      }
+                    }}
+                  />
                 ))}
                 {approvalBookingId && parts.length === 0 && (
                   <div style={{ color: 'var(--text-secondary)' }}>Không có phụ tùng cần phê duyệt.</div>

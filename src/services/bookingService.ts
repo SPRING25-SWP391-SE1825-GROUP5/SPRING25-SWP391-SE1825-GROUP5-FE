@@ -288,6 +288,8 @@ export interface CustomerBooking {
   vehiclePlate: string
   specialRequests: string
   createdAt: string
+  actualCost?: number
+  estimatedCost?: number
 }
 
 export const BookingService = {

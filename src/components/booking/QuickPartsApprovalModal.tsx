@@ -6,33 +6,42 @@ interface QuickPartsApprovalModalProps {
   bookingId: number | null
   open: boolean
   onClose: () => void
+  mode?: 'customer' | 'staff' // Mode: customer hoặc staff
 }
 
-export default function QuickPartsApprovalModal({ bookingId, open, onClose }: QuickPartsApprovalModalProps) {
+export default function QuickPartsApprovalModal({ bookingId, open, onClose, mode = 'staff' }: QuickPartsApprovalModalProps) {
   const [loading, setLoading] = useState(false)
-  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string }>>([])
+  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string; status?: string }>>([])
   const [error, setError] = useState<string | null>(null)
+
+  const loadParts = async () => {
+    if (!bookingId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const items = await WorkOrderPartService.list(Number(bookingId))
+      setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName, status: it.status })))
+    } catch (e: any) {
+      setError(e?.message || 'Không thể tải phụ tùng')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let ignore = false
     const load = async () => {
       if (!open || !bookingId) return
-      setLoading(true)
-      setError(null)
-      try {
-        const items = await WorkOrderPartService.list(Number(bookingId))
-        if (!ignore) {
-          setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName })))
-        }
-      } catch (e: any) {
-        if (!ignore) setError(e?.message || 'Không thể tải phụ tùng')
-      } finally {
-        if (!ignore) setLoading(false)
-      }
+      await loadParts()
     }
     load()
     return () => { ignore = true }
   }, [open, bookingId])
+  
+  const handleApproved = async () => {
+    // Reload lại danh sách sau khi approve/reject để cập nhật status
+    await loadParts()
+  }
 
   if (!open) return null
 
@@ -75,7 +84,16 @@ export default function QuickPartsApprovalModal({ bookingId, open, onClose }: Qu
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
             {parts.map(p => (
-              <PartsApproval key={p.id} bookingId={Number(bookingId)} partId={p.partId} partName={p.partName} />
+              <PartsApproval 
+                key={p.id} 
+                bookingId={Number(bookingId)} 
+                workOrderPartId={p.id} 
+                partId={p.partId} 
+                partName={p.partName} 
+                mode={mode}
+                status={p.status}
+                onApproved={handleApproved}
+              />
             ))}
             {bookingId && parts.length === 0 && (
               <div style={{ color: 'var(--text-secondary)' }}>Không có phụ tùng cần phê duyệt.</div>

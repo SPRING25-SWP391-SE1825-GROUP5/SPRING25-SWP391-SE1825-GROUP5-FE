@@ -225,6 +225,14 @@ export class PaymentService {
             return result
         }
     }
+
+    /**
+     * Lấy breakdown (chi tiết hóa đơn) cho booking
+     */
+    static async getBookingBreakdown(bookingId: number): Promise<PaymentBreakdownResponse> {
+        const { data } = await api.get(`/Payment/booking/${bookingId}/breakdown`)
+        return data
+    }
 }
 
 export interface PaymentStatusResponse {
@@ -248,6 +256,41 @@ export interface ActualPaymentStatusResponse {
     success: boolean
     message: string
     data?: any // Flexible để handle response structure khác nhau
+}
+
+// Payment Breakdown Interfaces
+export interface PaymentBreakdownPart {
+    partId: number
+    name: string
+    qty: number
+    unitPrice: number
+    amount: number
+}
+
+export interface PaymentBreakdownResponse {
+    success: boolean
+    message?: string
+    data: {
+        bookingId: number
+        service: {
+            name: string
+            basePrice: number
+        }
+        package: {
+            applied: boolean
+            firstTimePrice: number
+            discountAmount: number
+        }
+        parts: PaymentBreakdownPart[]
+        partsAmount: number
+        promotion: {
+            applied: boolean
+            discountAmount: number
+        }
+        subtotal: number
+        total: number
+        notes?: string
+    }
 }
 
 // Export individual functions for backward compatibility
