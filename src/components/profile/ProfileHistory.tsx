@@ -244,32 +244,34 @@ export default function ProfileHistory() {
         gap: '16px',
         padding: '16px 0'
       }}>
-        {currentBookings.map((booking) => (
-          <BookingHistoryCard
-            key={booking.bookingId}
-            booking={booking}
-            isNewest={booking.bookingId === newestBookingId}
-            isExpanded={expandedBookingId === booking.bookingId}
-            onToggle={() => {
-              if (expandedBookingId === booking.bookingId) {
-                setExpandedBookingId(null)
-              } else {
-                setExpandedBookingId(booking.bookingId)
-                // Scroll to details after a short delay for smooth animation
-                setTimeout(() => {
-                  const element = document.getElementById(`booking-details-${booking.bookingId}`)
-                  if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                  }
-                }, 100)
-              }
-            }}
-            onCancel={handleCancelBooking}
-            onPayment={handlePayment}
-            isCancelling={cancellingBookingId === booking.bookingId}
-            isProcessingPayment={processingPaymentId === booking.bookingId}
-          />
-        )}
+        {currentBookings.map((booking) => {
+          return (
+            <BookingHistoryCard
+              key={booking.bookingId}
+              booking={booking}
+              isNewest={booking.bookingId === newestBookingId}
+              isExpanded={expandedBookingId === booking.bookingId}
+              onToggle={() => {
+                if (expandedBookingId === booking.bookingId) {
+                  setExpandedBookingId(null)
+                } else {
+                  setExpandedBookingId(booking.bookingId)
+                  // Scroll to details after a short delay for smooth animation
+                  setTimeout(() => {
+                    const element = document.getElementById(`booking-details-${booking.bookingId}`)
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    }
+                  }, 100)
+                }
+              }}
+              onCancel={handleCancelBooking}
+              onPayment={handlePayment}
+              isCancelling={cancellingBookingId === booking.bookingId}
+              isProcessingPayment={processingPaymentId === booking.bookingId}
+            />
+          )
+        })}
       </div>
 
       {/* Pagination */}
@@ -335,6 +337,17 @@ export default function ProfileHistory() {
             ›
           </button>
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {selectedBookingForPayment && (
+        <PaymentModal
+          bookingId={selectedBookingForPayment.bookingId}
+          totalAmount={selectedBookingForPayment.totalAmount}
+          open={!!selectedBookingForPayment}
+          onClose={handleClosePaymentModal}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
       )}
     </div>
   )
