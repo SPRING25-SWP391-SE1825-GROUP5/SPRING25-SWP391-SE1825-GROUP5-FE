@@ -34,6 +34,10 @@ export interface QuickOrderResponse {
 }
 
 export const OrderService = {
+  async getByCustomerId(customerId: number): Promise<{ success: boolean; message?: string; data?: any[] }> {
+    const { data } = await api.get(`/Order/customer/${customerId}`)
+    return data
+  },
   async createOrder(customerId: number, payload: CreateOrderRequest): Promise<CreateOrderResponse> {
     const { data } = await api.post<CreateOrderResponse>(`/Order/customer/${customerId}/create`, payload)
     return data

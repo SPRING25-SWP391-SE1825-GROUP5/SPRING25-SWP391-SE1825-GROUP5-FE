@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { useAppSelector } from '@/store/hooks'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { removeFromCart } from '@/store/cartSlice'
 import './PaymentSuccess.scss'
 
 interface PaymentResult {
@@ -32,6 +33,7 @@ interface PaymentResult {
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const auth = useAppSelector((state) => state.auth)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -126,6 +128,33 @@ export default function PaymentSuccess() {
             bookingInfo: data.data
           })
 
+          // Xóa sản phẩm đã thanh toán khỏi giỏ hàng khi thanh toán thành công
+          if (type === 'order' && orderId && status === 'success') {
+            try {
+              // Lấy selectedIds đã lưu khi tạo order
+              const orderIdStr = String(orderId)
+              const selectedIdsKey = `orderSelectedIds_${orderIdStr}`
+              const selectedIdsRaw = sessionStorage.getItem(selectedIdsKey)
+              
+              if (selectedIdsRaw) {
+                const selectedIds: string[] = JSON.parse(selectedIdsRaw)
+                
+                // Xóa từng item đã thanh toán khỏi cart
+                selectedIds.forEach((itemId: string) => {
+                  dispatch(removeFromCart({ id: itemId, userId: auth.user?.id ?? null }))
+                })
+                
+                // Xóa selectedIds khỏi sessionStorage sau khi đã xử lý
+                sessionStorage.removeItem(selectedIdsKey)
+                
+                console.log('PaymentSuccess - Removed paid items from cart:', selectedIds)
+              }
+            } catch (cartError) {
+              console.warn('PaymentSuccess - Error removing items from cart:', cartError)
+              // Không block UI nếu xóa cart fail
+            }
+          }
+
           // Hiển thị toast thành công
           if (status === 'success') {
             toast.success('Thanh toán thành công!')
@@ -147,6 +176,8 @@ export default function PaymentSuccess() {
 
     handlePaymentResult()
   }, [searchParams, auth.token])
+
+  // (Reverted) Không tự động can thiệp giỏ hàng sau thanh toán
 
   const getStatusIcon = (status: string) => {
     switch (status) {

@@ -12,7 +12,6 @@ import {
 } from '@heroicons/react/24/outline'
 
 export type ProfileTabKey =
-  | 'overview'
   | 'info'
   | 'vehicles'
   | 'history'
@@ -36,10 +35,9 @@ interface ProfileNavProps {
 }
 
 const items: NavItem[] = [
-  { key: 'overview', label: 'Tổng quan', icon: <HomeIcon width={16} height={16} /> },
   { key: 'info', label: 'Thông tin', icon: <IdentificationIcon width={16} height={16} /> },
   { key: 'vehicles', label: 'Phương tiện', icon: <TruckIcon width={16} height={16} /> },
-  { key: 'history', label: 'Lịch sử đặt lịch', icon: <ClockIcon width={16} height={16} /> },
+  { key: 'history', label: 'Lịch sử hoạt động', icon: <ClockIcon width={16} height={16} /> },
   { key: 'packages', label: 'Gói dịch vụ', icon: <GiftTopIcon width={16} height={16} /> },
   { key: 'promotions', label: 'Mã khuyến mãi đã lưu', icon: <TagIcon width={16} height={16} /> },
   { key: 'reviews', label: 'Đánh giá của tôi', icon: <ChatBubbleLeftRightIcon width={16} height={16} /> },
