@@ -1,8 +1,13 @@
 import type { CustomerBooking } from '@/services/bookingService'
 import { BookingService } from '@/services/bookingService'
 import { WorkOrderPartService } from '@/services/workOrderPartService'
-import { useState, useEffect } from 'react'
+import { PartService } from '@/services/partService'
+import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
+import FeedbackModal from '@/components/feedback/FeedbackModal'
+import { feedbackService } from '@/services/feedbackService'
+import { useAppSelector } from '@/store/hooks'
+import { Star, MessageSquare } from 'lucide-react'
 
 interface BookingHistoryCardProps {
   booking: CustomerBooking
@@ -84,6 +89,16 @@ export default function BookingHistoryCard({
   const [parts, setParts] = useState<BookingPart[]>([])
   const [loadingParts, setLoadingParts] = useState(false)
   const [approvingPartId, setApprovingPartId] = useState<number | null>(null)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [loadingFeedback, setLoadingFeedback] = useState(false)
+  const [existingFeedback, setExistingFeedback] = useState<any>(null)
+  const [bookingDetail, setBookingDetail] = useState<any>(null)
+  const user = useAppSelector((state) => state.auth.user)
+  
+  // Tính tổng tiền phụ tùng (giống như kỹ thuật viên)
+  const totalPartsCost = useMemo(() => {
+    return parts.reduce((sum, p) => sum + (p.unitPrice || 0) * (p.quantityUsed || 0), 0)
+  }, [parts])
 
   // Load parts when expanded
   useEffect(() => {
@@ -92,28 +107,91 @@ export default function BookingHistoryCard({
     }
   }, [isExpanded, booking.bookingId])
 
+  // Load feedback and booking detail when status is PAID
+  useEffect(() => {
+    if (isExpanded && booking.bookingId && (booking.status || '').toUpperCase() === 'PAID') {
+      loadFeedbackAndBookingDetail()
+    }
+  }, [isExpanded, booking.bookingId, booking.status])
+
+  const loadFeedbackAndBookingDetail = async () => {
+    try {
+      setLoadingFeedback(true)
+      // Load booking detail để lấy technicianId và serviceName
+      const detail = await BookingService.getBookingDetail(booking.bookingId)
+      if (detail?.success && detail?.data) {
+        setBookingDetail(detail.data)
+      }
+      
+      // Load existing feedback
+      try {
+        const feedback = await feedbackService.getFeedback(String(booking.bookingId))
+        setExistingFeedback(feedback)
+      } catch (err) {
+        // Nếu chưa có feedback thì set null
+        setExistingFeedback(null)
+      }
+    } catch (error) {
+      console.error('Error loading feedback:', error)
+    } finally {
+      setLoadingFeedback(false)
+    }
+  }
+
   const loadParts = async () => {
     try {
       setLoadingParts(true)
-      // Ưu tiên lấy từ WorkOrderPartService để có unitPrice/quantity chính xác
-      const items = await WorkOrderPartService.list(Number(booking.bookingId))
-      if (Array.isArray(items) && items.length > 0) {
-        setParts(items.map(it => ({
-          workOrderPartId: it.id,
-          partId: it.partId,
-          partName: it.partName || '',
-          quantityUsed: it.quantity,
-          status: it.status || 'DRAFT',
-          unitPrice: it.unitPrice
-        })))
-      } else {
+      // 1. Load phụ tùng từ API /Booking/{bookingId}/parts (giống như kỹ thuật viên)
+      let list = await WorkOrderPartService.list(Number(booking.bookingId))
+      
+      // 2. Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
+      list = await Promise.all(list.map(async (p) => {
+        try {
+          // Luôn gọi API /api/Part/{id} để lấy unitPrice chính xác
+          const partDetail = await PartService.getPartById(p.partId)
+          
+          if (partDetail.success && partDetail.data) {
+            const raw = partDetail.data as any
+            // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
+            const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
+            
+            return {
+              ...p,
+              partNumber: partDetail.data.partNumber || p.partNumber,
+              partName: partDetail.data.partName || p.partName,
+              brand: partDetail.data.brand || p.brand,
+              unitPrice: unitPrice, // Lấy đơn giá từ API Part/{id}
+              totalStock: partDetail.data.totalStock ?? p.totalStock
+            }
+          }
+        } catch (err) {
+          console.error(`Lỗi khi load chi tiết phụ tùng ${p.partId}:`, err)
+        }
+        
+        return p
+      }))
+      
+      // 3. Map sang BookingPart format
+      setParts(list.map(it => ({
+        workOrderPartId: it.id,
+        partId: it.partId,
+        partName: it.partName || '',
+        quantityUsed: it.quantity,
+        status: it.status || 'DRAFT',
+        unitPrice: it.unitPrice
+      })))
+    } catch (error) {
+      console.error('Error loading parts:', error)
+      // Fallback: thử load từ BookingService
+      try {
         const response = await BookingService.getBookingParts(booking.bookingId)
         if (response.success && response.data) {
           setParts(response.data.items || [])
         }
+      } catch (fallbackError) {
+        console.error('Fallback load also failed:', fallbackError)
+        setParts([])
       }
-    } catch (error) {
-      console.error('Error loading parts:', error)
     } finally {
       setLoadingParts(false)
     }
@@ -619,6 +697,15 @@ export default function BookingHistoryCard({
                         </tr>
                       ))}
                     </tbody>
+                    {parts.length > 0 && totalPartsCost > 0 && (
+                      <tfoot>
+                        <tr style={{ background: '#f9fafb', borderTop: '2px solid #e5e7eb' }}>
+                          <td colSpan={3} style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: 600, color: '#111827' }}>Tổng phụ tùng:</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: 700, color: '#111827' }}>{totalPartsCost.toLocaleString('vi-VN')} VNĐ</td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               )}
@@ -698,6 +785,153 @@ export default function BookingHistoryCard({
             {isProcessingPayment ? 'Đang xử lý...' : 'Chọn phương thức và thanh toán'}
           </button>
         </div>
+      )}
+
+      {/* Feedback Section - Hiển thị khi booking status là PAID */}
+      {isExpanded && (booking.status || '').toUpperCase() === 'PAID' && (
+        <div style={{
+          marginTop: '16px',
+          padding: '16px',
+          borderTop: '2px solid #e5e7eb',
+          background: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '12px'
+          }}>
+            <MessageSquare size={18} color="#10B981" />
+            <p style={{
+              fontSize: '14px',
+              color: '#111827',
+              margin: 0,
+              fontWeight: 700
+            }}>Đánh giá dịch vụ</p>
+          </div>
+
+          {loadingFeedback ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+              Đang tải...
+            </div>
+          ) : existingFeedback ? (
+            // Hiển thị feedback đã gửi
+            <div style={{
+              padding: '16px',
+              background: '#ffffff',
+              borderRadius: '8px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={16}
+                      fill={star <= (existingFeedback.rating || existingFeedback.technicianRating || 0) ? '#FFD875' : 'none'}
+                      color={star <= (existingFeedback.rating || existingFeedback.technicianRating || 0) ? '#FFD875' : '#d1d5db'}
+                    />
+                  ))}
+                </div>
+                <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                  Đã đánh giá
+                </span>
+              </div>
+              {existingFeedback.comment && (
+                <p style={{
+                  fontSize: '14px',
+                  color: '#374151',
+                  margin: 0,
+                  lineHeight: '1.6'
+                }}>
+                  {existingFeedback.comment}
+                </p>
+              )}
+            </div>
+          ) : (
+            // Hiển thị nút để gửi feedback
+            <div>
+              <p style={{
+                fontSize: '13px',
+                color: '#6b7280',
+                margin: '0 0 12px 0'
+              }}>
+                Chia sẻ trải nghiệm của bạn về dịch vụ này
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowFeedbackModal(true)
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  background: '#10B981',
+                  border: '1px solid #10B981',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#059669'
+                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#10B981'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <Star size={16} fill="#fff" color="#fff" />
+                Đánh giá dịch vụ
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Feedback Modal */}
+      {showFeedbackModal && bookingDetail && user && (
+        <FeedbackModal
+          isOpen={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          bookingId={String(booking.bookingId)}
+          serviceName={bookingDetail.serviceInfo?.serviceName || booking.serviceName || 'Dịch vụ'}
+          technician={bookingDetail.technicianInfo?.technicianName || 'Kỹ thuật viên'}
+          partsUsed={parts.map(p => p.partName)}
+          onSubmit={async (feedback) => {
+            try {
+              // Gọi API submit feedback
+              const technicianId = bookingDetail.technicianInfo?.technicianId || 0
+              if (!technicianId) {
+                toast.error('Không tìm thấy thông tin kỹ thuật viên')
+                return
+              }
+
+              await feedbackService.submitBookingFeedback(String(booking.bookingId), {
+                customerId: user.id || user.customerId || 0,
+                rating: feedback.technicianRating,
+                comment: feedback.comment,
+                isAnonymous: false,
+                technicianId: technicianId
+              })
+
+              toast.success('Đánh giá đã được gửi thành công!')
+              setShowFeedbackModal(false)
+              // Reload feedback
+              await loadFeedbackAndBookingDetail()
+            } catch (error: any) {
+              toast.error(error?.message || 'Không thể gửi đánh giá')
+              throw error
+            }
+          }}
+        />
       )}
 
       <style>{`

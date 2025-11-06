@@ -30,6 +30,10 @@ import StaffChatInterface from '@/components/chat/StaffChatInterface'
 import './staff.scss'
 import PartsApproval from '@/components/booking/PartsApproval'
 import { WorkOrderPartService } from '@/services/workOrderPartService'
+import PaymentModal from '@/components/payment/PaymentModal'
+import { BookingService } from '@/services/bookingService'
+import FeedbackModal from '@/components/feedback/FeedbackModal'
+import { feedbackService } from '@/services/feedbackService'
 
 export default function StaffDashboard() {
   const navigate = useNavigate()
@@ -40,6 +44,12 @@ export default function StaffDashboard() {
   const [approvalBookingId, setApprovalBookingId] = useState<number | ''>('')
   const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string; status?: string }>>([])
   const [loadingParts, setLoadingParts] = useState(false)
+  const [paymentBookingId, setPaymentBookingId] = useState<number | ''>('')
+  const [paymentTotalAmount, setPaymentTotalAmount] = useState<number>(0)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [loadingPaymentBooking, setLoadingPaymentBooking] = useState(false)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackBookingId, setFeedbackBookingId] = useState<number | ''>('')
 
   const handleLogout = () => {
     dispatch(logout())
@@ -471,6 +481,106 @@ export default function StaffDashboard() {
             )}
           </div>
         </div>
+
+        {/* Quick Payment for Customer Panel */}
+        <div style={{ marginTop: 24 }}>
+          <div style={{
+            background: '#fff',
+            border: '1px solid var(--border-primary)',
+            borderRadius: 12,
+            padding: 16
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <ClipboardList size={18} />
+              <strong>Tạo thanh toán cho khách (nhập Booking ID)</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <input
+                type="number"
+                placeholder="Booking ID"
+                value={paymentBookingId}
+                onChange={(e) => setPaymentBookingId(e.target.value ? Number(e.target.value) : '')}
+                style={{ padding: '8px 10px', border: '1px solid var(--border-primary)', borderRadius: 8 }}
+              />
+              <button
+                className="btn-primary"
+                style={{ padding: '8px 12px' }}
+                disabled={loadingPaymentBooking || !paymentBookingId}
+                onClick={async () => {
+                  if (!paymentBookingId) return
+                  setLoadingPaymentBooking(true)
+                  try {
+                    const detail = await BookingService.getBookingDetail(Number(paymentBookingId))
+                    if (detail?.success && detail?.data) {
+                      setPaymentTotalAmount(detail.data.totalAmount || 0)
+                      setShowPaymentModal(true)
+                    } else {
+                      toast.error('Không thể lấy thông tin booking')
+                    }
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Không thể tải thông tin thanh toán')
+                  } finally {
+                    setLoadingPaymentBooking(false)
+                  }
+                }}
+              >
+                {loadingPaymentBooking ? 'Đang tải...' : 'Mở phương thức thanh toán'}
+              </button>
+              <button
+                className="btn-secondary"
+                style={{ padding: '8px 12px', background: 'transparent', border: '1px solid var(--border-primary)' }}
+                disabled={!paymentBookingId}
+                onClick={() => {
+                  if (!paymentBookingId) return
+                  setFeedbackBookingId(paymentBookingId)
+                  setShowFeedbackModal(true)
+                }}
+              >
+                Mở Feedback ngay
+              </button>
+            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+              Gợi ý: Sau khi thanh toán xong (đặc biệt với thanh toán offline), hệ thống sẽ bật cửa sổ Feedback để nhân viên hỗ trợ khách đánh giá ngay.
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Modal for Staff */}
+        {showPaymentModal && paymentBookingId && (
+          <PaymentModal
+            bookingId={Number(paymentBookingId)}
+            totalAmount={paymentTotalAmount}
+            open={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            onPaymentSuccess={() => {
+              // Sau khi thanh toán offline thành công: mở Feedback ngay
+              setShowPaymentModal(false)
+              setFeedbackBookingId(Number(paymentBookingId))
+              setShowFeedbackModal(true)
+            }}
+          />
+        )}
+
+        {/* Feedback Modal for Staff */}
+        {showFeedbackModal && feedbackBookingId && (
+          <FeedbackModal
+            isOpen={showFeedbackModal}
+            onClose={() => setShowFeedbackModal(false)}
+            bookingId={String(feedbackBookingId)}
+            serviceName={''}
+            technician={'Kỹ thuật viên'}
+            partsUsed={[]}
+            onSubmit={async (fb) => {
+              try {
+                await feedbackService.submitFeedback(String(feedbackBookingId), 0, fb)
+                toast.success('Gửi đánh giá thành công')
+                setShowFeedbackModal(false)
+              } catch (err: any) {
+                toast.error(err?.message || 'Không thể gửi đánh giá')
+              }
+            }}
+          />
+        )}
       </div>
     </div>
   )
