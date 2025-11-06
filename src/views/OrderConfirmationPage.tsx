@@ -127,13 +127,13 @@ export default function OrderConfirmationPage() {
       const createResp = await OrderService.checkoutOnline(Number(id))
       console.log('OrderConfirmationPage - checkoutOnline response:', createResp)
       
-      let checkoutUrl = (createResp as any)?.checkoutUrl || createResp?.data?.checkoutUrl
+      let checkoutUrl = createResp?.checkoutUrl
 
       // Nếu BE trả báo đã tồn tại/không có link, thử lấy link hiện có
       if (!checkoutUrl) {
         const linkResp = await OrderService.getPaymentLink(Number(id))
         console.log('OrderConfirmationPage - getPaymentLink response:', linkResp)
-        checkoutUrl = (linkResp as any)?.checkoutUrl || linkResp?.data?.checkoutUrl
+        checkoutUrl = linkResp?.checkoutUrl
       }
 
       if (checkoutUrl) {
