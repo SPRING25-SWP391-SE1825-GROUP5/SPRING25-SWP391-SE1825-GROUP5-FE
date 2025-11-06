@@ -49,7 +49,7 @@ export const WorkOrderPartService = {
     }
   },
 
-  async update(bookingId: number, id: number, payload: { quantity?: number; notes?: string }): Promise<void> {
+  async update(bookingId: number, id: number, payload: { partId?: number; quantity?: number; notes?: string }): Promise<void> {
     await api.put(`/Booking/${bookingId}/parts/${id}`, payload)
   },
 
@@ -68,6 +68,18 @@ export const WorkOrderPartService = {
       headers['Idempotency-Key'] = idempotencyKey
     }
     const { data } = await api.post(`/Booking/${bookingId}/parts/${workOrderPartId}/customer-approve`, { approve, note }, { headers })
+    return data
+  }
+  ,
+  async staffApproveAndConsume(bookingId: number, workOrderPartId: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    // BE endpoint: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/approve-and-consume
+    const { data } = await api.put(`/Booking/${bookingId}/parts/${workOrderPartId}/approve-and-consume`)
+    return data
+  }
+  ,
+  async staffReject(bookingId: number, workOrderPartId: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    // BE endpoint: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/reject
+    const { data } = await api.put(`/Booking/${bookingId}/parts/${workOrderPartId}/reject`)
     return data
   }
 }

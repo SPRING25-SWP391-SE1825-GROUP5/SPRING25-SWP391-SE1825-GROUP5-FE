@@ -2,6 +2,7 @@ import api from './api'
 
 export interface PayOSPaymentInfo {
   checkoutUrl: string
+  paymentLink?: string
   qrCode?: string
   orderCode: number
   amount: number

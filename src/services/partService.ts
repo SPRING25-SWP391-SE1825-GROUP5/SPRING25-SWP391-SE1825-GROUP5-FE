@@ -121,7 +121,7 @@ export const PartService = {
   // Lấy phụ tùng theo categoryId (phụ tùng gợi ý khi FAIL)
   async getPartsByCategory(categoryId: number): Promise<{ success: boolean; message?: string; data: Part[] }> {
     try {
-      const { data } = await api.get(`/parts/by-category/${categoryId}`)
+      const { data } = await api.get(`/parts/by-category/${categoryId}/with-inventory`)
       // Kỳ vọng backend trả { success, data: Part[] }
       if (Array.isArray(data)) {
         return { success: true, data }

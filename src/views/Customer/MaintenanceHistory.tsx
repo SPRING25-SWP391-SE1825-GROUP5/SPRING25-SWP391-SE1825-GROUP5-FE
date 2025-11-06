@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Filter, Star, MessageSquare, Calendar, User, Wrench, Package, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { Search, Filter, Star, MessageSquare, Calendar, User, Wrench, Package, AlertCircle, CheckCircle, Loader2, CreditCard } from 'lucide-react'
 import { FeedbackCard } from '@/components/feedback'
 import { BookingData, feedbackService } from '@/services/feedbackService'
 import { FeedbackData } from '@/components/feedback'
@@ -7,6 +7,9 @@ import './customer.scss'
 import './MaintenanceHistory.scss'
 import { WorkOrderPartService } from '@/services/workOrderPartService'
 import PartsApproval from '@/components/booking/PartsApproval'
+import PaymentModal from '@/components/payment/PaymentModal'
+import { BookingService } from '@/services/bookingService'
+import toast from 'react-hot-toast'
 
 export default function MaintenanceHistory() {
   const [bookings, setBookings] = useState<BookingData[]>([])
@@ -18,6 +21,8 @@ export default function MaintenanceHistory() {
   const [selectedBookingForApproval, setSelectedBookingForApproval] = useState<BookingData | null>(null)
   const [parts, setParts] = useState<Record<string, any[]>>({})
   const [loadingParts, setLoadingParts] = useState(false)
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<{ bookingId: number; totalAmount: number } | null>(null)
+  const [loadingBookingDetail, setLoadingBookingDetail] = useState(false)
 
   // Load bookings data
   const loadBookings = async () => {
@@ -53,6 +58,34 @@ export default function MaintenanceHistory() {
 
   const closeApprovalModal = () => {
     setSelectedBookingForApproval(null)
+  }
+
+  // Xử lý mở modal thanh toán
+  const handleOpenPaymentModal = async (bookingId: string) => {
+    setLoadingBookingDetail(true)
+    try {
+      const bookingDetail = await BookingService.getBookingDetail(Number(bookingId))
+      if (bookingDetail?.success && bookingDetail?.data) {
+        const totalAmount = bookingDetail.data.totalAmount || 0
+        setSelectedBookingForPayment({ bookingId: Number(bookingId), totalAmount })
+      } else {
+        toast.error('Không thể lấy thông tin booking')
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể tải thông tin thanh toán')
+    } finally {
+      setLoadingBookingDetail(false)
+    }
+  }
+
+  const handleClosePaymentModal = () => {
+    setSelectedBookingForPayment(null)
+  }
+
+  const handlePaymentSuccess = async () => {
+    // Reload lại danh sách booking sau khi thanh toán thành công
+    await loadBookings()
+    handleClosePaymentModal()
   }
 
   // Handle feedback submission
@@ -249,14 +282,40 @@ export default function MaintenanceHistory() {
                   onSubmitFeedback={handleSubmitFeedback}
                   onEditFeedback={handleEditFeedback}
                 />
-                <div style={{ marginTop: 8, textAlign: 'right' }}>
-                  <button
-                    onClick={() => openApprovalModal(booking)}
-                    className="btn-primary"
-                    style={{ padding: '8px 12px' }}
-                  >
-                    Phê duyệt phụ tùng
-                  </button>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {/* Nút phê duyệt phụ tùng - chỉ hiển thị khi cần */}
+                  {booking.status === 'in-progress' && (
+                    <button
+                      onClick={() => openApprovalModal(booking)}
+                      className="btn-primary"
+                      style={{ padding: '8px 12px' }}
+                    >
+                      Phê duyệt phụ tùng
+                    </button>
+                  )}
+                  {/* Nút thanh toán - chỉ hiển thị khi đã COMPLETED */}
+                  {booking.status === 'completed' && (
+                    <button
+                      onClick={() => handleOpenPaymentModal(booking.id)}
+                      disabled={loadingBookingDetail}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#10B981',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: loadingBookingDetail ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        opacity: loadingBookingDetail ? 0.7 : 1
+                      }}
+                    >
+                      <CreditCard size={16} />
+                      {loadingBookingDetail ? 'Đang tải...' : 'Thanh toán'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -277,7 +336,27 @@ export default function MaintenanceHistory() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
                 {(parts[String(selectedBookingForApproval.id)] || []).map((p: any) => (
-                  <PartsApproval key={p.id} bookingId={Number(selectedBookingForApproval.id)} partId={p.partId} partName={p.partName} />
+                  <PartsApproval 
+                    key={p.id} 
+                    bookingId={Number(selectedBookingForApproval.id)} 
+                    workOrderPartId={p.id} 
+                    partId={p.partId} 
+                    partName={p.partName} 
+                    mode="customer"
+                    status={p.status}
+                    onApproved={async () => {
+                      // Reload lại danh sách sau khi approve/reject
+                      if (selectedBookingForApproval) {
+                        setLoadingParts(true)
+                        try {
+                          const items = await WorkOrderPartService.list(Number(selectedBookingForApproval.id))
+                          setParts(prev => ({ ...prev, [selectedBookingForApproval.id]: items }))
+                        } finally {
+                          setLoadingParts(false)
+                        }
+                      }
+                    }}
+                  />
                 ))}
                 {(parts[String(selectedBookingForApproval.id)] || []).length === 0 && (
                   <div style={{ padding: 16, color: 'var(--text-secondary)' }}>Không có phụ tùng cần phê duyệt.</div>
@@ -286,6 +365,17 @@ export default function MaintenanceHistory() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {selectedBookingForPayment && (
+        <PaymentModal
+          bookingId={selectedBookingForPayment.bookingId}
+          totalAmount={selectedBookingForPayment.totalAmount}
+          open={!!selectedBookingForPayment}
+          onClose={handleClosePaymentModal}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
       )}
     </section>
   )

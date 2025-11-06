@@ -608,6 +608,79 @@ export default function BookingHistoryCard({
         </div>
       )}
 
+      {/* Payment Section (Customer) - đặt NGAY DƯỚI bảng "Phụ tùng phát sinh" */}
+      {onPayment && (booking.status || '').toUpperCase() === 'COMPLETED' && (
+        <div style={{
+          marginTop: '16px',
+          padding: '16px',
+          borderTop: '2px solid #e5e7eb',
+          background: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px'
+          }}>
+            <div>
+              <p style={{
+                fontSize: '14px',
+                color: '#111827',
+                margin: 0,
+                fontWeight: 700
+              }}>Thanh toán</p>
+              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
+                { // ưu tiên totalAmount nếu có, fallback actual/estimated
+                  // @ts-ignore - một số API trả totalAmount trong booking detail
+                  (booking as any).totalAmount
+                  ? `Tổng tiền: ${Number((booking as any).totalAmount).toLocaleString('vi-VN')} VNĐ`
+                  : booking.actualCost
+                  ? `Tổng tiền: ${Number(booking.actualCost).toLocaleString('vi-VN')} VNĐ`
+                  : booking.estimatedCost
+                  ? `Ước tính: ${Number(booking.estimatedCost).toLocaleString('vi-VN')} VNĐ`
+                  : 'Vui lòng thanh toán để hoàn tất dịch vụ'
+                }
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onPayment(booking.bookingId)}
+            disabled={isProcessingPayment}
+            style={{
+              background: '#10B981',
+              border: '1px solid #10B981',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              fontSize: '14px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              color: '#fff',
+              cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (!isProcessingPayment) {
+                e.currentTarget.style.background = '#059669'
+                ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isProcessingPayment) {
+                e.currentTarget.style.background = '#10B981'
+                ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
+              }
+            }}
+          >
+            {isProcessingPayment ? 'Đang xử lý...' : 'Chọn phương thức và thanh toán'}
+          </button>
+        </div>
+      )}
+
       <style>{`
         @keyframes slideDown {
           from {

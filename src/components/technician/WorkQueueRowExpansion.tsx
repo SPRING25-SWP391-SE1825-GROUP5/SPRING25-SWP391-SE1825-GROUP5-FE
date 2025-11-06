@@ -3,6 +3,8 @@ import { PartService, Part } from '@/services/partService'
 import { TechnicianService } from '@/services/technicianService'
 import { WorkOrderPartService, WorkOrderPartItem } from '@/services/workOrderPartService'
 import bookingRealtimeService from '@/services/bookingRealtimeService'
+import { BookingService } from '@/services/bookingService'
+import toast from 'react-hot-toast'
 // removed BookingService summary call; compute locally from items
 
 type ChecklistRow = { resultId: number; partId?: number; partName?: string; categoryId?: number; categoryName?: string; description?: string; result?: string | null; notes?: string; status?: string }
@@ -42,12 +44,16 @@ export default function WorkQueueRowExpansion({
   const [showSelectPart, setShowSelectPart] = useState(false)
   const [parts, setParts] = useState<WorkOrderPartItem[]>([])
   const [summary, setSummary] = useState<{ total: number; pass: number; fail: number; na: number } | null>(null)
+  // Edit part modal state
+  const [editingPartId, setEditingPartId] = useState<number | null>(null)
   // Editable descriptions per resultId
   const [descById, setDescById] = useState<Record<number, string>>({})
   // Modal chọn phụ tùng khi đánh FAIL theo category
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [modalCategoryId, setModalCategoryId] = useState<number | null>(null)
   const [modalResultId, setModalResultId] = useState<number | null>(null)
+  const [checklistConfirmed, setChecklistConfirmed] = useState(false)
+  const [confirmingChecklist, setConfirmingChecklist] = useState(false)
   const totalCost = useMemo(() => parts.reduce((sum, p) => sum + (p.unitPrice || 0) * p.quantity, 0), [parts])
   // inline notes editing; no modal
   const normalized = (status || '').toLowerCase()
@@ -153,6 +159,44 @@ export default function WorkQueueRowExpansion({
     const na = total - pass - fail
     setSummary({ total, pass, fail, na })
   }, [items])
+
+  // Load checklist status để kiểm tra xem đã được confirm chưa
+  React.useEffect(() => {
+    if (!bookingId || !isInProgress) return
+    ;(async () => {
+      try {
+        const statusData = await BookingService.getMaintenanceChecklistStatus(bookingId)
+        // Checklist đã được confirm khi status === "COMPLETED"
+        setChecklistConfirmed(statusData?.status === 'COMPLETED' || statusData?.status === 'Completed')
+      } catch (err) {
+        console.error('Lỗi khi load checklist status:', err)
+        // Nếu không load được, mặc định là chưa confirm
+        setChecklistConfirmed(false)
+      }
+    })()
+  }, [bookingId, isInProgress])
+
+  // Xử lý xác nhận checklist
+  const handleConfirmChecklist = async () => {
+    if (!isInProgress || checklistConfirmed) return
+    setConfirmingChecklist(true)
+    try {
+      await onConfirmChecklist()
+      // Reload lại status sau khi confirm
+      try {
+        const statusData = await BookingService.getMaintenanceChecklistStatus(bookingId)
+        setChecklistConfirmed(statusData?.status === 'COMPLETED' || statusData?.status === 'Completed')
+      } catch {
+        // Nếu không load được, set là đã confirm
+        setChecklistConfirmed(true)
+      }
+      toast.success('Đã xác nhận checklist thành công')
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể xác nhận checklist')
+    } finally {
+      setConfirmingChecklist(false)
+    }
+  }
 
   // Initialize editable descriptions from props
   React.useEffect(() => {
@@ -400,6 +444,7 @@ export default function WorkQueueRowExpansion({
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Đơn giá</th>
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Số lượng</th>
                   <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Trạng thái</th>
+                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -450,6 +495,14 @@ export default function WorkQueueRowExpansion({
                           fontWeight: 500
                         }}>{statusText}</span>
                       </td>
+                      <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center' }}>
+                        {canEdit && isDraft && (
+                          <button
+                            onClick={() => setEditingPartId(p.id)}
+                            style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#FFFFFF', cursor: 'pointer', fontSize: 13 }}
+                          >Đổi phụ tùng</button>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
@@ -463,10 +516,31 @@ export default function WorkQueueRowExpansion({
               </tbody>
             </table>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: 8, gap: 12 }}>
             <div style={{ fontSize: 13, color: '#111827', fontWeight: 400 }}>
               Tổng tạm tính: {totalCost.toLocaleString('vi-VN')} VNĐ
             </div>
+            {/* Nút xác nhận checklist - chỉ hiển thị khi đang IN_PROGRESS */}
+            {isInProgress && (
+              <button
+                onClick={handleConfirmChecklist}
+                disabled={checklistConfirmed || confirmingChecklist}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: checklistConfirmed ? '1px solid #10B981' : '1px solid #3B82F6',
+                  background: checklistConfirmed ? '#D1FAE5' : '#3B82F6',
+                  color: checklistConfirmed ? '#065F46' : '#fff',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor: checklistConfirmed || confirmingChecklist ? 'not-allowed' : 'pointer',
+                  opacity: checklistConfirmed || confirmingChecklist ? 0.7 : 1,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {confirmingChecklist ? 'Đang xác nhận...' : checklistConfirmed ? '✓ Đã xác nhận checklist' : 'Xác nhận checklist'}
+              </button>
+            )}
           </div>
         </div>
         )}
@@ -483,6 +557,40 @@ export default function WorkQueueRowExpansion({
                 setParts(prev => prev.concat(created))
                 setShowSelectPart(false)
               } catch {}
+            }}
+          />
+        )}
+
+        {editingPartId && isInProgress && (
+          <SelectPartModal
+            onClose={() => setEditingPartId(null)}
+            centerId={centerId}
+            initialQuantity={parts.find(x => x.id === editingPartId)?.quantity}
+            onSelect={async (part, quantity) => {
+              const target = parts.find(x => x.id === editingPartId)
+              if (!target) { setEditingPartId(null); return }
+              try {
+                // update partId và quantity do người dùng chọn
+                const newQty = Math.max(1, Number(quantity || target.quantity))
+                await WorkOrderPartService.update(bookingId, editingPartId, { partId: part.partId, quantity: newQty })
+                // lấy chi tiết phụ tùng mới để cập nhật hiển thị
+                const detail = await PartService.getPartById(part.partId)
+                const raw = (detail?.data || {}) as any
+                const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? target.unitPrice ?? 0
+                setParts(prev => prev.map(x => x.id === editingPartId ? {
+                  ...x,
+                  partId: part.partId,
+                  partNumber: (detail?.data?.partNumber ?? x.partNumber) as any,
+                  partName: (detail?.data?.partName ?? x.partName) as any,
+                  brand: (detail?.data?.brand ?? x.brand) as any,
+                  unitPrice,
+                  quantity: newQty
+                } : x))
+                setEditingPartId(null)
+                toast.success('Đã đổi phụ tùng')
+              } catch (e: any) {
+                toast.error(e?.message || 'Không thể đổi phụ tùng')
+              }
             }}
           />
         )}
@@ -556,15 +664,16 @@ export default function WorkQueueRowExpansion({
 interface SelectPartModalProps {
   onClose: () => void
   onSelect: (part: Part, quantity: number) => void | Promise<void>
+  initialQuantity?: number
 }
 
-function SelectPartModal({ onClose, onSelect, centerId }: SelectPartModalProps & { centerId?: number }) {
+function SelectPartModal({ onClose, onSelect, centerId, initialQuantity }: SelectPartModalProps & { centerId?: number }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<Part[]>([])
   const [selected, setSelected] = useState<Part | null>(null)
-  const [qty, setQty] = useState(1)
+  const [qty, setQty] = useState(initialQuantity ?? 1)
 
   const load = async () => {
     setLoading(true)
