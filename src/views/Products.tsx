@@ -12,7 +12,9 @@ import {
   BoltIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { PartService, Part, PartFilters, OrderService, CustomerService, CartService } from '@/services'
+import { PartService, Part, PartFilters, OrderService, CustomerService, CartService, CenterService, InventoryService } from '@/services'
+import type { Center } from '@/services/centerService'
+import type { InventoryPart } from '@/services/inventoryService'
 import toast from 'react-hot-toast'
 import './products.scss'
 import { addToCart, setCartId } from '@/store/cartSlice'
@@ -49,6 +51,12 @@ export default function Products() {
   const [maxPrice, setMaxPrice] = useState(30000000)
   const [minPriceInput, setMinPriceInput] = useState('0')
   const [maxPriceInput, setMaxPriceInput] = useState('30.000.000')
+  
+  // State cho inventory
+  const [centers, setCenters] = useState<Center[]>([])
+  const [inventoryByCenter, setInventoryByCenter] = useState<Map<number, Map<number, InventoryPart | null>>>(new Map())
+  const [partMaxStock, setPartMaxStock] = useState<Map<number, number>>(new Map()) // partId -> max stock
+  const [loadingInventory, setLoadingInventory] = useState(false)
 
   // Load data từ API
   useEffect(() => {
@@ -64,6 +72,113 @@ export default function Products() {
   useEffect(() => {
     loadCategoriesAndBrands()
   }, [parts])
+
+  // Load centers
+  useEffect(() => {
+    const loadCenters = async () => {
+      try {
+        const centersResponse = await CenterService.getActiveCenters({ pageSize: 100 })
+        const centersList = centersResponse.centers || []
+        setCenters(centersList)
+      } catch (error) {
+        console.error('[Products] Error loading centers:', error)
+        setCenters([])
+      }
+    }
+
+    loadCenters()
+  }, [])
+
+  // Load inventory for all centers and calculate max stock for each part
+  useEffect(() => {
+    const loadAllInventories = async () => {
+      if (parts.length === 0 || centers.length === 0) {
+        return
+      }
+
+      try {
+        setLoadingInventory(true)
+        console.log(`[Products] Loading inventory for ${centers.length} centers and ${parts.length} parts...`)
+        
+        // Load inventory for all centers in parallel
+        const inventoryMap = new Map<number, Map<number, InventoryPart | null>>()
+        
+        await Promise.allSettled(
+          centers.map(async (center) => {
+            try {
+              const inventoryId = center.centerId
+              const partsResponse = await InventoryService.getInventoryParts(inventoryId)
+              
+              if (partsResponse.success && partsResponse.data) {
+                let partsArray: InventoryPart[] = []
+                
+                if (Array.isArray(partsResponse.data)) {
+                  partsArray = partsResponse.data
+                } else if (partsResponse.data && typeof partsResponse.data === 'object') {
+                  const dataObj = partsResponse.data as any
+                  for (const key in dataObj) {
+                    if (Array.isArray(dataObj[key])) {
+                      partsArray = dataObj[key]
+                      break
+                    }
+                  }
+                }
+                
+                // Tạo map cho center này: partId -> InventoryPart
+                const centerPartsMap = new Map<number, InventoryPart | null>()
+                
+                // Tìm tất cả parts trong danh sách
+                parts.forEach(part => {
+                  const partId = part.partId
+                  const partInInventory = partsArray.find(
+                    (p: InventoryPart) => p.partId === partId
+                  ) || null
+                  centerPartsMap.set(partId, partInInventory)
+                })
+                
+                inventoryMap.set(center.centerId, centerPartsMap)
+              } else {
+                inventoryMap.set(center.centerId, new Map())
+              }
+            } catch (error: any) {
+              console.error(`[Products] Error loading inventory for center ${center.centerId}:`, error)
+              inventoryMap.set(center.centerId, new Map())
+            }
+          })
+        )
+
+        setInventoryByCenter(inventoryMap)
+        
+        // Tính toán stock cao nhất cho mỗi part
+        const maxStockMap = new Map<number, number>()
+        
+        parts.forEach(part => {
+          let maxStock = 0
+          
+          inventoryMap.forEach((centerPartsMap) => {
+            const inventoryPart = centerPartsMap.get(part.partId)
+            const stock = inventoryPart?.currentStock ?? 0
+            if (stock > maxStock) {
+              maxStock = stock
+            }
+          })
+          
+          maxStockMap.set(part.partId, maxStock)
+        })
+        
+        setPartMaxStock(maxStockMap)
+        console.log(`[Products] Calculated max stock for ${maxStockMap.size} parts`)
+      } catch (error: any) {
+        console.error('[Products] Error loading all inventories:', error)
+      } finally {
+        setLoadingInventory(false)
+      }
+    }
+
+    if (parts.length > 0 && centers.length > 0) {
+      loadAllInventories()
+    }
+  }, [parts.length, centers.length])
 
   const loadPartsData = async () => {
     try {
@@ -585,26 +700,80 @@ export default function Products() {
                         <div className="product-rating">
                           {renderStars(part.rating)}
                         </div>
+                        <div className="product-stock" style={{ 
+                          fontSize: '13px', 
+                          color: '#666', 
+                          marginTop: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <span>Số lượng:</span>
+                          <span style={{ 
+                            fontWeight: 600, 
+                            color: (() => {
+                              if (loadingInventory) return '#999'
+                              const maxStock = partMaxStock.get(part.partId) ?? 0
+                              return maxStock > 0 ? '#155724' : '#721c24'
+                            })()
+                          }}>
+                            {loadingInventory ? (
+                              <span style={{ color: '#999' }}>Đang tải...</span>
+                            ) : (
+                              (() => {
+                                const maxStock = partMaxStock.get(part.partId) ?? 0
+                                return maxStock > 0 
+                                  ? `${maxStock.toLocaleString('vi-VN')} sản phẩm`
+                                  : 'Hết hàng'
+                              })()
+                            )}
+                          </span>
+                        </div>
                         
                         <div className="product-actions">
-                          <button 
-                            className="action-btn add-to-cart-btn"
-                            onClick={(e) => handleAddToCart(part, e)}
-                            title="Thêm vào giỏ hàng"
-                          >
-                            <PlusIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
-                            <span>Thêm vào giỏ</span>
-                          </button>
-                          
-                          <button 
-                            className="action-btn buy-now-btn"
-                            onClick={(e) => handleBuyNow(part, e)}
-                            disabled={buyingId === part.partId}
-                            title="Mua ngay"
-                          >
-                            <BoltIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
-                            <span>{buyingId === part.partId ? 'Đang tạo...' : 'Mua ngay'}</span>
-                          </button>
+                          {(() => {
+                            const maxStock = partMaxStock.get(part.partId) ?? 0
+                            const isOutOfStock = maxStock === 0
+                            
+                            return (
+                              <>
+                                <button 
+                                  className="action-btn add-to-cart-btn"
+                                  onClick={(e) => handleAddToCart(part, e)}
+                                  disabled={isOutOfStock}
+                                  title={isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ hàng'}
+                                  style={{
+                                    opacity: isOutOfStock ? 0.5 : 1,
+                                    cursor: isOutOfStock ? 'not-allowed' : 'pointer'
+                                  }}
+                                >
+                                  <PlusIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
+                                  <span>{isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}</span>
+                                </button>
+                                
+                                <button 
+                                  className="action-btn buy-now-btn"
+                                  onClick={(e) => handleBuyNow(part, e)}
+                                  disabled={isOutOfStock || buyingId === part.partId}
+                                  title={isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Mua ngay'}
+                                  style={{
+                                    opacity: isOutOfStock ? 0.5 : 1,
+                                    cursor: isOutOfStock ? 'not-allowed' : 'pointer'
+                                  }}
+                                >
+                                  <BoltIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
+                                  <span>
+                                    {buyingId === part.partId 
+                                      ? 'Đang tạo...' 
+                                      : isOutOfStock 
+                                        ? 'Hết hàng' 
+                                        : 'Mua ngay'
+                                    }
+                                  </span>
+                                </button>
+                              </>
+                            )
+                          })()}
                         </div>
                       </div>
                     </div>
