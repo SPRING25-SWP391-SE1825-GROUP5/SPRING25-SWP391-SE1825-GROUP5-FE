@@ -81,6 +81,11 @@ export const WorkOrderPartService = {
     // BE endpoint: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/reject
     const { data } = await api.put(`/Booking/${bookingId}/parts/${workOrderPartId}/reject`)
     return data
+  },
+  async customerReject(bookingId: number, workOrderPartId: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    // BE endpoint: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-reject
+    const { data } = await api.put(`/Booking/${bookingId}/parts/${workOrderPartId}/customer-reject`)
+    return data
   }
 }
 

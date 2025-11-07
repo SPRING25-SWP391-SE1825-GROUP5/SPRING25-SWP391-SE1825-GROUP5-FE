@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ServiceManagementService, type Service as BackendService } from '@/services/serviceManagementService'
 import type { ServicePackage } from '@/services/serviceManagementService'
 import { CustomerService } from '@/services/customerService'
@@ -125,6 +125,124 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   
   // Check if user has selected an existing vehicle (read-only mode)
   const isVehicleSelected = !!selectedVehicleId
+  
+  // Hàm tính điểm phù hợp cho dịch vụ
+  const calculateServiceScore = useCallback((template: ServiceChecklistTemplate, currentKm: number, daysSinceMaintenance: number): number => {
+    let score = 0
+    
+    // Điểm dựa trên minKm (ưu tiên dịch vụ có minKm gần với currentKm nhất)
+    if (template.minKm !== undefined) {
+      if (template.minKm <= currentKm) {
+        // Dịch vụ phù hợp: minKm <= currentKm
+        
+        // Ưu tiên dịch vụ có minKm cao hơn khi currentKm cao
+        // Ví dụ: với currentKm = 99999, dịch vụ có minKm = 5000 sẽ phù hợp hơn minKm = 0
+        if (currentKm > 10000) {
+          // Với xe đã đi nhiều km (> 10000), ưu tiên dịch vụ có minKm cao hơn
+          // Điểm dựa trên tỷ lệ minKm / currentKm (càng gần 1 càng tốt)
+          const minKmRatio = template.minKm / currentKm
+          if (minKmRatio < 0.1) {
+            // minKm quá thấp (< 10% currentKm), trừ điểm lớn
+            score -= 4000
+          } else {
+            // Điểm tăng theo minKmRatio (minKm càng cao càng tốt)
+            score += 1000 * minKmRatio // Tối đa 1000 điểm khi minKm = currentKm
+          }
+        } else {
+          // Với xe mới (< 10000 km), ưu tiên dịch vụ có minKm thấp hơn
+          const kmDiff = currentKm - template.minKm
+          const ratio = kmDiff / currentKm
+          score += 1000 * (1 - Math.min(ratio, 1)) // Tối đa 1000 điểm khi kmDiff = 0
+        }
+      } else {
+        // Dịch vụ không phù hợp: minKm > currentKm (xe chưa đủ km)
+        score -= 5000 // Trừ điểm lớn để đẩy xuống cuối
+      }
+    }
+    
+    // Điểm dựa trên maxDate (dịch vụ có maxDate >= daysSinceMaintenance và gần daysSinceMaintenance nhất)
+    if (template.maxDate !== undefined) {
+      if (template.maxDate >= daysSinceMaintenance) {
+        // Dịch vụ phù hợp: maxDate >= daysSinceMaintenance
+        // Điểm = 500 - (maxDate - daysSinceMaintenance) / 10 (càng gần daysSinceMaintenance càng cao điểm)
+        const dayDiff = template.maxDate - daysSinceMaintenance
+        score += 500 - Math.min(dayDiff / 10, 500) // Tối đa 500 điểm
+      } else {
+        // Dịch vụ không phù hợp: maxDate < daysSinceMaintenance (đã quá hạn)
+        score -= 2000 // Trừ điểm để đẩy xuống
+      }
+    }
+    
+    // Ưu tiên recommendationRank từ backend nếu có (rank cao hơn = điểm cao hơn)
+    if (template.recommendationRank !== undefined) {
+      score += (100 - template.recommendationRank) * 10 // Rank 1 = +900 điểm, Rank 2 = +800 điểm, ...
+    }
+    
+    return score
+  }, [])
+  
+  // Sắp xếp lại danh sách đề xuất: dịch vụ được chọn sẽ lên đầu, sau đó sắp xếp theo logic phù hợp
+  const sortedRecommendedServices = useMemo(() => {
+    if (!recommendedServices.length) return []
+    
+    // Lấy thông tin km và ngày để tính toán
+    const mileageToUse = vehicleData.recentMileage || vehicleData.mileage
+    const currentKm = mileageToUse ? parseInt(mileageToUse) : 0
+    const dateToUse = vehicleData.hasMaintenanceHistory 
+      ? vehicleData.lastMaintenanceDate 
+      : vehicleData.purchaseDate
+    
+    // Tính số ngày đã trôi qua từ ngày bảo dưỡng cuối/ngày mua xe
+    let daysSinceMaintenance = 0
+    if (dateToUse) {
+      const lastDate = new Date(dateToUse)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      lastDate.setHours(0, 0, 0, 0)
+      daysSinceMaintenance = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+    }
+    
+    // Tạo bản sao để sắp xếp
+    const servicesToSort = [...recommendedServices]
+    
+    // Sắp xếp theo logic phù hợp:
+    // 1. Dịch vụ có minKm <= currentKm và gần currentKm nhất (ưu tiên dịch vụ phù hợp với km hiện tại)
+    // 2. Dịch vụ có maxDate >= daysSinceMaintenance và gần daysSinceMaintenance nhất
+    // 3. Ưu tiên recommendationRank từ backend nếu có
+    servicesToSort.sort((a, b) => {
+      // Tính điểm phù hợp cho từng dịch vụ
+      const scoreA = calculateServiceScore(a, currentKm, daysSinceMaintenance)
+      const scoreB = calculateServiceScore(b, currentKm, daysSinceMaintenance)
+      
+      // Sắp xếp giảm dần theo điểm (điểm cao hơn = phù hợp hơn)
+      return scoreB - scoreA
+    })
+    
+    // Nếu có dịch vụ được chọn, đưa lên đầu
+    const selectedServiceId = serviceData.services[0] ? Number(serviceData.services[0]) : null
+    if (selectedServiceId) {
+      const selected = servicesToSort.find(t => t.serviceId === selectedServiceId)
+      const others = servicesToSort.filter(t => t.serviceId !== selectedServiceId)
+      return selected ? [selected, ...others] : servicesToSort
+    }
+    
+    return servicesToSort
+  }, [recommendedServices, serviceData.services, vehicleData.recentMileage, vehicleData.mileage, vehicleData.hasMaintenanceHistory, vehicleData.lastMaintenanceDate, vehicleData.purchaseDate, calculateServiceScore])
+  
+  // Validate lại recentMileage khi mileage thay đổi
+  useEffect(() => {
+    if (isVehicleSelected && vehicleData.recentMileage) {
+      const baseKm = Number(vehicleData.mileage || 0)
+      const recentKm = Number(vehicleData.recentMileage)
+      if (!isNaN(baseKm) && !isNaN(recentKm)) {
+        if (recentKm < baseKm) {
+          setRecentMileageError(`Số Km gần đây không được nhỏ hơn Số Km hiện tại (${baseKm.toLocaleString()} km).`)
+        } else {
+          setRecentMileageError(null)
+        }
+      }
+    }
+  }, [vehicleData.mileage, vehicleData.recentMileage, isVehicleSelected])
 
   // Load active categories
   useEffect(() => {
@@ -333,11 +451,14 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       ? vehicleData.lastMaintenanceDate 
       : vehicleData.purchaseDate
     
-    if (!vehicleData.mileage || !dateToUse || !selectedCategoryId) {
+    // Ưu tiên sử dụng recentMileage nếu có, nếu không thì dùng mileage
+    const mileageToUse = vehicleData.recentMileage || vehicleData.mileage
+    
+    if (!mileageToUse || !dateToUse || !selectedCategoryId) {
       return
     }
 
-    const currentKm = parseInt(vehicleData.mileage)
+    const currentKm = parseInt(mileageToUse)
     if (isNaN(currentKm)) {
       return
     }
@@ -377,10 +498,13 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
   const canProceed = () => {
     // Không cho tiếp tục nếu nhập Km gần đây < Km hiện tại
-    const baseKm = Number(vehicleData.mileage || 0)
-    const recentKm = Number(vehicleData.recentMileage || '')
-    const invalidRecent = isVehicleSelected && !!vehicleData.recentMileage && !isNaN(recentKm) && recentKm < baseKm
-    if (invalidRecent) return false
+    if (isVehicleSelected && vehicleData.recentMileage) {
+      const baseKm = Number(vehicleData.mileage || 0)
+      const recentKm = Number(vehicleData.recentMileage)
+      if (!isNaN(baseKm) && !isNaN(recentKm) && recentKm < baseKm) {
+        return false
+      }
+    }
     
     // Kiểm tra yêu cầu cho dịch vụ bảo dưỡng
     const isMaintenanceCategory = selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng')
@@ -606,23 +730,49 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 type="number"
                 value={vehicleData.recentMileage || ''}
                 onChange={(e) => {
-                  const val = e.target.value
-                  onUpdateVehicle({ recentMileage: val })
+                  const val = e.target.value.trim()
+                  const base = Number(vehicleData.mileage || 0)
+                  const num = Number(val)
+                  
+                  // Kiểm tra validation: không được nhỏ hơn km hiện tại
+                  if (val === '') {
+                    // Nếu xóa giá trị, clear error và cập nhật
+                    setRecentMileageError(null)
+                    onUpdateVehicle({ recentMileage: '' })
+                  } else if (!isNaN(num)) {
+                    // Nếu là số hợp lệ
+                    if (num < base) {
+                      setRecentMileageError(`Số Km gần đây không được nhỏ hơn Số Km hiện tại (${base.toLocaleString()} km).`)
+                      onUpdateVehicle({ recentMileage: val })
+                    } else {
+                      setRecentMileageError(null)
+                      onUpdateVehicle({ recentMileage: val })
+                    }
+                  } else {
+                    // Nếu không phải số hợp lệ nhưng vẫn có giá trị (ví dụ: đang nhập)
+                    onUpdateVehicle({ recentMileage: val })
+                    if (val.length > 0) {
+                      setRecentMileageError(null) // Clear error khi đang nhập, sẽ validate lại khi blur
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  // Validate lại khi blur để đảm bảo giá trị cuối cùng hợp lệ
+                  const val = e.target.value.trim()
                   const base = Number(vehicleData.mileage || 0)
                   const num = Number(val)
                   if (val && !isNaN(num) && num < base) {
-                    setRecentMileageError(`Km gần đây không được nhỏ hơn km hiện tại (${base.toLocaleString()} km).`)
-                  } else {
-                    setRecentMileageError(null)
+                    setRecentMileageError(`Số Km gần đây không được nhỏ hơn Số Km hiện tại (${base.toLocaleString()} km).`)
                   }
                 }}
                 min={Number(vehicleData.mileage || 0)}
                 aria-invalid={!!recentMileageError}
+                aria-describedby={recentMileageError ? 'recent-mileage-error' : undefined}
                 placeholder="Nhập km khi mang xe đến"
                 style={{
                   width: '100%',
                   padding: '14px 16px',
-                  border: `2px solid ${ isVehicleSelected ? '#e5e7eb' : '#e5e7eb'}`,
+                  border: `2px solid ${recentMileageError ? '#dc2626' : '#e5e7eb'}`,
                   borderRadius: '12px',
                   fontSize: '16px',
                   background: '#ffffff',
@@ -632,7 +782,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 }}
               />
               {recentMileageError && (
-                <div style={{ color: '#dc2626', fontSize: '0.875rem' }}>{recentMileageError}</div>
+                <div id="recent-mileage-error" style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '4px' }}>
+                  {recentMileageError}
+                </div>
               )}
             </div>
           )}
@@ -839,7 +991,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
               {/* Recommendation Section for Maintenance Category - Only show when vehicle info is complete */}
               {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               vehicleData.mileage && 
+               (vehicleData.recentMileage || vehicleData.mileage) && 
                vehicleData.hasMaintenanceHistory !== undefined &&
                ((vehicleData.hasMaintenanceHistory && vehicleData.lastMaintenanceDate) || 
                 (!vehicleData.hasMaintenanceHistory && vehicleData.purchaseDate)) && (
@@ -852,7 +1004,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       onClick={getRecommendedServices}
                       disabled={
                         recommendationLoading || 
-                        !vehicleData.mileage || 
+                        !(vehicleData.recentMileage || vehicleData.mileage) || 
                         (vehicleData.hasMaintenanceHistory ? !vehicleData.lastMaintenanceDate : !vehicleData.purchaseDate)
                       }
                     >
@@ -870,13 +1022,15 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       ) : (
                         <div className="recommended-services">
                           <p className="recommendation-message">
-                            Dựa trên số km hiện tại ({vehicleData.mileage} km) và {vehicleData.hasMaintenanceHistory ? 'ngày bảo dưỡng cuối' : 'ngày mua xe'} ({vehicleData.hasMaintenanceHistory ? vehicleData.lastMaintenanceDate : vehicleData.purchaseDate}), 
+                            Dựa trên số km {vehicleData.recentMileage ? 'gần đây khi mang xe đến' : 'hiện tại'} ({vehicleData.recentMileage || vehicleData.mileage} km) và {vehicleData.hasMaintenanceHistory ? 'ngày bảo dưỡng cuối' : 'ngày mua xe'} ({vehicleData.hasMaintenanceHistory ? vehicleData.lastMaintenanceDate : vehicleData.purchaseDate}), 
                             chúng tôi gợi ý các dịch vụ sau:
                           </p>
-                          {recommendedServices.map((template, index) => (
-                            <div key={template.templateId} className="recommended-service-card">
-                              <div className="recommendation-badge">
-                                #{index + 1} Phù hợp nhất
+                          {sortedRecommendedServices.map((template, index) => {
+                            const isSelected = serviceData.services[0] === String(template.serviceId)
+                            return (
+                            <div key={template.templateId} className={`recommended-service-card ${isSelected ? 'selected-service' : ''}`}>
+                              <div className={`recommendation-badge ${isSelected ? 'selected-badge' : ''}`}>
+                                {isSelected ? '✓ Đã chọn' : `#${index + 1} Phù hợp nhất`}
                               </div>
                               <div className="recommended-service-content">
                                 <div className="recommended-service-header">
@@ -910,15 +1064,16 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                                   </button>
                                   <button
                                     type="button"
-                                    className="btn-select-recommended"
+                                    className={`btn-select-recommended ${isSelected ? 'selected-btn' : ''}`}
                                     onClick={() => handleServiceToggle(String(template.serviceId))}
                                   >
-                                    Chọn dịch vụ
+                                    {isSelected ? '✓ Đã chọn' : 'Chọn dịch vụ'}
                                   </button>
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -928,7 +1083,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
 
               {/* Show instruction when maintenance category is selected but vehicle info is incomplete */}
               {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               (!vehicleData.mileage || 
+               (!(vehicleData.recentMileage || vehicleData.mileage) || 
                 vehicleData.hasMaintenanceHistory === undefined ||
                 (vehicleData.hasMaintenanceHistory && !vehicleData.lastMaintenanceDate) ||
                 (!vehicleData.hasMaintenanceHistory && !vehicleData.purchaseDate)) && (
@@ -1174,7 +1329,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: .5rem; }
         .category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
         .category-card { display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-primary); border-radius: 12px; padding: .5rem; background: #fff; }
-        .category-card.active { border-color: var(--progress-current); box-shadow: 0 2px 10px rgba(0,64,48,.12); }
+        .category-card.active { border-color: var(--progress-current); box-shadow: 0 2px 10px rgba(0,64,48,.12); background: var(--progress-current); color: #fff; }
         .category-main { width: 100%; text-align: center; background: transparent; border: none; color: var(--text-primary); font-weight: 700; padding: .5rem .75rem; border-radius: 10px; cursor: pointer; }
         .service-item { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
         .service-item input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
@@ -1238,8 +1393,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .recommendation-results { margin-top: 1rem; }
         .no-recommendations { text-align: center; padding: 1rem; color: var(--csv-muted); }
         .recommended-services { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.08); }
+        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.08); transition: all 0.3s ease; }
+        .recommended-service-card.selected-service { border: 2px solid var(--csv-primary); box-shadow: 0 4px 12px rgba(30, 199, 116, 0.2); background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); }
         .recommendation-badge { position: absolute; top: -6px; right: 8px; background: #0ea5e9; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; }
+        .recommendation-badge.selected-badge { background: var(--csv-primary); box-shadow: 0 2px 8px rgba(30, 199, 116, 0.3); }
         .recommended-service-content h5 { margin: 0 0 0.25rem 0; color: var(--csv-text); font-size: 0.875rem; font-weight: 700; line-height: 1.2; }
         .template-name { margin: 0 0 0.5rem 0; color: var(--csv-primary); font-weight: 600; font-size: 0.8rem; line-height: 1.2; }
         .recommended-service-header { margin-bottom: 0.5rem; }
@@ -1250,6 +1407,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-toggle-details:hover { background: #e0f2fe; border-color: #0ea5e9; }
         .btn-select-recommended { background: var(--csv-primary); color: white; border: none; border-radius: 6px; padding: 0.4rem 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; font-size: 0.75rem; }
         .btn-select-recommended:hover { background: #16a34a; transform: translateY(-1px); }
+        .btn-select-recommended.selected-btn { background: #16a34a; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3); cursor: default; }
+        .btn-select-recommended.selected-btn:hover { background: #16a34a; transform: none; }
         
         /* Modal Styles */
         .service-detail-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }

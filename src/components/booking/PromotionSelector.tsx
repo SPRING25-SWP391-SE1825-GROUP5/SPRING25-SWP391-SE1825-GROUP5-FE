@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PromotionService } from '@/services/promotionService'
 import { PromotionBookingService } from '@/services/promotionBookingService'
-import { CustomerService } from '@/services/customerService'
-import { useAppSelector } from '@/store/hooks'
 import type { Promotion } from '@/types/promotion'
 
 interface PromotionSelectorProps {
@@ -33,47 +31,32 @@ const PromotionSelector: React.FC<PromotionSelectorProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [availablePromotions, setAvailablePromotions] = useState<Promotion[]>([])
-  const auth = useAppSelector((s) => s.auth)
 
-  // Load available promotions: only show codes saved by current user
+  // Load available promotions từ API /Promotion/promotions
   useEffect(() => {
-    const loadUserSavedPromotions = async () => {
+    const loadPromotions = async () => {
       try {
-        // Require login to show saved promotions
-        if (!auth?.token) {
+        // Lấy promotions từ API /Promotion/promotions
+        const promotionsResponse = await PromotionService.getAvailablePromotions()
+        if (promotionsResponse.success && promotionsResponse.data && promotionsResponse.data.length > 0) {
+          // Lọc chỉ lấy promotions active và phù hợp với orderAmount
+          const filtered = (promotionsResponse.data || []).filter((p: Promotion) => {
+            const isActive = p.isActive && !p.isExpired && !p.isUsageLimitReached
+            const meetsMinOrder = !p.minOrderAmount || p.minOrderAmount <= orderAmount
+            return isActive && meetsMinOrder
+          })
+          setAvailablePromotions(filtered)
+        } else {
           setAvailablePromotions([])
-          return
         }
-        // Resolve current customerId
-        const me = await CustomerService.getCurrentCustomer()
-        const customerId = me?.data?.customerId
-        if (!customerId) {
-          setAvailablePromotions([])
-          return
-        }
-
-        // Fetch user's saved promotions (codes)
-        const saved = await PromotionService.getSavedPromotionsByCustomer(Number(customerId))
-        const savedCodes = (saved?.data || [])
-          .map((x: any) => (x?.code || '').toString().trim().toUpperCase())
-          .filter((c: string) => !!c)
-
-        if (savedCodes.length === 0) {
-          setAvailablePromotions([])
-          return
-        }
-
-        // Fetch active promotions and keep only user's saved ones
-        const active = await PromotionService.getActivePromotions()
-        const filtered = (active.data || []).filter(p => savedCodes.includes((p.code || '').toString().trim().toUpperCase()))
-        setAvailablePromotions(filtered)
       } catch (error) {
-        // Silently handle error but do not show public promos
+        // Silently handle error
+        console.error('Error loading promotions:', error)
         setAvailablePromotions([])
       }
     }
-    loadUserSavedPromotions()
-  }, [auth?.token])
+    loadPromotions()
+  }, [orderAmount])
 
   const validatePromotion = async (code: string): Promise<PromotionValidationResponse> => {
     const payload = {

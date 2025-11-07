@@ -61,15 +61,36 @@ export class PayOSService {
       console.error('Error creating PayOS payment link:', error)
 
       // Handle specific error cases
-      const errorMessage = error.response?.data?.message || 'Lỗi tạo link thanh toán'
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi tạo link thanh toán'
+      const errorData = error.response?.data
 
-      // Nếu đơn thanh toán đã tồn tại, thử lấy link hiện tại
-      if (errorMessage.includes('đã tồn tại') || errorMessage.includes('already exists')) {
+      // Kiểm tra xem backend đã xử lý lỗi "đã tồn tại" và trả về link chưa
+      // Nếu backend trả về success=true với data.checkoutUrl, thì đã xử lý thành công
+      if (errorData?.success === true && errorData?.data?.checkoutUrl) {
+        console.log('Backend đã xử lý lỗi "đã tồn tại" và trả về link hiện tại')
+        return {
+          success: true,
+          data: {
+            checkoutUrl: errorData.data.checkoutUrl,
+            paymentLink: errorData.data.checkoutUrl,
+            orderCode: bookingId,
+            amount: errorData.data.amount || 0,
+            description: `Thanh toán vé #${bookingId}`,
+            status: 'PENDING'
+          },
+          message: errorData.message || 'Link thanh toán đã tồn tại, đã lấy link hiện tại'
+        }
+      }
+
+      // Nếu đơn thanh toán đã tồn tại nhưng backend chưa xử lý, thử lấy link hiện tại
+      if (errorMessage.includes('đã tồn tại') || 
+          errorMessage.includes('already exists') ||
+          errorMessage.includes('231')) {
         console.log('Payment link already exists, trying to get existing link...')
         try {
-          // Thử lấy thông tin thanh toán hiện tại
+          // Thử lấy thông tin thanh toán hiện tại từ PayOS
           const existingPayment = await this.getExistingPaymentLink(bookingId)
-          if (existingPayment.success) {
+          if (existingPayment.success && existingPayment.data?.checkoutUrl) {
             return existingPayment
           }
         } catch (getError) {
