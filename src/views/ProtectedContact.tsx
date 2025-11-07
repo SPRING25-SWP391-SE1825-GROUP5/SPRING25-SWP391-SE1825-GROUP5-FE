@@ -249,12 +249,26 @@ const ProtectedContact: React.FC = () => {
         console.log('[ProtectedContact] Message added to store successfully')
       })
 
+      signalRService.setOnConnectionStatusChanged((isConnected: boolean) => {
+        console.log('[ProtectedContact] Connection status changed', { isConnected })
+        // When reconnected, join active conversation again
+        if (isConnected && activeConversationId) {
+          joinConversation(activeConversationId)
+        }
+      })
+
       signalRService.setOnTypingStarted((userId: string, conversationId: string) => {
+        console.log('[ProtectedContact] Typing started', { userId, conversationId, userIdType: typeof userId, conversationIdType: typeof conversationId })
+        console.log('[ProtectedContact] Current typingUsers state before dispatch', store.getState().chat.typingUsers)
         dispatch(addTypingUser({ conversationId, userId }))
+        console.log('[ProtectedContact] Current typingUsers state after dispatch', store.getState().chat.typingUsers)
       })
 
       signalRService.setOnTypingStopped((userId: string, conversationId: string) => {
+        console.log('[ProtectedContact] Typing stopped', { userId, conversationId })
+        console.log('[ProtectedContact] Current typingUsers state before dispatch', store.getState().chat.typingUsers)
         dispatch(removeTypingUser({ conversationId, userId }))
+        console.log('[ProtectedContact] Current typingUsers state after dispatch', store.getState().chat.typingUsers)
       })
 
       signalRService.setOnNewConversation((data) => {
@@ -263,6 +277,13 @@ const ProtectedContact: React.FC = () => {
 
       signalRService.setOnCenterReassigned((data) => {
         loadConversations()
+      })
+
+      signalRService.setOnMessageRead((data) => {
+        // Update read status in realtime when other users read messages
+        // This can be used to show read receipts or update UI
+        console.log('[ProtectedContact] Message read status updated', data)
+        // You can dispatch an action here to update read status in Redux if needed
       })
 
       // Try to connect (may fail if backend doesn't have SignalR configured)
@@ -303,7 +324,21 @@ const ProtectedContact: React.FC = () => {
         localStorage.setItem('guestSessionId', guestSessionId)
       }
 
-      const response = await ChatService.getOrCreateSupportConversation()
+      // Try to get user location (optional, backend will fallback to booking if not available)
+      let customerLat: number | undefined
+      let customerLng: number | undefined
+      try {
+        const location = await ChatService.getUserLocation()
+        if (location) {
+          customerLat = location.lat
+          customerLng = location.lng
+        }
+      } catch (locationError) {
+        // Location not available, continue without it
+      }
+
+      // Always create new conversation (never get existing)
+      const response = await ChatService.createNewSupportConversation(customerLat, customerLng)
 
       if (response.success && response.data) {
         const data = response.data
@@ -389,3 +424,4 @@ const ProtectedContact: React.FC = () => {
 }
 
 export default ProtectedContact
+

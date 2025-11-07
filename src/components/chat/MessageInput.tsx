@@ -37,6 +37,10 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
   const imageInputRef = useRef<HTMLInputElement>(null)
   const sendingRef = useRef(false) // Use ref to prevent duplicate sends
   const lastSendTimeRef = useRef<number>(0) // Track last send time to prevent rapid duplicate sends
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track typing timeout
+  const lastTypingTimeRef = useRef<number>(0) // Track last typing indicator send time
+  const stopTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track stop typing timeout (debounce)
+  const isTypingRef = useRef<boolean>(false) // Track if currently typing
 
   useImperativeHandle(ref, () => ({
     setReplyTo: (message: ChatMessage | null) => {
@@ -64,13 +68,75 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
     }
   }, [message])
 
+  // Cleanup typing timeout on unmount and stop typing indicator
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+      if (stopTypingTimeoutRef.current) {
+        clearTimeout(stopTypingTimeoutRef.current)
+      }
+      // Stop typing indicator when component unmounts
+      if (isTypingRef.current) {
+        signalRService.sendTypingIndicator(conversationId, false)
+        isTypingRef.current = false
+      }
+    }
+  }, [conversationId])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
     setMessage(value)
 
-    // Send typing indicator
+    // Clear existing stop typing timeout (debounce)
+    if (stopTypingTimeoutRef.current) {
+      clearTimeout(stopTypingTimeoutRef.current)
+      stopTypingTimeoutRef.current = null
+    }
+
+    // Clear existing auto-stop timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+      typingTimeoutRef.current = null
+    }
+
     if (value.trim()) {
-      signalRService.notifyTyping(conversationId)
+      // User is typing - send typing indicator with throttle (max once per 500ms)
+      const now = Date.now()
+      if (now - lastTypingTimeRef.current > 500) {
+        console.log('[MessageInput] Sending typing indicator', { conversationId, value: value.trim().substring(0, 20) })
+        signalRService.notifyTyping(conversationId)
+        lastTypingTimeRef.current = now
+        isTypingRef.current = true
+      }
+
+      // Set up debounce to detect when user stops typing (1 second of no changes)
+      stopTypingTimeoutRef.current = setTimeout(() => {
+        console.log('[MessageInput] User stopped typing (1s debounce)')
+        if (isTypingRef.current) {
+          signalRService.sendTypingIndicator(conversationId, false)
+          isTypingRef.current = false
+        }
+        stopTypingTimeoutRef.current = null
+      }, 1000)
+
+      // Auto-stop typing after 3 seconds of inactivity (backup)
+      typingTimeoutRef.current = setTimeout(() => {
+        console.log('[MessageInput] Auto-stopping typing indicator after 3s inactivity (backup)')
+        if (isTypingRef.current) {
+          signalRService.sendTypingIndicator(conversationId, false)
+          isTypingRef.current = false
+        }
+        typingTimeoutRef.current = null
+      }, 3000)
+    } else {
+      // Stop typing immediately if input is empty
+      console.log('[MessageInput] Stopping typing indicator (input empty)')
+      if (isTypingRef.current) {
+        signalRService.sendTypingIndicator(conversationId, false)
+        isTypingRef.current = false
+      }
     }
   }
 
@@ -80,6 +146,31 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
       e.stopPropagation() // Prevent event bubbling
       console.log('[MessageInput] handleKeyDown triggered')
       handleSendMessage()
+    }
+  }
+
+  const handleBlur = () => {
+    // Stop typing indicator when user leaves the input field
+    console.log('[MessageInput] Stopping typing indicator (input blurred)')
+    if (isTypingRef.current) {
+      signalRService.sendTypingIndicator(conversationId, false)
+      isTypingRef.current = false
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+      typingTimeoutRef.current = null
+    }
+    if (stopTypingTimeoutRef.current) {
+      clearTimeout(stopTypingTimeoutRef.current)
+      stopTypingTimeoutRef.current = null
+    }
+  }
+
+  const handleFocus = () => {
+    // When user focuses back, if there's text, start typing indicator
+    if (message.trim()) {
+      console.log('[MessageInput] Starting typing indicator (input focused with text)')
+      signalRService.notifyTyping(conversationId)
     }
   }
 
@@ -194,6 +285,21 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
         }))
       }
 
+      // Stop typing indicator when message is sent
+      console.log('[MessageInput] Stopping typing indicator (message sent)')
+      if (isTypingRef.current) {
+        signalRService.sendTypingIndicator(conversationId, false)
+        isTypingRef.current = false
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
+      if (stopTypingTimeoutRef.current) {
+        clearTimeout(stopTypingTimeoutRef.current)
+        stopTypingTimeoutRef.current = null
+      }
+
       // Clear input and reply
       setMessage('')
       setAttachments([])
@@ -232,11 +338,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
     setAttachments(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleEmojiSelect = (emoji: string) => {
-    setMessage(prev => prev + emoji)
-    textareaRef.current?.focus()
-  }
-
   return (
     <div className={`message-input ${className}`}>
       {currentReplyTo && (
@@ -267,6 +368,8 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
           value={message}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
           rows={1}
         />
 
@@ -291,7 +394,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
           <InputActions
             onFileSelect={() => fileInputRef.current?.click()}
             onImageSelect={() => imageInputRef.current?.click()}
-            onEmojiSelect={handleEmojiSelect}
             onSend={handleSendClick}
             disabled={(!message.trim() && attachments.length === 0) || isSending}
           />
@@ -320,3 +422,4 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
 MessageInput.displayName = 'MessageInput'
 
 export default MessageInput
+

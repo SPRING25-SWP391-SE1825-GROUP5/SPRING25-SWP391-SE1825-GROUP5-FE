@@ -1,12 +1,15 @@
 import React, { useEffect, useRef } from 'react'
-import type { ChatMessage, ChatUser } from '@/types/chat'
+import type { ChatMessage, ChatUser, ChatConversation } from '@/types/chat'
 import MessageBubble from './MessageBubble'
+import TypingIndicator from './TypingIndicator'
 import './MessageList.scss'
 
 interface MessageListProps {
   conversationId: string
   messages: ChatMessage[]
   currentUser: ChatUser | null
+  conversation?: ChatConversation | null
+  typingUserIds?: string[]
   onReply?: (messageId: string) => void
   onEdit?: (messageId: string, content: string) => void
   onDelete?: (messageId: string) => void
@@ -17,6 +20,8 @@ const MessageList: React.FC<MessageListProps> = ({
   conversationId,
   messages,
   currentUser,
+  conversation,
+  typingUserIds = [],
   onReply,
   onReact,
   onEdit,
@@ -28,7 +33,7 @@ const MessageList: React.FC<MessageListProps> = ({
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, typingUserIds])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -78,6 +83,9 @@ const MessageList: React.FC<MessageListProps> = ({
           />
         )
       })}
+      {conversation && typingUserIds.length > 0 && (
+        <TypingIndicator conversation={conversation} typingUserIds={typingUserIds} />
+      )}
       <div ref={messagesEndRef} />
     </div>
   )

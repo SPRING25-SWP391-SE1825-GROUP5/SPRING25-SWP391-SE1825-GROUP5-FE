@@ -17,6 +17,7 @@ class SignalRService {
   private onConnectionStatusChanged?: (isConnected: boolean) => void
   private onNewConversation?: (data: { conversationId: number; message: string; timestamp: string }) => void
   private onCenterReassigned?: (data: { conversationId: number; newCenterId: number; newStaffUserId: number; oldStaffUserId?: number; reason?: string; timestamp: string }) => void
+  private onMessageRead?: (data: { conversationId: number; userId?: number; guestSessionId?: string; lastReadAt: string }) => void
 
   constructor() {
     this.initializeConnection()
@@ -77,6 +78,7 @@ class SignalRService {
       this.isConnected = true
       this.reconnectAttempts = 0
       this.onConnectionStatusChanged?.(true)
+      console.log('[SignalR] Reconnected', { connectionId })
     })
 
     // Chat events
@@ -86,17 +88,40 @@ class SignalRService {
     })
 
     this.connection.on('UserTyping', (data: any) => {
-      // Backend sends object with ConversationId, UserId, etc.
-      const userId = data?.UserId || data?.userId || data
-      const conversationId = data?.ConversationId || data?.conversationId || ''
-      this.onTypingStarted?.(String(userId), String(conversationId))
-    })
+      // Backend sends object with ConversationId, UserId, IsTyping flag, etc.
+      console.log('[SignalR] Raw UserTyping event received', { rawData: data, dataType: typeof data })
 
-    this.connection.on('UserStoppedTyping', (data: any) => {
-      // Backend sends object with ConversationId, UserId, etc.
       const userId = data?.UserId || data?.userId || data
       const conversationId = data?.ConversationId || data?.conversationId || ''
-      this.onTypingStopped?.(String(userId), String(conversationId))
+      const isTyping = data?.IsTyping !== false // Default to true if not specified
+
+      console.log('[SignalR] Received UserTyping event', {
+        userId,
+        conversationId,
+        isTyping,
+        userIdType: typeof userId,
+        conversationIdType: typeof conversationId,
+        fullData: data
+      })
+
+      // Validate data before calling handlers
+      if (!conversationId) {
+        console.warn('[SignalR] Invalid UserTyping event - missing conversationId', data)
+        return
+      }
+
+      if (!userId) {
+        console.warn('[SignalR] Invalid UserTyping event - missing userId', data)
+        return
+      }
+
+      if (isTyping) {
+        console.log('[SignalR] Calling onTypingStarted', { userId: String(userId), conversationId: String(conversationId) })
+        this.onTypingStarted?.(String(userId), String(conversationId))
+      } else {
+        console.log('[SignalR] Calling onTypingStopped', { userId: String(userId), conversationId: String(conversationId) })
+        this.onTypingStopped?.(String(userId), String(conversationId))
+      }
     })
 
     this.connection.on('UserJoined', (userId: string, conversationId: string) => {
@@ -105,6 +130,16 @@ class SignalRService {
 
     this.connection.on('UserLeft', (userId: string, conversationId: string) => {
       this.onUserLeft?.(userId, conversationId)
+    })
+
+    this.connection.on('MessageRead', (data: any) => {
+      // Backend sends object with ConversationId, UserId, LastReadAt, etc.
+      this.onMessageRead?.({
+        conversationId: data?.ConversationId || data?.conversationId || 0,
+        userId: data?.UserId || data?.userId,
+        guestSessionId: data?.GuestSessionId || data?.guestSessionId,
+        lastReadAt: data?.LastReadAt || data?.lastReadAt || new Date().toISOString()
+      })
     })
 
     this.connection.on('NewConversation', (data: { conversationId: number; message: string; timestamp: string }) => {
@@ -168,11 +203,17 @@ class SignalRService {
     // Only start if disconnected
     if (state === signalR.HubConnectionState.Disconnected) {
       try {
+        console.log('[SignalR] Starting connection...')
         await this.connection.start()
+        console.log('[SignalR] Connection started successfully', {
+          state: this.connection.state,
+          connectionId: this.connection.connectionId
+        })
         this.isConnected = true
         this.reconnectAttempts = 0
         this.onConnectionStatusChanged?.(true)
       } catch (error) {
+        console.error('[SignalR] Error starting connection', error)
         this.isConnected = false
         this.onConnectionStatusChanged?.(false)
         // Don't throw for 404 errors (backend might not have SignalR configured)
@@ -181,6 +222,13 @@ class SignalRService {
         }
         throw error
       }
+    } else if (state === signalR.HubConnectionState.Connected) {
+      // Already connected, ensure flag is set
+      console.log('[SignalR] Already connected', {
+        state: this.connection.state,
+        connectionId: this.connection.connectionId
+      })
+      this.isConnected = true
     }
   }
 
@@ -198,11 +246,13 @@ class SignalRService {
 
   async joinConversation(conversationId: string): Promise<void> {
     if (!this.connection) {
+      console.warn('[SignalR] Cannot join conversation - no connection', { conversationId })
       return
     }
 
     // Check actual connection state
     if (this.connection.state !== signalR.HubConnectionState.Connected) {
+      console.warn('[SignalR] Cannot join conversation - not connected', { conversationId, state: this.connection.state })
       return
     }
 
@@ -210,10 +260,14 @@ class SignalRService {
       // Convert string to number as backend expects long
       const conversationIdNum = Number(conversationId)
       if (isNaN(conversationIdNum)) {
+        console.error('[SignalR] Invalid conversation ID', { conversationId })
         return
       }
+      console.log('[SignalR] Joining conversation', { conversationId: conversationIdNum })
       await this.connection.invoke('JoinConversation', conversationIdNum)
+      console.log('[SignalR] Successfully joined conversation', { conversationId: conversationIdNum })
     } catch (error) {
+      console.error('[SignalR] Error joining conversation', error, { conversationId })
       // Don't throw - allow app to continue without SignalR
     }
   }
@@ -253,20 +307,52 @@ class SignalRService {
   }
 
   async sendTypingIndicator(conversationId: string, isTyping: boolean): Promise<void> {
-    if (!this.connection || !this.isConnected) {
+    if (!this.connection) {
+      console.warn('[SignalR] Cannot send typing indicator - no connection', { conversationId, isTyping })
       return
+    }
+
+    // Check actual connection state and reconnect if disconnected
+    if (this.connection.state !== signalR.HubConnectionState.Connected) {
+      console.warn('[SignalR] Connection disconnected, attempting to reconnect...', {
+        conversationId,
+        isTyping,
+        state: this.connection.state,
+        isConnected: this.isConnected
+      })
+
+      // Try to reconnect if disconnected
+      if (this.connection.state === signalR.HubConnectionState.Disconnected) {
+        try {
+          await this.connect()
+          // After reconnecting, try to join conversation again
+          await this.joinConversation(conversationId)
+        } catch (error) {
+          console.error('[SignalR] Failed to reconnect', error)
+          return
+        }
+      } else {
+        // If connecting or reconnecting, just return (will retry later)
+        return
+      }
     }
 
     try {
       // Convert string to number as backend expects long
       const conversationIdNum = Number(conversationId)
       if (isNaN(conversationIdNum)) {
+        console.error('[SignalR] Invalid conversation ID for typing indicator', { conversationId })
         return
       }
-      // Backend uses NotifyTyping method with isTyping parameter
-      await this.connection.invoke('NotifyTyping', conversationIdNum, isTyping)
+      console.log('[SignalR] Sending typing indicator', { conversationId: conversationIdNum, isTyping })
+      // Backend uses NotifyTyping method with 4 parameters: conversationId, isTyping, userId, guestSessionId
+      // userId and guestSessionId are optional, but SignalR requires all parameters to be sent
+      // Backend expects userId as string?, not int?
+      const currentUserId = localStorage.getItem('userId')
+      const guestSessionId = localStorage.getItem('guestSessionId')
+      await this.connection.invoke('NotifyTyping', conversationIdNum, isTyping, currentUserId || null, guestSessionId || null)
     } catch (error) {
-      // Handle typing indicator error
+      console.error('[SignalR] Error sending typing indicator', error, { conversationId, isTyping })
     }
   }
 
@@ -300,12 +386,8 @@ class SignalRService {
   }
 
   async notifyTyping(conversationId: string | number): Promise<void> {
+    // Just send typing indicator - let MessageInput handle auto-stop
     await this.sendTypingIndicator(String(conversationId), true)
-
-    // Auto-stop typing after 3 seconds
-    setTimeout(() => {
-      this.sendTypingIndicator(String(conversationId), false)
-    }, 3000)
   }
 
   private async attemptReconnect(): Promise<void> {
@@ -354,6 +436,10 @@ class SignalRService {
 
   setOnCenterReassigned(handler: (data: { conversationId: number; newCenterId: number; newStaffUserId: number; oldStaffUserId?: number; reason?: string; timestamp: string }) => void) {
     this.onCenterReassigned = handler
+  }
+
+  setOnMessageRead(handler: (data: { conversationId: number; userId?: number; guestSessionId?: string; lastReadAt: string }) => void) {
+    this.onMessageRead = handler
   }
 
   // Getters

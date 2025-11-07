@@ -31,7 +31,14 @@ const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             <p className="conversation-header__email">{displayEmail}</p>
           )}
           {typingUserIds.length > 0 && (
-            <p className="conversation-header__typing">Đang gõ...</p>
+            <div className="conversation-header__typing">
+              <span className="conversation-header__typing-text">Đang gõ</span>
+              <div className="conversation-header__typing-dots">
+                <span className="conversation-header__typing-dot"></span>
+                <span className="conversation-header__typing-dot"></span>
+                <span className="conversation-header__typing-dot"></span>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -36,6 +36,16 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
   const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null)
   const messageInputRef = useRef<MessageInputRef | null>(null)
 
+  // Debug log for typing users
+  useEffect(() => {
+    console.log('[ConversationDetail] Typing users updated', {
+      conversationId: conversation?.id,
+      typingUserIds,
+      typingUsersState: typingUsers,
+      conversationMessagesCount: conversationMessages.length
+    })
+  }, [typingUserIds, conversation?.id, typingUsers, conversationMessages.length])
+
   useEffect(() => {
     if (conversation) {
       loadMessages(conversation.id)
@@ -159,6 +169,8 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
         conversationId={conversation.id}
         messages={conversationMessages}
         currentUser={currentUser}
+        conversation={conversation}
+        typingUserIds={typingUserIds}
         onReply={handleReply}
         onEdit={handleEdit}
         onDelete={handleDelete}

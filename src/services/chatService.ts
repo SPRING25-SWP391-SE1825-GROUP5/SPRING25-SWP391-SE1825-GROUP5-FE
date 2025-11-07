@@ -198,7 +198,77 @@ export class ChatService {
     }
   }
 
-  // Get or create conversation for customer support
+  // Get user location using browser Geolocation API
+  static async getUserLocation(): Promise<{ lat: number; lng: number } | null> {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null)
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        () => resolve(null),
+        { timeout: 5000, enableHighAccuracy: false }
+      )
+    })
+  }
+
+  // Create new conversation for customer support (always creates new, never gets existing)
+  static async createNewSupportConversation(
+    customerLat?: number,
+    customerLng?: number,
+    preferredCenterId?: number
+  ): Promise<{ success: boolean; data: any }> {
+    try {
+      const currentUserId = localStorage.getItem('userId') || null
+      let guestSessionId = localStorage.getItem('guestSessionId')
+
+      // Ensure guestSessionId exists if user is not logged in
+      if (!currentUserId && !guestSessionId) {
+        guestSessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        localStorage.setItem('guestSessionId', guestSessionId)
+      }
+
+      // Validate that at least one identifier exists
+      if (!currentUserId && !guestSessionId) {
+        throw new Error('Cannot create conversation: both userId and guestSessionId are missing')
+      }
+
+      // Build members array - only include customer member
+      // Staff will be auto-assigned by backend
+      // IMPORTANT: Constraint CK_ConversationMembers_ActorXor requires either userId OR guestSessionId, not both
+      // If user is logged in (has userId), only send userId and set guestSessionId to null
+      // If user is not logged in, only send guestSessionId and set userId to null
+      const members: any[] = [
+        {
+          userId: currentUserId ? parseInt(currentUserId) : null,
+          guestSessionId: currentUserId ? null : (guestSessionId && guestSessionId.trim() !== '' ? guestSessionId.trim() : null),
+          roleInConversation: 'CUSTOMER'
+        }
+      ]
+
+      const requestBody: any = {
+        subject: 'Hỗ trợ khách hàng',
+        members: members
+      }
+
+      if (preferredCenterId) {
+        requestBody.preferredCenterId = preferredCenterId
+      }
+
+      if (customerLat !== undefined && customerLng !== undefined) {
+        requestBody.customerLatitude = customerLat
+        requestBody.customerLongitude = customerLng
+      }
+
+      const response = await api.post('/conversation', requestBody)
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  }
+
+  // Get or create conversation for customer support (legacy method, kept for backward compatibility)
   static async getOrCreateSupportConversation(preferredCenterId?: number): Promise<{ success: boolean; data: any }> {
     try {
       // Try to get current user ID from localStorage or auth state
@@ -208,7 +278,7 @@ export class ChatService {
       const requestBody: any = {
         member1: {
           userId: currentUserId ? parseInt(currentUserId) : null,
-          guestSessionId: guestSessionId,
+          guestSessionId: currentUserId ? null : (guestSessionId && guestSessionId.trim() !== '' ? guestSessionId.trim() : null),
           roleInConversation: 'CUSTOMER'
         },
         member2: {
@@ -236,7 +306,7 @@ export class ChatService {
           members: [
             {
               userId: currentUserId ? parseInt(currentUserId) : null,
-              guestSessionId: guestSessionId,
+              guestSessionId: currentUserId ? null : (guestSessionId && guestSessionId.trim() !== '' ? guestSessionId.trim() : null),
               roleInConversation: 'CUSTOMER'
             },
             {
@@ -276,12 +346,15 @@ export class ChatService {
         requestBody.replyToMessageId = replyToMessageId
       }
 
-      // Add sender info if available
+      // Add sender info - IMPORTANT: Constraint CK_Messages_SenderXor requires either userId OR guestSessionId, not both
+      // If user is logged in (has userId), only send userId and set guestSessionId to null
+      // If user is not logged in, only send guestSessionId and set userId to null
       if (currentUserId) {
         requestBody.senderUserId = parseInt(currentUserId)
-      }
-      if (guestSessionId) {
-        requestBody.senderGuestSessionId = guestSessionId
+        requestBody.senderGuestSessionId = null // Explicitly set to null to avoid constraint violation
+      } else if (guestSessionId && guestSessionId.trim() !== '') {
+        requestBody.senderGuestSessionId = guestSessionId.trim()
+        requestBody.senderUserId = null // Explicitly set to null to avoid constraint violation
       }
 
       // Handle file uploads if provided
@@ -293,11 +366,13 @@ export class ChatService {
         if (replyToMessageId) {
           formData.append('replyToMessageId', replyToMessageId.toString())
         }
+        // IMPORTANT: Constraint CK_Messages_SenderXor requires either userId OR guestSessionId, not both
         if (currentUserId) {
           formData.append('senderUserId', currentUserId)
-        }
-        if (guestSessionId) {
-          formData.append('senderGuestSessionId', guestSessionId)
+          // Don't append senderGuestSessionId if userId is present
+        } else if (guestSessionId && guestSessionId.trim() !== '') {
+          formData.append('senderGuestSessionId', guestSessionId.trim())
+          // Don't append senderUserId if guestSessionId is present
         }
 
         attachments.forEach((file, index) => {

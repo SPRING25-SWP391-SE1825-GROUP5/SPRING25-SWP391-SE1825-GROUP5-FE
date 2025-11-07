@@ -402,11 +402,16 @@ const chatSlice = createSlice({
      */
     addTypingUser: (state, action: PayloadAction<{ conversationId: string; userId: string }>) => {
       const { conversationId, userId } = action.payload
+      console.log('[chatSlice] addTypingUser called', { conversationId, userId, currentState: state.typingUsers })
+
       if (!state.typingUsers[conversationId]) {
         state.typingUsers[conversationId] = []
       }
       if (!state.typingUsers[conversationId].includes(userId)) {
         state.typingUsers[conversationId].push(userId)
+        console.log('[chatSlice] Typing user added', { conversationId, userId, updatedState: state.typingUsers })
+      } else {
+        console.log('[chatSlice] Typing user already exists', { conversationId, userId })
       }
     },
 
@@ -415,8 +420,11 @@ const chatSlice = createSlice({
      */
     removeTypingUser: (state, action: PayloadAction<{ conversationId: string; userId: string }>) => {
       const { conversationId, userId } = action.payload
+      console.log('[chatSlice] removeTypingUser called', { conversationId, userId, currentState: state.typingUsers })
+
       if (state.typingUsers[conversationId]) {
         state.typingUsers[conversationId] = state.typingUsers[conversationId].filter(id => id !== userId)
+        console.log('[chatSlice] Typing user removed', { conversationId, userId, updatedState: state.typingUsers })
       }
     }
   }
