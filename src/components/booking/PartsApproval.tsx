@@ -31,8 +31,11 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
   const [note, setNote] = useState(defaultNote || '')
   
   // Kiểm tra xem đã được tiêu thụ hoặc từ chối chưa
-  const isConsumed = status === 'CONSUMED'
-  const isRejected = status === 'REJECTED'
+  const statusUpper = (status || '').toUpperCase()
+  const isConsumed = statusUpper === 'CONSUMED'
+  const isRejected = statusUpper === 'REJECTED'
+  const isPendingApproval = statusUpper === 'PENDING_CUSTOMER_APPROVAL'
+  const isDraft = statusUpper === 'DRAFT' || !statusUpper
   const canApprove = !isConsumed && !isRejected
 
   const doApprove = async (approve: boolean) => {
@@ -98,7 +101,7 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
         </div>
       )}
       
-      {/* Hiển thị trạng thái nếu đã được tiêu thụ hoặc từ chối */}
+      {/* Hiển thị trạng thái */}
       {isConsumed && (
         <div style={{ 
           padding: '12px', 
@@ -125,6 +128,34 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
           gap: 8
         }}>
           <span style={{ fontWeight: 600 }}>✗ Đã bị từ chối</span>
+        </div>
+      )}
+      {isPendingApproval && (
+        <div style={{ 
+          padding: '12px', 
+          borderRadius: 8, 
+          background: '#FEF3C7', 
+          color: '#92400E', 
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <span style={{ fontWeight: 600 }}>⏳ Chờ khách hàng xác nhận</span>
+        </div>
+      )}
+      {isDraft && !isPendingApproval && !isConsumed && !isRejected && (
+        <div style={{ 
+          padding: '12px', 
+          borderRadius: 8, 
+          background: '#F3F4F6', 
+          color: '#374151', 
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <span style={{ fontWeight: 600 }}>📝 Nháp</span>
         </div>
       )}
       

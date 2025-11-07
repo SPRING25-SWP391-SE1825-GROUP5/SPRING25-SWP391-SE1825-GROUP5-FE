@@ -807,6 +807,7 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
                 vehicleInfo={bookingData.vehicleInfo}
                 serviceInfo={bookingData.serviceInfo}
                 locationTimeInfo={bookingData.locationTimeInfo}
+                promotionInfo={bookingData.promotionInfo}
                 isGuest={isGuest}
               />
             </div>

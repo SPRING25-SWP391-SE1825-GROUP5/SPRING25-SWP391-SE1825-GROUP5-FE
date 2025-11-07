@@ -54,7 +54,15 @@ export default function WorkQueueRowExpansion({
   const [modalResultId, setModalResultId] = useState<number | null>(null)
   const [checklistConfirmed, setChecklistConfirmed] = useState(false)
   const [confirmingChecklist, setConfirmingChecklist] = useState(false)
-  const totalCost = useMemo(() => parts.reduce((sum, p) => sum + (p.unitPrice || 0) * p.quantity, 0), [parts])
+  const [deletingPartId, setDeletingPartId] = useState<number | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [partToDelete, setPartToDelete] = useState<{ id: number; name: string } | null>(null)
+  // Tính tổng tiền phụ tùng - chỉ tính những phụ tùng đã được approve (status = CONSUMED)
+  const totalCost = useMemo(() => {
+    return parts
+      .filter(p => p.status === 'CONSUMED') // Chỉ tính những phụ tùng đã được approve
+      .reduce((sum, p) => sum + (p.unitPrice || 0) * p.quantity, 0)
+  }, [parts])
   // inline notes editing; no modal
   const normalized = (status || '').toLowerCase()
   const isInProgress = normalized === 'in_progress'
@@ -459,21 +467,27 @@ export default function WorkQueueRowExpansion({
                   // Replacement parts chỉ đọc (read-only), không cho chỉnh sửa
                   const canEdit = isInProgress && !isApproved && !isReplacementPart
                   
-                  // Trạng thái duyệt - chỉ hiển thị DRAFT, CONSUMED, hoặc REJECTED
-                  let statusText = ''
+                  // Trạng thái duyệt - xử lý đầy đủ các status
+                  let statusText = 'Nháp'
                   let statusColor = '#6B7280'
-                  if (isApproved) {
-                    statusText = 'CONSUMED'
+                  const statusUpper = approvalStatus
+                  
+                  if (statusUpper === 'CONSUMED') {
+                    statusText = 'Đã xác nhận'
                     statusColor = '#10B981'
-                  } else if (isDraft) {
-                    statusText = 'DRAFT'
+                  } else if (statusUpper === 'PENDING_CUSTOMER_APPROVAL') {
+                    statusText = 'Chờ xác nhận'
                     statusColor = '#F59E0B'
-                  } else if (isRejected) {
-                    statusText = 'REJECTED'
+                  } else if (statusUpper === 'REJECTED') {
+                    statusText = 'Đã từ chối'
                     statusColor = '#EF4444'
+                  } else if (statusUpper === 'DRAFT') {
+                    statusText = 'Nháp'
+                    statusColor = '#6B7280'
                   } else {
-                    statusText = 'DRAFT'
-                    statusColor = '#F59E0B'
+                    // Fallback cho các status khác
+                    statusText = statusUpper || 'Nháp'
+                    statusColor = '#6B7280'
                   }
                   
                   return (
@@ -496,11 +510,39 @@ export default function WorkQueueRowExpansion({
                         }}>{statusText}</span>
                       </td>
                       <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center' }}>
-                        {canEdit && isDraft && (
+                        {isInProgress && isDraft && !isReplacementPart && (
                           <button
-                            onClick={() => setEditingPartId(p.id)}
-                            style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#FFFFFF', cursor: 'pointer', fontSize: 13 }}
-                          >Đổi phụ tùng</button>
+                            onClick={() => {
+                              setPartToDelete({ id: p.id, name: p.partName || 'phụ tùng này' })
+                              setShowDeleteConfirm(true)
+                            }}
+                            disabled={deletingPartId === p.id}
+                            style={{ 
+                              padding: '6px 12px', 
+                              border: '1px solid #EF4444', 
+                              borderRadius: 6, 
+                              background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF', 
+                              color: deletingPartId === p.id ? '#9ca3af' : '#EF4444',
+                              cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer', 
+                              fontSize: 13,
+                              fontWeight: 600,
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (deletingPartId !== p.id) {
+                                e.currentTarget.style.background = '#FEE2E2'
+                                e.currentTarget.style.borderColor = '#DC2626'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (deletingPartId !== p.id) {
+                                e.currentTarget.style.background = '#FFFFFF'
+                                e.currentTarget.style.borderColor = '#EF4444'
+                              }
+                            }}
+                          >
+                            {deletingPartId === p.id ? 'Đang xóa...' : 'Xóa'}
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -561,38 +603,117 @@ export default function WorkQueueRowExpansion({
           />
         )}
 
-        {editingPartId && isInProgress && (
-          <SelectPartModal
-            onClose={() => setEditingPartId(null)}
-            centerId={centerId}
-            initialQuantity={parts.find(x => x.id === editingPartId)?.quantity}
-            onSelect={async (part, quantity) => {
-              const target = parts.find(x => x.id === editingPartId)
-              if (!target) { setEditingPartId(null); return }
-              try {
-                // update partId và quantity do người dùng chọn
-                const newQty = Math.max(1, Number(quantity || target.quantity))
-                await WorkOrderPartService.update(bookingId, editingPartId, { partId: part.partId, quantity: newQty })
-                // lấy chi tiết phụ tùng mới để cập nhật hiển thị
-                const detail = await PartService.getPartById(part.partId)
-                const raw = (detail?.data || {}) as any
-                const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? target.unitPrice ?? 0
-                setParts(prev => prev.map(x => x.id === editingPartId ? {
-                  ...x,
-                  partId: part.partId,
-                  partNumber: (detail?.data?.partNumber ?? x.partNumber) as any,
-                  partName: (detail?.data?.partName ?? x.partName) as any,
-                  brand: (detail?.data?.brand ?? x.brand) as any,
-                  unitPrice,
-                  quantity: newQty
-                } : x))
-                setEditingPartId(null)
-                toast.success('Đã đổi phụ tùng')
-              } catch (e: any) {
-                toast.error(e?.message || 'Không thể đổi phụ tùng')
-              }
+        {/* Modal thay đổi phụ tùng đã bị vô hiệu hóa - chỉ cho phép xóa phụ tùng có status DRAFT */}
+
+        {/* Modal xác nhận xóa phụ tùng */}
+        {showDeleteConfirm && partToDelete && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              background: 'rgba(0, 0, 0, 0.5)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              zIndex: 2000 
             }}
-          />
+            onClick={() => {
+              setShowDeleteConfirm(false)
+              setPartToDelete(null)
+            }}
+          >
+            <div 
+              style={{
+                background: '#FFFFFF',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '400px',
+                width: '90%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600, color: '#111827' }}>
+                Xác nhận xóa phụ tùng
+              </h3>
+              <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#374151', lineHeight: '1.5' }}>
+                Bạn có chắc chắn muốn xóa phụ tùng <strong>{partToDelete.name}</strong>?
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false)
+                    setPartToDelete(null)
+                  }}
+                  disabled={deletingPartId === partToDelete.id}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid #D1D5DB',
+                    background: '#FFFFFF',
+                    color: '#374151',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: deletingPartId === partToDelete.id ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#F9FAFB'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#FFFFFF'
+                    }
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setDeletingPartId(partToDelete.id)
+                      await WorkOrderPartService.remove(bookingId, partToDelete.id)
+                      setParts(prev => prev.filter(x => x.id !== partToDelete.id))
+                      toast.success('Đã xóa phụ tùng thành công')
+                      setShowDeleteConfirm(false)
+                      setPartToDelete(null)
+                    } catch (e: any) {
+                      console.error('Error deleting part:', e)
+                      toast.error(e?.message || 'Không thể xóa phụ tùng')
+                    } finally {
+                      setDeletingPartId(null)
+                    }
+                  }}
+                  disabled={deletingPartId === partToDelete.id}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: deletingPartId === partToDelete.id ? '#9CA3AF' : '#EF4444',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: deletingPartId === partToDelete.id ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#DC2626'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#EF4444'
+                    }
+                  }}
+                >
+                  {deletingPartId === partToDelete.id ? 'Đang xóa...' : 'Xóa'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {showCategoryModal && isInProgress && modalResultId && (

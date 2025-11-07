@@ -89,15 +89,18 @@ export default function BookingHistoryCard({
   const [parts, setParts] = useState<BookingPart[]>([])
   const [loadingParts, setLoadingParts] = useState(false)
   const [approvingPartId, setApprovingPartId] = useState<number | null>(null)
+  const [rejectingPartId, setRejectingPartId] = useState<number | null>(null)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [loadingFeedback, setLoadingFeedback] = useState(false)
   const [existingFeedback, setExistingFeedback] = useState<any>(null)
   const [bookingDetail, setBookingDetail] = useState<any>(null)
   const user = useAppSelector((state) => state.auth.user)
   
-  // Tính tổng tiền phụ tùng (giống như kỹ thuật viên)
+  // Tính tổng tiền phụ tùng - chỉ tính những phụ tùng đã được approve (status = CONSUMED)
   const totalPartsCost = useMemo(() => {
-    return parts.reduce((sum, p) => sum + (p.unitPrice || 0) * (p.quantityUsed || 0), 0)
+    return parts
+      .filter(p => p.status === 'CONSUMED') // Chỉ tính những phụ tùng đã được approve
+      .reduce((sum, p) => sum + (p.unitPrice || 0) * (p.quantityUsed || 0), 0)
   }, [parts])
 
   // Load parts when expanded
@@ -227,6 +230,39 @@ export default function BookingHistoryCard({
       toast.error(errorMsg)
     } finally {
       setApprovingPartId(null)
+    }
+  }
+
+  const handleRejectPart = async (workOrderPartId: number) => {
+    try {
+      setRejectingPartId(workOrderPartId)
+      // Gọi API với workOrderPartId
+      // API: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-reject
+      console.log('🔴 Starting reject part:', { 
+        bookingId: booking.bookingId, 
+        workOrderPartId,
+        part: parts.find(p => p.workOrderPartId === workOrderPartId)
+      })
+      
+      const response = await WorkOrderPartService.customerReject(booking.bookingId, workOrderPartId)
+      
+      console.log('🔴 Reject response:', response)
+      
+      if (response.success) {
+        toast.success('Đã từ chối phụ tùng thành công')
+        // Reload parts
+        await loadParts()
+      } else {
+        const errorMsg = response.message || 'Không thể từ chối phụ tùng'
+        console.error('❌ Reject failed:', errorMsg)
+        toast.error(errorMsg)
+      }
+    } catch (error: any) {
+      console.error('❌ Exception in handleRejectPart:', error)
+      const errorMsg = error?.message || error?.response?.data?.message || 'Có lỗi xảy ra khi từ chối phụ tùng'
+      toast.error(errorMsg)
+    } finally {
+      setRejectingPartId(null)
     }
   }
   return (
@@ -648,51 +684,128 @@ export default function BookingHistoryCard({
                           <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#374151' }}>{part.unitPrice !== undefined ? `${Number(part.unitPrice || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
                           <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#111827', fontWeight: 600 }}>{part.unitPrice !== undefined ? `${Number((part.unitPrice || 0) * (part.quantityUsed || 0)).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '4px 12px',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              fontWeight: '500',
-                              background: part.status === 'PENDING_CUSTOMER_APPROVAL' ? '#fef3c7' : '#dcfce7',
-                              color: part.status === 'PENDING_CUSTOMER_APPROVAL' ? '#92400e' : '#166534'
-                            }}>
-                              {part.status === 'PENDING_CUSTOMER_APPROVAL' ? 'Chờ xác nhận' : 'Đã xác nhận'}
-                            </span>
+                            {(() => {
+                              // Xác định text và style dựa trên status
+                              let statusText = 'Nháp'
+                              let bgColor = '#f3f4f6'
+                              let textColor = '#374151'
+                              
+                              if (part.status === 'PENDING_CUSTOMER_APPROVAL') {
+                                statusText = 'Chờ xác nhận'
+                                bgColor = '#fef3c7'
+                                textColor = '#92400e'
+                              } else if (part.status === 'CONSUMED') {
+                                statusText = 'Đã xác nhận'
+                                bgColor = '#dcfce7'
+                                textColor = '#166534'
+                              } else if (part.status === 'REJECTED') {
+                                statusText = 'Đã từ chối'
+                                bgColor = '#fee2e2'
+                                textColor = '#991b1b'
+                              } else if (part.status === 'DRAFT') {
+                                statusText = 'Nháp'
+                                bgColor = '#f3f4f6'
+                                textColor = '#374151'
+                              }
+                              
+                              return (
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '4px 12px',
+                                  borderRadius: '12px',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  background: bgColor,
+                                  color: textColor
+                                }}>
+                                  {statusText}
+                                </span>
+                              )
+                            })()}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
-                            {part.status === 'PENDING_CUSTOMER_APPROVAL' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleApprovePart(part.workOrderPartId)
-                                }}
-                                disabled={approvingPartId === part.workOrderPartId}
-                                style={{
-                                  padding: '6px 16px',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  background: approvingPartId === part.workOrderPartId ? '#f3f4f6' : '#FFD875',
-                                  color: '#111827',
-                                  fontSize: '13px',
-                                  fontWeight: '600',
-                                  cursor: approvingPartId === part.workOrderPartId ? 'not-allowed' : 'pointer',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (approvingPartId !== part.workOrderPartId) {
-                                    e.currentTarget.style.background = '#FFE082'
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (approvingPartId !== part.workOrderPartId) {
-                                    e.currentTarget.style.background = '#FFD875'
-                                  }
-                                }}
-                              >
-                                {approvingPartId === part.workOrderPartId ? 'Đang xử lý...' : 'Đồng ý'}
-                              </button>
-                            )}
+                            {(() => {
+                              const canApprove = part.status === 'PENDING_CUSTOMER_APPROVAL'
+                              const canReject = part.status === 'PENDING_CUSTOMER_APPROVAL' || part.status === 'DRAFT'
+                              const isProcessing = approvingPartId === part.workOrderPartId || rejectingPartId === part.workOrderPartId
+                              
+                              if (!canApprove && !canReject) {
+                                return null
+                              }
+                              
+                              return (
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                  {canApprove && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleApprovePart(part.workOrderPartId)
+                                      }}
+                                      disabled={isProcessing}
+                                      style={{
+                                        padding: '6px 16px',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        background: isProcessing ? '#f3f4f6' : '#FFD875',
+                                        color: '#111827',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (!isProcessing) {
+                                          e.currentTarget.style.background = '#FFE082'
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (!isProcessing) {
+                                          e.currentTarget.style.background = '#FFD875'
+                                        }
+                                      }}
+                                    >
+                                      {approvingPartId === part.workOrderPartId ? 'Đang xử lý...' : 'Đồng ý'}
+                                    </button>
+                                  )}
+                                  {canReject && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        if (confirm('Bạn có chắc chắn muốn từ chối phụ tùng này?')) {
+                                          handleRejectPart(part.workOrderPartId)
+                                        }
+                                      }}
+                                      disabled={isProcessing}
+                                      style={{
+                                        padding: '6px 16px',
+                                        border: '1px solid #EF4444',
+                                        borderRadius: '6px',
+                                        background: isProcessing ? '#f3f4f6' : '#FFFFFF',
+                                        color: isProcessing ? '#9ca3af' : '#EF4444',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (!isProcessing) {
+                                          e.currentTarget.style.background = '#FEE2E2'
+                                          e.currentTarget.style.borderColor = '#DC2626'
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (!isProcessing) {
+                                          e.currentTarget.style.background = '#FFFFFF'
+                                          e.currentTarget.style.borderColor = '#EF4444'
+                                        }
+                                      }}
+                                    >
+                                      {rejectingPartId === part.workOrderPartId ? 'Đang xử lý...' : 'Từ chối'}
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </td>
                         </tr>
                       ))}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { User, Car, Wrench, MapPin, Calendar, Clock } from 'lucide-react'
+import { User, Car, Wrench, MapPin, Calendar, Clock, Tag } from 'lucide-react'
 import { ServiceManagementService } from '@/services/serviceManagementService'
 import { CenterService } from '@/services/centerService'
 import { TechnicianService } from '@/services/technicianService'
@@ -29,6 +29,10 @@ interface BookingSummaryProps {
     centerName?: string
     technicianName?: string
   }
+  promotionInfo?: {
+    promotionCode?: string
+    discountAmount?: number
+  }
   isGuest: boolean
 }
 
@@ -37,6 +41,7 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
   vehicleInfo,
   serviceInfo,
   locationTimeInfo,
+  promotionInfo,
   isGuest
 }) => {
   const [serviceNames, setServiceNames] = useState<Record<string, string>>({})
@@ -256,6 +261,31 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
             )}
           </div>
         </div>
+
+        {/* Promotion Info */}
+        {promotionInfo?.promotionCode && promotionInfo.discountAmount && promotionInfo.discountAmount > 0 && (
+          <div className="summary-section promotion-section">
+            <div className="summary-section-header">
+              <Tag size={18} />
+              <h4 className="summary-section-title">Mã khuyến mãi</h4>
+            </div>
+            <div className="summary-section-body">
+              <div className="summary-item">
+                <span className="summary-label">Mã:</span>
+                <span className="summary-value promotion-code">{promotionInfo.promotionCode}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Giảm giá:</span>
+                <span className="summary-value promotion-discount">
+                  {new Intl.NumberFormat('vi-VN', {
+                    style: 'currency',
+                    currency: 'VND'
+                  }).format(promotionInfo.discountAmount)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -264,6 +294,7 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
           top: 20px;
           background: rgba(255, 255, 255, 0.95);
           border-radius: 18px;
+          margin-top: 18.2rem;
           padding: 1.5rem;
           box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
           border: 1px solid rgba(255, 255, 255, 0.28);
@@ -398,6 +429,23 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
         .summary-loading {
           color: #64748b;
           font-size: 0.875rem;
+        }
+
+        .promotion-section {
+          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+          border: 1px solid #86efac;
+        }
+
+        .promotion-code {
+          color: var(--progress-current, #1ec774);
+          font-weight: 700;
+          font-size: 0.9375rem;
+        }
+
+        .promotion-discount {
+          color: #16a34a;
+          font-weight: 700;
+          font-size: 0.9375rem;
         }
 
         /* Scrollbar styling */
