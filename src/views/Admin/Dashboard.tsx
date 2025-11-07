@@ -755,6 +755,80 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingStatusCenterId, centers.length])
 
+  // Prepare stats data for dashboard (moved outside renderDashboardContent to fix hooks error)
+  const summaryData = useMemo(() => {
+    // Nếu đang loading, giữ giá trị cũ (nếu có) hoặc null để hiển thị loading state
+    if (loadingSummary && dashboardSummary) {
+      return dashboardSummary
+    }
+    // Nếu có data, dùng data
+    if (dashboardSummary) {
+      return dashboardSummary
+    }
+    // Nếu không có data và không loading, trả về null để hiển thị placeholder
+    return null
+  }, [dashboardSummary, loadingSummary])
+
+  const totalRevenue = summaryData?.totalRevenue || 0
+  const completedBookings = summaryData?.totalCompletedBookings || 0
+
+  const stats = useMemo(() => {
+    const isLoading = loadingSummary && !summaryData
+    
+    return [
+      {
+        title: 'Tổng doanh thu',
+        value: isLoading ? '...' : totalRevenue.toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: summaryData ? '' : '+12.5%', // Hide change percentage if using API data
+        changeType: 'positive' as const,
+        icon: DollarSign,
+        color: 'var(--primary-500)',
+        isLoading
+      },
+      {
+        title: 'Tổng nhân viên',
+        value: isLoading ? '...' : (summaryData?.totalEmployees || 0).toString(),
+        unit: 'người',
+        change: summaryData ? '' : '+8.2%',
+        changeType: 'positive' as const,
+        icon: UserCheck,
+        color: 'var(--success-500)',
+        isLoading
+      },
+      {
+        title: 'Đơn hoàn thành',
+        value: isLoading ? '...' : completedBookings.toString(),
+        unit: 'đơn',
+        change: summaryData ? '' : '+5.1%',
+        changeType: 'positive' as const,
+        icon: Users,
+        color: 'var(--info-500)',
+        isLoading
+      },
+      {
+        title: 'Doanh thu từ dịch vụ',
+        value: isLoading ? '...' : (summaryData?.serviceRevenue || 0).toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: summaryData ? '' : '',
+        changeType: 'positive' as const,
+        icon: Wrench,
+        color: 'var(--warning-500)',
+        isLoading
+      },
+      {
+        title: 'Doanh thu từ phụ tùng',
+        value: isLoading ? '...' : (summaryData?.partsRevenue || 0).toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: summaryData ? '' : '',
+        changeType: 'positive' as const,
+        icon: Package,
+        color: 'var(--info-500)',
+        isLoading
+      }
+    ]
+  }, [summaryData, loadingSummary, totalRevenue, completedBookings])
+
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
@@ -934,24 +1008,8 @@ export default function AdminDashboard() {
         })
       : []
 
-    // Prepare stats strictly from dashboard summary API (already filtered by global time range)
-    // Sử dụng useMemo để tránh tính toán lại mỗi lần render
-    const summaryData = useMemo(() => {
-      // Nếu đang loading, giữ giá trị cũ (nếu có) hoặc null để hiển thị loading state
-      if (loadingSummary && dashboardSummary) {
-        return dashboardSummary
-      }
-      // Nếu có data, dùng data
-      if (dashboardSummary) {
-        return dashboardSummary
-      }
-      // Nếu không có data và không loading, trả về null để hiển thị placeholder
-      return null
-    }, [dashboardSummary, loadingSummary])
-
-    const totalRevenue = summaryData?.totalRevenue || 0
+    // Use pre-computed values from top-level hooks
     const totalBookings = summary?.totalBookings || summary?.TotalBookings || 0
-    const completedBookings = summaryData?.totalCompletedBookings || 0
     const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : '0'
 
     const quickActions: Array<{ title: string; description: string; icon: any; page: string; route?: string; color: string }> = [
@@ -1002,64 +1060,6 @@ export default function AdminDashboard() {
         color: 'var(--warning-500)'
       }
     ]
-
-    // Sử dụng useMemo để tránh tính toán lại stats mỗi lần render
-    const stats = useMemo(() => {
-      const isLoading = loadingSummary && !summaryData
-      
-      return [
-        {
-          title: 'Tổng doanh thu',
-          value: isLoading ? '...' : totalRevenue.toLocaleString('vi-VN'),
-          unit: 'VND',
-          change: summaryData ? '' : '+12.5%', // Hide change percentage if using API data
-          changeType: 'positive' as const,
-          icon: DollarSign,
-          color: 'var(--primary-500)',
-          isLoading
-        },
-        {
-          title: 'Tổng nhân viên',
-          value: isLoading ? '...' : (summaryData?.totalEmployees || 0).toString(),
-          unit: 'người',
-          change: summaryData ? '' : '+8.2%',
-          changeType: 'positive' as const,
-          icon: UserCheck,
-          color: 'var(--success-500)',
-          isLoading
-        },
-        {
-          title: 'Đơn hoàn thành',
-          value: isLoading ? '...' : completedBookings.toString(),
-          unit: 'đơn',
-          change: summaryData ? '' : '+5.1%',
-          changeType: 'positive' as const,
-          icon: Users,
-          color: 'var(--info-500)',
-          isLoading
-        },
-        {
-          title: 'Doanh thu từ dịch vụ',
-          value: isLoading ? '...' : (summaryData?.serviceRevenue || 0).toLocaleString('vi-VN'),
-          unit: 'VND',
-          change: summaryData ? '' : '',
-          changeType: 'positive' as const,
-          icon: Wrench,
-          color: 'var(--warning-500)',
-          isLoading
-        },
-        {
-          title: 'Doanh thu từ phụ tùng',
-          value: isLoading ? '...' : (summaryData?.partsRevenue || 0).toLocaleString('vi-VN'),
-          unit: 'VND',
-          change: summaryData ? '' : '',
-          changeType: 'positive' as const,
-          icon: Package,
-          color: 'var(--info-500)',
-          isLoading
-        }
-      ]
-    }, [summaryData, loadingSummary, totalRevenue, completedBookings])
 
     return (
       <>
@@ -1450,10 +1450,10 @@ export default function AdminDashboard() {
                   }}
                   formatter={(value, _name, item: any) => {
                     const p = item && item.payload
-                    if (p && (p.revenue !== undefined || p.bookingCount !== undefined)) {
-                      const revenueText = `${Number(p.revenue || 0).toLocaleString('vi-VN')} VND`
-                      const bookingText = `${p.bookingCount || 0} lượt`
-                      return [`${revenueText} | ${bookingText}`, p.name]
+                    if (p) {
+                      // Hiển thị tỉ lệ phần trăm các loại dịch vụ được sử dụng
+                      const percentage = typeof value === 'number' ? value : Number(value || 0)
+                      return [`${percentage.toFixed(1)}%`, p.name || 'Dịch vụ']
                     }
                     return [`${value}%`, 'Tỷ lệ']
                   }}
