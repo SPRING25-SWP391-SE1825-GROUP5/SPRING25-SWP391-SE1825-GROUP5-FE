@@ -3,60 +3,108 @@
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s;
+  position: relative;
+  will-change: transform;
+  transform: translateZ(0);
 
   &:hover {
-    transform: scale(1.02);
+    transform: translateZ(0) scale(1.02);
   }
 
   &__thumbnail {
-    max-width: 300px;
-    max-height: 300px;
     width: 100%;
-    height: auto;
+    height: 100%;
     object-fit: cover;
     display: block;
   }
 
-  &__lightbox {
-    position: fixed;
+  &__overlay {
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
-    cursor: pointer;
+    border-radius: 8px;
   }
 
-  &__close {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: white;
-    transition: background 0.2s;
+  &__count {
+    color: #fff;
+    font-size: 24px;
+    font-weight: 600;
+  }
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
+  // Single image
+  &--single {
+    max-width: 300px;
+    max-height: 300px;
+
+    .message-image__thumbnail {
+      width: 100%;
+      height: auto;
+      max-width: 300px;
+      max-height: 300px;
     }
   }
 
-  &__full {
-    max-width: 90vw;
-    max-height: 90vh;
-    object-fit: contain;
+  // Two images
+  &--double {
+    width: calc(50% - 2px);
+    height: 200px;
+    flex: 0 0 calc(50% - 2px);
+
+    .message-image__thumbnail {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Three images
+  &--triple {
+    &:nth-child(1) {
+      width: 100%;
+      height: 200px;
+      flex: 0 0 100%;
+    }
+
+    &:nth-child(2),
+    &:nth-child(3) {
+      width: calc(50% - 2px);
+      height: 150px;
+      flex: 0 0 calc(50% - 2px);
+    }
+
+    .message-image__thumbnail {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Four images
+  &--quad {
+    width: calc(50% - 2px);
+    height: 150px;
+    flex: 0 0 calc(50% - 2px);
+
+    .message-image__thumbnail {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Multiple images (5+)
+  &--multiple {
+    width: calc(50% - 2px);
+    height: 150px;
+    flex: 0 0 calc(50% - 2px);
+
+    .message-image__thumbnail {
+      width: 100%;
+      height: 100%;
+    }
   }
 }
 

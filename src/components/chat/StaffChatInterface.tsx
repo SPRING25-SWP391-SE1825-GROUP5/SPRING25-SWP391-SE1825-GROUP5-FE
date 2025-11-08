@@ -48,12 +48,12 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
   useEffect(() => {
     // Handle new messages
     signalRService.setOnMessageReceived((message: ChatMessage) => {
-      
+
       // If message is for current conversation, add it to messages
       if (selectedConversation && message.conversationId === selectedConversation.id) {
         setMessages(prev => [...prev, message])
       }
-      
+
       // Update conversations list to show new message
       setConversations(prev => prev.map(conv => {
         if (conv.id === message.conversationId) {
@@ -65,10 +65,10 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
         }
         return conv
       }))
-      
+
       // Update unread count
       setUnreadCount(prev => prev + 1)
-      
+
       // Show notification if message is not from current user
       const isFromCurrentUser = message.senderId === String(user?.userId || 'staff')
       if (!isFromCurrentUser) {
@@ -109,17 +109,17 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
   const loadConversations = async () => {
     try {
       setIsLoading(true)
-      
+
       // Debug: Test staff endpoint first
       try {
         await ChatService.testStaffEndpoint()
       } catch (debugError) {
         // Debug endpoint failed
       }
-      
+
       const response = await ChatService.getConversations()
       setConversations(response)
-      
+
       // Calculate unread count
       const totalUnread = response.reduce((sum, conv) => sum + conv.unreadCount, 0)
       setUnreadCount(totalUnread)
@@ -143,26 +143,21 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
 
     setSelectedConversation(conversation)
     setMessages([]) // Clear previous messages
-    
+
     try {
       // Join new conversation SignalR group
       await signalRService.joinConversation(conversation.id)
-      
-      // Load messages
 
+      // Load messages
       const response = await ChatService.getConversationMessages(parseInt(conversation.id))
 
-
-
-      )
-      
       if (response.success && response.data && Array.isArray(response.data)) {
         const formattedMessages = response.data.map((msg: any) => {
 
           // Simple logic: if senderUserId exists, it's a customer, otherwise it's staff
           const isCustomer = msg.senderUserId || msg.senderGuestSessionId
-          const senderName = isCustomer ? 
-            (msg.senderName || 'Khách hàng') : 
+          const senderName = isCustomer ?
+            (msg.senderName || 'Khách hàng') :
             (msg.senderName || 'Nhân viên hỗ trợ')
 
           return {
@@ -214,7 +209,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
       } catch (signalRError) {
 
       }
-      
+
       // Also save to database via API
       const response = await ChatService.sendMessageToConversation(parseInt(selectedConversation.id), messageContent)
 
@@ -244,9 +239,9 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
   }
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
     })
   }
 
@@ -265,7 +260,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
 
   const getLastMessagePreview = (conversation: ChatConversation) => {
     if (!conversation.lastMessage) return 'Chưa có tin nhắn'
-    return conversation.lastMessage.content.length > 50 
+    return conversation.lastMessage.content.length > 50
       ? conversation.lastMessage.content.substring(0, 50) + '...'
       : conversation.lastMessage.content
   }
@@ -305,7 +300,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                 {conversations.length} cuộc trò chuyện
               </span>
             </div>
-            
+
             <div className="staff-chat-interface__conversations-list">
               {isLoading ? (
                 <div className="staff-chat-interface__loading">
@@ -385,8 +380,8 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                   ) : (
                     messages.map((msg, index) => {
                     // Simple logic: if message has senderUserId or senderGuestSessionId, it's from customer
-                    const isStaffMessage = !msg.senderId || 
-                                         msg.senderId === String(user?.userId || 'staff') || 
+                    const isStaffMessage = !msg.senderId ||
+                                         msg.senderId === String(user?.userId || 'staff') ||
                                          msg.senderName === (user?.fullName || 'Staff') ||
                                          msg.senderName === 'Nhân viên hỗ trợ'
 
@@ -404,7 +399,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="staff-chat-interface__message-content">
                           {!isStaffMessage && (
                             <div className="staff-chat-interface__message-sender">
@@ -421,7 +416,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                       </div>
                     )
                   }))}
-                  
+
                   {/* Typing Indicator */}
                   {isTyping && (
                     <div className="staff-chat-interface__typing">
@@ -441,7 +436,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                       </div>
                     </div>
                   )}
-                  
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -454,7 +449,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                   >
                     <Paperclip size={20} />
                   </button>
-                  
+
                   <div className="staff-chat-interface__input-wrapper">
                     <textarea
                       ref={textareaRef}
@@ -467,7 +462,7 @@ const StaffChatInterface: React.FC<StaffChatInterfaceProps> = ({
                       maxLength={1000}
                     />
                   </div>
-                  
+
                   <button
                     className="staff-chat-interface__send-btn"
                     onClick={handleSendMessage}

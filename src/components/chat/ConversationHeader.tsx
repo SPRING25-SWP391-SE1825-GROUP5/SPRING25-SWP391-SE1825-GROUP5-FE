@@ -1,16 +1,21 @@
 import React from 'react'
+import { useLocation } from 'react-router-dom'
 import type { ChatConversation } from '@/types/chat'
 import './ConversationHeader.scss'
 
 interface ConversationHeaderProps {
   conversation: ChatConversation
   typingUserIds: string[]
+  onMinimize?: () => void
 }
 
 const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   conversation,
-  typingUserIds
+  typingUserIds,
+  onMinimize
 }) => {
+  const location = useLocation()
+  const isContactPage = location.pathname === '/contact'
   const currentUserId = localStorage.getItem('userId') || 'guest'
   const otherParticipant = conversation.participants.find(p => p.id !== currentUserId) || conversation.participants[0]
   const displayName = otherParticipant?.name || 'Người dùng'
@@ -20,10 +25,16 @@ const ConversationHeader: React.FC<ConversationHeaderProps> = ({
     <div className="conversation-header">
       <div className="conversation-header__info">
         <div className="conversation-header__avatar">
-          <img
-            src={otherParticipant?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'}
-            alt={displayName}
-          />
+          {otherParticipant?.avatar ? (
+            <img
+              src={otherParticipant.avatar}
+              alt={displayName}
+            />
+          ) : (
+            <div className="conversation-header__avatar-placeholder">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
         </div>
         <div className="conversation-header__details">
           <h3 className="conversation-header__name">{displayName}</h3>
@@ -42,6 +53,7 @@ const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           )}
         </div>
       </div>
+      {/* Bỏ icon thu nhỏ ở trang contact */}
     </div>
   )
 }

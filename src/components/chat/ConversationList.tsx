@@ -62,9 +62,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
   const filteredConversations = conversations.filter(conv => {
     if (!searchTerm) return true
-    
+
     const searchLower = searchTerm.toLowerCase()
-    return conv.participants.some(p => 
+    return conv.participants.some(p =>
       p.name.toLowerCase().includes(searchLower)
     ) || (conv.lastMessage?.content.toLowerCase().includes(searchLower))
   })
@@ -75,16 +75,16 @@ const ConversationList: React.FC<ConversationListProps> = ({
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
     if (diffInHours < 24) {
-      return date.toLocaleTimeString('vi-VN', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      return date.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit'
       })
     } else if (diffInHours < 168) { // 7 days
       return date.toLocaleDateString('vi-VN', { weekday: 'short' })
     } else {
-      return date.toLocaleDateString('vi-VN', { 
-        day: '2-digit', 
-        month: '2-digit' 
+      return date.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit'
       })
     }
   }
@@ -179,9 +179,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
               >
                 <div className="conversation-item__avatar">
                   {getConversationAvatar(conversation) ? (
-                    <img 
-                      src={getConversationAvatar(conversation)} 
-                      alt="Avatar" 
+                    <img
+                      src={getConversationAvatar(conversation)}
+                      alt="Avatar"
                       className="conversation-item__avatar-img"
                     />
                   ) : (
@@ -207,7 +207,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   </div>
 
                   <div className="conversation-item__footer">
-                    <p className="conversation-item__preview">
+                    <p className={`conversation-item__preview ${conversation.unreadCount > 0 ? 'conversation-item__preview--unread' : ''}`}>
                       {conversation.lastMessage?.content || 'Chưa có tin nhắn nào'}
                     </p>
                     {conversation.unreadCount > 0 && (
@@ -253,9 +253,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     >
                       <div className="conversation-list__user-avatar">
                         {user.avatar ? (
-                          <img 
-                            src={user.avatar} 
-                            alt={user.name} 
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
                             className="conversation-list__user-avatar-img"
                           />
                         ) : (

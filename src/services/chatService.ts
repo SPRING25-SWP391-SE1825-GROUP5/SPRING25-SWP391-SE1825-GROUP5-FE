@@ -375,8 +375,9 @@ export class ChatService {
           // Don't append senderUserId if guestSessionId is present
         }
 
+        // ASP.NET Core model binding expects "Attachments[0]", "Attachments[1]", etc. (PascalCase)
         attachments.forEach((file, index) => {
-          formData.append(`attachments[${index}]`, file)
+          formData.append(`Attachments[${index}]`, file)
         })
 
         response = await api.post('/message', formData, {
@@ -462,14 +463,6 @@ export class ChatService {
     }
   }
 
-  // Archive conversation
-  static async archiveConversation(conversationId: string): Promise<void> {
-    try {
-      await api.patch(`/chat/conversations/${conversationId}/archive`)
-    } catch (error) {
-      throw error
-    }
-  }
 
   // Send typing indicator
   static async sendTypingIndicator(conversationId: string, isTyping: boolean): Promise<void> {
@@ -592,6 +585,16 @@ export class ChatService {
   // Archive conversation (frontend only - no API call)
   static archiveConversation(conversationId: string): void {
     // This is a frontend-only operation, handled by Redux
+  }
+
+  // Delete conversation
+  static async deleteConversation(conversationId: string | number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await api.delete(`/conversation/${conversationId}`)
+      return response.data
+    } catch (error: any) {
+      throw new Error(error?.response?.data?.message || 'Không thể xóa cuộc trò chuyện')
+    }
   }
 }
 

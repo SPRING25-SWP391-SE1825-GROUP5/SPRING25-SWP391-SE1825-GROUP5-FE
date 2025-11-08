@@ -1,6 +1,6 @@
-import { 
-  Users, 
-  Calendar, 
+import {
+  Users,
+  Calendar,
   CheckCircle,
   BarChart3
 } from 'lucide-react'
@@ -120,7 +120,7 @@ export default function DashboardContent() {
     {
       id: 1,
       title: 'Lịch hẹn mới',
-      description: 'Khách hàng Nguyễn Văn A đặt lịch bảo trì',
+      description: 'Khách hàng đặt lịch bảo trì',
       time: '10 phút trước',
       type: 'appointment'
     },
@@ -151,16 +151,16 @@ export default function DashboardContent() {
     <>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ 
-          fontSize: '32px', 
-          fontWeight: '700', 
+        <h1 style={{
+          fontSize: '32px',
+          fontWeight: '700',
           color: 'var(--text-primary)',
           margin: '0 0 8px 0'
         }}>
           Staff Dashboard
         </h1>
-        <p style={{ 
-          fontSize: '16px', 
+        <p style={{
+          fontSize: '16px',
           color: 'var(--text-secondary)',
           margin: '0'
         }}>
@@ -169,7 +169,7 @@ export default function DashboardContent() {
       </div>
 
       {/* Stats Grid */}
-      <div 
+      <div
         className="staff-stats-grid"
         style={{
           display: 'grid',
@@ -180,7 +180,7 @@ export default function DashboardContent() {
         }}
       >
         {stats.map((stat, index) => (
-          <div 
+          <div
             key={index}
             style={{
               background: 'var(--bg-card)',
@@ -223,8 +223,8 @@ export default function DashboardContent() {
                 {stat.change}
               </div>
             </div>
-            <h3 style={{ 
-              fontSize: '14px', 
+            <h3 style={{
+              fontSize: '14px',
               color: 'var(--text-secondary)',
               margin: '0 0 8px 0',
               fontWeight: '500'
@@ -232,15 +232,15 @@ export default function DashboardContent() {
               {stat.title}
             </h3>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              <span style={{ 
-                fontSize: '28px', 
-                fontWeight: '700', 
+              <span style={{
+                fontSize: '28px',
+                fontWeight: '700',
                 color: 'var(--text-primary)'
               }}>
                 {stat.value}
               </span>
-              <span style={{ 
-                fontSize: '14px', 
+              <span style={{
+                fontSize: '14px',
                 color: 'var(--text-secondary)'
               }}>
                 {stat.unit}
@@ -252,15 +252,15 @@ export default function DashboardContent() {
 
       {/* Charts Section */}
       <div style={{ marginBottom: '32px', width: '100%' }}>
-        <h2 style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
+        <h2 style={{
+          fontSize: '20px',
+          fontWeight: '600',
           color: 'var(--text-primary)',
           margin: '0 0 24px 0'
         }}>
           Biểu đồ thống kê
         </h2>
-        
+
         {/* Customer Satisfaction Chart */}
         <div style={{
           background: 'var(--bg-card)',
@@ -270,9 +270,9 @@ export default function DashboardContent() {
           marginBottom: '24px',
           boxShadow: 'var(--shadow-sm)'
         }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 20px 0'
           }}>
@@ -281,17 +281,17 @@ export default function DashboardContent() {
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={satisfactionData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-              <XAxis 
-                dataKey="month" 
+              <XAxis
+                dataKey="month"
                 stroke="var(--text-secondary)"
                 fontSize={12}
               />
-              <YAxis 
+              <YAxis
                 stroke="var(--text-secondary)"
                 fontSize={12}
                 tickFormatter={(value) => `${value}%`}
               />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
@@ -331,9 +331,9 @@ export default function DashboardContent() {
             border: '1px solid var(--border-primary)',
             boxShadow: 'var(--shadow-sm)'
           }}>
-            <h3 style={{ 
-              fontSize: '18px', 
-              fontWeight: '600', 
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
               color: 'var(--text-primary)',
               margin: '0 0 20px 0'
             }}>
@@ -354,7 +354,7 @@ export default function DashboardContent() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-primary)',
@@ -376,9 +376,9 @@ export default function DashboardContent() {
             border: '1px solid var(--border-primary)',
             boxShadow: 'var(--shadow-sm)'
           }}>
-            <h3 style={{ 
-              fontSize: '18px', 
-              fontWeight: '600', 
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
               color: 'var(--text-primary)',
               margin: '0 0 20px 0'
             }}>
@@ -387,16 +387,16 @@ export default function DashboardContent() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={appointmentStatusData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-                <XAxis 
-                  dataKey="status" 
+                <XAxis
+                  dataKey="status"
                   stroke="var(--text-secondary)"
                   fontSize={12}
                 />
-                <YAxis 
+                <YAxis
                   stroke="var(--text-secondary)"
                   fontSize={12}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-primary)',
@@ -416,9 +416,9 @@ export default function DashboardContent() {
       <div className="content-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', width: '100%' }}>
         {/* Quick Actions */}
         <div>
-          <h2 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 24px 0'
           }}>
@@ -464,16 +464,16 @@ export default function DashboardContent() {
                   <action.icon size={20} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ 
-                    fontSize: '14px', 
-                    fontWeight: '600', 
+                  <h3 style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
                     color: 'var(--text-primary)',
                     margin: '0 0 4px 0'
                   }}>
                     {action.title}
                   </h3>
-                  <p style={{ 
-                    fontSize: '12px', 
+                  <p style={{
+                    fontSize: '12px',
                     color: 'var(--text-secondary)',
                     margin: '0'
                   }}>
@@ -487,9 +487,9 @@ export default function DashboardContent() {
 
         {/* Recent Activities */}
         <div>
-          <h2 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 24px 0'
           }}>
@@ -502,7 +502,7 @@ export default function DashboardContent() {
             overflow: 'hidden'
           }}>
             {recentActivities.map((activity, index) => (
-              <div 
+              <div
                 key={activity.id}
                 style={{
                   padding: '16px 20px',
@@ -516,30 +516,30 @@ export default function DashboardContent() {
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: activity.type === 'appointment' ? 'var(--success-500)' : 
+                  background: activity.type === 'appointment' ? 'var(--success-500)' :
                              activity.type === 'customer' ? 'var(--info-500)' :
                              activity.type === 'service' ? 'var(--warning-500)' : 'var(--primary-500)',
                   flexShrink: 0
                 }} />
                 <div style={{ flex: 1 }}>
-                  <p style={{ 
-                    fontSize: '14px', 
-                    fontWeight: '500', 
+                  <p style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
                     color: 'var(--text-primary)',
                     margin: '0 0 2px 0'
                   }}>
                     {activity.title}
                   </p>
-                  <p style={{ 
-                    fontSize: '12px', 
+                  <p style={{
+                    fontSize: '12px',
                     color: 'var(--text-secondary)',
                     margin: '0'
                   }}>
                     {activity.description}
                   </p>
                 </div>
-                <span style={{ 
-                  fontSize: '11px', 
+                <span style={{
+                  fontSize: '11px',
                   color: 'var(--text-tertiary)',
                   whiteSpace: 'nowrap'
                 }}>

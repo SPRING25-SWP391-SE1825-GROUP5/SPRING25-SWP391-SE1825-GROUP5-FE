@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { getCurrentUser } from '@/store/authSlice'
 import AppHeader from './AppHeader'
-
+import MinimizedContactWidget from '@/components/chat/MinimizedContactWidget'
+import { ChatWidgetButton, ChatWidget } from '@/components/chat'
 import { Footer } from '@/components/common'
 
 import './AppLayout.scss'
@@ -12,7 +13,11 @@ export default function AppLayout() {
   const user = useAppSelector((s) => s.auth.user)
   const token = useAppSelector((s) => s.auth.token)
   const dispatch = useAppDispatch()
+  const location = useLocation()
   const hasEmailBanner = user && !user.emailVerified
+
+  // Hide chat widget and button on contact page
+  const isContactPage = location.pathname === '/contact'
 
   useEffect(() => {
     const fetchCustomerIdIfNeeded = async () => {
@@ -36,6 +41,9 @@ export default function AppLayout() {
         <Outlet />
       </main>
       <Footer />
+      {!isContactPage && <ChatWidgetButton />}
+      {!isContactPage && <ChatWidget />}
+      <MinimizedContactWidget />
     </div>
   )
 }

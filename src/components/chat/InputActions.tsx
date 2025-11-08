@@ -1,5 +1,5 @@
 import React from 'react'
-import { Paperclip, Image as ImageIcon, ArrowUp } from 'lucide-react'
+import { Image as ImageIcon, ArrowUp } from 'lucide-react'
 import './InputActions.scss'
 
 interface InputActionsProps {
@@ -19,14 +19,6 @@ const InputActions: React.FC<InputActionsProps> = ({
 }) => {
   return (
     <div className={`input-actions ${className}`}>
-      <button
-        className="input-actions__btn"
-        onClick={onFileSelect}
-        title="Đính kèm file"
-      >
-        <Paperclip size={18} />
-      </button>
-
       <button
         className="input-actions__btn"
         onClick={onImageSelect}

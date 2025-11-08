@@ -28,10 +28,16 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({ conversation, typingU
   return (
     <div className="typing-indicator">
       <div className="typing-indicator__avatar">
-        <img
-          src={typingUsers[0]?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'}
-          alt={displayName}
-        />
+        {typingUsers[0]?.avatar ? (
+          <img
+            src={typingUsers[0].avatar}
+            alt={displayName}
+          />
+        ) : (
+          <div className="typing-indicator__avatar-placeholder">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+        )}
       </div>
       <div className="typing-indicator__bubble">
         <div className="typing-indicator__dots">

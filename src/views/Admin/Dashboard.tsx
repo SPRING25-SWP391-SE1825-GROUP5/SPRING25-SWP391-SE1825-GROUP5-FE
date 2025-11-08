@@ -1396,7 +1396,7 @@ export default function AdminDashboard() {
       {
         id: 1,
         action: 'Đơn hàng mới',
-        description: 'Đơn hàng #ORD-001 từ Nguyễn Văn A',
+        description: 'Đơn hàng #ORD-001',
         time: '5 phút trước',
         type: 'order'
       },

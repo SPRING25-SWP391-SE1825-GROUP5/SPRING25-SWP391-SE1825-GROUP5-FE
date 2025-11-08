@@ -83,8 +83,8 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
               #{request.id} - {request.customerName}
             </p>
           </div>
-          <button 
-            className="assessment-modal__content__header__close" 
+          <button
+            className="assessment-modal__content__header__close"
             onClick={onClose}
           >
             <X size={20} />
@@ -113,7 +113,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
               <label className="assessment-modal__content__body__form__field__label">
                 Ghi chú kỹ thuật
               </label>
-              <textarea 
+              <textarea
                 className="assessment-modal__content__body__form__field__textarea"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -126,7 +126,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
                 <label className="assessment-modal__content__body__form__field__label">
                   Mức độ nghiêm trọng
                 </label>
-                <select 
+                <select
                   className="assessment-modal__content__body__form__field__select"
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value as 'minor' | 'moderate' | 'major')}
@@ -141,7 +141,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
                 <label className="assessment-modal__content__body__form__field__label">
                   Chi phí ước tính
                 </label>
-                <input 
+                <input
                   className="assessment-modal__content__body__form__field__input"
                   type="text"
                   value={estimatedCost}
@@ -154,7 +154,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
                 <label className="assessment-modal__content__body__form__field__label">
                   Thời gian ước tính
                 </label>
-                <input 
+                <input
                   className="assessment-modal__content__body__form__field__input"
                   type="text"
                   value={estimatedTime}
@@ -169,7 +169,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
                 Hành động khuyến nghị
               </label>
               <div className="assessment-modal__content__body__form__field__actions">
-                <input 
+                <input
                   className="assessment-modal__content__body__form__field__actions__input"
                   type="text"
                   value={newAction}
@@ -177,7 +177,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
                   placeholder="Nhập hành động khuyến nghị..."
                   onKeyPress={(e) => e.key === 'Enter' && addRecommendedAction()}
                 />
-                <button 
+                <button
                   className="assessment-modal__content__body__form__field__actions__button"
                   type="button"
                   onClick={addRecommendedAction}
@@ -189,7 +189,7 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
                 {recommendedActions.map((action, index) => (
                   <div key={index} className="assessment-modal__content__body__form__field__tags__item">
                     {action}
-                    <button 
+                    <button
                       className="assessment-modal__content__body__form__field__tags__item__remove"
                       onClick={() => removeRecommendedAction(index)}
                     >
@@ -203,13 +203,13 @@ function AssessmentModal({ request, onClose, onSubmit }: AssessmentModalProps) {
 
           {/* Modal Actions */}
           <div className="assessment-modal__content__body__actions">
-            <button 
+            <button
               className="assessment-modal__content__body__actions__button assessment-modal__content__body__actions__button--secondary"
               onClick={onClose}
             >
               Hủy
             </button>
-            <button 
+            <button
               className="assessment-modal__content__body__actions__button assessment-modal__content__body__actions__button--primary"
               onClick={handleSubmit}
             >
@@ -233,7 +233,7 @@ export default function CustomerRequestsContent() {
   const [requests, setRequests] = useState<CustomerRequest[]>([
     {
       id: 1001,
-      customerName: 'Nguyễn Văn An',
+      customerName: '',
       vehicleInfo: {
         brand: 'VinFast',
         model: 'VF e34',
@@ -249,7 +249,7 @@ export default function CustomerRequestsContent() {
     },
     {
       id: 1002,
-      customerName: 'Trần Thị Bình',
+      customerName: '',
       vehicleInfo: {
         brand: 'Pega',
         model: 'Newtech',
@@ -289,7 +289,7 @@ export default function CustomerRequestsContent() {
   ])
 
   const filteredRequests = requests.filter(request => {
-    const matchesSearch = request.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = request.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          request.vehicleInfo.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || request.status === statusFilter
     const matchesPriority = priorityFilter === 'all' || request.priority === priorityFilter
@@ -359,9 +359,9 @@ export default function CustomerRequestsContent() {
     recommendedActions: string[]
     estimatedTime: string
   }) => {
-    setRequests(requests.map(req => 
-      req.id === requestId 
-        ? { ...req, status: 'assessed' as const, assessment } 
+    setRequests(requests.map(req =>
+      req.id === requestId
+        ? { ...req, status: 'assessed' as const, assessment }
         : req
     ))
   }
@@ -412,11 +412,11 @@ export default function CustomerRequestsContent() {
             Quản lý và xử lý các yêu cầu thông tin xe từ khách hàng
           </p>
         </div>
-        
+
         <div className="customer-requests__header__actions">
           <div className="customer-requests__header__actions__search">
             <User className="customer-requests__header__actions__search__icon" size={16} />
-            <input 
+            <input
               className="customer-requests__header__actions__search__input"
               type="text"
               placeholder="Tìm theo tên khách hàng hoặc biển số..."
@@ -424,8 +424,8 @@ export default function CustomerRequestsContent() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          <select 
+
+          <select
             className="customer-requests__header__actions__select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -436,8 +436,8 @@ export default function CustomerRequestsContent() {
             <option value="assessed">Đã đánh giá</option>
             <option value="completed">Hoàn thành</option>
           </select>
-          
-          <select 
+
+          <select
             className="customer-requests__header__actions__select"
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
@@ -458,12 +458,12 @@ export default function CustomerRequestsContent() {
               <span className="customer-requests__stats__card__header__label">
                 {stat.label}
               </span>
-              <div 
+              <div
                 className="customer-requests__stats__card__header__indicator"
                 style={{ backgroundColor: stat.indicator }}
               />
             </div>
-            <div 
+            <div
               className="customer-requests__stats__card__value"
               style={{ color: stat.color }}
             >
@@ -493,15 +493,15 @@ export default function CustomerRequestsContent() {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="customer-requests__list__item__header__top__badges">
-                  <span 
+                  <span
                     className="customer-requests__list__item__header__top__badges__priority"
                     style={{ backgroundColor: getPriorityColor(request.priority), color: 'white' }}
                   >
                     {getPriorityText(request.priority)}
                   </span>
-                  <span 
+                  <span
                     className="customer-requests__list__item__header__top__badges__status"
                     style={{ backgroundColor: getStatusColor(request.status), color: 'white' }}
                   >
@@ -568,7 +568,7 @@ export default function CustomerRequestsContent() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="customer-requests__list__item__body__content__vehicle__images">
                     <h5 className="customer-requests__list__item__body__content__vehicle__images__title">
                       Hình ảnh ({request.images.length})
@@ -595,7 +595,7 @@ export default function CustomerRequestsContent() {
                       <div className="customer-requests__list__item__body__assessment__grid__item__label">
                         Mức độ nghiêm trọng
                       </div>
-                      <div 
+                      <div
                         className="customer-requests__list__item__body__assessment__grid__item__value"
                         style={{ color: getSeverityColor(request.assessment.severity) }}
                       >
@@ -636,16 +636,16 @@ export default function CustomerRequestsContent() {
               <div className="customer-requests__list__item__body__actions">
                 {request.status === 'pending' && (
                   <>
-                    <button 
+                    <button
                       className="customer-requests__list__item__body__actions__button customer-requests__list__item__body__actions__button--secondary"
-                      onClick={() => setRequests(requests.map(r => 
+                      onClick={() => setRequests(requests.map(r =>
                         r.id === request.id ? { ...r, status: 'in-review' } : r
                       ))}
                     >
                       <Eye size={16} />
                       Bắt đầu xem xét
                     </button>
-                    <button 
+                    <button
                       className="customer-requests__list__item__body__actions__button customer-requests__list__item__body__actions__button--primary"
                       onClick={() => {
                         setSelectedRequest(request)
@@ -657,9 +657,9 @@ export default function CustomerRequestsContent() {
                     </button>
                   </>
                 )}
-                
+
                 {request.status === 'in-review' && (
-                  <button 
+                  <button
                     className="customer-requests__list__item__body__actions__button customer-requests__list__item__body__actions__button--success"
                     onClick={() => {
                       setSelectedRequest(request)
@@ -670,7 +670,7 @@ export default function CustomerRequestsContent() {
                     Hoàn thành đánh giá
                   </button>
                 )}
-                
+
                 {request.status === 'assessed' && (
                   <button className="customer-requests__list__item__body__actions__button customer-requests__list__item__body__actions__button--secondary">
                     <MessageSquare size={16} />
@@ -685,7 +685,7 @@ export default function CustomerRequestsContent() {
 
       {/* Assessment Modal */}
       {showAssessmentModal && (
-        <AssessmentModal 
+        <AssessmentModal
           request={selectedRequest}
           onClose={() => setShowAssessmentModal(false)}
           onSubmit={(assessment) => selectedRequest && handleAssessment(selectedRequest.id, assessment)}

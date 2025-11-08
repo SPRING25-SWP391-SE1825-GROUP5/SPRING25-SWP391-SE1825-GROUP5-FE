@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Edit, Trash2, Reply, Check, CheckCheck } from 'lucide-react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { updateMessage, removeMessage } from '@/store/chatSlice'
@@ -6,6 +6,7 @@ import { ChatService } from '@/services/chatService'
 import MessageContent from './MessageContent'
 import MessageImage from './MessageImage'
 import MessageTimestamp from './MessageTimestamp'
+import ImageViewer from './ImageViewer'
 import type { ChatMessage } from '@/types/chat'
 import './MessageBubble.scss'
 
@@ -32,6 +33,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [showActions, setShowActions] = useState(false)
+  const [imageViewerOpen, setImageViewerOpen] = useState(false)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
   const handleEdit = async () => {
     if (isEditing) {
@@ -94,11 +97,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   }
 
+  const [showReadReceipt, setShowReadReceipt] = useState(false)
+
+  const handleMouseEnter = useCallback(() => {
+    setShowActions(true)
+    if (message.isRead && !isOwn) {
+      setShowReadReceipt(true)
+    }
+  }, [message.isRead, isOwn])
+
+  const handleMouseLeave = useCallback(() => {
+    setShowActions(false)
+    setShowReadReceipt(false)
+  }, [])
+
   return (
     <div
       className={`message-bubble ${isOwn ? 'message-bubble--own' : 'message-bubble--other'}`}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {showSenderInfo && !isOwn && (
         <div className="message-bubble__sender">
@@ -139,13 +156,35 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         ) : (
           <>
-            {message.attachments
-              ?.filter((attachment) => attachment.type === 'image')
-              .map((attachment) => (
-                <MessageImage key={attachment.id} attachment={attachment} />
-              ))}
+            {(() => {
+              const imageAttachments = message.attachments?.filter((attachment) => attachment.type === 'image') || []
 
+              if (imageAttachments.length === 0) {
+                return <MessageContent message={message} />
+              }
+
+              return (
+                <>
+                  <div className="message-bubble__images">
+                    {imageAttachments.map((attachment, index) => (
+                      <MessageImage
+                        key={attachment.id || index}
+                        attachment={attachment}
+                        onClick={() => {
+                          setSelectedImageIndex(index)
+                          setImageViewerOpen(true)
+                        }}
+                        totalImages={imageAttachments.length}
+                        imageIndex={index}
+                      />
+              ))}
+                  </div>
+                  {message.content && (
             <MessageContent message={message} />
+                  )}
+                </>
+              )
+            })()}
           </>
         )}
 
@@ -166,8 +205,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
 
         {message.isRead && !isOwn && (
-          <div className="message-bubble__read-receipt" title="Đã đọc">
-            ✓
+          <div
+            className={`message-bubble__read-receipt ${showReadReceipt ? 'message-bubble__read-receipt--visible' : ''}`}
+            title="Đã đọc"
+          >
+            {showReadReceipt ? 'Đã đọc' : '✓'}
           </div>
         )}
       </div>
@@ -203,6 +245,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </>
           )}
         </div>
+      )}
+
+      {imageViewerOpen && message.attachments && (
+        <ImageViewer
+          images={message.attachments.filter((att) => att.type === 'image')}
+          initialIndex={selectedImageIndex}
+          onClose={() => setImageViewerOpen(false)}
+        />
       )}
     </div>
   )

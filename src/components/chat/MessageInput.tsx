@@ -105,7 +105,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
       // User is typing - send typing indicator with throttle (max once per 500ms)
       const now = Date.now()
       if (now - lastTypingTimeRef.current > 500) {
-        console.log('[MessageInput] Sending typing indicator', { conversationId, value: value.trim().substring(0, 20) })
         signalRService.notifyTyping(conversationId)
         lastTypingTimeRef.current = now
         isTypingRef.current = true
@@ -113,7 +112,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
 
       // Set up debounce to detect when user stops typing (1 second of no changes)
       stopTypingTimeoutRef.current = setTimeout(() => {
-        console.log('[MessageInput] User stopped typing (1s debounce)')
         if (isTypingRef.current) {
           signalRService.sendTypingIndicator(conversationId, false)
           isTypingRef.current = false
@@ -123,7 +121,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
 
       // Auto-stop typing after 3 seconds of inactivity (backup)
       typingTimeoutRef.current = setTimeout(() => {
-        console.log('[MessageInput] Auto-stopping typing indicator after 3s inactivity (backup)')
         if (isTypingRef.current) {
           signalRService.sendTypingIndicator(conversationId, false)
           isTypingRef.current = false
@@ -132,7 +129,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
       }, 3000)
     } else {
       // Stop typing immediately if input is empty
-      console.log('[MessageInput] Stopping typing indicator (input empty)')
       if (isTypingRef.current) {
         signalRService.sendTypingIndicator(conversationId, false)
         isTypingRef.current = false
@@ -144,14 +140,12 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       e.stopPropagation() // Prevent event bubbling
-      console.log('[MessageInput] handleKeyDown triggered')
       handleSendMessage()
     }
   }
 
   const handleBlur = () => {
     // Stop typing indicator when user leaves the input field
-    console.log('[MessageInput] Stopping typing indicator (input blurred)')
     if (isTypingRef.current) {
       signalRService.sendTypingIndicator(conversationId, false)
       isTypingRef.current = false
@@ -169,16 +163,13 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
   const handleFocus = () => {
     // When user focuses back, if there's text, start typing indicator
     if (message.trim()) {
-      console.log('[MessageInput] Starting typing indicator (input focused with text)')
       signalRService.notifyTyping(conversationId)
     }
   }
 
   const handleSendClick = (e?: React.MouseEvent) => {
-    console.log('[MessageInput] handleSendClick triggered, sendingRef:', sendingRef.current)
     // Prevent if already sending
     if (sendingRef.current) {
-      console.log('[MessageInput] Already sending, preventing duplicate')
       e?.preventDefault()
       e?.stopPropagation()
       return
@@ -191,18 +182,8 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
     const now = Date.now()
     const timeSinceLastSend = now - lastSendTimeRef.current
 
-    console.log('[MessageInput] handleSendMessage called', {
-      sendingRef: sendingRef.current,
-      timeSinceLastSend,
-      messageLength: message.trim().length,
-      attachmentsCount: attachments.length
-    })
-
     // Prevent if already sending or sent within last 500ms (debounce)
     if (sendingRef.current || timeSinceLastSend < 500 || (!message.trim() && attachments.length === 0)) {
-      console.log('[MessageInput] Prevented duplicate send', {
-        reason: sendingRef.current ? 'already_sending' : timeSinceLastSend < 500 ? 'too_soon' : 'empty_message'
-      })
       return
     }
 
@@ -215,14 +196,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
       const tempMessageId = `temp-${Date.now()}`
       // Use authUser.id from Redux store, fallback to localStorage
       const currentUserId = authUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
-
-      console.log('[MessageInput] Starting send process', {
-        tempMessageId,
-        conversationId,
-        currentUserId,
-        content: message.trim(),
-        replyToMessageId: currentReplyTo?.id
-      })
 
       // Create temporary message for optimistic UI
       const tempMessage = {
@@ -244,17 +217,11 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
         }))
       }
 
-      console.log('[MessageInput] Adding temp message to store', tempMessage)
-      dispatch(addMessage({ conversationId, message: tempMessage }))
+      // Use currentUserId from above (already declared at line 217)
+      dispatch(addMessage({ conversationId, message: tempMessage, currentUserId }))
 
       // Send message via API
       const replyToMessageId = currentReplyTo ? parseInt(currentReplyTo.id) : undefined
-      console.log('[MessageInput] Calling API sendMessageToConversation', {
-        conversationId: parseInt(conversationId),
-        content: message.trim(),
-        replyToMessageId,
-        attachmentsCount: attachments.length
-      })
 
       const response = await ChatService.sendMessageToConversation(
         parseInt(conversationId),
@@ -262,12 +229,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
         replyToMessageId,
         attachments
       )
-
-      console.log('[MessageInput] API response received', {
-        success: response.success,
-        messageId: response.data?.messageId || response.data?.id,
-        data: response.data
-      })
 
       // Update message status - SignalR will replace temp message with real one
       if (response.success && response.data) {
@@ -286,7 +247,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
       }
 
       // Stop typing indicator when message is sent
-      console.log('[MessageInput] Stopping typing indicator (message sent)')
       if (isTypingRef.current) {
         signalRService.sendTypingIndicator(conversationId, false)
         isTypingRef.current = false
@@ -311,8 +271,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
         textareaRef.current.style.height = 'auto'
       }
     } catch (error) {
-      console.error('[MessageInput] Error sending message', error)
-
       // Update message status to show error
       dispatch(setMessageStatus({
         conversationId,
@@ -320,7 +278,6 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
         status: 'sent'
       }))
     } finally {
-      console.log('[MessageInput] Resetting sending flags')
       sendingRef.current = false
       setIsSending(false)
     }

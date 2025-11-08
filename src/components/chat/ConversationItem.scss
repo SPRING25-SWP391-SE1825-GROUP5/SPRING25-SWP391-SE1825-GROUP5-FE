@@ -89,6 +89,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+    font-weight: 400;
+
+    &--unread {
+      font-weight: 600;
+      color: #333;
+    }
   }
 
   &__unread {

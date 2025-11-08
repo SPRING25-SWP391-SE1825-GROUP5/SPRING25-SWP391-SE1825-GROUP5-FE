@@ -29,9 +29,9 @@ const ChatInterface: React.FC = () => {
   const currentUser: ChatUser | null = useMemo(() => {
     if (authUser) {
       return {
-        id: authUser.id?.toString() || '1',
-        name: authUser.fullName || 'Nguyễn Văn A',
-        avatar: authUser.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+        id: authUser.id?.toString() || '',
+        name: authUser.fullName || '',
+        avatar: authUser.avatar || undefined,
         role: 'customer',
         isOnline: true
       }
@@ -48,7 +48,7 @@ const ChatInterface: React.FC = () => {
     return {
       id: guestSessionId,
       name: 'Khách',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+      avatar: undefined,
       role: 'customer',
       isOnline: true
     }

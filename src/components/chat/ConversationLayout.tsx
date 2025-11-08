@@ -6,16 +6,17 @@ import './ConversationLayout.scss'
 
 interface ConversationLayoutProps {
   onCreateNewChat?: () => void
+  onMinimize?: () => void
 }
 
-const ConversationLayout: React.FC<ConversationLayoutProps> = ({ onCreateNewChat }) => {
+const ConversationLayout: React.FC<ConversationLayoutProps> = ({ onCreateNewChat, onMinimize }) => {
   const { conversations, activeConversationId } = useAppSelector((state) => state.chat)
   const selectedConversation = conversations.find(conv => conv.id === activeConversationId) || null
 
   return (
     <div className="conversation-layout">
       <ConversationSidebar onCreateNewChat={onCreateNewChat} />
-      <ConversationDetail conversation={selectedConversation} />
+      <ConversationDetail conversation={selectedConversation} onMinimize={onMinimize} />
     </div>
   )
 }

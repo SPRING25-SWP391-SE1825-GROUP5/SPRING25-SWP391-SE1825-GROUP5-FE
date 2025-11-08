@@ -145,9 +145,6 @@ export default function TechnicianSchedulePage() {
           notes: form.notes || null,
         }
 
-        // debug payload in dev
-        if (import.meta.env.DEV)
-
         const result = await TechnicianTimeSlotService.createFullWeekAllSlots(techId, payload as any)
         setSuccessMsg('Tạo lịch tuần thành công cho tất cả khung giờ')
       } else {
@@ -315,29 +312,19 @@ export default function TechnicianSchedulePage() {
   }
 
   const loadTechnicianViewSchedule = async () => {
-    if (DEBUG)
-
     if (!form.technicianId) {
-      if (DEBUG)
       return
     }
 
     const sd = viewRange === 'day' ? (viewDate || viewStart) : viewStart
     const ed = viewRange === 'day' ? (viewDate || viewEnd || viewDate) : viewEnd
 
-    if (DEBUG)
-
     if (!sd || !ed) {
-
       return
     }
 
     try {
       setViewLoading(true)
-      if (DEBUG) ,
-        startDate: sd,
-        endDate: ed
-      })
 
       const data = await TechnicianTimeSlotService.getScheduleByTechnician(
         Number(form.technicianId),
@@ -345,19 +332,13 @@ export default function TechnicianSchedulePage() {
         ed
       )
 
-      if (DEBUG)
-
       const raw = Array.isArray((data as any)?.data)
         ? (data as any).data
         : Array.isArray(data)
           ? (data as any)
           : []
 
-      if (DEBUG)
-
       const items = (raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots)) ? flattenDaily(raw) : raw
-
-      if (DEBUG)
 
       // Với chế độ nhiều ngày, không chỉ kiểm tra phần tử đầu tiên
       const hasAnySlots = Array.isArray(raw)
@@ -370,7 +351,6 @@ export default function TechnicianSchedulePage() {
       if (!hasAnySlots) {
         // Không có slot nào trong toàn bộ dải ngày → hiển thị thẻ hướng dẫn
         if (raw.length > 0 && raw[0]?.technicianId) {
-          if (DEBUG)
           const technicianInfo = {
             technicianId: raw[0].technicianId,
             technicianName: raw[0].technicianName,
@@ -387,7 +367,6 @@ export default function TechnicianSchedulePage() {
         setSchedule(items)
       }
     } catch (error) {
-      if (DEBUG)
       setSchedule([])
     } finally {
       setViewLoading(false)

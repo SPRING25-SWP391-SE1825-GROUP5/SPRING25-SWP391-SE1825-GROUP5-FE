@@ -23,7 +23,6 @@ const MessageList: React.FC<MessageListProps> = ({
   conversation,
   typingUserIds = [],
   onReply,
-  onReact,
   onEdit,
   onDelete,
   className = ''

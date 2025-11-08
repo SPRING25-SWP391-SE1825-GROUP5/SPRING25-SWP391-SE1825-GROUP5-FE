@@ -1,18 +1,20 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { setMessages, markMessagesAsRead } from '@/store/chatSlice'
+import { setMessages, markMessagesAsRead, updateUnreadCount } from '@/store/chatSlice'
 import { ChatService } from '@/services/chatService'
 import ConversationHeader from './ConversationHeader'
 import MessageList from './MessageList'
 import MessageInput, { MessageInputRef } from './MessageInput'
 import type { ChatConversation, ChatUser, ChatMessage } from '@/types/chat'
+import { normalizeImageUrl } from '@/utils/imageUrl'
 import './ConversationDetail.scss'
 
 interface ConversationDetailProps {
   conversation: ChatConversation | null
+  onMinimize?: () => void
 }
 
-const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation }) => {
+const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation, onMinimize }) => {
   const dispatch = useAppDispatch()
   const authUser = useAppSelector((state) => state.auth.user)
   const { messages, typingUsers } = useAppSelector((state) => state.chat)
@@ -20,9 +22,9 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
   const currentUser: ChatUser | null = useMemo(() => {
     if (authUser) {
       return {
-        id: authUser.id?.toString() || '1',
-        name: authUser.fullName || 'Nguyễn Văn A',
-        avatar: authUser.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+        id: authUser.id?.toString() || '',
+        name: authUser.fullName || '',
+        avatar: authUser.avatar || undefined,
         email: authUser.email,
         role: 'customer',
         isOnline: true
@@ -36,20 +38,20 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
   const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null)
   const messageInputRef = useRef<MessageInputRef | null>(null)
 
-  // Debug log for typing users
   useEffect(() => {
-    console.log('[ConversationDetail] Typing users updated', {
-      conversationId: conversation?.id,
-      typingUserIds,
-      typingUsersState: typingUsers,
-      conversationMessagesCount: conversationMessages.length
-    })
+    // Typing users updated
   }, [typingUserIds, conversation?.id, typingUsers, conversationMessages.length])
 
   useEffect(() => {
     if (conversation) {
       loadMessages(conversation.id)
+      // Always mark as read when entering conversation
       markConversationAsRead(conversation.id)
+      // Reset unread count immediately when entering conversation
+      dispatch(updateUnreadCount({
+        conversationId: conversation.id,
+        count: 0
+      }))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?.id])
@@ -61,11 +63,24 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
         .map(msg => msg.id)
 
       if (unreadMessageIds.length > 0) {
+        // Mark all unread messages as read
         dispatch(markMessagesAsRead({
           conversationId: conversation.id,
           messageIds: unreadMessageIds
         }))
+        // Update unread count to 0
+        dispatch(updateUnreadCount({
+          conversationId: conversation.id,
+          count: 0
+        }))
+        // Mark conversation as read in backend
         markConversationAsRead(conversation.id)
+      } else {
+        // Even if no unread messages, ensure unreadCount is 0 when viewing conversation
+        dispatch(updateUnreadCount({
+          conversationId: conversation.id,
+          count: 0
+        }))
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +101,37 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
           type: msg.type || 'text',
           isRead: msg.isRead || false,
           messageStatus: msg.messageStatus || 'sent',
-          attachments: msg.attachments || [],
+          // Parse attachments from Attachments array (preferred) or AttachmentUrl (fallback)
+          attachments: (() => {
+            // If message has attachments array (camelCase or PascalCase), use it
+            const attachmentsArray = msg.attachments || msg.Attachments
+            if (attachmentsArray && Array.isArray(attachmentsArray)) {
+              return attachmentsArray.map((att: any) => ({
+                id: att.id || att.Id || `att-${Date.now()}`,
+                type: (att.type || att.Type || 'image') as 'image' | 'file' | 'video',
+                url: normalizeImageUrl(att.url || att.Url || ''),
+                name: att.name || att.Name || 'attachment',
+                size: att.size || att.Size || 0,
+                thumbnail: normalizeImageUrl(att.thumbnail || att.Thumbnail || att.url || att.Url || '')
+              }))
+            }
+            // If message has AttachmentUrl, convert to attachments array (backward compatibility)
+            if (msg.attachmentUrl || msg.AttachmentUrl) {
+              const url = msg.attachmentUrl || msg.AttachmentUrl
+              if (url) {
+                const normalizedUrl = normalizeImageUrl(url)
+                return [{
+                  id: `att-${Date.now()}`,
+                  type: 'image' as const,
+                  url: normalizedUrl,
+                  name: url.split('/').pop() || 'image',
+                  size: 0,
+                  thumbnail: normalizedUrl
+                }]
+              }
+            }
+            return []
+          })(),
           replyToMessageId: msg.replyToMessageId ? String(msg.replyToMessageId) : undefined,
           replyToMessage: msg.replyToMessage ? {
             id: String(msg.replyToMessage.messageId || msg.replyToMessage.id || msg.replyToMessageId || ''),
@@ -164,7 +209,7 @@ const ConversationDetail: React.FC<ConversationDetailProps> = ({ conversation })
 
   return (
     <div className="conversation-detail">
-      <ConversationHeader conversation={conversation} typingUserIds={typingUserIds} />
+      <ConversationHeader conversation={conversation} typingUserIds={typingUserIds} onMinimize={onMinimize} />
       <MessageList
         conversationId={conversation.id}
         messages={conversationMessages}

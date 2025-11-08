@@ -59,7 +59,7 @@ export default function Register() {
   const debouncedEmailValidation = useCallback(
     debounce(async (emailValue: string) => {
       if (!emailValue.trim()) return
-      
+
       setValidatingEmail(true)
       try {
         const result = await validateEmailNotExists(emailValue, AuthService.checkEmailExists)
@@ -84,7 +84,7 @@ export default function Register() {
   const debouncedPhoneValidation = useCallback(
     debounce(async (phoneValue: string) => {
       if (!phoneValue.trim()) return
-      
+
       setValidatingPhone(true)
       try {
         const result = await validatePhoneNotExists(phoneValue, AuthService.checkPhoneExists)
@@ -119,7 +119,7 @@ export default function Register() {
       address: fieldName === 'address' ? value : address,
       avatarUrl: ''
     })
-    
+
     if (validation.errors[fieldName]) {
       setErrors(prev => ({ ...prev, [fieldName]: validation.errors[fieldName] }))
     } else {
@@ -210,7 +210,7 @@ export default function Register() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    
+
     // First do basic validation
     const basicValidation = validateRegisterFormStrict({
       fullName,
@@ -223,10 +223,10 @@ export default function Register() {
       address,
       avatarUrl: ''
     })
-    
+
     if (!basicValidation.isValid) {
       setErrors(basicValidation.errors)
-      
+
       // Hiển thị toast cho từng lỗi
       if (basicValidation.errors.password) {
         toast.error(basicValidation.errors.password)
@@ -249,12 +249,12 @@ export default function Register() {
       if (basicValidation.errors.gender) {
         toast.error(basicValidation.errors.gender)
       }
-      
+
       return
     }
 
     setSubmitting(true)
-    
+
      try {
        // Then do async validation with duplicate check
        const asyncValidation = await validateRegisterFormStrictAsync({
@@ -268,10 +268,10 @@ export default function Register() {
          address,
          avatarUrl: ''
        }, AuthService.checkEmailExists, AuthService.checkPhoneExists)
-       
+
        if (!asyncValidation.isValid) {
          setErrors(asyncValidation.errors)
-         
+
          // Hiển thị toast cho từng lỗi
          if (asyncValidation.errors.email) {
            toast.error(asyncValidation.errors.email)
@@ -279,7 +279,7 @@ export default function Register() {
          if (asyncValidation.errors.phoneNumber) {
            toast.error(asyncValidation.errors.phoneNumber)
          }
-         
+
          setSubmitting(false)
          return
        }
@@ -296,18 +296,18 @@ export default function Register() {
          address,
          avatarUrl: ''
        })
-       
+
        // Check if registration was successful
        if (result.success) {
          toast.success('Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.')
-         
+
          // Check if backend returned token/user (auto-login)
          const responseData = result.data as any
          if (responseData?.token || responseData?.accessToken) {
            // If backend auto-login, save token and user
            const token = responseData.accessToken || responseData.token
            const userData = responseData.user || responseData
-           
+
            if (token) {
              localStorage.setItem('token', token)
              if (userData) {
@@ -316,7 +316,7 @@ export default function Register() {
              dispatch(syncFromLocalStorage())
            }
          }
-         
+
          // Always redirect to email verification page regardless of auto-login
          setTimeout(() => {
            navigate(`/auth/verify-email?email=${encodeURIComponent(email)}`, { replace: true })
@@ -324,13 +324,10 @@ export default function Register() {
        } else {
          // Handle registration failure
 
-
-         )
-         
          // Check if there are specific field errors
          const errorResult = result as any
          let hasFieldErrors = false
-         
+
          if (errorResult.errors && Array.isArray(errorResult.errors)) {
 
            const fieldErrors = mapServerErrorsToFields(errorResult.errors)
@@ -340,14 +337,14 @@ export default function Register() {
              setErrors(prev => ({ ...prev, ...fieldErrors }))
 
              hasFieldErrors = true
-             
+
              // Debug: Check if phoneNumber error was set
              if (fieldErrors.phoneNumber) {
 
              }
            }
          }
-         
+
          // Only show general error message if no field-specific errors
          if (!hasFieldErrors) {
 

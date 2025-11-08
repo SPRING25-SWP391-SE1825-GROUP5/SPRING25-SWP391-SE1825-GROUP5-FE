@@ -87,6 +87,7 @@ export interface ChatCall {
 }
 
 export interface ChatState {
+  isContactMinimized?: boolean
   conversations: ChatConversation[]
   activeConversationId: string | null
   messages: Record<string, ChatMessage[]>

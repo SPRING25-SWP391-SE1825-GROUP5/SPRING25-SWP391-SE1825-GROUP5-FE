@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { 
-  Plus, 
-  Calendar, 
-  Users, 
-  Clock, 
-  CheckCircle, 
+import {
+  Plus,
+  Calendar,
+  Users,
+  Clock,
+  CheckCircle,
   TrendingUp,
   Filter,
   Search,
@@ -21,11 +21,11 @@ const mockBookingData = [
   {
     id: 'BK001',
     serviceName: 'Bảo dưỡng định kỳ',
-    customerName: 'Nguyễn Văn An',
+    customerName: '',
     vehicleModel: 'VinFast VF8',
     licensePlate: '30A-12345',
     createdAt: '2024-01-15T09:30:00Z',
-    technicianName: 'Trần Minh Tuấn',
+    technicianName: '',
     status: 'confirmed',
     estimatedCost: 1500000,
     scheduledDate: '2024-01-20T10:00:00Z'
@@ -33,11 +33,11 @@ const mockBookingData = [
   {
     id: 'BK002',
     serviceName: 'Sửa chữa phanh',
-    customerName: 'Lê Thị Bình',
+    customerName: '',
     vehicleModel: 'VinFast VF9',
     licensePlate: '29B-67890',
     createdAt: '2024-01-14T14:20:00Z',
-    technicianName: 'Phạm Văn Đức',
+    technicianName: '',
     status: 'in_progress',
     estimatedCost: 2500000,
     scheduledDate: '2024-01-18T14:00:00Z'
@@ -45,11 +45,11 @@ const mockBookingData = [
   {
     id: 'BK003',
     serviceName: 'Thay dầu động cơ',
-    customerName: 'Hoàng Văn Cường',
+    customerName: '',
     vehicleModel: 'VinFast VF5',
     licensePlate: '43C-11111',
     createdAt: '2024-01-13T11:15:00Z',
-    technicianName: 'Nguyễn Thị Hoa',
+    technicianName: '',
     status: 'completed',
     estimatedCost: 800000,
     scheduledDate: '2024-01-16T09:00:00Z'
@@ -121,7 +121,7 @@ export default function BookingManagementPage() {
 
   // Calculate stats
   const totalBookings = mockBookingData.length
-  const todayBookings = mockBookingData.filter(booking => 
+  const todayBookings = mockBookingData.filter(booking =>
     new Date(booking.createdAt).toDateString() === new Date().toDateString()
   ).length
   const pendingBookings = mockBookingData.filter(booking => booking.status === 'pending').length
@@ -156,23 +156,23 @@ export default function BookingManagementPage() {
   return (
     <div className="booking-management-page">
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '32px' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '32px'
       }}>
         <div>
-          <h1 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: '700',
             color: 'var(--text-primary)',
             margin: '0 0 8px 0'
           }}>
             Quản lý Booking
           </h1>
-          <p style={{ 
-            fontSize: '16px', 
+          <p style={{
+            fontSize: '16px',
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
@@ -249,24 +249,24 @@ export default function BookingManagementPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
               <XAxis dataKey="name" stroke="var(--text-secondary)" />
               <YAxis stroke="var(--text-secondary)" />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
                   borderRadius: '8px'
                 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="bookings" 
-                stroke="var(--primary-500)" 
+              <Line
+                type="monotone"
+                dataKey="bookings"
+                stroke="var(--primary-500)"
                 strokeWidth={3}
                 name="Tổng Booking"
               />
-              <Line 
-                type="monotone" 
-                dataKey="completed" 
-                stroke="var(--success-500)" 
+              <Line
+                type="monotone"
+                dataKey="completed"
+                stroke="var(--success-500)"
                 strokeWidth={3}
                 name="Hoàn thành"
               />
@@ -292,7 +292,7 @@ export default function BookingManagementPage() {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
@@ -312,7 +312,7 @@ export default function BookingManagementPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
             <XAxis dataKey="name" stroke="var(--text-secondary)" />
             <YAxis stroke="var(--text-secondary)" />
-            <Tooltip 
+            <Tooltip
               contentStyle={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-primary)',

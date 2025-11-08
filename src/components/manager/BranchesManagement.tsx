@@ -1,5 +1,5 @@
-import { 
-  Building2, 
+import {
+  Building2,
   CheckCircle,
   DollarSign,
   Users,
@@ -53,7 +53,7 @@ export default function BranchesManagement() {
       district: 'Quận 1, TP.HCM',
       phone: '028 3823 4567',
       staffCount: 12,
-      manager: 'Nguyễn Văn A',
+      manager: '',
       revenue: 125000000,
       revenueChange: 15,
       status: 'active'
@@ -65,7 +65,7 @@ export default function BranchesManagement() {
       district: 'Quận 3, TP.HCM',
       phone: '028 3823 4568',
       staffCount: 10,
-      manager: 'Trần Thị B',
+      manager: '',
       revenue: 98000000,
       revenueChange: 8,
       status: 'active'
@@ -104,7 +104,7 @@ export default function BranchesManagement() {
         marginBottom: '32px'
       }}>
         {branchStats.map((stat, index) => (
-          <div 
+          <div
             key={index}
             style={{
               background: 'var(--bg-card)',
@@ -128,8 +128,8 @@ export default function BranchesManagement() {
                 <stat.icon size={20} />
               </div>
               <div>
-                <h3 style={{ 
-                  fontSize: '14px', 
+                <h3 style={{
+                  fontSize: '14px',
                   color: 'var(--text-secondary)',
                   margin: '0 0 4px 0',
                   fontWeight: '500'
@@ -137,15 +137,15 @@ export default function BranchesManagement() {
                   {stat.title}
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ 
-                    fontSize: '24px', 
-                    fontWeight: '700', 
+                  <span style={{
+                    fontSize: '24px',
+                    fontWeight: '700',
                     color: 'var(--text-primary)'
                   }}>
                     {stat.value}
                   </span>
-                  <span style={{ 
-                    fontSize: '12px', 
+                  <span style={{
+                    fontSize: '12px',
                     color: 'var(--text-secondary)'
                   }}>
                     {stat.unit}
@@ -165,16 +165,16 @@ export default function BranchesManagement() {
         overflow: 'hidden',
         marginBottom: '32px'
       }}>
-        <div style={{ 
-          padding: '20px 24px', 
+        <div style={{
+          padding: '20px 24px',
           borderBottom: '1px solid var(--border-primary)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: 0
           }}>
@@ -207,7 +207,7 @@ export default function BranchesManagement() {
             </div>
           </div>
         </div>
-        
+
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -238,16 +238,16 @@ export default function BranchesManagement() {
                         <Building2 size={20} />
                       </div>
                       <div>
-                        <p style={{ 
-                          fontSize: '14px', 
-                          fontWeight: '600', 
+                        <p style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
                           color: 'var(--text-primary)',
                           margin: '0 0 4px 0'
                         }}>
                           {branch.name}
                         </p>
-                        <p style={{ 
-                          fontSize: '12px', 
+                        <p style={{
+                          fontSize: '12px',
                           color: 'var(--text-secondary)',
                           margin: 0,
                           display: 'flex',
@@ -261,15 +261,15 @@ export default function BranchesManagement() {
                     </div>
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <p style={{ 
-                      fontSize: '14px', 
+                    <p style={{
+                      fontSize: '14px',
                       color: 'var(--text-primary)',
                       margin: '0 0 4px 0'
                     }}>
                       {branch.address}
                     </p>
-                    <p style={{ 
-                      fontSize: '12px', 
+                    <p style={{
+                      fontSize: '12px',
                       color: 'var(--text-secondary)',
                       margin: 0
                     }}>
@@ -277,16 +277,16 @@ export default function BranchesManagement() {
                     </p>
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <p style={{ 
-                      fontSize: '14px', 
-                      fontWeight: '600', 
+                    <p style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
                       color: 'var(--text-primary)',
                       margin: '0 0 4px 0'
                     }}>
                       {branch.staffCount} nhân viên
                     </p>
-                    <p style={{ 
-                      fontSize: '12px', 
+                    <p style={{
+                      fontSize: '12px',
                       color: 'var(--text-secondary)',
                       margin: 0
                     }}>
@@ -294,16 +294,16 @@ export default function BranchesManagement() {
                     </p>
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <p style={{ 
-                      fontSize: '14px', 
-                      fontWeight: '600', 
+                    <p style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
                       color: 'var(--text-primary)',
                       margin: '0 0 4px 0'
                     }}>
                       {(branch.revenue || 0).toLocaleString()} VNĐ
                     </p>
-                    <p style={{ 
-                      fontSize: '12px', 
+                    <p style={{
+                      fontSize: '12px',
                       color: branch.revenueChange >= 0 ? 'var(--success-600)' : 'var(--error-600)',
                       margin: 0
                     }}>
@@ -316,11 +316,11 @@ export default function BranchesManagement() {
                       borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: '600',
-                      background: 
+                      background:
                         branch.status === 'active' ? 'var(--success-50)' :
                         branch.status === 'maintenance' ? 'var(--warning-50)' :
                         'var(--error-50)',
-                      color: 
+                      color:
                         branch.status === 'active' ? 'var(--success-700)' :
                         branch.status === 'maintenance' ? 'var(--warning-700)' :
                         'var(--error-700)'

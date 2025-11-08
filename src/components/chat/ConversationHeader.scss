@@ -94,6 +94,31 @@
       }
     }
   }
+
+  &__minimize-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin-left: 12px;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
 }
 
 @keyframes typingDotHeader {

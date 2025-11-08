@@ -723,7 +723,7 @@ export default function Profile() {
                   </div>
 
           <div className="profile-v2__header-info">
-            <h1 className="profile-v2__name">{profileData.fullName || 'Vo Minh Tien'}</h1>
+            <h1 className="profile-v2__name">{profileData.fullName || ''}</h1>
                               </div>
                             </div>
 

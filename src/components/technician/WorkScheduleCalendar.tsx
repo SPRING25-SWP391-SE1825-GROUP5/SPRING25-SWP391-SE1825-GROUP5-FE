@@ -40,7 +40,7 @@ export default function WorkScheduleCalendar({
   const loadWorkSchedule = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       // Check if user is available
       if (!user?.id) {
@@ -59,7 +59,7 @@ export default function WorkScheduleCalendar({
       // Update state with resolved IDs
       setTechnicianId(technicianId)
       setCenterId(centerId)
-      
+
       // Step 2: Get work schedule using the resolved technicianId and centerId
 
       const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, centerId)
@@ -67,7 +67,7 @@ export default function WorkScheduleCalendar({
       if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
         // Process work dates and create a Set of unique work days
         const workDaysSet = new Set<string>()
-        
+
         scheduleResponse.data.forEach((slot: TechnicianTimeSlotData) => {
           // Normalize workDate to get only the date part (YYYY-MM-DD)
           const workDate = new Date(slot.workDate)
@@ -75,7 +75,6 @@ export default function WorkScheduleCalendar({
           workDaysSet.add(normalizedDate)
         })
 
-        )
         setWorkDays(workDaysSet)
         setTimeSlots(scheduleResponse.data)
       } else {
@@ -161,20 +160,20 @@ export default function WorkScheduleCalendar({
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    
+
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - firstDay.getDay())
-    
+
     const days = []
     const currentDay = new Date(startDate)
-    
+
     for (let i = 0; i < 42; i++) {
       days.push(new Date(currentDay))
       currentDay.setDate(currentDay.getDate() + 1)
     }
-    
+
     return days
   }
 

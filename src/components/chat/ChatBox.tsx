@@ -98,9 +98,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       }
 
       signalRService.setOnMessageReceived((message: ChatMessage) => {
+        // Get currentUserId fresh each time (authUser might change)
+        const currentUserIdForMessage = authUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
         dispatch(addMessage({
           conversationId: message.conversationId,
-          message
+          message,
+          currentUserId: currentUserIdForMessage
         }))
       })
 

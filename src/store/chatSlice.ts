@@ -7,6 +7,7 @@ const initialState: ChatState = {
   messages: {},
   onlineUsers: [],
   isWidgetOpen: false,
+  isContactMinimized: false,
   isLoading: false,
   error: null,
   activeFilter: 'all',
@@ -39,6 +40,13 @@ const chatSlice = createSlice({
      */
     closeWidget: (state) => {
       state.isWidgetOpen = false
+    },
+
+    /**
+     * Set contact page minimized state
+     */
+    setContactMinimized: (state, action: PayloadAction<boolean>) => {
+      state.isContactMinimized = action.payload
     },
 
     // ==================== CONVERSATIONS ====================
@@ -101,16 +109,8 @@ const chatSlice = createSlice({
     /**
      * Add message to conversation
      */
-    addMessage: (state, action: PayloadAction<{ conversationId: string; message: ChatMessage }>) => {
-      const { conversationId, message } = action.payload
-
-      console.log('[chatSlice] addMessage called', {
-        conversationId,
-        messageId: message.id,
-        content: message.content,
-        senderId: message.senderId,
-        timestamp: message.timestamp
-      })
+    addMessage: (state, action: PayloadAction<{ conversationId: string; message: ChatMessage; currentUserId?: string }>) => {
+      const { conversationId, message, currentUserId } = action.payload
 
       if (!state.messages[conversationId]) {
         state.messages[conversationId] = []
@@ -119,21 +119,9 @@ const chatSlice = createSlice({
       // Check if message already exists
       const existingIndex = state.messages[conversationId].findIndex(msg => msg.id === message.id)
       if (existingIndex >= 0) {
-        console.log('[chatSlice] Message already exists, updating', {
-          messageId: message.id,
-          existingIndex,
-          oldContent: state.messages[conversationId][existingIndex].content,
-          newContent: message.content
-        })
         state.messages[conversationId][existingIndex] = message
       } else {
-        console.log('[chatSlice] Adding new message', {
-          messageId: message.id,
-          conversationId,
-          currentCount: state.messages[conversationId].length
-        })
         state.messages[conversationId].push(message)
-        console.log('[chatSlice] Message added, new count', state.messages[conversationId].length)
       }
 
       // Update conversation's last message
@@ -141,6 +129,19 @@ const chatSlice = createSlice({
       if (conversationIndex >= 0) {
         state.conversations[conversationIndex].lastMessage = message
         state.conversations[conversationIndex].updatedAt = message.timestamp
+
+        // If message is from someone else and not read, increment unreadCount
+        // But only if we're not currently viewing this conversation
+        if (currentUserId) {
+          const isOwnMessage = String(message.senderId) === String(currentUserId)
+          const isActiveConversation = state.activeConversationId === conversationId
+
+          if (!isOwnMessage && !message.isRead && !isActiveConversation) {
+            // Only increment if not viewing the conversation and message is unread
+            state.conversations[conversationIndex].unreadCount =
+              (state.conversations[conversationIndex].unreadCount || 0) + 1
+          }
+        }
 
         // Move conversation to top
         const conversation = state.conversations.splice(conversationIndex, 1)[0]
@@ -402,16 +403,12 @@ const chatSlice = createSlice({
      */
     addTypingUser: (state, action: PayloadAction<{ conversationId: string; userId: string }>) => {
       const { conversationId, userId } = action.payload
-      console.log('[chatSlice] addTypingUser called', { conversationId, userId, currentState: state.typingUsers })
 
       if (!state.typingUsers[conversationId]) {
         state.typingUsers[conversationId] = []
       }
       if (!state.typingUsers[conversationId].includes(userId)) {
         state.typingUsers[conversationId].push(userId)
-        console.log('[chatSlice] Typing user added', { conversationId, userId, updatedState: state.typingUsers })
-      } else {
-        console.log('[chatSlice] Typing user already exists', { conversationId, userId })
       }
     },
 
@@ -420,11 +417,9 @@ const chatSlice = createSlice({
      */
     removeTypingUser: (state, action: PayloadAction<{ conversationId: string; userId: string }>) => {
       const { conversationId, userId } = action.payload
-      console.log('[chatSlice] removeTypingUser called', { conversationId, userId, currentState: state.typingUsers })
 
       if (state.typingUsers[conversationId]) {
         state.typingUsers[conversationId] = state.typingUsers[conversationId].filter(id => id !== userId)
-        console.log('[chatSlice] Typing user removed', { conversationId, userId, updatedState: state.typingUsers })
       }
     }
   }
@@ -435,6 +430,7 @@ export const {
   toggleWidget,
   openWidget,
   closeWidget,
+  setContactMinimized,
 
   // Conversations
   setConversations,

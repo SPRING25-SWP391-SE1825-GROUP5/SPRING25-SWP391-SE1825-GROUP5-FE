@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { Pin, MoreVertical } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { pinConversation, archiveConversation } from '@/store/chatSlice'
+import { pinConversation, archiveConversation, removeConversation } from '@/store/chatSlice'
 import ConversationItemActions from './ConversationItemActions'
 import { formatConversationTime } from '@/utils/timeFormatter'
+import { ChatService } from '@/services/chatService'
+import toast from 'react-hot-toast'
 import type { ChatConversation } from '@/types/chat'
 import './ConversationItem.scss'
 
@@ -25,7 +27,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
 
   const otherParticipant = conversation.participants.find(p => p.id !== currentUserId) || conversation.participants[0]
   const displayName = otherParticipant?.name || 'Người dùng'
-  const displayAvatar = otherParticipant?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'
+  const displayAvatar = otherParticipant?.avatar || undefined
 
   const handleClick = () => {
     onSelect(conversation)
@@ -41,9 +43,20 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     setShowActions(false)
   }
 
-  const handleDelete = () => {
-    // TODO: Implement delete
+  const handleDelete = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa cuộc trò chuyện này? Hành động này không thể hoàn tác.')) {
+      return
+    }
+
+    try {
+      await ChatService.deleteConversation(conversation.id)
+      dispatch(removeConversation(conversation.id))
+      toast.success('Đã xóa cuộc trò chuyện thành công')
+      setShowActions(false)
+    } catch (error: any) {
+      toast.error(error?.message || 'Không thể xóa cuộc trò chuyện')
     setShowActions(false)
+    }
   }
 
   return (
@@ -73,7 +86,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
         </div>
 
         <div className="conversation-item__footer">
-          <span className="conversation-item__preview">
+          <span className={`conversation-item__preview ${conversation.unreadCount > 0 ? 'conversation-item__preview--unread' : ''}`}>
             {conversation.lastMessage?.content || 'Không có tin nhắn'}
           </span>
           {conversation.unreadCount > 0 && (
