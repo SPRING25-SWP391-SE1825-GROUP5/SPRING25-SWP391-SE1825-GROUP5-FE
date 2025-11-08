@@ -60,7 +60,7 @@ export default function FeedbackCard({
         await onSubmitFeedback(booking.id, feedback)
       }
     } catch (error) {
-      console.error('Error submitting feedback:', error)
+
     } finally {
       setIsLoading(false)
     }

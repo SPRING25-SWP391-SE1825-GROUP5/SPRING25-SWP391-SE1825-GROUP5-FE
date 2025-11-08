@@ -53,7 +53,7 @@ export default function WorkSchedule({}: WorkScheduleProps) {
         
         setScheduleData([]) // Empty array - no mock data
       } catch (error: any) {
-        console.error('❌ Error loading schedule data:', error)
+
         setError(error.message || 'Không thể tải dữ liệu lịch làm việc')
         setScheduleData([])
       } finally {
@@ -68,7 +68,7 @@ export default function WorkSchedule({}: WorkScheduleProps) {
   const filteredScheduleData = scheduleData
 
   const handleAppointmentClick = (appointment: Appointment) => {
-    console.log('Appointment clicked:', appointment)
+
     // Handle appointment click - could open modal, navigate, etc.
   }
 

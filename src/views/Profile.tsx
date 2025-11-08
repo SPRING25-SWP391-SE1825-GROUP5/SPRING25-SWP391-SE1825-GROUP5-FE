@@ -6,7 +6,7 @@ import { AuthService, BookingService } from '@/services'
 import { PromotionBookingService } from '@/services/promotionBookingService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { PhotoIcon, CameraIcon } from '@heroicons/react/24/outline'
-import { ProfileNav, ProfileOverview, ProfileInfo, ProfileVehicles, ProfilePromotions, ProfileSettings, ProfileHistory, ProfileReviews, ProfilePackages, ProfileNotifications, ProfileTabKey } from '@/components/profile'
+import { ProfileNav, ProfileOverview, ProfileInfo, ProfileVehicles, ProfilePromotions, ProfileSettings, ProfileHistory, ProfileActivity, ProfileReviews, ProfilePackages, ProfileNotifications, ProfileTabKey } from '@/components/profile'
 import './profile.scss'
 import {
   validateFullName,
@@ -154,6 +154,8 @@ export default function Profile() {
     const tab = searchParams.get('tab')
     if (tab === 'booking-history') {
       setActiveTab('service-history')
+    } else if (tab === 'history') {
+      setActiveTab('history')
     }
   }, [searchParams])
 
@@ -189,7 +191,7 @@ export default function Profile() {
       }
     } catch (err: any) {
       setMaintenanceError('Không thể tải dữ liệu lịch sử bảo dưỡng')
-      console.error('Error loading maintenance data:', err)
+
     } finally {
       setMaintenanceLoading(false)
     }
@@ -217,7 +219,7 @@ export default function Profile() {
       await loadMaintenanceData()
     } catch (err: any) {
       setMaintenanceError('Không thể gửi đánh giá')
-      console.error('Error submitting feedback:', err)
+
     }
   }
 
@@ -229,7 +231,7 @@ export default function Profile() {
       await loadMaintenanceData()
     } catch (err: any) {
       setMaintenanceError('Không thể cập nhật đánh giá')
-      console.error('Error updating feedback:', err)
+
     }
   }
 
@@ -252,7 +254,7 @@ export default function Profile() {
         dispatch(getCurrentUser())
       }
     } catch (error) {
-      console.error('Error loading profile:', error)
+
     }
   }
 
@@ -293,7 +295,7 @@ export default function Profile() {
       setSavedPromotions(filteredPromotions)
       setTotalPromotions(filteredPromotions.length)
     } catch (error: any) {
-      console.error('Error loading saved promotions:', error)
+
       setPromotionsError(error.message || 'Không thể tải danh sách mã khuyến mãi')
       setSavedPromotions([])
       setTotalPromotions(0)
@@ -330,7 +332,7 @@ export default function Profile() {
 
       return null
     } catch (error) {
-      console.error('Error loading customerId:', error)
+
       return null
     }
   }
@@ -362,7 +364,7 @@ export default function Profile() {
         bookings = (resp as any).data.bookings
         pagination = (resp as any).data.pagination
       } else {
-        console.error('Invalid customer bookings response:', resp)
+
         setBookingHistory([])
         return
       }
@@ -402,7 +404,7 @@ export default function Profile() {
       setBookingHistory(bookingsWithFeedback)
       setBookingHistoryTotalPages(pagination?.totalPages || Math.max(1, Math.ceil(bookingsWithFeedback.length / HISTORY_PAGE_SIZE)))
     } catch (error: unknown) {
-      console.error('Error loading booking history:', error)
+
       setBookingHistory([])
 
       // Show user-friendly error message
@@ -455,7 +457,7 @@ export default function Profile() {
       // Reload booking history to show updated feedback
       loadBookingHistory()
     } catch (error) {
-      console.error('Error submitting feedback:', error)
+
       setUploadError('Có lỗi xảy ra khi gửi đánh giá')
       setSuccessMessage('')
     }
@@ -497,7 +499,7 @@ export default function Profile() {
       // Reload booking history to show updated feedback
       loadBookingHistory()
     } catch (error) {
-      console.error('Error editing feedback:', error)
+
       setUploadError('Có lỗi xảy ra khi cập nhật đánh giá')
       setSuccessMessage('')
     }
@@ -595,7 +597,6 @@ export default function Profile() {
         setSuccessMessage('')
       }, 3000)
     } catch (error: unknown) {
-      console.error('API Error:', error)
 
       // Parse API validation errors
       if ((error as any)?.response?.data?.errors) {
@@ -648,7 +649,7 @@ export default function Profile() {
       } else {
         // Fallback error message
       const msg = (error as any)?.response?.data?.message || (error as any)?.message || 'Cập nhật thông tin thất bại'
-        console.error(msg)
+
       }
     } finally {
       setIsSaving(false)
@@ -722,7 +723,7 @@ export default function Profile() {
                   </div>
 
           <div className="profile-v2__header-info">
-            <h1 className="profile-v2__name">{profileData.fullName || 'Vo Minh Tien'}</h1>
+            <h1 className="profile-v2__name">{profileData.fullName || ''}</h1>
                               </div>
                             </div>
 
@@ -885,7 +886,7 @@ export default function Profile() {
           {activeTab === 'overview' && <ProfileOverview />}
           {activeTab === 'info' && <ProfileInfo />}
           {activeTab === 'vehicles' && <ProfileVehicles />}
-          {activeTab === 'history' && <ProfileHistory />}
+          {activeTab === 'history' && <ProfileActivity />}
           {activeTab === 'reviews' && <ProfileReviews />}
           {activeTab === 'promotions' && <ProfilePromotions />}
           {activeTab === 'packages' && <ProfilePackages />}

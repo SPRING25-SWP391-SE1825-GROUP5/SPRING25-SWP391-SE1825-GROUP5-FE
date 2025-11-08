@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { X, CreditCard, QrCode, Wallet } from 'lucide-react'
 import { PaymentService, type PaymentBreakdownResponse } from '@/services/paymentService'
+import { WorkOrderPartService, type WorkOrderPartItem } from '@/services/workOrderPartService'
+import { PartService } from '@/services/partService'
 import { PayOSService } from '@/services/payOSService'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
@@ -24,11 +26,48 @@ export default function PaymentModal({
   const [processing, setProcessing] = useState(false)
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
   const [breakdown, setBreakdown] = useState<PaymentBreakdownResponse['data'] | null>(null)
+  const [workParts, setWorkParts] = useState<WorkOrderPartItem[]>([])
 
   // Load breakdown khi modal mở
   useEffect(() => {
     if (open && bookingId) {
       loadBreakdown()
+      // Load thêm work order parts để có đơn giá làm fallback (giống như kỹ thuật viên)
+      ;(async () => {
+        try {
+          // 1. Load phụ tùng từ API /Booking/{bookingId}/parts
+          let list = await WorkOrderPartService.list(Number(bookingId))
+          
+          // 2. Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
+          list = await Promise.all(list.map(async (p) => {
+            try {
+              // Luôn gọi API /api/Part/{id} để lấy unitPrice chính xác
+              const partDetail = await PartService.getPartById(p.partId)
+              
+              if (partDetail.success && partDetail.data) {
+                const raw = partDetail.data as any
+                // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
+                const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
+                
+                return {
+                  ...p,
+                  partNumber: partDetail.data.partNumber || p.partNumber,
+                  partName: partDetail.data.partName || p.partName,
+                  brand: partDetail.data.brand || p.brand,
+                  unitPrice: unitPrice, // Lấy đơn giá từ API Part/{id}
+                  totalStock: partDetail.data.totalStock ?? p.totalStock
+                }
+              }
+            } catch (err) {
+              console.error(`Lỗi khi load chi tiết phụ tùng ${p.partId}:`, err)
+            }
+            
+            return p
+          }))
+          
+          setWorkParts(list || [])
+        } catch { /* ignore */ }
+      })()
     }
   }, [open, bookingId])
 
@@ -229,43 +268,92 @@ export default function PaymentModal({
             )}
 
             {/* Parts */}
-            {breakdown.parts.length > 0 && (
-              <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
-                <div style={{ fontSize: 14, color: '#374151', fontWeight: 600, marginBottom: 12 }}>Phụ tùng phát sinh:</div>
-                <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: '#f9fafb' }}>
-                        <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>SL</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>Đơn giá</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>Thành tiền</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {breakdown.parts.map((part, idx) => (
-                        <tr key={part.partId} style={{ borderBottom: idx < breakdown.parts.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
-                          <td style={{ padding: '8px 12px', fontSize: 13, color: '#374151' }}>{part.name}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 13, color: '#374151' }}>{part.qty}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#374151' }}>{part.unitPrice.toLocaleString('vi-VN')}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#111827', fontWeight: 600 }}>{part.amount.toLocaleString('vi-VN')}</td>
+            {(() => {
+              // Xử lý parts: có thể là array hoặc object với fromInventory và fromCustomer
+              const partsArray = Array.isArray(breakdown.parts) 
+                ? breakdown.parts 
+                : (breakdown.parts as any)?.fromInventory || []
+              const customerParts = !Array.isArray(breakdown.parts) 
+                ? (breakdown.parts as any)?.fromCustomer || []
+                : []
+              const allParts = [...partsArray, ...customerParts]
+              
+              if (allParts.length === 0) return null
+              
+              return (
+                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: 14, color: '#374151', fontWeight: 600, marginBottom: 12 }}>
+                    Phụ tùng phát sinh:
+                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400, marginLeft: 8 }}>
+                      (Không áp dụng khuyến mãi)
+                    </span>
+                  </div>
+                  <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f9fafb' }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>SL</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>Đơn giá</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#6B7280', borderBottom: '1px solid #e5e7eb' }}>Thành tiền</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {allParts.map((part: any, idx: number) => {
+                          const matched = workParts.find(p => p.partId === part.partId)
+                          const unitPrice = part.unitPrice ?? part.referenceUnitPrice ?? matched?.unitPrice ?? 0
+                          const qty = part.qty ?? matched?.quantity ?? 0
+                          const amount = part.amount ?? (unitPrice * qty)
+                          const isCustomerSupplied = part.sourceOrderItemId != null
+                          return (
+                            <tr key={`${part.partId}-${idx}`} style={{ borderBottom: idx < allParts.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
+                              <td style={{ padding: '8px 12px', fontSize: 13, color: '#374151' }}>
+                                {part.name}
+                                {isCustomerSupplied && (
+                                  <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 4 }}>(Khách cung cấp)</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 13, color: '#374151' }}>{qty}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#374151' }}>
+                                {isCustomerSupplied && amount === 0 ? 'Miễn phí' : `${Number(unitPrice).toLocaleString('vi-VN')} VNĐ`}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, color: '#111827', fontWeight: 600 }}>
+                                {isCustomerSupplied && amount === 0 ? 'Miễn phí' : `${Number(amount).toLocaleString('vi-VN')} VNĐ`}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+                    <span style={{ fontSize: 13, color: '#6B7280' }}>Tổng phụ tùng:</span>
+                    <span style={{ fontSize: 14, color: '#111827', fontWeight: 600 }}>
+                      {typeof breakdown.partsAmount === 'number' 
+                        ? breakdown.partsAmount.toLocaleString('vi-VN') 
+                        : allParts.reduce((sum: number, part: any) => {
+                            const matched = workParts.find(p => p.partId === part.partId)
+                            const unitPrice = part.unitPrice ?? part.referenceUnitPrice ?? matched?.unitPrice ?? 0
+                            const qty = part.qty ?? matched?.quantity ?? 0
+                            return sum + (part.amount ?? (unitPrice * qty))
+                          }, 0).toLocaleString('vi-VN')
+                      } VNĐ
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
-                  <span style={{ fontSize: 13, color: '#6B7280' }}>Tổng phụ tùng:</span>
-                  <span style={{ fontSize: 14, color: '#111827', fontWeight: 600 }}>{breakdown.partsAmount.toLocaleString('vi-VN')} VNĐ</span>
-                </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Promotion */}
             {breakdown.promotion.applied && (
               <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 14, color: '#374151', fontWeight: 600 }}>Khuyến mãi:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, color: '#374151', fontWeight: 600 }}>
+                    Khuyến mãi:
+                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400, marginLeft: 8 }}>
+                      (Chỉ áp dụng cho dịch vụ/gói)
+                    </span>
+                  </span>
                   <span style={{ fontSize: 14, color: '#059669', fontWeight: 600 }}>-{breakdown.promotion.discountAmount.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
               </div>

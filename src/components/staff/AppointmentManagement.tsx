@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BookingService, type Booking } from '@/services/bookingService'
 import { StaffService } from '@/services/staffService'
-import { RefreshCw, Calendar, Search, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, Wrench } from 'lucide-react'
+import { RefreshCw, Calendar, Search, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, Wrench, CreditCard } from 'lucide-react'
 import QuickPartsApprovalModal from '@/components/booking/QuickPartsApprovalModal'
+import PaymentModal from '@/components/payment/PaymentModal'
+import toast from 'react-hot-toast'
 
 export default function AppointmentManagement() {
   const [loading, setLoading] = useState(false)
@@ -22,6 +24,10 @@ export default function AppointmentManagement() {
   const [statusCurrent, setStatusCurrent] = useState<string>('')
   const [statusNew, setStatusNew] = useState<string>('')
   const [statusUpdating, setStatusUpdating] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null)
+  const [paymentTotalAmount, setPaymentTotalAmount] = useState<number>(0)
+  const [loadingPaymentBooking, setLoadingPaymentBooking] = useState(false)
 
   const loadData = async () => {
     try {
@@ -34,15 +40,15 @@ export default function AppointmentManagement() {
       // Nếu chưa có centerId, cố gắng lấy từ staff assignment
       if (!cid) {
         try {
-          console.log('[AppointmentManagement] Getting current staff assignment...')
+
           const assignment = await StaffService.getCurrentStaffAssignment()
           cid = assignment.centerId
           cname = assignment.centerName
           setCenterId(cid)
           setCenterName(cname)
-          console.log('[AppointmentManagement] Staff assignment:', assignment)
+
         } catch (err: any) {
-          console.warn('[AppointmentManagement] Failed to get staff assignment:', err.message)
+
           // Không throw error, để user có thể chọn manual
         }
       }
@@ -54,10 +60,9 @@ export default function AppointmentManagement() {
       }
 
       // Load bookings by center
-      console.log('[AppointmentManagement] Fetch bookings by center:', { centerId: cid, centerName: cname })
+
       const bookingsResp = await BookingService.getBookingsByCenter(cid)
-      console.log('[AppointmentManagement] Bookings response:', bookingsResp)
-      
+
       const list: Booking[] = bookingsResp?.data?.bookings || []
       setBookings(list)
     } catch (err: any) {
@@ -541,6 +546,56 @@ export default function AppointmentManagement() {
                           </button>
                         )}
 
+                        {(b.status || '').toUpperCase() === 'COMPLETED' && (
+                          <button
+                            title="Thanh toán cho khách"
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              setLoadingPaymentBooking(true)
+                              try {
+                                const detail = await BookingService.getBookingDetail(b.bookingId)
+                                if (detail?.success && detail?.data) {
+                                  setPaymentTotalAmount(detail.data.totalAmount || 0)
+                                  setPaymentBookingId(b.bookingId)
+                                  setShowPaymentModal(true)
+                                } else {
+                                  toast.error('Không thể lấy thông tin booking')
+                                }
+                              } catch (err: any) {
+                                toast.error(err?.message || 'Không thể tải thông tin thanh toán')
+                              } finally {
+                                setLoadingPaymentBooking(false)
+                              }
+                            }}
+                            disabled={loadingPaymentBooking}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--success-200)',
+                              background: 'var(--success-50)',
+                              color: 'var(--success-700)',
+                              cursor: loadingPaymentBooking ? 'not-allowed' : 'pointer',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              opacity: loadingPaymentBooking ? 0.6 : 1
+                            }}
+                            onMouseEnter={(e) => { 
+                              if (!loadingPaymentBooking) {
+                                e.currentTarget.style.background = 'var(--success-100)'
+                                e.currentTarget.style.borderColor = 'var(--success-500)'
+                              }
+                            }}
+                            onMouseLeave={(e) => { 
+                              if (!loadingPaymentBooking) {
+                                e.currentTarget.style.background = 'var(--success-50)'
+                                e.currentTarget.style.borderColor = 'var(--success-200)'
+                              }
+                            }}
+                          >
+                            <CreditCard size={16} />
+                          </button>
+                        )}
+
                         <button
                           title="Phê duyệt phụ tùng"
                           onClick={(e) => {
@@ -579,6 +634,26 @@ export default function AppointmentManagement() {
         open={showPartsModal}
         onClose={() => setShowPartsModal(false)}
       />
+
+      {/* Modal: Payment for Completed Booking */}
+      {showPaymentModal && paymentBookingId && (
+        <PaymentModal
+          bookingId={paymentBookingId}
+          totalAmount={paymentTotalAmount}
+          open={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setPaymentBookingId(null)
+            setPaymentTotalAmount(0)
+          }}
+          onPaymentSuccess={() => {
+            setShowPaymentModal(false)
+            setPaymentBookingId(null)
+            setPaymentTotalAmount(0)
+            loadData() // Reload bookings after payment success
+          }}
+        />
+      )}
 
       {/* Modal: Update Booking Status */}
       {showStatusModal && (

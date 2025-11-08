@@ -22,42 +22,78 @@ export class PayOSService {
    */
   static async createPaymentLink(bookingId: number, amount?: number, promotionCode?: string): Promise<PayOSResponse> {
     try {
-      // Vẫn đính kèm amount trên query để tương thích cũ, đồng thời gửi trong body để chắc chắn BE nhận được
-      const rounded = amount && amount > 0 ? Math.round(amount) : undefined
-      const query = rounded ? `?amount=${encodeURIComponent(rounded)}` : ''
-      const body: any = {}
-      if (rounded !== undefined) body.amount = rounded
-      if (promotionCode) body.promotionCode = promotionCode
-      const response = await api.post(`/payment/booking/${bookingId}/link${query}`, body)
+      // API endpoint: POST /api/Payment/booking/{bookingId}/link
+      // Backend tự tính tổng tiền từ booking, không cần truyền amount
+      const response = await api.post(`/Payment/booking/${bookingId}/link`)
       console.log('PayOS API response:', response.data)
 
+      // Response structure: { success: true, message: "...", data: { checkoutUrl: "..." } }
+      const responseData = response.data
+      if (responseData?.success && responseData?.data?.checkoutUrl) {
+        return {
+          success: true,
+          data: {
+            checkoutUrl: responseData.data.checkoutUrl,
+            paymentLink: responseData.data.checkoutUrl, // Alias for compatibility
+            orderCode: bookingId,
+            amount: responseData.data.amount || 0,
+            description: `Thanh toán vé #${bookingId}`,
+            status: 'PENDING'
+          },
+          message: responseData.message || 'Tạo link thanh toán thành công'
+        }
+      }
+
+      // Fallback nếu response structure khác
       return {
-        success: true,
+        success: responseData?.success || false,
         data: {
-          checkoutUrl: response.data.data?.checkoutUrl,
+          checkoutUrl: responseData?.data?.checkoutUrl || responseData?.checkoutUrl || '',
+          paymentLink: responseData?.data?.checkoutUrl || responseData?.checkoutUrl || '',
           orderCode: bookingId,
           amount: 0,
           description: `Thanh toán vé #${bookingId}`,
           status: 'PENDING'
-        }
+        },
+        message: responseData?.message || 'Tạo link thanh toán thành công'
       }
     } catch (error: any) {
-      console.error('Error creating PayOS payment link:', error)
 
       // Handle specific error cases
-      const errorMessage = error.response?.data?.message || 'Lỗi tạo link thanh toán'
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi tạo link thanh toán'
+      const errorData = error.response?.data
 
-      // Nếu đơn thanh toán đã tồn tại, thử lấy link hiện tại
-      if (errorMessage.includes('đã tồn tại') || errorMessage.includes('already exists')) {
+      // Kiểm tra xem backend đã xử lý lỗi "đã tồn tại" và trả về link chưa
+      // Nếu backend trả về success=true với data.checkoutUrl, thì đã xử lý thành công
+      if (errorData?.success === true && errorData?.data?.checkoutUrl) {
+        console.log('Backend đã xử lý lỗi "đã tồn tại" và trả về link hiện tại')
+        return {
+          success: true,
+          data: {
+            checkoutUrl: errorData.data.checkoutUrl,
+            paymentLink: errorData.data.checkoutUrl,
+            orderCode: bookingId,
+            amount: errorData.data.amount || 0,
+            description: `Thanh toán vé #${bookingId}`,
+            status: 'PENDING'
+          },
+          message: errorData.message || 'Link thanh toán đã tồn tại, đã lấy link hiện tại'
+        }
+      }
+
+      // Nếu đơn thanh toán đã tồn tại nhưng backend chưa xử lý, thử lấy link hiện tại
+      if (errorMessage.includes('đã tồn tại') || 
+          errorMessage.includes('already exists') ||
+          errorMessage.includes('231')) {
         console.log('Payment link already exists, trying to get existing link...')
         try {
-          // Thử lấy thông tin thanh toán hiện tại
+          // Thử lấy thông tin thanh toán hiện tại từ PayOS
           const existingPayment = await this.getExistingPaymentLink(bookingId)
-          if (existingPayment.success) {
+          if (existingPayment.success && existingPayment.data?.checkoutUrl) {
             return existingPayment
           }
         } catch (getError) {
-          console.error('Error getting existing payment link:', getError)
+
         }
       }
 
@@ -85,7 +121,7 @@ export class PayOSService {
         }
       }
     } catch (error: any) {
-      console.error('Error getting existing payment link:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi lấy link thanh toán hiện tại'
@@ -101,7 +137,7 @@ export class PayOSService {
       const response = await api.get(`/payment/status/${orderCode}`)
       return response.data
     } catch (error: any) {
-      console.error('Error getting PayOS payment info:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi lấy thông tin thanh toán'
@@ -117,7 +153,7 @@ export class PayOSService {
       const response = await api.get(`/payment/qr/${orderCode}`)
       return response.data
     } catch (error: any) {
-      console.error('Error getting PayOS QR code:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi lấy QR code'
@@ -133,7 +169,7 @@ export class PayOSService {
       const response = await api.delete(`/payment/cancel/${orderCode}`)
       return response.data
     } catch (error: any) {
-      console.error('Error canceling PayOS payment link:', error)
+
       return {
         success: false,
         message: error.response?.data?.message || 'Lỗi hủy link thanh toán'

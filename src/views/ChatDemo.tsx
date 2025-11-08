@@ -17,24 +17,24 @@ const ChatDemo: React.FC = () => {
     const mockUsers: ChatUser[] = [
       {
         id: 'user1',
-        name: 'Nguyễn Văn A',
+        name: '',
         role: 'staff',
         isOnline: true,
-        avatar: 'https://via.placeholder.com/40x40/1976d2/ffffff?text=A'
+        avatar: undefined
       },
       {
         id: 'user2',
-        name: 'Trần Thị B',
+        name: '',
         role: 'technician',
         isOnline: false,
-        avatar: 'https://via.placeholder.com/40x40/4caf50/ffffff?text=B'
+        avatar: undefined
       },
       {
         id: 'user3',
-        name: 'Lê Văn C',
+        name: '',
         role: 'admin',
         isOnline: true,
-        avatar: 'https://via.placeholder.com/40x40/ff9800/ffffff?text=C'
+        avatar: undefined
       }
     ]
 
@@ -43,7 +43,7 @@ const ChatDemo: React.FC = () => {
         id: 'msg1',
         conversationId: 'conv1',
         senderId: 'user1',
-        senderName: 'Nguyễn Văn A',
+        senderName: '',
         content: 'Xin chào! Tôi có thể hỗ trợ gì cho bạn?',
         timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
         type: 'text',
@@ -63,7 +63,7 @@ const ChatDemo: React.FC = () => {
         id: 'msg3',
         conversationId: 'conv1',
         senderId: 'user1',
-        senderName: 'Nguyễn Văn A',
+        senderName: '',
         content: 'Tất nhiên! Bạn có thể cho tôi biết loại xe và thời gian mong muốn không?',
         timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
         type: 'text',
@@ -113,13 +113,13 @@ const ChatDemo: React.FC = () => {
 
   const handleAddTestMessage = () => {
     // Simulate adding a test message to the chat
-    console.log('Test message added to chat')
+
   }
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Chat Widget Demo</h1>
-      
+
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Tính năng Chat Widget</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -171,14 +171,14 @@ const ChatDemo: React.FC = () => {
         >
           {isWidgetOpen ? 'Chat đã mở' : 'Mở Chat Widget'}
         </button>
-        
+
         <button
           onClick={handleAddTestMessage}
           className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
         >
           Thêm tin nhắn test
         </button>
-        
+
         <a
           href="/avatar-demo"
           className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors inline-block"

@@ -11,7 +11,7 @@ interface QuickPartsApprovalModalProps {
 
 export default function QuickPartsApprovalModal({ bookingId, open, onClose, mode = 'staff' }: QuickPartsApprovalModalProps) {
   const [loading, setLoading] = useState(false)
-  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string; status?: string }>>([])
+  const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string; status?: string; unitPrice?: number; quantity?: number }>>([])
   const [error, setError] = useState<string | null>(null)
 
   const loadParts = async () => {
@@ -20,7 +20,7 @@ export default function QuickPartsApprovalModal({ bookingId, open, onClose, mode
     setError(null)
     try {
       const items = await WorkOrderPartService.list(Number(bookingId))
-      setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName, status: it.status })))
+      setParts(items.map(it => ({ id: it.id, partId: it.partId, partName: it.partName, status: it.status, unitPrice: it.unitPrice, quantity: it.quantity })))
     } catch (e: any) {
       setError(e?.message || 'Không thể tải phụ tùng')
     } finally {
@@ -90,6 +90,8 @@ export default function QuickPartsApprovalModal({ bookingId, open, onClose, mode
                 workOrderPartId={p.id} 
                 partId={p.partId} 
                 partName={p.partName} 
+                unitPrice={p.unitPrice}
+                quantity={p.quantity}
                 mode={mode}
                 status={p.status}
                 onApproved={handleApproved}

@@ -7,8 +7,12 @@ const initialState: ChatState = {
   messages: {},
   onlineUsers: [],
   isWidgetOpen: false,
+  isContactMinimized: false,
   isLoading: false,
-  error: null
+  error: null,
+  activeFilter: 'all',
+  searchQuery: '',
+  typingUsers: {}
 }
 
 const chatSlice = createSlice({
@@ -16,7 +20,7 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     // ==================== WIDGET CONTROLS ====================
-    
+
     /**
      * Toggle chat widget visibility
      */
@@ -36,6 +40,13 @@ const chatSlice = createSlice({
      */
     closeWidget: (state) => {
       state.isWidgetOpen = false
+    },
+
+    /**
+     * Set contact page minimized state
+     */
+    setContactMinimized: (state, action: PayloadAction<boolean>) => {
+      state.isContactMinimized = action.payload
     },
 
     // ==================== CONVERSATIONS ====================
@@ -98,13 +109,13 @@ const chatSlice = createSlice({
     /**
      * Add message to conversation
      */
-    addMessage: (state, action: PayloadAction<{ conversationId: string; message: ChatMessage }>) => {
-      const { conversationId, message } = action.payload
-      
+    addMessage: (state, action: PayloadAction<{ conversationId: string; message: ChatMessage; currentUserId?: string }>) => {
+      const { conversationId, message, currentUserId } = action.payload
+
       if (!state.messages[conversationId]) {
         state.messages[conversationId] = []
       }
-      
+
       // Check if message already exists
       const existingIndex = state.messages[conversationId].findIndex(msg => msg.id === message.id)
       if (existingIndex >= 0) {
@@ -118,7 +129,20 @@ const chatSlice = createSlice({
       if (conversationIndex >= 0) {
         state.conversations[conversationIndex].lastMessage = message
         state.conversations[conversationIndex].updatedAt = message.timestamp
-        
+
+        // If message is from someone else and not read, increment unreadCount
+        // But only if we're not currently viewing this conversation
+        if (currentUserId) {
+          const isOwnMessage = String(message.senderId) === String(currentUserId)
+          const isActiveConversation = state.activeConversationId === conversationId
+
+          if (!isOwnMessage && !message.isRead && !isActiveConversation) {
+            // Only increment if not viewing the conversation and message is unread
+            state.conversations[conversationIndex].unreadCount =
+              (state.conversations[conversationIndex].unreadCount || 0) + 1
+          }
+        }
+
         // Move conversation to top
         const conversation = state.conversations.splice(conversationIndex, 1)[0]
         state.conversations.unshift(conversation)
@@ -131,7 +155,7 @@ const chatSlice = createSlice({
     updateMessage: (state, action: PayloadAction<{ conversationId: string; messageId: string; updates: Partial<ChatMessage> }>) => {
       const { conversationId, messageId, updates } = action.payload
       const messages = state.messages[conversationId]
-      
+
       if (messages) {
         const index = messages.findIndex(msg => msg.id === messageId)
         if (index >= 0) {
@@ -146,7 +170,7 @@ const chatSlice = createSlice({
     removeMessage: (state, action: PayloadAction<{ conversationId: string; messageId: string }>) => {
       const { conversationId, messageId } = action.payload
       const messages = state.messages[conversationId]
-      
+
       if (messages) {
         state.messages[conversationId] = messages.filter(msg => msg.id !== messageId)
       }
@@ -158,7 +182,7 @@ const chatSlice = createSlice({
     markMessagesAsRead: (state, action: PayloadAction<{ conversationId: string; messageIds: string[] }>) => {
       const { conversationId, messageIds } = action.payload
       const messages = state.messages[conversationId]
-      
+
       if (messages) {
         messages.forEach(message => {
           if (messageIds.includes(message.id)) {
@@ -246,6 +270,157 @@ const chatSlice = createSlice({
       if (conversationIndex >= 0) {
         state.conversations[conversationIndex].unreadCount = action.payload.count
       }
+    },
+
+    // ==================== FILTERS & SEARCH ====================
+
+    /**
+     * Set active filter
+     */
+    setActiveFilter: (state, action: PayloadAction<'all' | 'unread' | 'pinned'>) => {
+      state.activeFilter = action.payload
+    },
+
+    /**
+     * Set search query
+     */
+    setSearchQuery: (state, action: PayloadAction<string>) => {
+      state.searchQuery = action.payload
+    },
+
+    // ==================== PIN & ARCHIVE ====================
+
+    /**
+     * Pin/unpin conversation (frontend only)
+     */
+    pinConversation: (state, action: PayloadAction<string>) => {
+      const conversationIndex = state.conversations.findIndex(conv => conv.id === action.payload)
+      if (conversationIndex >= 0) {
+        state.conversations[conversationIndex].isPinned = !state.conversations[conversationIndex].isPinned
+      }
+    },
+
+    /**
+     * Archive conversation (frontend only)
+     */
+    archiveConversation: (state, action: PayloadAction<string>) => {
+      const conversationIndex = state.conversations.findIndex(conv => conv.id === action.payload)
+      if (conversationIndex >= 0) {
+        state.conversations[conversationIndex].isArchived = true
+      }
+    },
+
+    // ==================== MESSAGE REACTIONS ====================
+
+    /**
+     * Add reaction to message
+     */
+    addReaction: (state, action: PayloadAction<{ conversationId: string; messageId: string; emoji: string; userId: string }>) => {
+      const { conversationId, messageId, emoji, userId } = action.payload
+      const messages = state.messages[conversationId]
+
+      if (messages) {
+        const messageIndex = messages.findIndex(msg => msg.id === messageId)
+        if (messageIndex >= 0) {
+          const message = messages[messageIndex]
+          if (!message.reactions) {
+            message.reactions = []
+          }
+
+          const reactionIndex = message.reactions.findIndex(r => r.emoji === emoji)
+          if (reactionIndex >= 0) {
+            // Toggle: remove if already reacted
+            const reaction = message.reactions[reactionIndex]
+            if (reaction.userIds.includes(userId)) {
+              reaction.userIds = reaction.userIds.filter(id => id !== userId)
+              reaction.count = Math.max(0, reaction.count - 1)
+              if (reaction.count === 0) {
+                message.reactions.splice(reactionIndex, 1)
+              }
+            } else {
+              reaction.userIds.push(userId)
+              reaction.count++
+            }
+          } else {
+            // Add new reaction
+            message.reactions.push({
+              emoji,
+              userIds: [userId],
+              count: 1
+            })
+          }
+        }
+      }
+    },
+
+    // ==================== MESSAGE STATUS & READ RECEIPTS ====================
+
+    /**
+     * Set message status
+     */
+    setMessageStatus: (state, action: PayloadAction<{ conversationId: string; messageId: string; status: 'sending' | 'sent' | 'delivered' | 'read' }>) => {
+      const { conversationId, messageId, status } = action.payload
+      const messages = state.messages[conversationId]
+
+      if (messages) {
+        const index = messages.findIndex(msg => msg.id === messageId)
+        if (index >= 0) {
+          messages[index].messageStatus = status
+        }
+      }
+    },
+
+    /**
+     * Set read receipt
+     */
+    setReadReceipt: (state, action: PayloadAction<{ conversationId: string; messageId: string; isRead: boolean; readAt?: string }>) => {
+      const { conversationId, messageId, isRead, readAt } = action.payload
+      const messages = state.messages[conversationId]
+
+      if (messages) {
+        const index = messages.findIndex(msg => msg.id === messageId)
+        if (index >= 0) {
+          messages[index].isRead = isRead
+          if (readAt) {
+            messages[index].readAt = readAt
+          }
+        }
+      }
+    },
+
+    // ==================== TYPING INDICATORS ====================
+
+    /**
+     * Set typing users for conversation
+     */
+    setTypingUsers: (state, action: PayloadAction<{ conversationId: string; userIds: string[] }>) => {
+      const { conversationId, userIds } = action.payload
+      state.typingUsers[conversationId] = userIds
+    },
+
+    /**
+     * Add typing user
+     */
+    addTypingUser: (state, action: PayloadAction<{ conversationId: string; userId: string }>) => {
+      const { conversationId, userId } = action.payload
+
+      if (!state.typingUsers[conversationId]) {
+        state.typingUsers[conversationId] = []
+      }
+      if (!state.typingUsers[conversationId].includes(userId)) {
+        state.typingUsers[conversationId].push(userId)
+      }
+    },
+
+    /**
+     * Remove typing user
+     */
+    removeTypingUser: (state, action: PayloadAction<{ conversationId: string; userId: string }>) => {
+      const { conversationId, userId } = action.payload
+
+      if (state.typingUsers[conversationId]) {
+        state.typingUsers[conversationId] = state.typingUsers[conversationId].filter(id => id !== userId)
+      }
     }
   }
 })
@@ -255,34 +430,55 @@ export const {
   toggleWidget,
   openWidget,
   closeWidget,
-  
+  setContactMinimized,
+
   // Conversations
   setConversations,
   addConversation,
   updateConversation,
   removeConversation,
   setActiveConversation,
-  
+
   // Messages
   setMessages,
   addMessage,
   updateMessage,
   removeMessage,
   markMessagesAsRead,
-  
+
   // Users
   setOnlineUsers,
   addOnlineUser,
   removeOnlineUser,
-  
+
   // Loading & Error
   setLoading,
   setError,
   clearError,
-  
+
   // Utility
   resetChat,
-  updateUnreadCount
+  updateUnreadCount,
+
+  // Filters & Search
+  setActiveFilter,
+  setSearchQuery,
+
+  // Pin & Archive
+  pinConversation,
+  archiveConversation,
+
+  // Message Reactions
+  addReaction,
+
+  // Message Status & Read Receipts
+  setMessageStatus,
+  setReadReceipt,
+
+  // Typing Indicators
+  setTypingUsers,
+  addTypingUser,
+  removeTypingUser
 } = chatSlice.actions
 
 export default chatSlice.reducer

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { useAppSelector } from '@/store/hooks'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { removeFromCart } from '@/store/cartSlice'
 import './PaymentSuccess.scss'
 
 interface PaymentResult {
@@ -32,6 +33,7 @@ interface PaymentResult {
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const auth = useAppSelector((state) => state.auth)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,8 +51,6 @@ export default function PaymentSuccess() {
           setError('Thiếu thông tin booking ID hoặc order ID')
           return
         }
-
-        console.log('Payment result received:', { bookingId, orderId, type, status })
 
         // Xử lý promotion khi thanh toán thành công cho ORDER
         // CHỈ apply coupon và mark as USED khi thanh toán thành công
@@ -70,8 +70,7 @@ export default function PaymentSuccess() {
               const applyResult = await applyResponse.json()
               
               if (applyResult?.success) {
-                console.log('PaymentSuccess - Applied coupon to order:', pendingCouponCode)
-                
+
                 // Bước 2: Ngay lập tức mark as USED (chuyển APPLIED → USED)
                 // Vì đã thanh toán thành công nên mã sẽ chuyển sang USED và ẩn đi
                 const markResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/promotion/orders/${orderId}/mark-used`, {
@@ -84,19 +83,19 @@ export default function PaymentSuccess() {
                 const markResult = await markResponse.json()
                 
                 if (markResult?.success) {
-                  console.log('PaymentSuccess - Promotions marked as USED successfully')
+
                 } else {
-                  console.warn('PaymentSuccess - Failed to mark promotions as used:', markResult)
+
                 }
               } else {
-                console.warn('PaymentSuccess - Failed to apply coupon:', applyResult)
+
               }
               
               // Xóa coupon code khỏi sessionStorage sau khi xử lý
               sessionStorage.removeItem('pendingCouponCode')
               sessionStorage.removeItem(`appliedCoupon_${orderId}`)
             } catch (promoError: any) {
-              console.warn('PaymentSuccess - Error processing promotion:', promoError)
+
               // Không block UI nếu xử lý promotion fail
             }
           }
@@ -126,6 +125,33 @@ export default function PaymentSuccess() {
             bookingInfo: data.data
           })
 
+          // Xóa sản phẩm đã thanh toán khỏi giỏ hàng khi thanh toán thành công
+          if (type === 'order' && orderId && status === 'success') {
+            try {
+              // Lấy selectedIds đã lưu khi tạo order
+              const orderIdStr = String(orderId)
+              const selectedIdsKey = `orderSelectedIds_${orderIdStr}`
+              const selectedIdsRaw = sessionStorage.getItem(selectedIdsKey)
+              
+              if (selectedIdsRaw) {
+                const selectedIds: string[] = JSON.parse(selectedIdsRaw)
+                
+                // Xóa từng item đã thanh toán khỏi cart
+                selectedIds.forEach((itemId: string) => {
+                  dispatch(removeFromCart({ id: itemId, userId: auth.user?.id ?? null }))
+                })
+                
+                // Xóa selectedIds khỏi sessionStorage sau khi đã xử lý
+                sessionStorage.removeItem(selectedIdsKey)
+                
+                console.log('PaymentSuccess - Removed paid items from cart:', selectedIds)
+              }
+            } catch (cartError) {
+              console.warn('PaymentSuccess - Error removing items from cart:', cartError)
+              // Không block UI nếu xóa cart fail
+            }
+          }
+
           // Hiển thị toast thành công
           if (status === 'success') {
             toast.success('Thanh toán thành công!')
@@ -138,7 +164,7 @@ export default function PaymentSuccess() {
           setError(`Không thể lấy thông tin ${type === 'order' ? 'đơn hàng' : 'booking'}`)
         }
       } catch (err) {
-        console.error('Error handling payment result:', err)
+
         setError('Có lỗi xảy ra khi xử lý kết quả thanh toán')
       } finally {
         setLoading(false)
@@ -147,6 +173,8 @@ export default function PaymentSuccess() {
 
     handlePaymentResult()
   }, [searchParams, auth.token])
+
+  // (Reverted) Không tự động can thiệp giỏ hàng sau thanh toán
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -295,7 +323,7 @@ export default function PaymentSuccess() {
               <div className="services-section">
                 <h3 className="services-title">Dịch vụ đã đặt</h3>
                 <div className="space-y-2">
-                  {paymentResult.bookingInfo.services.map((service, index) => (
+                  {(paymentResult.bookingInfo.services || []).map((service, index) => (
                     <div key={index} className="service-item">
                       <div className="service-info">
                         <p className="service-name">{service.serviceName}</p>

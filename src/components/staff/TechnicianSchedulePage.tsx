@@ -114,7 +114,7 @@ export default function TechnicianSchedulePage() {
             return d >= dupDate && d <= dupEnd
           })
           .map((s) => new Date(s.workDate).toLocaleDateString('vi-VN'))
-        
+
         if (existingDates.length > 0) {
           if (form.mode === 'ngay') {
             setErrors({ _global: `Kỹ thuật viên đã có lịch vào ngày ${existingDates[0]}. Vui lòng chọn ngày khác.` })
@@ -144,10 +144,7 @@ export default function TechnicianSchedulePage() {
           isAvailable: true,
           notes: form.notes || null,
         }
-        
-        // debug payload in dev
-        if (import.meta.env.DEV) console.debug('CreateFullWeekAllSlots payload', payload)
-        
+
         const result = await TechnicianTimeSlotService.createFullWeekAllSlots(techId, payload as any)
         setSuccessMsg('Tạo lịch tuần thành công cho tất cả khung giờ')
       } else {
@@ -192,7 +189,7 @@ export default function TechnicianSchedulePage() {
         if (failures.length === results.length) {
           throw new Error('Không thể tạo lịch cho bất kỳ khung giờ nào. Vui lòng kiểm tra lại kỹ thuật viên/khung ngày hoặc quyền truy cập.')
         }
-        
+
         const firstFailureMsg = (() => {
           const f = failures[0] as PromiseRejectedResult | undefined
           const m = (f as any)?.reason?.response?.data?.message || (f as any)?.reason?.message
@@ -206,7 +203,7 @@ export default function TechnicianSchedulePage() {
       const serverMsg: string = err?.response?.data?.message || ''
       const serverErrors: string[] = Array.isArray(err?.response?.data?.errors) ? err.response.data.errors : []
       let friendly = 'Có lỗi xảy ra. Vui lòng thử lại.'
-      
+
       // Check for duplicate schedule messages first (regardless of status)
       const combinedMsg = [serverMsg, ...serverErrors].join(' ').toLowerCase()
       if (combinedMsg.includes('đã tồn tại') || combinedMsg.includes('duplicate') || combinedMsg.includes('unique') || combinedMsg.includes('trùng')) {
@@ -226,7 +223,7 @@ export default function TechnicianSchedulePage() {
         const combined = [serverMsg, ...serverErrors].filter(Boolean).join(' | ')
         friendly = combined || 'Dữ liệu không hợp lệ. Vui lòng kiểm tra và thử lại.'
       } else if (status === 404) {
-        friendly = 'Không tìm thấy tài nguyên (Kỹ thuật viên/Khung giờ).' 
+        friendly = 'Không tìm thấy tài nguyên (Kỹ thuật viên/Khung giờ).'
       }
       setErrors({ _global: friendly })
     } finally {
@@ -315,56 +312,33 @@ export default function TechnicianSchedulePage() {
   }
 
   const loadTechnicianViewSchedule = async () => {
-    if (DEBUG) console.log('🔍 loadTechnicianViewSchedule called:', {
-      technicianId: form.technicianId,
-      viewRange,
-      viewDate,
-      viewStart,
-      viewEnd
-    })
-    
     if (!form.technicianId) {
-      if (DEBUG) console.log('❌ No technician selected')
       return
     }
-    
+
     const sd = viewRange === 'day' ? (viewDate || viewStart) : viewStart
     const ed = viewRange === 'day' ? (viewDate || viewEnd || viewDate) : viewEnd
-    
-    if (DEBUG) console.log('📅 Date range:', { sd, ed })
-    
+
     if (!sd || !ed) {
-      console.log('❌ Missing date range')
       return
     }
-    
+
     try {
       setViewLoading(true)
-      if (DEBUG) console.log('🚀 Calling API with:', {
-        technicianId: Number(form.technicianId),
-        startDate: sd,
-        endDate: ed
-      })
-      
+
       const data = await TechnicianTimeSlotService.getScheduleByTechnician(
         Number(form.technicianId),
         sd,
         ed
       )
-      
-      if (DEBUG) console.log('📡 API Response:', data)
-      
+
       const raw = Array.isArray((data as any)?.data)
         ? (data as any).data
         : Array.isArray(data)
           ? (data as any)
           : []
-      
-      if (DEBUG) console.log('🔄 Processed raw data:', raw)
-      
+
       const items = (raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots)) ? flattenDaily(raw) : raw
-      
-      if (DEBUG) console.log('✅ Final items:', items)
 
       // Với chế độ nhiều ngày, không chỉ kiểm tra phần tử đầu tiên
       const hasAnySlots = Array.isArray(raw)
@@ -377,7 +351,6 @@ export default function TechnicianSchedulePage() {
       if (!hasAnySlots) {
         // Không có slot nào trong toàn bộ dải ngày → hiển thị thẻ hướng dẫn
         if (raw.length > 0 && raw[0]?.technicianId) {
-          if (DEBUG) console.log('⚠️ Không có timeSlots trong dải ngày đã chọn')
           const technicianInfo = {
             technicianId: raw[0].technicianId,
             technicianName: raw[0].technicianName,
@@ -394,7 +367,6 @@ export default function TechnicianSchedulePage() {
         setSchedule(items)
       }
     } catch (error) {
-      if (DEBUG) console.error('❌ API Error:', error)
       setSchedule([])
     } finally {
       setViewLoading(false)
@@ -433,46 +405,42 @@ export default function TechnicianSchedulePage() {
         // Lấy thông tin staff hiện tại để lấy centerId
         let centerId: number | undefined = undefined
         try {
-          console.log('🔍 Đang gọi API getCurrentStaff...')
+
           const currentStaff = await StaffService.getCurrentStaff()
-          console.log('📡 Response từ getCurrentStaff:', currentStaff)
-          
+
           if (currentStaff?.data?.centerId) {
             centerId = currentStaff.data.centerId
             setCurrentStaffCenterId(centerId)
-            console.log('✅ Đã lấy được centerId:', centerId)
+
           } else {
-            console.warn('⚠️ Không có centerId trong response:', currentStaff)
-            
+
             // Fallback: Thử lấy từ localStorage hoặc hardcode để test
             const fallbackCenterId = localStorage.getItem('currentStaffCenterId')
             if (fallbackCenterId) {
               centerId = parseInt(fallbackCenterId)
               setCurrentStaffCenterId(centerId)
-              console.log('🔄 Sử dụng centerId từ localStorage:', centerId)
+
             } else {
-              console.warn('⚠️ Không có centerId fallback, sẽ load tất cả kỹ thuật viên')
+
             }
           }
         } catch (error) {
-          console.error('❌ Lỗi khi lấy thông tin staff hiện tại:', error)
-          
+
           // Fallback: Thử lấy từ localStorage
           const fallbackCenterId = localStorage.getItem('currentStaffCenterId')
           if (fallbackCenterId) {
             centerId = parseInt(fallbackCenterId)
             setCurrentStaffCenterId(centerId)
-            console.log('🔄 Sử dụng centerId từ localStorage (fallback):', centerId)
           }
         }
 
         // Tải kỹ thuật viên và slot (filter theo centerId của staff hiện tại)
-        console.log('🔍 Đang gọi TechnicianService.list với centerId:', centerId)
+
         const [techs, ts] = await Promise.all([
           TechnicianService.list({ pageNumber: 1, pageSize: 100, centerId }),
           TimeSlotService.list(true),
         ])
-        console.log('📡 Response từ TechnicianService.list:', techs)
+
         setTechnicians(techs.technicians || [])
         setSlots(ts || [])
       } catch {
@@ -863,10 +831,10 @@ export default function TechnicianSchedulePage() {
         ) : schedule.length === 1 && schedule[0]?.hasSchedule === false ? (
           // Hiển thị thông tin technician khi chưa có lịch
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-            <div style={{ 
-              background: 'var(--bg-secondary)', 
-              borderRadius: '12px', 
-              padding: '24px', 
+            <div style={{
+              background: 'var(--bg-secondary)',
+              borderRadius: '12px',
+              padding: '24px',
               border: '1px solid var(--border-primary)',
               maxWidth: '400px',
               margin: '0 auto'
@@ -880,10 +848,10 @@ export default function TechnicianSchedulePage() {
               <p style={{ margin: '8px 0', fontSize: '14px', color: '#000000' }}>
                 <strong>Trạng thái:</strong> Chưa có lịch làm việc
               </p>
-              <div style={{ 
-                marginTop: '16px', 
-                padding: '12px', 
-                background: 'var(--warning-50)', 
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                background: 'var(--warning-50)',
                 borderRadius: '8px',
                 border: '1px solid var(--warning-200)'
               }}>

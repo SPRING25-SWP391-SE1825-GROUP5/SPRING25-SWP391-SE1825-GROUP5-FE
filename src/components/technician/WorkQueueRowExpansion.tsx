@@ -54,7 +54,15 @@ export default function WorkQueueRowExpansion({
   const [modalResultId, setModalResultId] = useState<number | null>(null)
   const [checklistConfirmed, setChecklistConfirmed] = useState(false)
   const [confirmingChecklist, setConfirmingChecklist] = useState(false)
-  const totalCost = useMemo(() => parts.reduce((sum, p) => sum + (p.unitPrice || 0) * p.quantity, 0), [parts])
+  const [deletingPartId, setDeletingPartId] = useState<number | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [partToDelete, setPartToDelete] = useState<{ id: number; name: string } | null>(null)
+  // Tính tổng tiền phụ tùng - chỉ tính những phụ tùng đã được approve (status = CONSUMED)
+  const totalCost = useMemo(() => {
+    return parts
+      .filter(p => p.status === 'CONSUMED') // Chỉ tính những phụ tùng đã được approve
+      .reduce((sum, p) => sum + (p.unitPrice || 0) * p.quantity, 0)
+  }, [parts])
   // inline notes editing; no modal
   const normalized = (status || '').toLowerCase()
   const isInProgress = normalized === 'in_progress'
@@ -190,7 +198,6 @@ export default function WorkQueueRowExpansion({
         // Nếu không load được, set là đã confirm
         setChecklistConfirmed(true)
       }
-      toast.success('Đã xác nhận checklist thành công')
     } catch (err: any) {
       toast.error(err?.message || 'Không thể xác nhận checklist')
     } finally {
@@ -459,21 +466,27 @@ export default function WorkQueueRowExpansion({
                   // Replacement parts chỉ đọc (read-only), không cho chỉnh sửa
                   const canEdit = isInProgress && !isApproved && !isReplacementPart
                   
-                  // Trạng thái duyệt - chỉ hiển thị DRAFT, CONSUMED, hoặc REJECTED
-                  let statusText = ''
+                  // Trạng thái duyệt - xử lý đầy đủ các status
+                  let statusText = 'Nháp'
                   let statusColor = '#6B7280'
-                  if (isApproved) {
-                    statusText = 'CONSUMED'
+                  const statusUpper = approvalStatus
+                  
+                  if (statusUpper === 'CONSUMED') {
+                    statusText = 'Đã xác nhận'
                     statusColor = '#10B981'
-                  } else if (isDraft) {
-                    statusText = 'DRAFT'
+                  } else if (statusUpper === 'PENDING_CUSTOMER_APPROVAL') {
+                    statusText = 'Chờ xác nhận'
                     statusColor = '#F59E0B'
-                  } else if (isRejected) {
-                    statusText = 'REJECTED'
+                  } else if (statusUpper === 'REJECTED') {
+                    statusText = 'Đã từ chối'
                     statusColor = '#EF4444'
+                  } else if (statusUpper === 'DRAFT') {
+                    statusText = 'Nháp'
+                    statusColor = '#6B7280'
                   } else {
-                    statusText = 'DRAFT'
-                    statusColor = '#F59E0B'
+                    // Fallback cho các status khác
+                    statusText = statusUpper || 'Nháp'
+                    statusColor = '#6B7280'
                   }
                   
                   return (
@@ -496,11 +509,39 @@ export default function WorkQueueRowExpansion({
                         }}>{statusText}</span>
                       </td>
                       <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center' }}>
-                        {canEdit && isDraft && (
+                        {isInProgress && isDraft && !isReplacementPart && (
                           <button
-                            onClick={() => setEditingPartId(p.id)}
-                            style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#FFFFFF', cursor: 'pointer', fontSize: 13 }}
-                          >Đổi phụ tùng</button>
+                            onClick={() => {
+                              setPartToDelete({ id: p.id, name: p.partName || 'phụ tùng này' })
+                              setShowDeleteConfirm(true)
+                            }}
+                            disabled={deletingPartId === p.id}
+                            style={{ 
+                              padding: '6px 12px', 
+                              border: '1px solid #EF4444', 
+                              borderRadius: 6, 
+                              background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF', 
+                              color: deletingPartId === p.id ? '#9ca3af' : '#EF4444',
+                              cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer', 
+                              fontSize: 13,
+                              fontWeight: 600,
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (deletingPartId !== p.id) {
+                                e.currentTarget.style.background = '#FEE2E2'
+                                e.currentTarget.style.borderColor = '#DC2626'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (deletingPartId !== p.id) {
+                                e.currentTarget.style.background = '#FFFFFF'
+                                e.currentTarget.style.borderColor = '#EF4444'
+                              }
+                            }}
+                          >
+                            {deletingPartId === p.id ? 'Đang xóa...' : 'Xóa'}
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -561,38 +602,117 @@ export default function WorkQueueRowExpansion({
           />
         )}
 
-        {editingPartId && isInProgress && (
-          <SelectPartModal
-            onClose={() => setEditingPartId(null)}
-            centerId={centerId}
-            initialQuantity={parts.find(x => x.id === editingPartId)?.quantity}
-            onSelect={async (part, quantity) => {
-              const target = parts.find(x => x.id === editingPartId)
-              if (!target) { setEditingPartId(null); return }
-              try {
-                // update partId và quantity do người dùng chọn
-                const newQty = Math.max(1, Number(quantity || target.quantity))
-                await WorkOrderPartService.update(bookingId, editingPartId, { partId: part.partId, quantity: newQty })
-                // lấy chi tiết phụ tùng mới để cập nhật hiển thị
-                const detail = await PartService.getPartById(part.partId)
-                const raw = (detail?.data || {}) as any
-                const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? target.unitPrice ?? 0
-                setParts(prev => prev.map(x => x.id === editingPartId ? {
-                  ...x,
-                  partId: part.partId,
-                  partNumber: (detail?.data?.partNumber ?? x.partNumber) as any,
-                  partName: (detail?.data?.partName ?? x.partName) as any,
-                  brand: (detail?.data?.brand ?? x.brand) as any,
-                  unitPrice,
-                  quantity: newQty
-                } : x))
-                setEditingPartId(null)
-                toast.success('Đã đổi phụ tùng')
-              } catch (e: any) {
-                toast.error(e?.message || 'Không thể đổi phụ tùng')
-              }
+        {/* Modal thay đổi phụ tùng đã bị vô hiệu hóa - chỉ cho phép xóa phụ tùng có status DRAFT */}
+
+        {/* Modal xác nhận xóa phụ tùng */}
+        {showDeleteConfirm && partToDelete && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              background: 'rgba(0, 0, 0, 0.5)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              zIndex: 2000 
             }}
-          />
+            onClick={() => {
+              setShowDeleteConfirm(false)
+              setPartToDelete(null)
+            }}
+          >
+            <div 
+              style={{
+                background: '#FFFFFF',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '400px',
+                width: '90%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600, color: '#111827' }}>
+                Xác nhận xóa phụ tùng
+              </h3>
+              <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#374151', lineHeight: '1.5' }}>
+                Bạn có chắc chắn muốn xóa phụ tùng <strong>{partToDelete.name}</strong>?
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false)
+                    setPartToDelete(null)
+                  }}
+                  disabled={deletingPartId === partToDelete.id}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid #D1D5DB',
+                    background: '#FFFFFF',
+                    color: '#374151',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: deletingPartId === partToDelete.id ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#F9FAFB'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#FFFFFF'
+                    }
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setDeletingPartId(partToDelete.id)
+                      await WorkOrderPartService.remove(bookingId, partToDelete.id)
+                      setParts(prev => prev.filter(x => x.id !== partToDelete.id))
+                      toast.success('Đã xóa phụ tùng thành công')
+                      setShowDeleteConfirm(false)
+                      setPartToDelete(null)
+                    } catch (e: any) {
+                      console.error('Error deleting part:', e)
+                      toast.error(e?.message || 'Không thể xóa phụ tùng')
+                    } finally {
+                      setDeletingPartId(null)
+                    }
+                  }}
+                  disabled={deletingPartId === partToDelete.id}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: deletingPartId === partToDelete.id ? '#9CA3AF' : '#EF4444',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: deletingPartId === partToDelete.id ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#DC2626'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (deletingPartId !== partToDelete.id) {
+                      e.currentTarget.style.background = '#EF4444'
+                    }
+                  }}
+                >
+                  {deletingPartId === partToDelete.id ? 'Đang xóa...' : 'Xóa'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {showCategoryModal && isInProgress && modalResultId && (
@@ -672,21 +792,21 @@ function SelectPartModal({ onClose, onSelect, centerId, initialQuantity }: Selec
   const [category, setCategory] = useState('')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<Part[]>([])
-  const [selected, setSelected] = useState<Part | null>(null)
-  const [qty, setQty] = useState(initialQuantity ?? 1)
+  const [rowQtyByPartId, setRowQtyByPartId] = useState<Record<number, number>>({})
 
   const load = async () => {
     setLoading(true)
     try {
       const res = await PartService.getPartAvailability({ centerId, searchTerm: search, category: category || undefined, inStock: true, pageSize: 10, pageNumber: 1 })
       const parts = res?.data || []
-      // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl
+      // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl, tồn kho -> totalStock
       setData(parts.map(p => {
         const raw = p as any
         return {
           ...p,
           unitPrice: p.unitPrice ?? raw.Price ?? raw.price ?? 0,
-          imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl
+          imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl,
+          totalStock: p.totalStock ?? raw.totalStock ?? raw.stock ?? raw.availableQuantity ?? raw.inventoryQuantity ?? 0
         }
       }))
     } finally {
@@ -728,12 +848,13 @@ function SelectPartModal({ onClose, onSelect, centerId, initialQuantity }: Selec
               <thead>
                 <tr>
                   <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Ảnh</th>
-                  <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Mã</th>
-                  <th style={{ width: '30%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tên</th>
-                  <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thương hiệu</th>
-                  <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Giá</th>
+                  <th style={{ width: '12%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Mã</th>
+                  <th style={{ width: '28%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tên</th>
+                  <th style={{ width: '12%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thương hiệu</th>
+                  <th style={{ width: '12%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Giá</th>
                   <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tồn kho</th>
-                  <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Chọn</th>
+                  <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Số lượng</th>
+                  <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thêm</th>
                 </tr>
               </thead>
               <tbody>
@@ -770,29 +891,34 @@ function SelectPartModal({ onClose, onSelect, centerId, initialQuantity }: Selec
                       <td style={{ padding: '10px', fontSize: 13 }}>{p.brand}</td>
                       <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{(p.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</td>
                       <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.totalStock}</td>
+                      <td style={{ padding: '10px', textAlign: 'right' }}>
+                        <input
+                          type="number"
+                          min={1}
+                          value={rowQtyByPartId[p.partId] ?? (initialQuantity ?? 1)}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 1 : Math.max(1, Number(e.target.value || 1))
+                            setRowQtyByPartId(prev => ({ ...prev, [p.partId]: val }))
+                          }}
+                          onBlur={(e) => {
+                            if (!e.target.value || Number(e.target.value) < 1) {
+                              setRowQtyByPartId(prev => ({ ...prev, [p.partId]: 1 }))
+                            }
+                          }}
+                          style={{ width: 80, padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, textAlign: 'right', fontSize: 13 }}
+                        />
+                      </td>
                       <td style={{ padding: '10px', textAlign: 'center' }}>
                         <button
-                          onClick={() => setSelected(p)}
-                          style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: selected?.partId === p.partId ? '#111827' : '#FFFFFF', color: selected?.partId === p.partId ? '#FFFFFF' : '#374151', cursor: 'pointer', fontSize: 13 }}
-                        >{selected?.partId === p.partId ? 'Đã chọn' : 'Chọn'}</button>
+                          onClick={() => onSelect(p, rowQtyByPartId[p.partId] ?? (initialQuantity ?? 1))}
+                          style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#111827', color: '#FFFFFF', cursor: 'pointer', fontSize: 13 }}
+                        >Thêm</button>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 13, color: '#374151' }}>Số lượng</label>
-              <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value || 1)))} style={{ width: 100, padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6 }} />
-            </div>
-            <button
-              disabled={!selected}
-              onClick={() => selected && onSelect(selected, qty)}
-              style={{ padding: '8px 14px', border: '1px solid #D1D5DB', borderRadius: 8, background: selected ? '#111827' : '#FFFFFF', color: selected ? '#FFFFFF' : '#9CA3AF', cursor: selected ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 700 }}
-            >Thêm</button>
           </div>
         </div>
       </div>
@@ -812,8 +938,7 @@ interface CategoryPartsModalProps {
 function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm }: CategoryPartsModalProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<Part[]>([])
-  const [selected, setSelected] = useState<Part | null>(null)
-  const [qty, setQty] = useState(1)
+  const [rowQtyByPartId, setRowQtyByPartId] = useState<Record<number, number>>({})
   const [notes, setNotes] = useState('')
   const [selectedParts, setSelectedParts] = useState<Array<{ part: Part; quantity: number }>>([])
   const [submitting, setSubmitting] = useState(false)
@@ -825,26 +950,28 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
       if (categoryId) {
         const res = await PartService.getPartsByCategory(categoryId)
         const parts = res?.data || []
-        // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl
+        // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl, tồn kho -> totalStock
         setData(parts.map(p => {
           const raw = p as any
           return {
             ...p,
             unitPrice: p.unitPrice ?? raw.Price ?? raw.price ?? 0,
-            imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl
+            imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl,
+            totalStock: p.totalStock ?? raw.totalStock ?? raw.stock ?? raw.availableQuantity ?? raw.inventoryQuantity ?? 0
           }
         }))
       } else {
         // Nếu không có categoryId, lấy tất cả phụ tùng có sẵn
         const res = await PartService.getPartAvailability({ centerId, inStock: true, pageSize: 100, pageNumber: 1 })
         const parts = res?.data || []
-        // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl
+        // Map đúng từ database: Price -> unitPrice, ImageUrl -> imageUrl, tồn kho -> totalStock
         setData(parts.map(p => {
           const raw = p as any
           return {
             ...p,
             unitPrice: p.unitPrice ?? raw.Price ?? raw.price ?? 0,
-            imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl
+            imageUrl: p.imageUrl ?? raw.ImageUrl ?? raw.imageUrl,
+            totalStock: p.totalStock ?? raw.totalStock ?? raw.stock ?? raw.availableQuantity ?? raw.inventoryQuantity ?? 0
           }
         }))
       }
@@ -854,25 +981,6 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
   }
 
   React.useEffect(() => { load() }, [categoryId, centerId])
-
-  const handleAddPart = () => {
-    if (!selected) return
-    // Kiểm tra xem phụ tùng đã được thêm chưa
-    const exists = selectedParts.find(sp => sp.part.partId === selected.partId)
-    if (exists) {
-      // Nếu đã có, cập nhật số lượng
-      setSelectedParts(prev => prev.map(sp => 
-        sp.part.partId === selected.partId 
-          ? { ...sp, quantity: sp.quantity + qty }
-          : sp
-      ))
-    } else {
-      // Nếu chưa có, thêm mới
-      setSelectedParts(prev => [...prev, { part: selected, quantity: qty }])
-    }
-    setSelected(null)
-    setQty(1)
-  }
 
   const handleRemovePart = (index: number) => {
     setSelectedParts(prev => prev.filter((_, i) => i !== index))
@@ -904,8 +1012,8 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ width: '900px', maxWidth: '95vw', background: '#FFFFFF', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, paddingTop: '60px', paddingLeft: '250px' }}>
+      <div style={{ width: '1200px', maxWidth: '95vw', background: '#FFFFFF', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 400, color: '#111827' }}>Đánh giá không đạt</h3>
           <button onClick={onClose} style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#FFFFFF', cursor: 'pointer' }}>Đóng</button>
@@ -1006,7 +1114,8 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
                     <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thương hiệu</th>
                     <th style={{ width: '14%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Giá</th>
                     <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Tồn kho</th>
-                    <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Chọn</th>
+                    <th style={{ width: '10%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Số lượng</th>
+                    <th style={{ width: '8%', borderBottom: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, background: '#FFF8E6', fontWeight: 400 }}>Thêm</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1036,43 +1145,44 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
                         <td style={{ padding: '10px', fontSize: 13 }}>{p.brand}</td>
                         <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{(p.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</td>
                         <td style={{ padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.totalStock}</td>
+                        <td style={{ padding: '10px', textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={rowQtyByPartId[p.partId] ?? 1}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 1 : Math.max(1, Number(e.target.value || 1))
+                              setRowQtyByPartId(prev => ({ ...prev, [p.partId]: val }))
+                            }}
+                            onBlur={(e) => {
+                              if (!e.target.value || Number(e.target.value) < 1) {
+                                setRowQtyByPartId(prev => ({ ...prev, [p.partId]: 1 }))
+                              }
+                            }}
+                            style={{ width: 80, padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6, textAlign: 'right', fontSize: 13 }}
+                          />
+                        </td>
                         <td style={{ padding: '10px', textAlign: 'center' }}>
                           <button
-                            onClick={() => setSelected(p)}
-                            style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: selected?.partId === p.partId ? '#111827' : '#FFFFFF', color: selected?.partId === p.partId ? '#FFFFFF' : '#374151', cursor: 'pointer', fontSize: 13 }}
-                          >{selected?.partId === p.partId ? 'Đã chọn' : 'Chọn'}</button>
+                            onClick={() => {
+                              const quantity = rowQtyByPartId[p.partId] ?? 1
+                              // Nếu đã tồn tại thì cộng dồn
+                              setSelectedParts(prev => {
+                                const exists = prev.find(sp => sp.part.partId === p.partId)
+                                if (exists) {
+                                  return prev.map(sp => sp.part.partId === p.partId ? { ...sp, quantity: sp.quantity + quantity } : sp)
+                                }
+                                return [...prev, { part: p, quantity }]
+                              })
+                            }}
+                            style={{ padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, background: '#111827', color: '#FFFFFF', cursor: 'pointer', fontSize: 13 }}
+                          >Thêm</button>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ fontSize: 13, color: '#374151' }}>Số lượng</label>
-                <input 
-                  type="number" 
-                  min={1} 
-                  value={qty} 
-                  onChange={(e) => {
-                    const val = e.target.value === '' ? 1 : Math.max(1, Number(e.target.value || 1))
-                    setQty(val)
-                  }}
-                  onBlur={(e) => {
-                    if (!e.target.value || Number(e.target.value) < 1) {
-                      setQty(1)
-                    }
-                  }}
-                  style={{ width: 100, padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: 6 }} 
-                />
-              </div>
-              <button
-                disabled={!selected}
-                onClick={handleAddPart}
-                style={{ padding: '8px 14px', border: '1px solid #D1D5DB', borderRadius: 8, background: selected ? '#111827' : '#FFFFFF', color: selected ? '#FFFFFF' : '#9CA3AF', cursor: selected ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 700 }}
-              >Thêm vào danh sách</button>
             </div>
           </div>
         </div>

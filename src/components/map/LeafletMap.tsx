@@ -194,7 +194,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         }
 
       } catch (err: any) {
-        console.error('Error loading nearby centers:', err)
+
         setError('Không thể tải danh sách trung tâm gần đây')
       } finally {
         setLoading(false)
@@ -228,10 +228,10 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         const { latitude, longitude } = position.coords
         // Update user location in parent component
         // This would need to be passed as a prop or handled by parent
-        console.log('User location:', { lat: latitude, lng: longitude })
+
       },
       (error) => {
-        console.error('Geolocation error:', error)
+
         setError('Không thể lấy vị trí hiện tại')
       }
     )

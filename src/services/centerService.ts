@@ -71,7 +71,6 @@ export const CenterService = {
   // Get all centers with pagination and filters
   async getCenters(params: CenterListParams = {}): Promise<CenterListResponse> {
     const { data } = await api.get('/center', { params })
-    console.log('getCenters response:', data)
 
     // Handle the response format from your API
     if (data.success && data.data && data.data.centers) {
@@ -94,7 +93,6 @@ export const CenterService = {
   // Get active centers only
   async getActiveCenters(params: CenterListParams = {}): Promise<CenterListResponse> {
     const { data } = await api.get('/center/active', { params })
-    console.log('getActiveCenters response:', data)
 
     // Handle the response format from your API
     if (data.success && data.data && data.data.centers) {
@@ -117,7 +115,6 @@ export const CenterService = {
   // Get center by ID
   async getCenterById(id: number): Promise<Center> {
     const { data } = await api.get(`/center/${id}`)
-    console.log('getCenterById response:', data)
 
     if (data.success && data.data) {
       return data.data
@@ -131,7 +128,6 @@ export const CenterService = {
   // Create new center
   async createCenter(center: CreateCenterRequest): Promise<Center> {
     const { data } = await api.post('/center', center)
-    console.log('createCenter response:', data)
 
     if (data.success && data.data) {
       return data.data
@@ -145,7 +141,6 @@ export const CenterService = {
   // Update center
   async updateCenter(id: number, center: UpdateCenterRequest): Promise<Center> {
     const { data } = await api.put(`/center/${id}`, center)
-    console.log('updateCenter response:', data)
 
     if (data.success && data.data) {
       return data.data

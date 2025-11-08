@@ -66,8 +66,7 @@ const PaymentCancel: React.FC = () => {
         <div className="alert-message">
           <AlertTriangle size={20} />
           <div className="alert-content">
-            <h3>Đặt lịch chưa được xác nhận</h3>
-            <p>Để hoàn tất đặt lịch, bạn cần thanh toán thành công. Vui lòng thử lại.</p>
+            <h3>Thanh toán không thành công</h3>
             {error && (
               <div className="error-details">
                 <p><strong>Chi tiết lỗi:</strong> {decodeURIComponent(error)}</p>
@@ -203,7 +202,7 @@ const PaymentCancel: React.FC = () => {
                   const newId = createResp.data?.orderId ?? createResp.data?.OrderId ?? createResp.data?.id
                   if (newId) {
                     toast.success('Đã tạo đơn hàng mới')
-                    navigate(`/confirm-order/${newId}`, { state: { orderId: Number(newId) } })
+                    navigate('/confirm-order', { state: { orderId: Number(newId) }, replace: true })
                     return
                   }
                 }

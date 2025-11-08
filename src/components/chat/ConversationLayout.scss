@@ -1,0 +1,35 @@
+.conversation-layout {
+  display: flex;
+  width: 100vw;
+  height: calc(100vh - 64px);
+  background: #FFD875;
+  overflow: hidden;
+  position: fixed;
+  top: 64px;
+  left: 0;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in;
+
+  .conversation-sidebar {
+    border-right: 2px solid #FFD875;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+
+    .conversation-sidebar {
+      border-right: none;
+      border-bottom: 2px solid #FFD875;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+

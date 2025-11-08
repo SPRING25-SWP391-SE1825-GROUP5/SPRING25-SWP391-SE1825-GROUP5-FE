@@ -22,23 +22,22 @@ export default function Services() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        console.log('Fetching services and packages...')
-        
+
         // Fetch services
         const servicesResponse = await ServiceManagementService.getActiveServices({
           pageSize: 50
         })
-        console.log('Services response:', servicesResponse)
+
         setServices(servicesResponse.services)
         
         // Fetch service packages
         const packagesResponse = await ServiceManagementService.getActiveServicePackages({
           pageSize: 50
         })
-        console.log('Packages response:', packagesResponse)
+
         setServicePackages(packagesResponse.packages)
       } catch (error) {
-        console.error('Error fetching data:', error)
+
         // Set empty arrays on error to prevent crashes
         setServices([])
         setServicePackages([])

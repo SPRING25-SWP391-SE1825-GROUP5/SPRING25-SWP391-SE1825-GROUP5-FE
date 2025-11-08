@@ -60,7 +60,7 @@ export default function Promotions() {
           setCustomerId(response.data.customerId)
         }
       } catch (error) {
-        console.error('Error loading customerId:', error)
+
       }
     }
 
@@ -87,7 +87,7 @@ export default function Promotions() {
 
             // Validate promotion data
             if (!promo.code || !promo.description) {
-              console.warn('Invalid promotion data:', promo)
+
               return
             }
 
@@ -108,7 +108,7 @@ export default function Promotions() {
           })
         }
       } catch (error) {
-        console.error('Error loading saved promotions:', error)
+
         // Clear saved promotions on error
         dispatch(clearAllSavedPromotions())
       }
@@ -221,7 +221,7 @@ export default function Promotions() {
 
       toast.success('Đã lưu khuyến mãi thành công!')
     } catch (error: any) {
-      console.error('Error saving promotion:', error)
+
       toast.error(error.message || 'Lỗi khi lưu khuyến mãi')
     } finally {
       setSavingPromotion(null)

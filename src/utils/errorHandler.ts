@@ -79,7 +79,6 @@ export const showWarningToast = (message: string) => {
  * Xử lý lỗi API và hiển thị thông báo phù hợp
  */
 export const handleApiError = (error: any) => {
-    console.error('API Error:', error)
 
     // Kiểm tra các loại lỗi cụ thể
     if (error?.code === 'ECONNREFUSED' || error?.message?.includes('ERR_CONNECTION_REFUSED')) {

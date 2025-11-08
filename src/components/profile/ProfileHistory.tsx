@@ -39,7 +39,7 @@ export default function ProfileHistory() {
               currentCustomerId = customerResponse.data.customerId
             }
           } catch (error) {
-            console.error('Error loading customer:', error)
+
             setLoading(false)
             setBookings([])
             return
@@ -235,13 +235,17 @@ export default function ProfileHistory() {
 
   return (
     <div className="profile-v2__section">
-      <div className="profile-v2__card" style={{ padding: 16 }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px'
-        }}>
-          {currentBookings.map((booking) => (
+      <div className="card-header" style={{ padding: '0 0 8px' }}>
+        <h3 className="card-title">Lịch sử đặt lịch</h3>
+      </div>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        padding: '16px 0'
+      }}>
+        {currentBookings.map((booking) => {
+          return (
             <BookingHistoryCard
               key={booking.bookingId}
               booking={booking}
@@ -264,21 +268,10 @@ export default function ProfileHistory() {
               onCancel={handleCancelBooking}
               onPayment={handlePayment}
               isCancelling={cancellingBookingId === booking.bookingId}
-              isProcessingPayment={processingPaymentId === booking.bookingId || loadingBookingDetail}
+              isProcessingPayment={processingPaymentId === booking.bookingId}
             />
-          ))}
-        </div>
-
-        {/* Payment Modal - đặt trong card */}
-        {selectedBookingForPayment && (
-          <PaymentModal
-            bookingId={selectedBookingForPayment.bookingId}
-            totalAmount={selectedBookingForPayment.totalAmount}
-            open={!!selectedBookingForPayment}
-            onClose={handleClosePaymentModal}
-            onPaymentSuccess={handlePaymentSuccess}
-          />
-        )}
+          )
+        })}
       </div>
 
       {/* Pagination */}
@@ -287,7 +280,7 @@ export default function ProfileHistory() {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           marginTop: '24px',
           paddingTop: '24px',
           borderTop: '1px solid #e5e7eb'
@@ -295,104 +288,66 @@ export default function ProfileHistory() {
           <button
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              background: currentPage === 1 ? '#f3f4f6' : '#ffffff',
-              color: currentPage === 1 ? '#9ca3af' : '#374151',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 1) {
-                e.currentTarget.style.borderColor = '#d1d5db'
-                e.currentTarget.style.backgroundColor = '#f9fafb'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== 1) {
-                e.currentTarget.style.borderColor = '#e5e7eb'
-                e.currentTarget.style.backgroundColor = '#ffffff'
-              }
-            }}
+            style={{ padding: '6px 10px', border: '1px solid #f1f5f9', borderRadius: 6 }}
           >
-            Trước
+            ‹
           </button>
 
-          <div style={{
-            display: 'flex',
-            gap: '4px',
-            alignItems: 'center'
-          }}>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                style={{
-                  minWidth: '36px',
-                  height: '36px',
-                  padding: '0 12px',
-                  border: '1px solid',
-                  borderColor: currentPage === page ? '#FFD875' : '#e5e7eb',
-                  borderRadius: '6px',
-                  background: currentPage === page ? '#FFD875' : '#ffffff',
-                  color: currentPage === page ? '#111827' : '#374151',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: currentPage === page ? '600' : '500',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  if (currentPage !== page) {
-                    e.currentTarget.style.borderColor = '#d1d5db'
-                    e.currentTarget.style.backgroundColor = '#f9fafb'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (currentPage !== page) {
-                    e.currentTarget.style.borderColor = '#e5e7eb'
-                    e.currentTarget.style.backgroundColor = '#ffffff'
-                  }
-                }}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
+          {(() => {
+            const pages: (number | '...')[] = []
+            const add = (p: number | '...') => pages.push(p)
+            const window = 1
+            const start = Math.max(1, currentPage - window)
+            const end = Math.min(totalPages, currentPage + window)
+            if (start > 1) { add(1); if (start > 2) add('...') }
+            for (let p = start; p <= end; p++) add(p)
+            if (end < totalPages) { if (end < totalPages - 1) add('...'); add(totalPages) }
+            return (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {pages.map((p, idx) => (
+                  p === '...'
+                    ? <span key={`e-${idx}`} style={{ padding: '0 6px', color: '#9ca3af' }}>…</span>
+                    : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p as number)}
+                        style={{
+                          minWidth: 32,
+                          height: 32,
+                          border: '1px solid',
+                          borderColor: currentPage === p ? '#FFE9A8' : '#f1f5f9',
+                          background: currentPage === p ? '#FFD875' : '#fff',
+                          borderRadius: 6,
+                          fontWeight: 400
+                        }}
+                      >
+                        {p}
+                      </button>
+                    )
+                ))}
+              </div>
+            )
+          })()}
 
           <button
             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              background: currentPage === totalPages ? '#f3f4f6' : '#ffffff',
-              color: currentPage === totalPages ? '#9ca3af' : '#374151',
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== totalPages) {
-                e.currentTarget.style.borderColor = '#d1d5db'
-                e.currentTarget.style.backgroundColor = '#f9fafb'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== totalPages) {
-                e.currentTarget.style.borderColor = '#e5e7eb'
-                e.currentTarget.style.backgroundColor = '#ffffff'
-              }
-            }}
+            style={{ padding: '6px 10px', border: '1px solid #f1f5f9', borderRadius: 6 }}
           >
-            Sau
+            ›
           </button>
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {selectedBookingForPayment && (
+        <PaymentModal
+          bookingId={selectedBookingForPayment.bookingId}
+          totalAmount={selectedBookingForPayment.totalAmount}
+          open={!!selectedBookingForPayment}
+          onClose={handleClosePaymentModal}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
       )}
     </div>
   )

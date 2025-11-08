@@ -39,7 +39,7 @@ export default function CustomersPage() {
       setCustomers(response.data.users)
     } catch (err: any) {
       setError('Không thể tải danh sách khách hàng')
-      console.error('Error loading customers:', err)
+
     } finally {
       setLoading(false)
     }
@@ -54,7 +54,7 @@ export default function CustomersPage() {
       setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
       setError('Không thể cập nhật trạng thái khách hàng')
-      console.error('Error toggling customer status:', err)
+
     }
   }
 
@@ -308,7 +308,7 @@ export default function CustomersPage() {
               ) : (
                 filteredCustomers.map((customer, i) => (
                   <tr
-                    key={customer.id}
+                    key={customer.id || `customer-${i}`}
                     style={{
                       borderBottom: i < filteredCustomers.length - 1 ? '1px solid var(--border-primary)' : 'none',
                       background: 'var(--bg-card)',

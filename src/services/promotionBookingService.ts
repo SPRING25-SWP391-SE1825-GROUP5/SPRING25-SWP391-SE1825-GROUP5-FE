@@ -207,7 +207,7 @@ export const PromotionBookingService = {
 
             return data
         } catch (error: any) {
-            console.error('Error unsaving customer promotion:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi xóa mã khuyến mãi đã lưu')
         }
     }

@@ -31,11 +31,10 @@ export default function ServiceDetailModal({ isOpen, onClose, service, onBookSer
     setLoadingChecklist(true)
     setError(null)
     try {
-      console.log('Fetching checklist templates with items for service:', serviceId)
+
       // Sử dụng method mới để lấy templates kèm items (parts)
       const templates = await ServiceChecklistTemplateService.getTemplatesByServiceWithItems(serviceId, true)
-      console.log('Received templates with items:', templates)
-      
+
       // Nếu không có templates, không hiển thị error - chỉ hiển thị empty state
       setChecklistTemplates(templates || [])
       
@@ -44,13 +43,7 @@ export default function ServiceDetailModal({ isOpen, onClose, service, onBookSer
         setError('Không thể tải danh sách checklist. Vui lòng thử lại sau.')
       }
     } catch (err: any) {
-      console.error('Error fetching checklist templates:', {
-        error: err,
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status
-      })
-      
+
       // Nếu là 404 hoặc service không có checklist, không hiển thị error
       if (err.response?.status === 404) {
         setChecklistTemplates([])

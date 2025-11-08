@@ -25,7 +25,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Get messages for current conversation
   const conversationMessages = conversation ? (messages[conversation.id] || []) : []
 
@@ -52,13 +52,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     try {
       setSending(true)
       const message = await ChatService.sendMessage({ conversationId: conversation.id, content: newMessage.trim() })
-      dispatch(addMessage({ conversationId: conversation.id, message }))
+      const currentUserId = currentUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
+      dispatch(addMessage({ conversationId: conversation.id, message, currentUserId }))
       setNewMessage('')
-      
+
       // Mark as read
-      await ChatService.markAsRead(conversation.id, [message.id])
+      await ChatService.markAsRead(conversation.id)
     } catch (error) {
-      console.error('Error sending message:', error)
+
     } finally {
       setSending(false)
     }
@@ -75,7 +76,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     const files = e.target.files
     if (files && files.length > 0 && conversation) {
       // Handle file upload
-      console.log('Files to upload:', files)
+
     }
   }
 
@@ -85,10 +86,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
   const formatMessageTime = (timestamp: string) => {
     const date = new Date(timestamp)
-    return date.toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     })
   }
 
@@ -97,11 +98,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
-    
+
     const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
     const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const yesterdayDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
-    
+
     if (messageDate.getTime() === todayDate.getTime()) {
       return 'Hôm nay'
     } else if (messageDate.getTime() === yesterdayDate.getTime()) {
@@ -117,13 +118,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
   const shouldShowDateSeparator = (currentMessage: ChatMessage, previousMessage: ChatMessage | null) => {
     if (!previousMessage) return true
-    
+
     const currentDate = new Date(currentMessage.timestamp)
     const previousDate = new Date(previousMessage.timestamp)
-    
+
     const currentDateOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())
     const previousDateOnly = new Date(previousDate.getFullYear(), previousDate.getMonth(), previousDate.getDate())
-    
+
     return currentDateOnly.getTime() !== previousDateOnly.getTime()
   }
 
@@ -138,7 +139,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     const isCurrentUser = String(message.senderId) === String(currentUser.id)
     const isLink = message.type === 'link' && message.content.includes('http')
     const senderDisplayName = message.senderName || (isCurrentUser ? currentUser.name : getOtherParticipant()?.name || 'Người dùng')
-    
+
     // Logic: tin nhắn có senderId '1' (user) hiển thị bên phải, còn lại bên trái
     const isUserMessage = message.senderId === '1'
 
@@ -190,8 +191,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     <div className="chat-area">
       <div className="chat-area__header">
         <div className="participant-info">
-          <img 
-            src={otherParticipant?.avatar || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='} 
+          <img
+            src={otherParticipant?.avatar || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='}
             alt={otherParticipant?.name}
             className="participant-avatar"
             onError={(e) => {
@@ -203,8 +204,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             <h3>{otherParticipant?.name}</h3>
             <div className="participant-info">
               <span className="participant-role">
-                {otherParticipant?.role === 'technician' ? 'Kỹ thuật viên' : 
-                 otherParticipant?.role === 'staff' ? 'Nhân viên' : 
+                {otherParticipant?.role === 'technician' ? 'Kỹ thuật viên' :
+                 otherParticipant?.role === 'staff' ? 'Nhân viên' :
                  otherParticipant?.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'}
               </span>
               <span className="participant-status">
@@ -213,7 +214,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           </div>
         </div>
-        
+
         <div className="chat-actions">
           <button className="action-btn" title="Gọi điện">
             <Phone size={20} />
@@ -244,7 +245,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             {conversationMessages.map((message, index) => {
               const previousMessage = index > 0 ? conversationMessages[index - 1] : null
               const showDateSeparator = shouldShowDateSeparator(message, previousMessage)
-              
+
               return (
                 <React.Fragment key={message.id}>
                   {showDateSeparator && (
@@ -265,14 +266,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       <div className="chat-area__input">
         <div className="input-container">
-          <button 
+          <button
             className="attachment-btn"
             onClick={() => fileInputRef.current?.click()}
             title="Đính kèm file"
           >
             <Paperclip size={20} />
           </button>
-          
+
           <div className="message-input">
             <textarea
               ref={textareaRef}
@@ -284,15 +285,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               disabled={sending}
             />
           </div>
-          
-          <button 
+
+          <button
             className="emoji-btn"
             title="Biểu tượng cảm xúc"
           >
             <Smile size={20} />
           </button>
-          
-          <button 
+
+          <button
             className="send-btn"
             onClick={handleSendMessage}
             disabled={!newMessage.trim() || sending}
@@ -301,7 +302,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             <Send size={20} />
           </button>
         </div>
-        
+
         <input
           ref={fileInputRef}
           type="file"

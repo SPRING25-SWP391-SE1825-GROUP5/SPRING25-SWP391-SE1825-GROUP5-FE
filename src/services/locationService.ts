@@ -85,7 +85,7 @@ export class LocationService {
 
             return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
         } catch (error) {
-            console.warn('Reverse geocoding failed:', error)
+
             return `${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
         }
     }
@@ -117,7 +117,7 @@ export class LocationService {
                 formattedAddress: item.display_name
             }))
         } catch (error) {
-            console.warn('Address search failed:', error)
+
             return []
         }
     }
@@ -141,7 +141,7 @@ export class LocationService {
             const nearbyCenters = await CenterService.getNearbyCenters(params)
             return nearbyCenters || []
         } catch (error) {
-            console.warn('Failed to get nearby centers:', error)
+
             return []
         }
     }
@@ -176,7 +176,7 @@ export class LocationService {
                 selectedCenter: nearbyCenters.length > 0 ? nearbyCenters[0] : undefined
             }
         } catch (error) {
-            console.warn('Failed to find nearby centers by address:', error)
+
             return null
         }
     }
@@ -225,7 +225,7 @@ export class LocationService {
                 selectedCenter: nearbyCenters.length > 0 ? nearbyCenters[0] : undefined
             }
         } catch (error) {
-            console.warn('Failed to get current location with nearby centers:', error)
+
             return null
         }
     }

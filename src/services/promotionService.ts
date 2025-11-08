@@ -86,7 +86,7 @@ export const PromotionService = {
                 pageSize: data.data?.pageSize || (filters.pageSize ?? 10)
             }
         } catch (error: any) {
-            console.error('Get promotions error:', error)
+
             return {
                 data: [],
                 totalCount: 0,
@@ -110,6 +110,30 @@ export const PromotionService = {
       return data
     } catch (error) {
       throw error
+    }
+  },
+  async getAvailablePromotions(): Promise<{ success: boolean; message?: string; data?: AdminPromotion[] }> {
+    try {
+      const { data } = await api.get<BackendPromotionResponse>('/Promotion/promotions')
+      // Map backend promotions to frontend format
+      if (data.success && data.data?.promotions) {
+        const mappedPromotions = data.data.promotions.map(mapBackendToFrontend)
+        return {
+          success: true,
+          data: mappedPromotions
+        }
+      }
+      return {
+        success: true,
+        data: []
+      }
+    } catch (error: any) {
+      console.error('Get promotions error:', error)
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Lỗi khi lấy danh sách promotion',
+        data: []
+      }
     }
   },
   async validatePublic(code: string, orderAmount: number, orderType: 'ORDER' | 'BOOKING' = 'ORDER'): Promise<{ success: boolean; message?: string; data?: { isValid?: boolean; message?: string; discountAmount?: number } }> {
@@ -147,7 +171,6 @@ export const PromotionService = {
                 }
             }
         } catch (error: any) {
-            console.error('Get active promotions error:', error)
 
             return {
                 data: [],
@@ -164,7 +187,6 @@ export const PromotionService = {
             const { data } = await api.get<PromotionResponse>(`/promotion/${id}`)
             return data
         } catch (error: any) {
-            console.error('Get promotion by ID error:', error)
 
             return {
                 data: [],
@@ -214,7 +236,7 @@ export const PromotionService = {
             })
             return response.data
         } catch (error: any) {
-            console.error('Export promotions error:', error)
+
             throw error
         }
     }

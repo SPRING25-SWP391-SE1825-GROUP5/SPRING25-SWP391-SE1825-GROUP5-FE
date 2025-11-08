@@ -145,7 +145,7 @@ export default function ServicesManagement() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setError('Không thể tải danh sách dịch vụ: ' + msg)
-      console.error('Lỗi khi tải dịch vụ:', err)
+
     } finally {
       setLoading(false)
     }
@@ -160,7 +160,7 @@ export default function ServicesManagement() {
       const detail = await ServiceManagementService.getServiceById(id)
       setSelectedService(detail)
     } catch (err: unknown) {
-      console.error('Lỗi khi tải chi tiết dịch vụ:', err)
+
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setServiceDetailError('Không thể tải chi tiết dịch vụ: ' + msg)
     } finally {
@@ -221,7 +221,7 @@ export default function ServicesManagement() {
       try {
         await fetchServices()
       } catch (err) {
-        console.error('Lỗi khi tải dữ liệu dịch vụ:', err)
+
         setError('Không thể tải dữ liệu dịch vụ')
       }
     }
@@ -248,7 +248,7 @@ export default function ServicesManagement() {
       a.remove()
       URL.revokeObjectURL(url)
     } catch (err) {
-      console.error('Lỗi xuất danh sách dịch vụ:', err)
+
       window.alert('Không thể xuất danh sách dịch vụ. Vui lòng thử lại!')
     } finally {
       setExporting(false)

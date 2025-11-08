@@ -132,7 +132,6 @@ export const AuthService = {
       )
       return data
     } catch (error: any) {
-      console.error('Register error:', error)
 
       // Extract errors from response
       const response = error?.response?.data
@@ -192,7 +191,6 @@ export const AuthService = {
         },
       }
     } catch (error: any) {
-      console.error('Login error:', error)
 
       // Return user-friendly error message
       return {
@@ -238,7 +236,7 @@ export const AuthService = {
         },
       }
     } catch (error: any) {
-      console.error('Google login error:', error)
+
       return {
         success: false,
         message: error?.userMessage || error?.message || 'Đăng nhập Google thất bại. Vui lòng thử lại.',
@@ -345,7 +343,7 @@ export const AuthService = {
         message: data.message
       }
     } catch (error: any) {
-      console.error('Check email error:', error)
+
       return {
         success: false,
         exists: false,
@@ -363,7 +361,7 @@ export const AuthService = {
         message: data.message
       }
     } catch (error: any) {
-      console.error('Check phone error:', error)
+
       return {
         success: false,
         exists: false,
@@ -395,7 +393,7 @@ export class GoogleAuthService {
 
     // Check if client ID is available
     if (!this.clientId) {
-      console.error('Google Client ID is not configured')
+
       return false
     }
 
@@ -422,14 +420,14 @@ export class GoogleAuthService {
             this.initialized = true
             resolve(true)
           } catch (error) {
-            console.error('Failed to initialize Google Identity Services:', error)
+
             resolve(false)
           }
         } else {
           if (attempts < maxAttempts) {
             setTimeout(tryInit, retryDelay)
           } else {
-            console.error('Google Identity Services script not loaded after maximum attempts')
+
             resolve(false)
           }
         }
@@ -439,7 +437,7 @@ export class GoogleAuthService {
 
       setTimeout(() => {
         if (!this.initialized) {
-          console.error('Google Identity Services initialization timeout')
+
           resolve(false)
         }
       }, 20000)
@@ -448,7 +446,7 @@ export class GoogleAuthService {
 
   renderButton(element: HTMLElement): boolean {
     if (!this.initialized || !window.google?.accounts?.id) {
-      console.error('Cannot render Google button: not initialized or script not loaded')
+
       return false
     }
 
@@ -464,7 +462,7 @@ export class GoogleAuthService {
       })
       return true
     } catch (error) {
-      console.error('Failed to render Google button:', error)
+
       this.showFallbackButton()
       return false
     }
@@ -472,7 +470,7 @@ export class GoogleAuthService {
 
   async prompt(): Promise<boolean> {
     if (!this.initialized || !window.google?.accounts?.id) {
-      console.error('Google Identity Services not initialized or not available')
+
       return false
     }
 
@@ -492,7 +490,7 @@ export class GoogleAuthService {
           }
         })
       } catch (error) {
-        console.error('Error showing Google prompt:', error)
+
         resolve(false)
       }
     })
@@ -518,7 +516,7 @@ export class GoogleAuthService {
         })
       }
     } catch (error) {
-      console.error('Error resetting Google consent:', error)
+
     }
   }
 
@@ -550,7 +548,7 @@ export class GoogleAuthService {
       const url = this.getGoogleAuthUrl(redirect)
       window.location.href = url
     } catch (error) {
-      console.error('Failed to redirect to Google Auth:', error)
+
     }
   }
 }

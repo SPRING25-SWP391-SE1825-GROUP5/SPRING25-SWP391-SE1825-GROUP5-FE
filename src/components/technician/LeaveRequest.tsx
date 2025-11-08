@@ -43,7 +43,7 @@ export default function LeaveRequest() {
       status: 'approved',
       submittedAt: '2024-01-20 09:30',
       reviewedAt: '2024-01-20 14:15',
-      reviewedBy: 'Nguyễn Văn Quản Lý'
+      reviewedBy: ''
     },
     {
       id: 2,
@@ -65,7 +65,7 @@ export default function LeaveRequest() {
       status: 'rejected',
       submittedAt: '2024-01-15 11:20',
       reviewedAt: '2024-01-16 10:30',
-      reviewedBy: 'Trần Thị Quản Lý',
+      reviewedBy: '',
       rejectReason: 'Thời gian này đã có nhiều nhân viên nghỉ phép'
     }
   ])
@@ -187,7 +187,7 @@ export default function LeaveRequest() {
       <div className="leave-request__stats">
         {stats.map((stat, index) => (
           <div key={index} className="leave-request__stats__card">
-            <div 
+            <div
               className="leave-request__stats__card__value"
               style={{ color: stat.color }}
             >
@@ -217,7 +217,7 @@ export default function LeaveRequest() {
               </div>
 
               <div className="leave-request__list__item__header__right">
-                <span 
+                <span
                   className="leave-request__list__item__header__right__status"
                   style={{ backgroundColor: getStatusColor(request.status), color: 'white' }}
                 >
@@ -304,7 +304,7 @@ export default function LeaveRequest() {
               <h2 className="leave-request__modal__content__header__title">
                 Tạo yêu cầu nghỉ phép mới
               </h2>
-              <button 
+              <button
                 className="leave-request__modal__content__header__close"
                 onClick={() => setShowNewRequestModal(false)}
               >
@@ -317,7 +317,7 @@ export default function LeaveRequest() {
                 <label className="leave-request__modal__content__body__field__label">
                   Loại nghỉ phép
                 </label>
-                <select 
+                <select
                   className="leave-request__modal__content__body__field__select"
                   value={newRequest.type}
                   onChange={(e) => setNewRequest({ ...newRequest, type: e.target.value })}
@@ -334,7 +334,7 @@ export default function LeaveRequest() {
                   <label className="leave-request__modal__content__body__field__label">
                     Ngày bắt đầu
                   </label>
-                  <input 
+                  <input
                     className="leave-request__modal__content__body__field__input"
                     type="date"
                     value={newRequest.startDate}
@@ -346,7 +346,7 @@ export default function LeaveRequest() {
                   <label className="leave-request__modal__content__body__field__label">
                     Ngày kết thúc
                   </label>
-                  <input 
+                  <input
                     className="leave-request__modal__content__body__field__input"
                     type="date"
                     value={newRequest.endDate}
@@ -359,7 +359,7 @@ export default function LeaveRequest() {
                 <label className="leave-request__modal__content__body__field__label">
                   Lý do nghỉ phép
                 </label>
-                <textarea 
+                <textarea
                   className="leave-request__modal__content__body__field__textarea"
                   value={newRequest.reason}
                   onChange={(e) => setNewRequest({ ...newRequest, reason: e.target.value })}
@@ -376,13 +376,13 @@ export default function LeaveRequest() {
             </div>
 
             <div className="leave-request__modal__content__actions">
-              <button 
+              <button
                 className="leave-request__modal__content__actions__button leave-request__modal__content__actions__button--secondary"
                 onClick={() => setShowNewRequestModal(false)}
               >
                 Hủy
               </button>
-              <button 
+              <button
                 className="leave-request__modal__content__actions__button leave-request__modal__content__actions__button--primary"
                 onClick={handleSubmitRequest}
               >

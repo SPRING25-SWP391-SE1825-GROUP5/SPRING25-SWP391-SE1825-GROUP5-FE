@@ -42,28 +42,28 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
   const generateDates = () => {
     const dates = []
     const today = new Date()
-    
+
     // Get today's date in local timezone (avoid UTC issues)
     const todayYear = today.getFullYear()
     const todayMonth = today.getMonth()
     const todayDate = today.getDate()
-    
+
     // Generate next 14 days from today
     for (let i = 0; i < 14; i++) {
       const date = new Date(todayYear, todayMonth, todayDate + i)
-      
+
       // Format date as YYYY-MM-DD in local timezone
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const day = String(date.getDate()).padStart(2, '0')
       const dateString = `${year}-${month}-${day}`
-      
+
       dates.push({
         value: dateString,
-        label: date.toLocaleDateString('vi-VN', { 
-          weekday: 'short', 
-          day: 'numeric', 
-          month: 'short' 
+        label: date.toLocaleDateString('vi-VN', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short'
         }),
         isToday: i === 0,
         isPast: false
@@ -73,7 +73,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
   }
 
   const dates = generateDates()
-  
+
   // Debug: Log generated dates
 
   // Generate time slots from 8:00 to 17:00 with 30-minute intervals
@@ -84,19 +84,19 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
     const isToday = selectedDate === today.toISOString().split('T')[0]
     const currentHour = today.getHours()
     const currentMinute = today.getMinutes()
-    
+
     for (let hour = 8; hour < 17; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
         const endHour = minute === 30 ? hour + 1 : hour
         const endMinute = minute === 30 ? 0 : 30
         const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
-        
+
         // Skip if end time is after 17:00
         if (endHour > 17 || (endHour === 17 && endMinute > 0)) {
           break
         }
-        
+
         // Check if this time slot is in the past (only for today)
         let isPast = false
         if (isToday) {
@@ -104,7 +104,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
           const currentTime = currentHour * 60 + currentMinute
           isPast = slotTime <= currentTime
         }
-        
+
         timeSlots.push({
           slotId: id++,
           slotTime: `${startTime} - ${endTime}`,
@@ -113,7 +113,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
         })
       }
     }
-    
+
     return timeSlots
   }
 
@@ -125,10 +125,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
         try {
           // Import PublicBookingService for unauthenticated access
           const { PublicBookingService } = await import('@/services/publicBookingService')
-          
+
           // Get availability data from public API
           const availabilityResponse = await PublicBookingService.getAvailableTimeSlots(selectedCenter.centerId, selectedDate)
-          
+
           // Convert to TimeSlotAvailability format - chỉ hiển thị timeslot available
           const timeSlots = availabilityResponse.data.timeSlots
             .filter(slot => slot.isAvailable && !slot.isBooked) // Chỉ lấy timeslot available
@@ -138,13 +138,13 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
               isAvailable: true, // Đã filter ở trên nên luôn true
               isPast: false // Will be calculated below
             }))
-          
+
           // Mark past slots as unavailable
           const today = new Date()
           const isToday = selectedDate === today.toISOString().split('T')[0]
           const currentHour = today.getHours()
           const currentMinute = today.getMinutes()
-          
+
           const processedTimeSlots = timeSlots.map(slot => {
             if (isToday) {
               const [startTime] = slot.slotTime.split(' - ')
@@ -152,7 +152,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
               const slotTime = hour * 60 + minute
               const currentTime = currentHour * 60 + currentMinute
               const isPast = slotTime <= currentTime
-              
+
               return {
                 ...slot,
                 isAvailable: !isPast, // Chỉ available nếu không phải quá khứ
@@ -161,7 +161,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
             }
             return slot
           })
-          
+
           // Get technicians for the center
           const { TechnicianService } = await import('@/services/technicianService')
           const techniciansResponse = await TechnicianService.list({ centerId: selectedCenter.centerId, pageSize: 100 })
@@ -171,7 +171,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
             specialization: tech.specialization || 'Kỹ thuật viên',
             available: true
           }))
-          
+
           setAvailability({
             timeSlots: processedTimeSlots,
             technicians
@@ -186,13 +186,13 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
               isAvailable: true, // Mark as available since we can't check booking status without auth
               isPast: false
             }))
-            
+
             setAvailability({
               timeSlots,
               technicians: [
-                { id: 1, name: 'Nguyễn Văn A', specialization: 'Động cơ điện', available: true },
-                { id: 2, name: 'Trần Thị B', specialization: 'Pin và sạc', available: true },
-                { id: 3, name: 'Lê Văn C', specialization: 'Hệ thống điện', available: false },
+                { id: 1, name: '', specialization: 'Động cơ điện', available: true },
+                { id: 2, name: '', specialization: 'Pin và sạc', available: true },
+                { id: 3, name: '', specialization: 'Hệ thống điện', available: false },
               ]
             })
           } catch (fallbackError) {
@@ -212,37 +212,37 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
 
   return (
     <div className="booking-step">
-      <h2 style={{ 
-        textAlign: 'center', 
-        fontSize: '1.5rem', 
-        fontWeight: '700', 
-        color: '#1e293b', 
-        marginBottom: '2rem' 
+      <h2 style={{
+        textAlign: 'center',
+        fontSize: '1.5rem',
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: '2rem'
       }}>
         Chọn thời gian và kỹ thuật viên
       </h2>
-      
+
       {loading && (
         <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
           <Clock size={24} style={{ marginBottom: '0.5rem' }} />
           <div>Đang tải thông tin...</div>
         </div>
       )}
-      
+
       {error && (
         <div style={{ textAlign: 'center', padding: '2rem', color: '#dc2626' }}>
           {error}
         </div>
       )}
-      
+
       {!loading && !error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Center Selection */}
           <div>
-            <h3 style={{ 
-              fontSize: '1.1rem', 
-              fontWeight: '600', 
-              color: '#1e293b', 
+            <h3 style={{
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              color: '#1e293b',
               marginBottom: '1rem',
               display: 'flex',
               alignItems: 'center',
@@ -251,14 +251,14 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
               <MapPin size={18} color="#10b981" />
               Chọn trung tâm
             </h3>
-            
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-              gap: '0.75rem' 
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '0.75rem'
             }}>
               {Array.isArray(centers) && centers.map((center) => (
-                <div 
+                <div
                   key={center.centerId}
                   style={{
                     background: selectedCenter?.centerId === center.centerId ? '#f0fdf4' : '#fff',
@@ -270,18 +270,18 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                   }}
                   onClick={() => onSelectCenter(center)}
                 >
-                  <h4 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: '600', 
-                    color: '#1e293b', 
-                    marginBottom: '0.5rem' 
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    color: '#1e293b',
+                    marginBottom: '0.5rem'
                   }}>
                     {center.centerName}
                   </h4>
-                  <p style={{ 
-                    fontSize: '0.85rem', 
-                    color: '#64748b', 
-                    margin: 0 
+                  <p style={{
+                    fontSize: '0.85rem',
+                    color: '#64748b',
+                    margin: 0
                   }}>
                     {center.address}
                   </p>
@@ -293,10 +293,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
           {/* Date Selection */}
           {selectedCenter && (
             <div>
-              <h3 style={{ 
-                fontSize: '1.1rem', 
-                fontWeight: '600', 
-                color: '#1e293b', 
+              <h3 style={{
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                color: '#1e293b',
                 marginBottom: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -305,10 +305,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                 <Calendar size={18} color="#10b981" />
                 Chọn ngày
               </h3>
-              
-              <div style={{ 
-                display: 'flex', 
-                gap: '0.5rem', 
+
+              <div style={{
+                display: 'flex',
+                gap: '0.5rem',
                 overflowX: 'auto',
                 paddingBottom: '0.5rem'
               }}>
@@ -339,8 +339,8 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                       {date.label.split(' ').slice(1).join(' ')}
                     </div>
                     {date.isToday && (
-                      <div style={{ 
-                        fontSize: '0.7rem', 
+                      <div style={{
+                        fontSize: '0.7rem',
                         opacity: 0.8,
                         marginTop: '0.25rem'
                       }}>
@@ -356,10 +356,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
           {/* Time Slot Selection */}
           {selectedCenter && selectedDate && (
             <div>
-              <h3 style={{ 
-                fontSize: '1.1rem', 
-                fontWeight: '600', 
-                color: '#1e293b', 
+              <h3 style={{
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                color: '#1e293b',
                 marginBottom: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -368,16 +368,16 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                 <Clock size={18} color="#10b981" />
                 Chọn giờ
               </h3>
-              
+
               {availabilityLoading ? (
                 <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>
                   Đang tải khung giờ...
                 </div>
               ) : (
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-                  gap: '0.5rem' 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                  gap: '0.5rem'
                 }}>
                   {Array.isArray(availability?.timeSlots) && availability?.timeSlots.map((slot) => (
                     <button
@@ -385,11 +385,11 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                       onClick={() => slot.isAvailable && onSelectTimeSlot(slot)}
                       disabled={!slot.isAvailable}
                       style={{
-                        background: selectedTimeSlot?.slotId === slot.slotId ? '#10b981' : 
+                        background: selectedTimeSlot?.slotId === slot.slotId ? '#10b981' :
                                    slot.isAvailable ? '#f3f4f6' : '#f9fafb',
-                        color: selectedTimeSlot?.slotId === slot.slotId ? '#fff' : 
+                        color: selectedTimeSlot?.slotId === slot.slotId ? '#fff' :
                                slot.isAvailable ? '#374151' : '#9ca3af',
-                        border: `2px solid ${selectedTimeSlot?.slotId === slot.slotId ? '#10b981' : 
+                        border: `2px solid ${selectedTimeSlot?.slotId === slot.slotId ? '#10b981' :
                                          slot.isAvailable ? '#e5e7eb' : '#f3f4f6'}`,
                         borderRadius: '8px',
                         padding: '0.75rem',
@@ -419,10 +419,10 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
           {/* Technician Selection */}
           {selectedCenter && selectedDate && selectedTimeSlot && (
             <div>
-              <h3 style={{ 
-                fontSize: '1.1rem', 
-                fontWeight: '600', 
-                color: '#1e293b', 
+              <h3 style={{
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                color: '#1e293b',
                 marginBottom: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -431,18 +431,18 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                 <User size={18} color="#10b981" />
                 Chọn kỹ thuật viên
               </h3>
-              
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: '0.75rem' 
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '0.75rem'
               }}>
                 {Array.isArray(availability?.technicians) && availability?.technicians.map((technician) => (
-                  <div 
+                  <div
                     key={technician.id}
                     style={{
                       background: selectedTechnician?.id === technician.id ? '#f0fdf4' : '#fff',
-                      border: `2px solid ${selectedTechnician?.id === technician.id ? '#10b981' : 
+                      border: `2px solid ${selectedTechnician?.id === technician.id ? '#10b981' :
                                          technician.available ? '#e5e7eb' : '#f3f4f6'}`,
                       borderRadius: '8px',
                       padding: '1rem',
@@ -452,24 +452,24 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
                     }}
                     onClick={() => technician.available && onSelectTechnician(technician)}
                   >
-                    <h4 style={{ 
-                      fontSize: '1rem', 
-                      fontWeight: '600', 
-                      color: '#1e293b', 
-                      marginBottom: '0.5rem' 
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: '#1e293b',
+                      marginBottom: '0.5rem'
                     }}>
                       {technician.name}
                     </h4>
-                    <p style={{ 
-                      fontSize: '0.85rem', 
-                      color: '#64748b', 
-                      margin: 0 
+                    <p style={{
+                      fontSize: '0.85rem',
+                      color: '#64748b',
+                      margin: 0
                     }}>
                       {technician.specialization}
                     </p>
                     {!technician.available && (
-                      <div style={{ 
-                        fontSize: '0.8rem', 
+                      <div style={{
+                        fontSize: '0.8rem',
                         color: '#ef4444',
                         marginTop: '0.5rem',
                         fontWeight: '500'
@@ -484,13 +484,13 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
           )}
         </div>
       )}
-      
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        marginTop: '2rem' 
+
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: '2rem'
       }}>
-        <button 
+        <button
           onClick={onPrev}
           style={{
             background: '#f3f4f6',
@@ -505,7 +505,7 @@ const TimeSelection: React.FC<TimeSelectionProps> = ({
         >
           Quay lại
         </button>
-        <button 
+        <button
           onClick={onNext}
           disabled={!isStepValid}
           style={{

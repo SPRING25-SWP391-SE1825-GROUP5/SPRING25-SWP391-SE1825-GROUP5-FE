@@ -40,7 +40,7 @@ export default function WorkScheduleCalendar({
   const loadWorkSchedule = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       // Check if user is available
       if (!user?.id) {
@@ -50,39 +50,24 @@ export default function WorkScheduleCalendar({
       }
 
       // Step 1: Resolve technicianId from userId
-      console.log('🔍 Resolving technicianId for userId:', user.id)
-      
+
       const technicianInfo = await TechnicianService.getTechnicianIdByUserId(user.id)
-      
-      console.log('👤 Resolved technician info:', technicianInfo)
-      
+
       const technicianId = technicianInfo.data?.technicianId
       const centerId = technicianInfo.data?.centerId
-      
-      console.log('📋 Using resolved IDs:', { 
-        technicianId,
-        centerId,
-        technicianName: technicianInfo.data?.technicianName
-      })
-      
+
       // Update state with resolved IDs
       setTechnicianId(technicianId)
       setCenterId(centerId)
-      
+
       // Step 2: Get work schedule using the resolved technicianId and centerId
-      console.log('🔍 Getting work schedule with resolved IDs:', { 
-        technicianId,
-        centerId
-      })
-      
+
       const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, centerId)
-      
-      console.log('📡 Work schedule response:', scheduleResponse)
 
       if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
         // Process work dates and create a Set of unique work days
         const workDaysSet = new Set<string>()
-        
+
         scheduleResponse.data.forEach((slot: TechnicianTimeSlotData) => {
           // Normalize workDate to get only the date part (YYYY-MM-DD)
           const workDate = new Date(slot.workDate)
@@ -90,15 +75,14 @@ export default function WorkScheduleCalendar({
           workDaysSet.add(normalizedDate)
         })
 
-        console.log('✅ Work days loaded:', Array.from(workDaysSet))
         setWorkDays(workDaysSet)
         setTimeSlots(scheduleResponse.data)
       } else {
-        console.log('⚠️ No work schedule data found for this technician and center')
+
         setWorkDays(new Set())
       }
     } catch (error: any) {
-      console.error('❌ Error loading work schedule:', error)
+
       setError(error.message || 'Không thể tải lịch làm việc')
       setWorkDays(new Set())
     } finally {
@@ -176,20 +160,20 @@ export default function WorkScheduleCalendar({
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    
+
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - firstDay.getDay())
-    
+
     const days = []
     const currentDay = new Date(startDate)
-    
+
     for (let i = 0; i < 42; i++) {
       days.push(new Date(currentDay))
       currentDay.setDate(currentDay.getDate() + 1)
     }
-    
+
     return days
   }
 
