@@ -32,18 +32,31 @@ const PromotionSelector: React.FC<PromotionSelectorProps> = ({
   const [success, setSuccess] = useState<string | null>(null)
   const [availablePromotions, setAvailablePromotions] = useState<Promotion[]>([])
 
-  // Load available promotions
+  // Load available promotions từ API /Promotion/promotions
   useEffect(() => {
     const loadPromotions = async () => {
       try {
-        const response = await PromotionService.getActivePromotions()
-        setAvailablePromotions(response.data || [])
+        // Lấy promotions từ API /Promotion/promotions
+        const promotionsResponse = await PromotionService.getAvailablePromotions()
+        if (promotionsResponse.success && promotionsResponse.data && promotionsResponse.data.length > 0) {
+          // Lọc chỉ lấy promotions active và phù hợp với orderAmount
+          const filtered = (promotionsResponse.data || []).filter((p: Promotion) => {
+            const isActive = p.isActive && !p.isExpired && !p.isUsageLimitReached
+            const meetsMinOrder = !p.minOrderAmount || p.minOrderAmount <= orderAmount
+            return isActive && meetsMinOrder
+          })
+          setAvailablePromotions(filtered)
+        } else {
+          setAvailablePromotions([])
+        }
       } catch (error) {
         // Silently handle error
+        console.error('Error loading promotions:', error)
+        setAvailablePromotions([])
       }
     }
     loadPromotions()
-  }, [])
+  }, [orderAmount])
 
   const validatePromotion = async (code: string): Promise<PromotionValidationResponse> => {
     const payload = {

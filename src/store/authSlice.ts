@@ -194,6 +194,8 @@ const slice = createSlice({
             role: data.user.role ?? 'customer',
             emailVerified: Boolean(data.user.emailVerified ?? false),
             avatar: data.user.avatar ?? data.user.avatarUrl ?? null,
+            centerId: data.user.centerId ?? data.centerId ?? null,
+            centerName: data.user.centerName ?? data.centerName ?? null,
           } : null
 
           state.token = token
@@ -230,6 +232,8 @@ const slice = createSlice({
           role: data.user.role ?? 'customer',
           emailVerified: Boolean(data.user.emailVerified ?? false),
           avatar: data.user.avatar ?? data.user.avatarUrl ?? null,
+          centerId: data.user.centerId ?? data.centerId ?? null,
+          centerName: data.user.centerName ?? data.centerName ?? null,
         } : null
 
         state.token = token

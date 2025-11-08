@@ -176,6 +176,8 @@ export const AuthService = {
         role: (d.role ?? d.user?.role ?? 'customer'),
         emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
         avatar: d.avatar ?? d.user?.avatar ?? d.user?.avatarUrl ?? null,
+        centerId: d.centerId ?? d.user?.centerId ?? d.center?.id ?? d.center?.centerId ?? null,
+        centerName: d.centerName ?? d.user?.centerName ?? d.center?.name ?? d.center?.centerName ?? null,
       }
 
       return {
@@ -220,6 +222,8 @@ export const AuthService = {
         role: (d.role ?? d.user?.role ?? 'customer'),
         emailVerified: Boolean(d.emailVerified ?? d.user?.emailVerified ?? false),
         avatar: d.avatar ?? d.user?.avatar ?? d.user?.avatarUrl ?? null,
+        centerId: d.centerId ?? d.user?.centerId ?? d.center?.id ?? d.center?.centerId ?? null,
+        centerName: d.centerName ?? d.user?.centerName ?? d.center?.name ?? d.center?.centerName ?? null,
       }
       
       return {
@@ -262,6 +266,8 @@ export const AuthService = {
       address: d.address ?? null,
       dateOfBirth: d.dateOfBirth ?? d.dob ?? null,
       gender: d.gender ?? null,
+      centerId: d.centerId ?? d.center?.id ?? d.center?.centerId ?? null,
+      centerName: d.centerName ?? d.center?.name ?? d.center?.centerName ?? null,
     }
     return {
       success: src.success !== false,

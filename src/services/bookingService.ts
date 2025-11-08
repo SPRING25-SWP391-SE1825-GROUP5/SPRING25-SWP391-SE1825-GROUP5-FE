@@ -288,6 +288,8 @@ export interface CustomerBooking {
   vehiclePlate: string
   specialRequests: string
   createdAt: string
+  actualCost?: number
+  estimatedCost?: number
 }
 
 export const BookingService = {
@@ -405,6 +407,111 @@ export const BookingService = {
   async getBookingDetail(bookingId: number): Promise<BookingDetailResponse> {
     const response = await api.get(`/Booking/${bookingId}`)
     return response.data
+  },
+
+  // Lấy danh sách phụ tùng của booking
+  async getBookingParts(bookingId: number): Promise<{
+    success: boolean
+    message?: string
+    data?: {
+      items: Array<{
+        workOrderPartId: number
+        partId: number
+        partName: string
+        quantityUsed: number
+        status: string
+      }>
+      totals: {
+        approved: number
+      }
+    }
+  }> {
+    try {
+      const { data } = await api.get(`/Booking/${bookingId}/parts`)
+      return data
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không thể tải danh sách phụ tùng'
+      }
+    }
+  },
+
+  // Khách hàng đồng ý phụ tùng
+  // API: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-approve
+  // Lưu ý: Truyền workOrderPartId (KHÔNG phải partId), Method là PUT
+  async approveBookingPart(bookingId: number, workOrderPartId: number): Promise<{
+    success: boolean
+    message?: string
+    data?: any
+  }> {
+    try {
+      const url = `/Booking/${bookingId}/parts/${workOrderPartId}/customer-approve`
+      
+      // Kiểm tra token trước khi gọi API
+      let token: string | null = null
+      try {
+        if (typeof localStorage !== 'undefined') {
+          token = localStorage.getItem('authToken') || localStorage.getItem('token')
+        }
+      } catch (e) {
+        console.warn('Could not check token from localStorage:', e)
+      }
+      
+      console.log('📤 Calling approveBookingPart API:', {
+        url,
+        fullUrl: `${import.meta.env.VITE_API_BASE_URL || 'https://localhost:5001/api'}${url}`,
+        method: 'PUT',
+        bookingId,
+        workOrderPartId,
+        hasToken: !!token,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : 'NO TOKEN'
+      })
+      
+      const { data } = await api.put(url)
+      
+      console.log('✅ approveBookingPart response:', data)
+      
+      return data
+    } catch (error: any) {
+      console.error('❌ approveBookingPart error:', {
+        error,
+        response: error?.response,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        message: error?.message,
+        config: {
+          url: error?.config?.url,
+          baseURL: error?.config?.baseURL,
+          method: error?.config?.method,
+          headers: error?.config?.headers ? {
+            ...error.config.headers,
+            Authorization: error.config.headers.Authorization ? 'Bearer ***' : 'MISSING'
+          } : 'NO HEADERS'
+        }
+      })
+      
+      // Kiểm tra lỗi authentication
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        console.error('🔒 Authentication error - Token may be missing or invalid')
+        return {
+          success: false,
+          message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+        }
+      }
+      
+      // Log chi tiết error message từ backend
+      const backendMessage = error?.response?.data?.message || error?.response?.data?.error
+      if (backendMessage) {
+        console.error('📋 Backend error message:', backendMessage)
+      }
+      
+      return {
+        success: false,
+        message: backendMessage || error?.message || 'Không thể xác nhận phụ tùng'
+      }
+    }
   },
 
   // Lấy lịch sử booking của customer

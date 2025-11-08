@@ -368,7 +368,25 @@ export const StaffService = {
 
   // Lấy thông tin staff hiện tại và center được assign
   async getCurrentStaffAssignment(): Promise<{ staffId: number, centerId: number, centerName: string, role: string }> {
-    const { data } = await api.get('/StaffManagement/current-assignment')
-    return data
+    try {
+      // Dựa trên API sẵn có: /StaffManagement/staff/current
+      const res = await this.getCurrentStaff()
+      const staff = res?.data
+      if (!staff) {
+        throw new Error('Không tìm thấy thông tin nhân viên hiện tại')
+      }
+      if (!staff.centerId || !staff.centerName) {
+        throw new Error('Nhân viên chưa được gán trung tâm')
+      }
+      return {
+        staffId: staff.staffId,
+        centerId: staff.centerId,
+        centerName: staff.centerName,
+        role: 'STAFF'
+      }
+    } catch (error: any) {
+      // Chuẩn hóa thông điệp lỗi cho UI
+      throw new Error(error?.message || 'Không thể lấy thông tin phân công nhân viên hiện tại')
+    }
   }
 }

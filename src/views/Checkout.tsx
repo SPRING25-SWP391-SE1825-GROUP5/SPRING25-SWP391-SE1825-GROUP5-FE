@@ -1,5 +1,5 @@
-﻿import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+﻿import { useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { clearCart, addToCart } from '@/store/cartSlice'
 import { applyPromotion, removePromotion, type Promotion } from '@/store/promoSlice'
@@ -67,6 +67,7 @@ const paymentMethods: PaymentMethod[] = [
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const location = useLocation() as any
   const dispatch = useAppDispatch()
   const cart = useAppSelector((state) => state.cart)
   const user = useAppSelector((state) => state.auth.user)
@@ -92,6 +93,16 @@ export default function Checkout() {
     }).format(price)
   }
 
+  // Determine items to checkout: prefer items passed from Cart via navigation state
+  const checkoutItems = useMemo(() => {
+    const fromState = location?.state?.items
+    if (Array.isArray(fromState) && fromState.length > 0) return fromState
+    return cart.items
+  }, [location?.state, cart.items])
+
+  // Local totals based on selected/checkout items
+  const checkoutSubtotal = useMemo(() => checkoutItems.reduce((sum: number, it: any) => sum + (it.price * it.quantity), 0), [checkoutItems])
+
   // Calculate promotion discount
   const calculatePromoDiscount = (): number => {
     if (!promo.appliedPromo) return 0
@@ -99,18 +110,18 @@ export default function Checkout() {
     const promotion = promo.appliedPromo
     
     // Check if order meets minimum requirement
-    if (promotion.minOrder && cart.total < promotion.minOrder) return 0
+    if (promotion.minOrder && checkoutSubtotal < promotion.minOrder) return 0
     
     switch (promotion.type) {
       case 'percentage': {
-        const percentageDiscount = Math.round(cart.total * (promotion.value / 100))
+        const percentageDiscount = Math.round(checkoutSubtotal * (promotion.value / 100))
         return promotion.maxDiscount 
           ? Math.min(percentageDiscount, promotion.maxDiscount)
           : percentageDiscount
       }
       
       case 'fixed':
-        return Math.min(promotion.value, cart.total)
+        return Math.min(promotion.value, checkoutSubtotal)
       
       case 'shipping':
         return Math.min(promotion.value, 200000) // Max shipping cost
@@ -121,11 +132,11 @@ export default function Checkout() {
   }
 
   const promoDiscount = calculatePromoDiscount()
-  const subtotalAfterPromo = cart.total - promoDiscount
+  const subtotalAfterPromo = checkoutSubtotal - promoDiscount
   
   // Calculate shipping (free if promo covers shipping or order >= 10M)
   const shipping = (promo.appliedPromo?.type === 'shipping' && promoDiscount > 0) || 
-                   cart.total >= 10000000 ? 0 : 200000
+                   checkoutSubtotal >= 10000000 ? 0 : 200000
   
   const tax = Math.round(subtotalAfterPromo * 0.1) // 10% VAT on discounted amount
   const finalTotal = subtotalAfterPromo + shipping + tax
@@ -186,7 +197,7 @@ export default function Checkout() {
       return
     }
 
-    if (cart.items.length === 0) {
+    if (checkoutItems.length === 0) {
       alert('Giá» hÃ ng trá»‘ng')
       return
     }
@@ -202,13 +213,13 @@ export default function Checkout() {
       
       if (isSuccess) {
         // Clear cart after successful payment
-        dispatch(clearCart())
+        dispatch(clearCart({ userId: user?.id ?? null }))
         
         // Navigate to success page
         navigate('/order-success', {
           state: {
             orderData: {
-              items: cart.items,
+              items: checkoutItems,
               shipping: shippingInfo,
               payment: selectedPayment,
               total: finalTotal
@@ -224,7 +235,7 @@ export default function Checkout() {
           state: {
             failureCode: randomFailure,
             orderData: {
-              items: cart.items,
+              items: checkoutItems,
               shipping: shippingInfo,
               payment: selectedPayment,
               total: finalTotal
@@ -238,7 +249,7 @@ export default function Checkout() {
         state: {
           failureCode: 'NETWORK_ERROR',
           orderData: {
-            items: cart.items,
+            items: checkoutItems,
             shipping: shippingInfo,
             payment: selectedPayment,
             total: finalTotal
@@ -250,7 +261,7 @@ export default function Checkout() {
     }
   }
 
-  if (cart.items.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="checkout-page">
         <div className="container">
@@ -446,7 +457,7 @@ export default function Checkout() {
                 <h3>ÄÆ¡n hÃ ng cá»§a báº¡n</h3>
 
                 <div className="order-items">
-                  {cart.items.map(item => (
+                  {checkoutItems.map((item: any) => (
                     <div key={item.id} className="order-item">
                       <div className="item-image">
                         <img src={item.image} alt={item.name} />
@@ -466,7 +477,7 @@ export default function Checkout() {
                 <div className="order-totals">
                   <div className="total-row">
                     <span>Táº¡m tÃ­nh</span>
-                    <span>{formatPrice(cart.total)}</span>
+                    <span>{formatPrice(checkoutSubtotal)}</span>
                   </div>
                   
                   {promoDiscount > 0 && (
@@ -515,13 +526,16 @@ export default function Checkout() {
                     <button
                       type="button"
                       onClick={() => dispatch(addToCart({
-                        id: 'test-product',
-                        name: 'Test Product for Promo',
-                        price: 2000000,
-                        image: 'https://via.placeholder.com/100',
-                        brand: 'Test Brand',
-                        category: 'test',
-                        inStock: true
+                        item: {
+                          id: 'test-product',
+                          name: 'Test Product for Promo',
+                          price: 2000000,
+                          image: 'https://via.placeholder.com/100',
+                          brand: 'Test Brand',
+                          category: 'test',
+                          inStock: true
+                        },
+                        userId: user?.id ?? null
                       }))}
                       style={{
                         background: '#22c55e',
@@ -591,7 +605,7 @@ export default function Checkout() {
                 ) : (
                   <div className="no-promotions" style={{padding: '20px', textAlign: 'center', background: '#f9f9f9', margin: '10px 0'}}>
                     <p>KhÃ´ng cÃ³ khuyáº¿n mÃ£i kháº£ dá»¥ng</p>
-                    <small>Debug: Cart={cart.items?.length || 0} items, Total={formatPrice(cart.total || 0)}</small>
+                    <small>Debug: Items={checkoutItems?.length || 0}, Total={formatPrice(checkoutSubtotal || 0)}</small>
                   </div>
                 )}
 

@@ -14,6 +14,8 @@ export interface Part {
   unitPrice: number
   rating: number
   lastUpdated: string
+  categoryId?: number
+  categoryName?: string
 }
 
 export interface PartAvailabilityResponse {
@@ -73,21 +75,41 @@ export const PartService = {
   // Lấy chi tiết phụ tùng
   async getPartById(partId: number): Promise<{ success: boolean; message: string; data?: Part }> {
     try {
-      const { data } = await api.get(`/part/${partId}`)
-      return data
-    } catch (error) {
+      // Thử endpoint với chữ hoa /Part/ trước (theo inventoryService)
+      try {
+        const { data } = await api.get(`/Part/${partId}`)
+        console.log(`[DEBUG] PartService.getPartById(${partId}) - Response:`, data)
+        return data
+      } catch (err1: any) {
+        // Nếu không được, thử endpoint với chữ thường /part/
+        try {
+          const { data } = await api.get(`/part/${partId}`)
+          console.log(`[DEBUG] PartService.getPartById(${partId}) - Response (lowercase):`, data)
+          return data
+        } catch (err2: any) {
+          console.error(`[DEBUG] PartService.getPartById(${partId}) - Both endpoints failed:`, err1, err2)
+          throw err1 || err2
+        }
+      }
+    } catch (error: any) {
+      console.error(`[DEBUG] PartService.getPartById(${partId}) - Error:`, error)
       return {
         success: false,
-        message: 'Không thể tải chi tiết phụ tùng'
+        message: error?.response?.data?.message || error?.message || 'Không thể tải chi tiết phụ tùng'
       }
     }
   },
 
 
   // Kiểm tra tính khả dụng của phụ tùng
-  async checkPartAvailability(partId: number, quantity: number): Promise<{ success: boolean; message: string; available: boolean; availableQuantity?: number }> {
+  async checkPartAvailability(partId: number, quantity: number, centerId?: number): Promise<{ success: boolean; message: string; available: boolean; availableQuantity?: number }> {
     try {
-      const { data } = await api.get(`/part/${partId}/availability?quantity=${quantity}`)
+      const params = new URLSearchParams()
+      params.append('quantity', quantity.toString())
+      if (centerId) {
+        params.append('centerId', centerId.toString())
+      }
+      const { data } = await api.get(`/part/${partId}/availability?${params.toString()}`)
       return data
     } catch (error) {
       return {
@@ -95,6 +117,83 @@ export const PartService = {
         message: 'Không thể kiểm tra tính khả dụng',
         available: false
       }
+    }
+  }
+  ,
+  // Lấy phụ tùng theo categoryId (phụ tùng gợi ý khi FAIL)
+  async getPartsByCategory(categoryId: number): Promise<{ success: boolean; message?: string; data: Part[] }> {
+    try {
+      const { data } = await api.get(`/parts/by-category/${categoryId}/with-inventory`)
+      // Kỳ vọng backend trả { success, data: Part[] }
+      if (Array.isArray(data)) {
+        return { success: true, data }
+      }
+      if (Array.isArray(data?.data)) {
+        return { success: true, data: data.data }
+      }
+      return { success: !!data?.success, data: data?.data || [] }
+    } catch (error) {
+      return { success: false, message: 'Không thể tải phụ tùng theo category', data: [] }
+    }
+  }
+}
+
+// Interface cho Part Category
+export interface PartCategory {
+  categoryId: number
+  categoryName: string
+  description?: string
+  parentId?: number
+  parentName?: string
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Service để lấy danh sách categories
+export const PartCategoryService = {
+  // Lấy tất cả danh mục phụ tùng (GET /api/part-categories)
+  async getAllCategories(): Promise<{ success: boolean; message?: string; data: PartCategory[] }> {
+    try {
+      const { data } = await api.get('/part-categories')
+      if (Array.isArray(data)) {
+        return { success: true, data }
+      }
+      if (Array.isArray(data?.data)) {
+        return { success: true, data: data.data }
+      }
+      return { success: !!data?.success, data: data?.data || [] }
+    } catch (error) {
+      return { success: false, message: 'Không thể tải danh sách danh mục phụ tùng', data: [] }
+    }
+  },
+
+  // Lấy tất cả danh mục phụ tùng đang hoạt động (Public API)
+  async getActiveCategories(): Promise<{ success: boolean; message?: string; data: PartCategory[] }> {
+    try {
+      const { data } = await api.get('/part-categories/active')
+      if (Array.isArray(data)) {
+        return { success: true, data }
+      }
+      if (Array.isArray(data?.data)) {
+        return { success: true, data: data.data }
+      }
+      return { success: !!data?.success, data: data?.data || [] }
+    } catch (error) {
+      return { success: false, message: 'Không thể tải danh sách danh mục phụ tùng', data: [] }
+    }
+  },
+
+  // Lấy thông tin category theo ID (GET /api/part-categories/{id})
+  async getCategoryById(categoryId: number): Promise<{ success: boolean; message?: string; data?: PartCategory }> {
+    try {
+      const { data } = await api.get(`/part-categories/${categoryId}`)
+      if (data?.data) {
+        return { success: true, data: data.data }
+      }
+      return { success: !!data?.success, data: data?.data }
+    } catch (error) {
+      return { success: false, message: 'Không thể tải thông tin danh mục phụ tùng' }
     }
   }
 }

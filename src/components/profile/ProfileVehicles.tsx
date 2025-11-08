@@ -12,13 +12,15 @@ import {
   ShoppingBagIcon,
   PencilSquareIcon,
   CheckIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 import { VehicleService, type Vehicle } from '@/services/vehicleService'
 import { CustomerService } from '@/services/customerService'
 import { useAppSelector } from '@/store/hooks'
 import toast from 'react-hot-toast'
 import AddVehicleModal from './AddVehicleModal'
+import VehicleDetailView from './VehicleDetailView'
 
 interface EditVehicleData {
   color: string
@@ -35,6 +37,7 @@ export default function ProfileVehicles() {
   const [editingVehicles, setEditingVehicles] = useState<Set<number>>(new Set())
   const [editData, setEditData] = useState<Record<number, EditVehicleData>>({})
   const [savingVehicles, setSavingVehicles] = useState<Set<number>>(new Set())
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null)
 
   const loadVehicles = useCallback(async () => {
     let currentCustomerId = user?.customerId
@@ -98,6 +101,14 @@ export default function ProfileVehicles() {
       }
       return newSet
     })
+  }
+
+  const handleViewVehicleDetail = (vehicleId: number) => {
+    setSelectedVehicleId(vehicleId)
+  }
+
+  const handleBackToList = () => {
+    setSelectedVehicleId(null)
   }
 
   const startEdit = (vehicle: Vehicle) => {
@@ -292,6 +303,50 @@ export default function ProfileVehicles() {
     )
   }
 
+  // If a vehicle is selected, show detail view
+  if (selectedVehicleId) {
+    const selectedVehicle = vehicles.find(v => v.vehicleId === selectedVehicleId)
+    if (selectedVehicle) {
+      return (
+        <>
+          <div className="profile-v2__section">
+            <div style={{ marginBottom: '16px' }}>
+              <button
+                onClick={handleBackToList}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  background: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#374151',
+                  fontWeight: '500'
+                }}
+              >
+                <ArrowLeftIcon width={18} height={18} />
+                Quay lại danh sách
+              </button>
+            </div>
+            <VehicleDetailView vehicle={selectedVehicle} onClose={handleBackToList} />
+          </div>
+          {modalOpen && (
+            <AddVehicleModal
+              open={modalOpen}
+              onClose={() => setModalOpen(false)}
+              onSuccess={() => {
+                loadVehicles()
+              }}
+            />
+          )}
+        </>
+      )
+    }
+  }
+
   return (
     <>
       <div className="profile-v2__section">
@@ -342,7 +397,7 @@ export default function ProfileVehicles() {
               >
                 {/* Header với icon mũi tên và tên xe */}
                 <div
-                  onClick={() => toggleVehicle(vehicle.vehicleId)}
+                  onClick={() => handleViewVehicleDetail(vehicle.vehicleId)}
                   style={{
                     padding: '12px 16px',
                     display: 'flex',

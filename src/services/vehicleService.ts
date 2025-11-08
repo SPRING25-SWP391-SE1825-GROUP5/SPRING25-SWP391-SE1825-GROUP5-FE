@@ -15,6 +15,7 @@ export interface Vehicle {
   customerName?: string
   customerPhone?: string
   modelId?: number | null
+  modelImageUrl?: string | null
 }
 
 export interface CreateVehicleRequest {

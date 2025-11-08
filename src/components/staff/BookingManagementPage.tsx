@@ -1,19 +1,18 @@
 import { useState } from 'react'
-import {
-  Plus,
-  Calendar,
-  Users,
-  Clock,
-  CheckCircle,
+import { 
+  Plus, 
+  Calendar, 
+  Users, 
+  Clock, 
+  CheckCircle, 
   TrendingUp,
   Filter,
-  Search,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  Trash2
+  Search
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts'
+import { BookingService } from '../../services/bookingService'
+import QuickPartsApprovalModal from '@/components/booking/QuickPartsApprovalModal'
+import BookingStatusModal from '@/components/booking/BookingStatusModal'
 import './BookingManagementPage.scss'
 
 // Mock data for booking management
@@ -21,11 +20,11 @@ const mockBookingData = [
   {
     id: 'BK001',
     serviceName: 'Bảo dưỡng định kỳ',
-    customerName: '',
+    customerName: 'Nguyễn Văn An',
     vehicleModel: 'VinFast VF8',
     licensePlate: '30A-12345',
     createdAt: '2024-01-15T09:30:00Z',
-    technicianName: '',
+    technicianName: 'Trần Minh Tuấn',
     status: 'confirmed',
     estimatedCost: 1500000,
     scheduledDate: '2024-01-20T10:00:00Z'
@@ -33,11 +32,11 @@ const mockBookingData = [
   {
     id: 'BK002',
     serviceName: 'Sửa chữa phanh',
-    customerName: '',
+    customerName: 'Lê Thị Bình',
     vehicleModel: 'VinFast VF9',
     licensePlate: '29B-67890',
     createdAt: '2024-01-14T14:20:00Z',
-    technicianName: '',
+    technicianName: 'Phạm Văn Đức',
     status: 'in_progress',
     estimatedCost: 2500000,
     scheduledDate: '2024-01-18T14:00:00Z'
@@ -45,11 +44,11 @@ const mockBookingData = [
   {
     id: 'BK003',
     serviceName: 'Thay dầu động cơ',
-    customerName: '',
+    customerName: 'Hoàng Văn Cường',
     vehicleModel: 'VinFast VF5',
     licensePlate: '43C-11111',
     createdAt: '2024-01-13T11:15:00Z',
-    technicianName: '',
+    technicianName: 'Nguyễn Thị Hoa',
     status: 'completed',
     estimatedCost: 800000,
     scheduledDate: '2024-01-16T09:00:00Z'
@@ -118,10 +117,14 @@ export default function BookingManagementPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showPartsModal, setShowPartsModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
 
   // Calculate stats
   const totalBookings = mockBookingData.length
-  const todayBookings = mockBookingData.filter(booking =>
+  const todayBookings = mockBookingData.filter(booking => 
     new Date(booking.createdAt).toDateString() === new Date().toDateString()
   ).length
   const pendingBookings = mockBookingData.filter(booking => booking.status === 'pending').length
@@ -153,26 +156,46 @@ export default function BookingManagementPage() {
     }).format(amount)
   }
 
+  const getNumericBookingId = (id: string): number | null => {
+    const n = parseInt(id.replace(/\D/g, ''), 10)
+    return Number.isFinite(n) ? n : null
+  }
+
+  const openRowPartsModal = (mockId: string) => {
+    const numericId = getNumericBookingId(mockId)
+    if (!numericId) return
+    setSelectedBookingId(numericId)
+    setShowPartsModal(true)
+  }
+
+  const openStatusModal = (mockId: string, currentStatus: string) => {
+    const numericId = getNumericBookingId(mockId)
+    if (!numericId) return
+    setSelectedBookingId(numericId)
+    setSelectedStatus((currentStatus || '').toUpperCase())
+    setShowStatusModal(true)
+  }
+
   return (
     <div className="booking-management-page">
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px'
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '32px' 
       }}>
         <div>
-          <h1 style={{
-            fontSize: '28px',
-            fontWeight: '700',
+          <h1 style={{ 
+            fontSize: '28px', 
+            fontWeight: '700', 
             color: 'var(--text-primary)',
             margin: '0 0 8px 0'
           }}>
             Quản lý Booking
           </h1>
-          <p style={{
-            fontSize: '16px',
+          <p style={{ 
+            fontSize: '16px', 
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
@@ -249,24 +272,24 @@ export default function BookingManagementPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
               <XAxis dataKey="name" stroke="var(--text-secondary)" />
               <YAxis stroke="var(--text-secondary)" />
-              <Tooltip
+              <Tooltip 
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
                   borderRadius: '8px'
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="bookings"
-                stroke="var(--primary-500)"
+              <Line 
+                type="monotone" 
+                dataKey="bookings" 
+                stroke="var(--primary-500)" 
                 strokeWidth={3}
                 name="Tổng Booking"
               />
-              <Line
-                type="monotone"
-                dataKey="completed"
-                stroke="var(--success-500)"
+              <Line 
+                type="monotone" 
+                dataKey="completed" 
+                stroke="var(--success-500)" 
                 strokeWidth={3}
                 name="Hoàn thành"
               />
@@ -292,7 +315,7 @@ export default function BookingManagementPage() {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip
+              <Tooltip 
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
@@ -312,7 +335,7 @@ export default function BookingManagementPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
             <XAxis dataKey="name" stroke="var(--text-secondary)" />
             <YAxis stroke="var(--text-secondary)" />
-            <Tooltip
+            <Tooltip 
               contentStyle={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-primary)',
@@ -371,12 +394,12 @@ export default function BookingManagementPage() {
                 <th>Ngày tạo</th>
                 <th>Kỹ thuật viên</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
               {filteredBookings.map((booking) => (
-                <tr key={booking.id}>
+                <tr key={booking.id} onClick={() => openRowPartsModal(booking.id)}>
                   <td>
                     <span className="booking-id">{booking.id}</span>
                   </td>
@@ -397,16 +420,22 @@ export default function BookingManagementPage() {
                       {statusConfig[booking.status as keyof typeof statusConfig].label}
                     </span>
                   </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button className="action-btn view">
-                        <Eye size={16} />
-                      </button>
-                      <button className="action-btn edit">
-                        <Edit size={16} />
-                      </button>
-                      <button className="action-btn delete">
-                        <Trash2 size={16} />
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start' }}>
+                      <button
+                        onClick={() => openStatusModal(booking.id, booking.status)}
+                        title="Đổi trạng thái"
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid var(--border-primary)',
+                          background: 'var(--bg-card)',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        Trạng thái
                       </button>
                     </div>
                   </td>
@@ -416,6 +445,21 @@ export default function BookingManagementPage() {
           </table>
         </div>
       </div>
+      {/* Modal: Quick Parts Approval */}
+      <QuickPartsApprovalModal
+        bookingId={selectedBookingId}
+        open={showPartsModal}
+        onClose={() => setShowPartsModal(false)}
+      />
+
+      {/* Modal: Booking Status */}
+      <BookingStatusModal
+        open={showStatusModal}
+        bookingId={selectedBookingId}
+        currentStatus={selectedStatus}
+        onClose={() => setShowStatusModal(false)}
+        onUpdated={async () => { /* Khi có dữ liệu thật, có thể reload ở đây */ }}
+      />
     </div>
   )
 }

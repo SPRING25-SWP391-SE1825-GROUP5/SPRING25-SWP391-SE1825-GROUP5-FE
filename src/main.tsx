@@ -7,12 +7,22 @@ import { AppRouter } from './router'
 import { Provider } from 'react-redux'
 import { store } from './store'
 import { syncFromLocalStorage } from './store/authSlice'
+import { loadCartForUser } from './store/cartSlice'
 import { Toaster } from 'react-hot-toast'
 import LoginToastWatcher from '@/components/common/LoginToastWatcher'
 import { HeroUIProvider } from '@heroui/react'
 
 // Sync authentication state from localStorage on app start
 store.dispatch(syncFromLocalStorage())
+
+// Load cart for user after auth sync (middleware will handle this, but we do it here as fallback)
+setTimeout(() => {
+  const state = store.getState()
+  const userId = state.auth.user?.id
+  if (userId) {
+    store.dispatch(loadCartForUser(userId))
+  }
+}, 0)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
