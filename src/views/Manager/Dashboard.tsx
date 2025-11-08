@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppDispatch } from '@/store/hooks'
-import { logout } from '@/store/authSlice'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { logout, updateUser } from '@/store/authSlice'
 import { 
   Menu,
   LogOut,
@@ -20,15 +20,47 @@ import {
 } from '../../components/manager'
 import NotificationBell from '@/components/common/NotificationBell'
 import BookingManagement from '@/components/manager/BookingManagement'
+import { CenterService } from '@/services/centerService'
 import './manager.scss'
 
 export default function ManagerDashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
+  const user = useAppSelector(state => state.auth.user)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activePage, setActivePage] = useState('reports')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
-  
+  const [centerName, setCenterName] = useState<string>('')
+
+  // Load center name from centerId
+  useEffect(() => {
+    const loadCenterName = async () => {
+      // Ưu tiên lấy từ user state nếu có
+      if (user?.centerName) {
+        setCenterName(user.centerName)
+        return
+      }
+
+      // Nếu không có centerName, load từ API bằng centerId
+      if (user?.centerId) {
+        try {
+          const center = await CenterService.getCenterById(user.centerId)
+          setCenterName(center.centerName)
+          // Cập nhật vào user state để lần sau không cần gọi API
+          if (center.centerName && !user.centerName) {
+            dispatch(updateUser({ centerName: center.centerName }))
+          }
+        } catch (error) {
+          console.error('Failed to load center name:', error)
+          setCenterName('Chi nhánh')
+        }
+      } else {
+        setCenterName('Chi nhánh')
+      }
+    }
+
+    loadCenterName()
+  }, [user?.centerId, user?.centerName])
 
   const handleLogout = () => {
     dispatch(logout())
@@ -91,7 +123,7 @@ export default function ManagerDashboard() {
             color: 'var(--text-primary)',
             margin: 0
           }}>
-            Chi nhánh Quận 7
+            {centerName || 'Chi nhánh'}
           </h1>
         </div>
         

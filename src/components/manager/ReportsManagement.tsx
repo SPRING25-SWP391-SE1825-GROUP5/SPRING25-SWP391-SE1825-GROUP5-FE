@@ -1047,8 +1047,9 @@ export default function ReportsManagement() {
                   formatter={(value: number, name: string, entry: any) => {
                     const d = (entry && entry.payload) ? entry.payload : {}
                     const rev = d.revenue ?? d.totalRevenue ?? value ?? 0
-                    const cnt = d.count ?? d.usageCount ?? d.bookings ?? d.totalBookings ?? 0
-                    const display = `${Number(rev).toLocaleString('vi-VN')} VNĐ • ${Number(cnt).toLocaleString('vi-VN')} lượt`
+                    // Tính phần trăm dựa trên tổng doanh thu đã tính sẵn
+                    const percentage = totalServiceRevenue > 0 ? ((Number(rev) / totalServiceRevenue) * 100).toFixed(1) : '0.0'
+                    const display = `${percentage}%`
                     const label = d.name || d.serviceName || name || 'Dịch vụ'
                     return [display, label]
                   }}
