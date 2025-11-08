@@ -296,13 +296,32 @@ export default function OrderConfirmationPage() {
       return
     }
 
+    // Validate: Phải chọn center trước khi thanh toán
+    if (!selectedCenterId) {
+      toast.error('Vui lòng chọn chi nhánh để tiếp tục thanh toán')
+      return
+    }
+
     // Kiểm tra xem chi nhánh đã chọn có đủ hàng không
-    if (selectedCenterId && !isCenterAvailable(selectedCenterId)) {
+    if (!isCenterAvailable(selectedCenterId)) {
       toast.error('Chi nhánh đã chọn không còn đủ hàng. Vui lòng chọn chi nhánh khác.')
       return
     }
 
     try {
+      // Cập nhật order với fulfillmentCenterId trước khi thanh toán
+      console.log(`[OrderConfirmation] Updating order ${id} with fulfillmentCenterId ${selectedCenterId}`)
+      const updateResp = await OrderService.updateFulfillmentCenter(Number(id), selectedCenterId)
+      
+      if (!updateResp?.success) {
+        const errorMsg = updateResp?.message || 'Không thể cập nhật chi nhánh cho đơn hàng'
+        console.error('OrderConfirmationPage - Failed to update fulfillment center:', { id, selectedCenterId, updateResp })
+        toast.error(errorMsg)
+        return
+      }
+
+      console.log('OrderConfirmationPage - Fulfillment center updated successfully')
+
       // Ưu tiên dùng checkoutUrl đã cache trong session để đi nhanh
       const cached = sessionStorage.getItem(`checkoutUrl_${id}`)
       if (cached) {

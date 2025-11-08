@@ -9,12 +9,14 @@ export interface QuickOrderRequest {
   items: QuickOrderItemRequest[]
   notes?: string
   shippingAddress?: string
+  fulfillmentCenterId?: number  // Center được chọn từ FE để fulfill order
 }
 
 export interface CreateOrderRequest {
   items: QuickOrderItemRequest[]
   notes?: string
   shippingAddress?: string
+  fulfillmentCenterId?: number  // Center được chọn từ FE để fulfill order
 }
 
 export interface CreateOrderResponse {
@@ -67,6 +69,10 @@ export const OrderService = {
   },
   async getPaymentLink(orderId: number): Promise<{ success: boolean; message?: string; checkoutUrl?: string }> {
     const { data } = await api.get(`/Order/${orderId}/payment/link`)
+    return data
+  },
+  async updateFulfillmentCenter(orderId: number, fulfillmentCenterId: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    const { data } = await api.put(`/Order/${orderId}/fulfillment-center`, { fulfillmentCenterId })
     return data
   },
   // Admin: Get all orders

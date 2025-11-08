@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { addToCart, updateQuantity } from '@/store/cartSlice'
+import { addToCart, updateQuantity, removeFromCart } from '@/store/cartSlice'
 import { PartService, Part, CartService, InventoryService, CenterService } from '@/services'
 import type { InventoryData, InventoryPart } from '@/services/inventoryService'
 import type { Center } from '@/services/centerService'
@@ -347,7 +347,8 @@ export default function ProductDetail() {
   const handleAddToCart = async () => {
     if (!product) return
     
-    // Kiểm tra stock của chi nhánh đã chọn
+    // Không yêu cầu chọn center khi add to cart - sẽ chọn sau ở confirm order
+    // Chỉ validate stock nếu đã chọn center (optional)
     if (selectedCenterId) {
       const inventoryPart = inventoryByCenter.get(selectedCenterId)
       const stock = inventoryPart?.currentStock ?? 0
@@ -357,12 +358,15 @@ export default function ProductDetail() {
         toast.error('Sản phẩm đã hết hàng tại chi nhánh này')
         return
       }
-    } else if (!product.inStock) {
-      toast.error('Sản phẩm đã hết hàng')
-      return
+      
+      // Validate stock đủ cho quantity
+      if (stock < quantity) {
+        toast.error(`Không đủ hàng tại chi nhánh đã chọn. Hiện có: ${stock}, bạn cần: ${quantity}`)
+        return
+      }
     }
     
-    // Add to cart with quantity
+    // Add to cart with quantity (không bắt buộc fulfillmentCenterId)
     const itemId = product.partId.toString()
     const productPrice = product.unitPrice ?? product.price ?? 0
     const cartItem = {
@@ -372,14 +376,15 @@ export default function ProductDetail() {
       image: product.images?.[0] || `https://picsum.photos/seed/${product.partId}/400/400`,
       brand: product.brand,
       category: product.category,
-      inStock: product.inStock || true
+      inStock: product.inStock || true,
+      fulfillmentCenterId: selectedCenterId ?? undefined  // Optional - có thể không có
     }
     
     // Check if item already exists in cart
     const existingItem = cart.items.find(item => item.id === itemId)
     
     if (existingItem) {
-      // Update quantity if item exists
+      // Update quantity if item exists (không cần kiểm tra center vì sẽ chọn sau)
       dispatch(updateQuantity({
         id: itemId,
         quantity: existingItem.quantity + quantity,

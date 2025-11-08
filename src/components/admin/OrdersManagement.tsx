@@ -99,35 +99,38 @@ export default function OrdersManagement() {
       if (response.success) {
         // Case 1: response.data.items hoặc response.data.Items
         if (response.data) {
-          ordersData = response.data.items || response.data.Items || response.data || [];
-          // Ưu tiên lấy totalCount trước, sau đó tính totalPages
-          totalCountValue = response.data.totalCount || response.data.TotalCount || response.data.total || response.data.totalItems || response.data.TotalItems || ordersData.length;
-          totalPagesValue = response.data.totalPages || response.data.TotalPages || response.data.pageCount || response.data.PageCount || 1;
+          // Kiểm tra nếu response.data là array
+          if (Array.isArray(response.data)) {
+            ordersData = response.data;
+            totalCountValue = response.data.length;
+          } else {
+            // response.data là object với items/Items
+            ordersData = response.data.items || response.data.Items || [];
+            // Ưu tiên lấy totalCount trước, sau đó tính totalPages
+            totalCountValue = response.data.totalCount || response.data.TotalCount || ordersData.length;
+            totalPagesValue = response.data.totalPages || response.data.TotalPages || 1;
+          }
           
           // Nếu có totalCount nhưng totalPages = 1 và totalCount > pageSize, tính lại totalPages
           if (totalCountValue > pageSize && totalPagesValue === 1) {
             totalPagesValue = Math.ceil(totalCountValue / pageSize);
           }
         } 
-        // Case 2: response trực tiếp là array
-        else if (Array.isArray(response)) {
-          ordersData = response;
-          totalCountValue = response.length;
-        }
-        // Case 3: response có items ở root level
-        else if (response.items || response.Items) {
-          ordersData = response.items || response.Items || [];
-          totalPagesValue = response.totalPages || response.TotalPages || 1;
-          totalCountValue = response.totalCount || response.TotalCount || ordersData.length;
+        // Case 2: response trực tiếp là array (không có trong type nhưng xử lý để an toàn)
+        else if (Array.isArray(response as any)) {
+          ordersData = response as any;
+          totalCountValue = (response as any).length;
         }
       } else {
         // Nếu không có success flag, thử lấy data trực tiếp
         if (response.data) {
-          ordersData = Array.isArray(response.data) ? response.data : (response.data.items || response.data.Items || []);
-          totalCountValue = ordersData.length;
-        } else if (Array.isArray(response)) {
-          ordersData = response;
-          totalCountValue = response.length;
+          if (Array.isArray(response.data)) {
+            ordersData = response.data;
+            totalCountValue = response.data.length;
+          } else {
+            ordersData = response.data.items || response.data.Items || [];
+            totalCountValue = ordersData.length;
+          }
         }
       }
 

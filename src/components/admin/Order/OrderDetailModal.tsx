@@ -176,14 +176,6 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
         ) : order ? (
           <>
-            {/* Status Badge */}
-            <div className="booking-modal__status">
-              <span className={getStatusBadgeClass(order.status || order.Status)}>
-                <span className="dot" />
-                {getStatusLabel(order.status || order.Status)}
-              </span>
-            </div>
-
             {/* Tabs */}
             <div className="booking-modal__tabs">
               {tabs.map((tab) => {
@@ -268,6 +260,21 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Fulfillment Center Info */}
+                  {(order.fulfillmentCenterId || order.FulfillmentCenterId || order.fulfillmentCenterName || order.FulfillmentCenterName) && (
+                    <div className="booking-modal__section">
+                      <h3 className="booking-modal__section-title">
+                        <MapPin size={18} /> Chi nhánh đã mua hàng
+                      </h3>
+                      <div className="booking-modal__info-grid">
+                        <div className="info-item">
+                          <label>Chi nhánh:</label>
+                          <span>{order.fulfillmentCenterName || order.FulfillmentCenterName || `Chi nhánh #${order.fulfillmentCenterId || order.FulfillmentCenterId}`}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Shipping Info */}
                   {(order.shippingAddress || order.ShippingAddress) && (

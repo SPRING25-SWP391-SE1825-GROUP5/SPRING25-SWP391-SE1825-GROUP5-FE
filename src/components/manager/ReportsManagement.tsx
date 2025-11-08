@@ -26,7 +26,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { ReportsService } from '@/services/reportsService'
+import { ReportsService, PartsUsageReportResponse } from '@/services/reportsService'
 
 export default function ReportsManagement() {
   const [loading, setLoading] = useState(true)
@@ -184,10 +184,14 @@ export default function ReportsManagement() {
 
       // Xử lý Parts Usage
       if (partsR.status === 'fulfilled') {
-        const partsData = partsR.value?.data || partsR.value
+        const partsResponse = partsR.value as PartsUsageReportResponse | any
+        // Xử lý cả 2 trường hợp: response có data wrapper hoặc trả về trực tiếp
+        const partsData = (partsResponse?.data && typeof partsResponse.data === 'object' && !Array.isArray(partsResponse.data)) 
+          ? partsResponse.data 
+          : (partsResponse as any)
         console.log('[ReportsManagement] Parts usage data (full):', partsData)
-        console.log('[ReportsManagement] Parts usage totalValue:', partsData?.totalValue)
-        console.log('[ReportsManagement] Parts usage summary:', partsData?.summary)
+        console.log('[ReportsManagement] Parts usage totalValue:', (partsData as any)?.totalValue)
+        console.log('[ReportsManagement] Parts usage summary:', (partsData as any)?.summary)
         setPartsUsageData(partsData)
       } else if (partsR.status === 'rejected') {
         console.error('[ReportsManagement] Failed to fetch parts usage:', partsR.reason)
@@ -265,7 +269,7 @@ export default function ReportsManagement() {
 
       // Xử lý Service Revenue
       if (revServiceR.status === 'fulfilled') {
-        const revServiceValue = revServiceR.value?.data || revServiceR.value
+        const revServiceValue = revServiceR.value as any
         const raw = revServiceValue?.items || revServiceValue || []
         const arr: any[] = Array.isArray(raw) ? raw : []
         const normalized = arr.map((it: any) => {
@@ -306,7 +310,8 @@ export default function ReportsManagement() {
 
       // Xử lý Low Stock
       if (lowStockR.status === 'fulfilled') {
-        const items = lowStockR.value?.items || lowStockR.value?.data?.items || []
+        const lowStockValue = lowStockR.value as any
+        const items = lowStockValue?.items || []
         setLowStockItems(Array.isArray(items) ? items : [])
       }
 
@@ -695,6 +700,14 @@ export default function ReportsManagement() {
     return sum + (Number(item.revenue) || 0)
   }, 0)
 
+  // Tính tổng doanh thu (booking + order)
+  const totalRevenue = revenueData?.totalRevenue ? Number(revenueData.totalRevenue) : 0
+
+  // Tính doanh thu theo phụ tùng = Tổng doanh thu - Doanh thu theo dịch vụ
+  // Logic: totalRevenue = serviceRevenue + partsRevenue (theo backend DashboardSummaryService)
+  // Nếu totalRevenue < totalServiceRevenue (edge case), đặt partsRevenue = 0
+  const partsRevenue = Math.max(0, totalRevenue - totalServiceRevenue)
+
   // Tính tổng bookings (tất cả các status)
   const totalBookings = bookingData?.totalAllBookings ?? 
                        (bookingData?.totalBookings ?? 0) +
@@ -730,6 +743,8 @@ export default function ReportsManagement() {
       })) || []
     },
     totalServiceRevenue,
+    partsRevenue,
+    totalRevenue,
     partsUsageData: partsUsageData ? {
       totalValue: partsUsageData.totalValue,
       summaryTotalRevenue: partsUsageData.summary?.totalRevenue,
@@ -741,7 +756,7 @@ export default function ReportsManagement() {
   const reportStats = [
     {
       title: 'Tổng doanh thu',
-      value: (revenueData?.totalRevenue ? Number(revenueData.totalRevenue) : 0).toLocaleString('vi-VN'),
+      value: totalRevenue.toLocaleString('vi-VN'),
       unit: 'VNĐ',
       icon: DollarSign,
       color: '#FFD875'
@@ -762,10 +777,7 @@ export default function ReportsManagement() {
     },
     {
       title: 'Doanh thu theo phụ tùng',
-      value: (partsUsageData?.summary?.totalRevenue 
-        ? Number(partsUsageData.summary.totalRevenue) 
-        : (partsUsageData?.totalValue ? Number(partsUsageData.totalValue) : 0)
-      ).toLocaleString('vi-VN'),
+      value: partsRevenue.toLocaleString('vi-VN'),
       unit: 'VNĐ',
       icon: Package,
       color: '#A78BFA'
