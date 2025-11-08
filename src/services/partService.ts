@@ -14,6 +14,8 @@ export interface Part {
   unitPrice: number
   rating: number
   lastUpdated: string
+  categoryId?: number
+  categoryName?: string
 }
 
 export interface PartAvailabilityResponse {
@@ -150,6 +152,22 @@ export interface PartCategory {
 
 // Service để lấy danh sách categories
 export const PartCategoryService = {
+  // Lấy tất cả danh mục phụ tùng (GET /api/part-categories)
+  async getAllCategories(): Promise<{ success: boolean; message?: string; data: PartCategory[] }> {
+    try {
+      const { data } = await api.get('/part-categories')
+      if (Array.isArray(data)) {
+        return { success: true, data }
+      }
+      if (Array.isArray(data?.data)) {
+        return { success: true, data: data.data }
+      }
+      return { success: !!data?.success, data: data?.data || [] }
+    } catch (error) {
+      return { success: false, message: 'Không thể tải danh sách danh mục phụ tùng', data: [] }
+    }
+  },
+
   // Lấy tất cả danh mục phụ tùng đang hoạt động (Public API)
   async getActiveCategories(): Promise<{ success: boolean; message?: string; data: PartCategory[] }> {
     try {
@@ -166,7 +184,7 @@ export const PartCategoryService = {
     }
   },
 
-  // Lấy thông tin category theo ID
+  // Lấy thông tin category theo ID (GET /api/part-categories/{id})
   async getCategoryById(categoryId: number): Promise<{ success: boolean; message?: string; data?: PartCategory }> {
     try {
       const { data } = await api.get(`/part-categories/${categoryId}`)

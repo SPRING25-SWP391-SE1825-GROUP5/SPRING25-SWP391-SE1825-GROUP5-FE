@@ -198,7 +198,6 @@ export default function WorkQueueRowExpansion({
         // Nếu không load được, set là đã confirm
         setChecklistConfirmed(true)
       }
-      toast.success('Đã xác nhận checklist thành công')
     } catch (err: any) {
       toast.error(err?.message || 'Không thể xác nhận checklist')
     } finally {
