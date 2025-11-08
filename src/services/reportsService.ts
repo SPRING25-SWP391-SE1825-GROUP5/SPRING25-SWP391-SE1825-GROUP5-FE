@@ -468,7 +468,11 @@ export const ReportsService = {
     if (params?.fromDate) apiParams.fromDate = params.fromDate
     if (params?.toDate) apiParams.toDate = params.toDate
 
-    const response = await api.get('/Reports/dashboard-summary', { params: Object.keys(apiParams).length > 0 ? apiParams : undefined })
+    // Tăng timeout riêng cho API dashboard-summary (có thể chậm)
+    const response = await api.get('/Reports/dashboard-summary', { 
+      params: Object.keys(apiParams).length > 0 ? apiParams : undefined,
+      timeout: 30000 // 30 giây cho API summary
+    })
     return response.data
   },
 

@@ -10,6 +10,7 @@ export interface CartItem {
   quantity: number
   category: string
   inStock: boolean
+  fulfillmentCenterId?: number  // Center được chọn từ FE khi add to cart
 }
 
 interface CartState {
