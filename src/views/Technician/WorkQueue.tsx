@@ -4,7 +4,7 @@ import ErrorBoundary from '@/components/common/ErrorBoundary'
 
 export default function WorkQueue() {
   const handleViewDetails = (work: any) => {
-    console.log('View details for work:', work)
+
     // TODO: Implement view details functionality
   }
 

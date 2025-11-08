@@ -276,7 +276,7 @@ export default function AdminDashboard() {
         const response = await CenterService.getCenters({ pageSize: 1000 })
         setCenters(response.centers || [])
       } catch (err) {
-        console.error('Failed to load centers:', err)
+
       }
     })()
   }, [])
@@ -468,8 +468,6 @@ export default function AdminDashboard() {
           ReportsService.getTodayBookings(selectedCenterId)
         ])
 
-        console.log('Single center revenue response:', revenueResponse)
-        console.log('Single center booking response:', bookingResponse.data)
 
         // Transform response to match expected format
         const items = (revenueResponse as any).items || (revenueResponse as any).Items || []

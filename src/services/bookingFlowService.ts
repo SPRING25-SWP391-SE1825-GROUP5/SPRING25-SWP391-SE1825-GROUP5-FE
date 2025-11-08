@@ -24,7 +24,7 @@ async function getTimeSlots(): Promise<TimeSlot[]> {
         timeSlotsCache = await TimeSlotService.list(true) // Get active time slots only
         return timeSlotsCache
     } catch (error) {
-        console.error('Failed to fetch time slots:', error)
+
         return []
     }
 }
@@ -42,8 +42,6 @@ export async function getCenterAvailability(centerId: number, date: string, serv
     // DEPRECATED: This function is no longer used in the new flow
     // The new flow uses: Center → Technician → Date → TimeSlot
     // Use the correct API: /api/TechnicianTimeSlot/technician/{technicianId}/center/{centerId}
-
-    console.warn('getCenterAvailability is deprecated. Use the new flow: Center → Technician → Date → TimeSlot')
 
     // Return empty response to avoid breaking existing code
     return { technicianSlots: [] }

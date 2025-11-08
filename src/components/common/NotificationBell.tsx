@@ -71,7 +71,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
         setUnreadCount(calculateUnreadCount(response.data))
       }
     } catch (error) {
-      console.error('Error loading notifications:', error)
+
     } finally {
       setLoading(false)
     }
@@ -84,7 +84,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
         setUnreadCount(response.data.unreadCount)
       }
     } catch (error) {
-      console.error('Error loading unread count:', error)
+
     }
   }
 
@@ -114,7 +114,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
         setUnreadCount(prev => Math.max(0, prev - 1))
       }
     } catch (error) {
-      console.error('Error marking notification as read:', error)
+
     }
   }
 

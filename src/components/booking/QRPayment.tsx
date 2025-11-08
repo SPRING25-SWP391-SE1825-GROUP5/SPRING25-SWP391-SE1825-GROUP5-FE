@@ -38,8 +38,6 @@ const QRPayment: React.FC<QRPaymentProps> = ({
         const payableAmountRaw = reservation.payableAmount ?? reservation.totalAmount
         const payableAmount = Math.max(0, Math.round(Number(payableAmountRaw || 0)))
 
-        console.log('Creating PayOS payment link for QR:', { bookingId, payableAmount })
-
         // Create PayOS link with overridden amount (already includes promotion discount)
         const paymentResponse = await PayOSService.createPaymentLink(bookingId, payableAmount)
         if (!paymentResponse.success || !paymentResponse.data?.checkoutUrl) {

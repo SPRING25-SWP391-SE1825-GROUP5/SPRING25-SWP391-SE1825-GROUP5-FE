@@ -69,7 +69,7 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({
         setForm(prev => ({ ...prev, serviceId: response.services[0].id }))
       }
     } catch (err) {
-      console.error('Error loading services:', err)
+
     }
   }
 

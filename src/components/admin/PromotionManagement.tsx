@@ -182,7 +182,7 @@ export default function PromotionManagement() {
         expired: allPromotions.filter((p) => p.status === 'EXPIRED' || p.isExpired).length,
       });
     } catch (err) {
-      console.error("Không thể tải thống kê:", err);
+
     }
   };
 
@@ -275,7 +275,7 @@ export default function PromotionManagement() {
       window.URL.revokeObjectURL(url);
       toast.success('Xuất danh sách khuyến mãi thành công!');
     } catch (err: any) {
-      console.error('Export promotions failed:', err);
+
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể xuất danh sách khuyến mãi';
       toast.error(errorMessage);
     } finally {

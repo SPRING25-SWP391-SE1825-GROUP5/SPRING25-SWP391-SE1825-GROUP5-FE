@@ -86,7 +86,7 @@ export const PromotionService = {
                 pageSize: data.data?.pageSize || (filters.pageSize ?? 10)
             }
         } catch (error: any) {
-            console.error('Get promotions error:', error)
+
             return {
                 data: [],
                 totalCount: 0,
@@ -171,7 +171,6 @@ export const PromotionService = {
                 }
             }
         } catch (error: any) {
-            console.error('Get active promotions error:', error)
 
             return {
                 data: [],
@@ -188,7 +187,6 @@ export const PromotionService = {
             const { data } = await api.get<PromotionResponse>(`/promotion/${id}`)
             return data
         } catch (error: any) {
-            console.error('Get promotion by ID error:', error)
 
             return {
                 data: [],
@@ -238,7 +236,7 @@ export const PromotionService = {
             })
             return response.data
         } catch (error: any) {
-            console.error('Export promotions error:', error)
+
             throw error
         }
     }

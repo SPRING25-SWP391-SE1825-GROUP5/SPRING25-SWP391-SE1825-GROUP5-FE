@@ -33,7 +33,6 @@ export const PublicBookingService = {
             const { data } = await api.get(`/public/availability/${centerId}/${date}`)
             return data
         } catch (error) {
-            console.warn('Public availability endpoint not available, using booking status service:', error)
 
             try {
                 // Try to get accurate booking status from database
@@ -71,7 +70,7 @@ export const PublicBookingService = {
                     }
                 }
             } catch (bookingError) {
-                console.warn('Booking status service failed, using basic fallback:', bookingError)
+
             }
 
             // Final fallback: Get basic time slots and mark all as available
@@ -109,7 +108,7 @@ export const PublicBookingService = {
                 isBooked: false
             }))
         } catch (error) {
-            console.error('Failed to get time slots:', error)
+
             return []
         }
     }

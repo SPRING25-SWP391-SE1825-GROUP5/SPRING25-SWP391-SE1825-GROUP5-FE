@@ -379,7 +379,7 @@ export const validateEmailNotExists = async (email: string, checkEmailExists: (e
     }
     return { isValid: true }
   } catch (error) {
-    console.error('Email validation error:', error)
+
     return { isValid: true } // Don't block on API errors
   }
 }
@@ -402,7 +402,7 @@ export const validatePhoneNotExists = async (phone: string, checkPhoneExists: (p
     }
     return { isValid: true }
   } catch (error) {
-    console.error('Phone validation error:', error)
+
     return { isValid: true } // Don't block on API errors
   }
 }
@@ -412,9 +412,7 @@ export const mapServerErrorsToFields = (serverErrors: any): Record<string, strin
   const fieldErrors: Record<string, string> = {}
   
   if (!serverErrors) return fieldErrors
-  
-  console.log('Mapping server errors:', serverErrors)
-  
+
   // Common server error patterns
   const errorMappings: Record<string, string> = {
     'email': 'Email này đã được sử dụng',
@@ -478,8 +476,7 @@ export const mapServerErrorsToFields = (serverErrors: any): Record<string, strin
       fieldErrors.phoneNumber = 'Số điện thoại này đã được sử dụng'
     }
   }
-  
-  console.log('Mapped field errors:', fieldErrors)
+
   return fieldErrors
 }
 

@@ -116,7 +116,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.get(`/service-templates/recommend?${queryParams.toString()}`)
             return response.data
         } catch (error: any) {
-            console.error('Error getting recommended services:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi lấy danh sách dịch vụ phù hợp')
         }
     }
@@ -143,7 +143,7 @@ export class ServiceChecklistTemplateService {
             }
             return { items: [], total: 0 }
         } catch (error: any) {
-            console.error('Error getting all templates:', error)
+
             return { items: [], total: 0 }
         }
     }
@@ -153,22 +153,20 @@ export class ServiceChecklistTemplateService {
      */
     static async getTemplatesByService(serviceId: number, activeOnly: boolean = true): Promise<ServiceChecklistTemplate[]> {
         try {
-            console.log('Fetching templates for service:', { serviceId, activeOnly })
 
             // Thử endpoint 1: /service-templates/templates/{serviceId} (đúng route từ controller)
             try {
                 const response = await api.get(`/service-templates/templates/${serviceId}`, {
                     params: { activeOnly }
                 })
-                console.log('Templates API response (templates/{serviceId}):', response.data)
 
                 // Backend trả về: { success: true, data: [...] }
                 if (response.data?.success) {
                     if (Array.isArray(response.data.data)) {
-                        console.log('Parsed templates from templates/{serviceId}:', response.data.data)
+
                         return response.data.data
                     } else if (response.data.data === null || response.data.data === undefined) {
-                        console.log('No templates found for service:', serviceId)
+
                         return []
                     }
                 }
@@ -183,22 +181,20 @@ export class ServiceChecklistTemplateService {
 
                 return []
             } catch (endpoint1Error: any) {
-                console.log('Endpoint 1 failed, trying alternative:', endpoint1Error.message)
 
                 // Thử endpoint 2: /service-templates/active?serviceId={serviceId} (alternative endpoint)
                 try {
                     const response = await api.get(`/service-templates/active`, {
                         params: { serviceId, activeOnly }
                     })
-                    console.log('Templates API response (active):', response.data)
 
                     // Backend trả về: { success: true, data: [...] }
                     if (response.data?.success && Array.isArray(response.data.data)) {
-                        console.log('Parsed templates from active endpoint:', response.data.data)
+
                         return response.data.data
                     }
                 } catch (endpoint2Error: any) {
-                    console.log('Endpoint 2 also failed:', endpoint2Error.message)
+
                     throw endpoint1Error // Throw original error
                 }
             }
@@ -206,21 +202,15 @@ export class ServiceChecklistTemplateService {
             // Fallback: Handle different response formats
             return []
         } catch (error: any) {
-            console.error('Error getting templates by service:', {
-                error,
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            })
 
             // Nếu là 404 hoặc không tìm thấy, trả về mảng rỗng thay vì throw error
             if (error.response?.status === 404 || error.response?.status === 400) {
-                console.log('Service không có checklist templates. Trả về mảng rỗng.')
+
                 return []
             }
 
             // Với các lỗi khác, cũng trả về mảng rỗng để không block UI
-            console.warn('Error fetching templates, returning empty array:', error.message)
+
             return []
         }
     }
@@ -233,7 +223,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.get(`/service-templates/${templateId}`)
             return response.data
         } catch (error: any) {
-            console.error('Error getting template by ID:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi lấy template')
         }
     }
@@ -252,7 +242,7 @@ export class ServiceChecklistTemplateService {
                 total: response.data.total || 0
             }
         } catch (error: any) {
-            console.error('Error getting active templates:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi lấy danh sách templates active')
         }
     }
@@ -265,7 +255,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.post('/service-templates', templateData)
             return response.data
         } catch (error: any) {
-            console.error('Error creating template:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi tạo template')
         }
     }
@@ -278,7 +268,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.put(`/service-templates/${templateId}`, updateData)
             return response.data
         } catch (error: any) {
-            console.error('Error updating template:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật template')
         }
     }
@@ -291,7 +281,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.put(`/service-templates/${templateId}/items`, { items })
             return response.data
         } catch (error: any) {
-            console.error('Error upserting items:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi cập nhật items')
         }
     }
@@ -304,7 +294,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.put(`/service-templates/${templateId}/activate`, { isActive })
             return response.data
         } catch (error: any) {
-            console.error('Error activating template:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi kích hoạt/vô hiệu hóa template')
         }
     }
@@ -317,7 +307,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.get(`/service-templates/${templateId}/items`)
             return response.data
         } catch (error: any) {
-            console.error('Error getting template items:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi lấy items của template')
         }
     }
@@ -330,7 +320,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.post(`/service-templates/${templateId}/parts/${partId}`)
             return response.data
         } catch (error: any) {
-            console.error('Error adding part to template:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi thêm part vào template')
         }
     }
@@ -343,7 +333,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.delete(`/service-templates/${templateId}/parts/${partId}`)
             return response.data
         } catch (error: any) {
-            console.error('Error removing part from template:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi xóa part khỏi template')
         }
     }
@@ -380,7 +370,7 @@ export class ServiceChecklistTemplateService {
             const response = await api.delete(`/service-templates/${templateId}/parts/batch`, { data: { partIds } })
             return response.data
         } catch (error: any) {
-            console.error('Error removing parts batch:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi xóa nhiều part khỏi template')
         }
     }
@@ -392,7 +382,7 @@ export class ServiceChecklistTemplateService {
         try {
             await api.delete(`/service-templates/${templateId}`)
         } catch (error: any) {
-            console.error('Error deleting template:', error)
+
             throw new Error(error.response?.data?.message || 'Lỗi khi xóa template')
         }
     }
@@ -402,13 +392,12 @@ export class ServiceChecklistTemplateService {
      */
     static async getTemplateItems(templateId: number): Promise<ServiceChecklistTemplateItem[]> {
         try {
-            console.log('Fetching template items for template:', templateId)
+
             const response = await api.get(`/service-templates/${templateId}/items`)
-            console.log('Template items API response:', response.data)
 
             // Backend trả về: { success: true, data: [...] }
             if (response.data?.success && Array.isArray(response.data.data)) {
-                console.log('Parsed template items:', response.data.data)
+
                 return response.data.data
             }
 
@@ -425,21 +414,15 @@ export class ServiceChecklistTemplateService {
 
             return []
         } catch (error: any) {
-            console.error('Error getting template items:', {
-                error,
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            })
 
             // Nếu là 404, trả về mảng rỗng (template không có items)
             if (error.response?.status === 404) {
-                console.log('Template không có items. Trả về mảng rỗng.')
+
                 return []
             }
 
             // Với các lỗi khác, cũng trả về mảng rỗng để không block UI
-            console.warn('Error fetching template items, returning empty array:', error.message)
+
             return []
         }
     }
@@ -466,7 +449,7 @@ export class ServiceChecklistTemplateService {
                             items: items || []
                         }
                     } catch (error: any) {
-                        console.warn(`Failed to load items for template ${template.templateId}:`, error.message)
+
                         return {
                             ...template,
                             items: []
@@ -475,10 +458,9 @@ export class ServiceChecklistTemplateService {
                 })
             )
 
-            console.log('Templates with items:', templatesWithItems)
             return templatesWithItems
         } catch (error: any) {
-            console.error('Error getting templates with items:', error)
+
             // Fallback: trả về templates không có items
             return await this.getTemplatesByService(serviceId, activeOnly)
         }

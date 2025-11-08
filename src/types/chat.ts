@@ -2,6 +2,7 @@ export interface ChatUser {
   id: string
   name: string
   avatar?: string
+  email?: string
   role: 'customer' | 'technician' | 'staff' | 'admin'
   isOnline: boolean
   lastSeen?: string
@@ -17,6 +18,21 @@ export interface ChatMessage {
   type: 'text' | 'image' | 'file' | 'link'
   isRead: boolean
   attachments?: ChatAttachment[]
+  messageStatus?: 'sending' | 'sent' | 'delivered' | 'read'
+  replyToMessageId?: string
+  replyToMessage?: ChatMessage
+  reactions?: MessageReaction[]
+  readAt?: string
+  isEdited?: boolean
+  editedAt?: string
+  richTextContent?: string
+  formatting?: 'plain' | 'markdown' | 'html'
+}
+
+export interface MessageReaction {
+  emoji: string
+  userIds: string[]
+  count: number
 }
 
 export interface ChatAttachment {
@@ -71,6 +87,7 @@ export interface ChatCall {
 }
 
 export interface ChatState {
+  isContactMinimized?: boolean
   conversations: ChatConversation[]
   activeConversationId: string | null
   messages: Record<string, ChatMessage[]>
@@ -78,6 +95,9 @@ export interface ChatState {
   isWidgetOpen: boolean
   isLoading: boolean
   error: string | null
+  activeFilter: 'all' | 'unread' | 'pinned'
+  searchQuery: string
+  typingUsers: Record<string, string[]>
 }
 
 export interface ChatNotification {

@@ -303,6 +303,12 @@
   text-overflow: ellipsis;
   flex: 1;
   margin: 0;
+  font-weight: 400;
+
+  &--unread {
+    font-weight: 600;
+    color: #333;
+  }
 }
 
 .conversation-item__badge {

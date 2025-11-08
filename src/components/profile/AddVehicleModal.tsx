@@ -158,8 +158,7 @@ const AddVehicleModal: React.FC<AddVehicleModalProps> = ({ open, onClose, onSucc
       onSuccess()
       onClose()
     } catch (error: any) {
-      console.error('Error creating vehicle:', error)
-      
+
       // Handle validation errors from backend
       if (error?.response?.status === 400 && error?.response?.data?.errors) {
         const validationErrors: Record<string, string> = {}

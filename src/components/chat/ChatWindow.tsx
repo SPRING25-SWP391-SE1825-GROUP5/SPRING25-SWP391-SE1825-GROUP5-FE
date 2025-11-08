@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setActiveConversation, addMessage, setMessages, setConversations } from '@/store/chatSlice'
 import { ChatService } from '@/services/chatService'
@@ -6,6 +6,7 @@ import ConversationList from './ConversationList'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 import ChatHeader from './ChatHeader'
+import type { ChatUser } from '@/types/chat'
 import './ChatWindow.scss'
 
 interface ChatWindowProps {
@@ -14,17 +15,31 @@ interface ChatWindowProps {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
   const dispatch = useAppDispatch()
-  const { 
-    activeConversationId, 
-    conversations, 
-    messages, 
-    currentUserId 
+  const authUser = useAppSelector((state) => state.auth.user)
+  const {
+    activeConversationId,
+    conversations,
+    messages
   } = useAppSelector((state) => ({
     activeConversationId: state.chat.activeConversationId,
     conversations: state.chat.conversations,
-    messages: state.chat.messages,
-    currentUserId: String(state.auth.user?.userId || '')
+    messages: state.chat.messages
   }))
+
+  const currentUser: ChatUser | null = useMemo(() => {
+    if (authUser) {
+      return {
+        id: authUser.id?.toString() || '',
+        name: authUser.fullName || '',
+        avatar: authUser.avatar || undefined,
+        role: 'customer',
+        isOnline: true
+      }
+    }
+    return null
+  }, [authUser])
+
+  const currentUserId = currentUser?.id || ''
 
   const [showConversationList, setShowConversationList] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -55,7 +70,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
       dispatch(setConversations(response))
     } catch (err: any) {
       setError('Không thể tải danh sách cuộc trò chuyện')
-      console.error('Error loading conversations:', err)
+
     } finally {
       setIsLoading(false)
     }
@@ -68,7 +83,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
       dispatch(setMessages({ conversationId, messages: response }))
     } catch (err: any) {
       setError('Không thể tải tin nhắn')
-      console.error('Error loading messages:', err)
+
     } finally {
       setIsLoading(false)
     }
@@ -90,10 +105,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
       }
 
       const newMessage = await ChatService.sendMessage(messageData)
-      dispatch(addMessage({ conversationId: activeConversationId, message: newMessage }))
+      dispatch(addMessage({ conversationId: activeConversationId, message: newMessage, currentUserId }))
     } catch (err: any) {
       setError('Không thể gửi tin nhắn')
-      console.error('Error sending message:', err)
+
     }
   }
 
@@ -142,19 +157,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
             ) : (
               <>
                 <MessageList
+                  conversationId={activeConversationId || ''}
                   messages={currentMessages}
-                  currentUserId={currentUserId}
+                  currentUser={currentUser}
+                  conversation={currentConversation}
                 />
                 <div ref={messagesEndRef} />
               </>
             )}
           </div>
 
-          <MessageInput
-            onSendMessage={handleSendMessage}
-            disabled={!activeConversationId || isLoading}
-            placeholder={activeConversationId ? "Nhập tin nhắn..." : "Chọn cuộc trò chuyện để bắt đầu"}
-          />
+          {activeConversationId && (
+            <MessageInput
+              conversationId={activeConversationId}
+            />
+          )}
         </>
       )}
     </div>

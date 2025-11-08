@@ -135,11 +135,10 @@ export const HealthService = {
 
             if (authHealthCheck.success && authHealthCheck.data?.status === 'healthy') {
               // Both health checks passed - backend is fully ready
-              console.log('[HEALTH_CHECK] Both basic and auth health checks passed')
+
               return true
             } else {
               // Auth health failed, but basic health passed - auth system not ready yet
-              console.log(`[HEALTH_CHECK] Basic health OK, but auth not ready yet. Retry ${i + 1}/${maxRetries}`)
 
               // Wait before next retry (longer delay for auth initialization)
               if (i < maxRetries - 1) {
@@ -162,12 +161,12 @@ export const HealthService = {
 
               if (isRealAuthError) {
                 // Real auth error, don't retry
-                console.warn('[HEALTH_CHECK] Real auth error detected, not a restart issue')
+
                 return false
               }
 
               // Likely auth system not ready yet
-              console.log(`[HEALTH_CHECK] Auth system not ready yet. Retry ${i + 1}/${maxRetries}`)
+
               if (i < maxRetries - 1) {
                 const delay = retryDelay * Math.pow(1.5, i) * 1.5
                 await new Promise(resolve => setTimeout(resolve, delay))
@@ -176,7 +175,7 @@ export const HealthService = {
             }
 
             // Other error, wait and retry
-            console.warn(`[HEALTH_CHECK] Auth health check error:`, authError)
+
             if (i < maxRetries - 1) {
               const delay = retryDelay * Math.pow(1.5, i)
               await new Promise(resolve => setTimeout(resolve, delay))
@@ -188,7 +187,7 @@ export const HealthService = {
           return true
         }
       } catch (error) {
-        console.warn(`[HEALTH_CHECK] Attempt ${i + 1}/${maxRetries} failed:`, error)
+
       }
 
       // Wait before next retry (exponential backoff)

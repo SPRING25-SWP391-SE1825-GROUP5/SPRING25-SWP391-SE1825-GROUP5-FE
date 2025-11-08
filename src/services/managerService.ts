@@ -95,7 +95,7 @@ export const ManagerService = {
   async getAvailableUsers(): Promise<{ success: boolean; message: string; data: AvailableUser[] }> {
     try {
       const { data } = await api.get('/StaffManagement/employees/available-users?pageNumber=1&pageSize=100')
-      console.log('Raw API response:', data) // Debug log
+       // Debug log
       
       // API trả về format: { success: true, message: "...", data: { employees: [...], totalCount: ..., ... } }
       if (data && data.success && data.data && Array.isArray(data.data.employees)) {
@@ -112,7 +112,7 @@ export const ManagerService = {
         }
       }
     } catch (error) {
-      console.error('API error:', error) // Debug log
+       // Debug log
       return {
         success: false,
         message: 'Không thể tải danh sách user có sẵn',

@@ -50,7 +50,7 @@ export default function ProfileVehicles() {
           currentCustomerId = customerResponse.data.customerId
         }
       } catch (error) {
-        console.error('Error loading customer:', error)
+
       }
     }
 

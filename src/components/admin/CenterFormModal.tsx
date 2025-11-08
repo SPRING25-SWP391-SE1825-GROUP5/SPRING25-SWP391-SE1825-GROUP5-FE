@@ -110,8 +110,7 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
       onSuccess()
       onClose()
     } catch (error: any) {
-      console.error('Error saving center:', error)
-      
+
       // Handle validation errors from backend
       if (error?.response?.status === 400) {
         const validationErrors: Record<string, string> = {}

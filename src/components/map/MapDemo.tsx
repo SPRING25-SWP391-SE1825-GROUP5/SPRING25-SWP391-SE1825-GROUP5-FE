@@ -9,7 +9,7 @@ const MapDemo: React.FC = () => {
 
   const handleCenterSelect = (center: NearbyCenter) => {
     setSelectedCenter(center)
-    console.log('Selected center:', center)
+
   }
 
   const handleGetUserLocation = () => {
@@ -24,7 +24,7 @@ const MapDemo: React.FC = () => {
         setUserLocation({ lat: latitude, lng: longitude })
       },
       (error) => {
-        console.error('Geolocation error:', error)
+
         alert('Không thể lấy vị trí hiện tại')
       }
     )

@@ -21,10 +21,9 @@ export const ServiceCategoryService = {
     // Get all active service categories (Public API)
     async getActiveCategories(): Promise<ServiceCategory[]> {
         try {
-            console.log('🌐 Calling ServiceCategory API: /ServiceCategory/active')
+
             const response = await api.get('/ServiceCategory/active')
-            console.log('✅ ServiceCategory API response:', response)
-            console.log('✅ Response data:', response.data)
+
 
             const data = response.data
 
@@ -32,31 +31,26 @@ export const ServiceCategoryService = {
             if (data && typeof data === 'object') {
                 // Format 1: { success: true, data: [...], message: "..." }
                 if (data.success && data.data && Array.isArray(data.data)) {
-                    console.log('✅ Found categories in data.data:', data.data)
+
                     return data.data
                 }
                 // Format 2: Direct array [...]
                 if (Array.isArray(data)) {
-                    console.log('✅ Found categories as direct array:', data)
+
                     return data
                 }
                 // Format 3: { data: [...] }
                 if (data.data && Array.isArray(data.data)) {
-                    console.log('✅ Found categories in data.data:', data.data)
+
                     return data.data
                 }
             }
 
-            console.warn('❌ Unexpected response format:', data)
             return []
         } catch (error: any) {
-            console.error('❌ Error fetching service categories:', error)
-            console.error('❌ Error response:', error.response)
-            console.error('❌ Error details:', {
-                message: error.message,
-                status: error.response?.status,
-                data: error.response?.data
-            })
+
+
+
             return []
         }
     },
@@ -65,7 +59,6 @@ export const ServiceCategoryService = {
     async getAllCategories(): Promise<ServiceCategory[]> {
         try {
             const { data } = await api.get('/ServiceCategory')
-            console.log('ServiceCategory API response:', data)
 
             // Handle different response formats
             if (data && typeof data === 'object') {
@@ -78,10 +71,9 @@ export const ServiceCategoryService = {
                 }
             }
 
-            console.warn('Unexpected response format:', data)
             return []
         } catch (error: any) {
-            console.error('Error fetching service categories:', error)
+
             return []
         }
     },
@@ -101,7 +93,7 @@ export const ServiceCategoryService = {
 
             return null
         } catch (error: any) {
-            console.error('Error fetching service category by ID:', error)
+
             return null
         }
     }

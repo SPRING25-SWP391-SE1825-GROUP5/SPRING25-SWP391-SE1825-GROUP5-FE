@@ -78,7 +78,7 @@ const InventoryPartsModal: React.FC<InventoryPartsModalProps> = ({
         setAvailableParts(response.data.parts || [])
       }
     } catch (err) {
-      console.error('Failed to fetch available parts:', err)
+
     } finally {
       setLoadingAvailable(false)
     }

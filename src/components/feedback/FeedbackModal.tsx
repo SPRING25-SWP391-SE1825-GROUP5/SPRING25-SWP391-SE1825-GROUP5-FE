@@ -46,7 +46,7 @@ export default function FeedbackModal({
       await onSubmit(feedback)
       onClose()
     } catch (error) {
-      console.error('Error submitting feedback:', error)
+
       // Error handling could be improved with toast notifications
     } finally {
       setIsLoading(false)

@@ -14,7 +14,7 @@ export default function FeedbackDemo() {
       const data = await feedbackService.getBookingsWithFeedback()
       setBookings(data)
     } catch (error) {
-      console.error('Error loading demo data:', error)
+
     } finally {
       setLoading(false)
     }
@@ -28,7 +28,7 @@ export default function FeedbackDemo() {
       await loadDemoData()
       alert('Đánh giá đã được gửi thành công!')
     } catch (error) {
-      console.error('Error submitting feedback:', error)
+
       alert('Có lỗi xảy ra khi gửi đánh giá')
     }
   }
@@ -41,7 +41,7 @@ export default function FeedbackDemo() {
       await loadDemoData()
       alert('Đánh giá đã được cập nhật thành công!')
     } catch (error) {
-      console.error('Error updating feedback:', error)
+
       alert('Có lỗi xảy ra khi cập nhật đánh giá')
     }
   }

@@ -1,0 +1,35 @@
+.conversation-filters {
+  display: flex;
+  gap: 8px;
+
+  &__tab {
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #FFD875;
+    }
+
+    &.active {
+      color: #FFD875;
+      font-weight: 500;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #FFD875;
+      }
+    }
+  }
+}
+

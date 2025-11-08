@@ -235,9 +235,8 @@ export const ServiceManagementService = {
       categoryId: params.categoryId
     }
 
-    console.log('Backend params:', backendParams)
     const { data } = await api.get('/Service/active', { params: backendParams })
-    console.log('Raw API response:', data)
+
     const envelope = data as BackendListEnvelope<BackendServiceListData> | BackendServiceListData
     const payload: BackendServiceListData = (envelope as any)?.data
       ? (envelope as BackendListEnvelope<BackendServiceListData>).data
@@ -249,9 +248,7 @@ export const ServiceManagementService = {
         ? payload.items
         : (Array.isArray(envelope) ? (envelope as unknown as BackendService[]) : [])
 
-    console.log('Raw services list:', rawList)
     const services = (rawList || []).map(mapBackendServiceToService)
-    console.log('Mapped services with category info:', services.map(s => ({ id: s.id, name: s.name })))
 
     return {
       services,
@@ -331,30 +328,24 @@ export const ServiceManagementService = {
   // Update service - FIXED VERSION
   async updateService(id: number, service: Partial<Service> & { notes?: string }): Promise<Service> {
     try {
-      console.log('Updating service:', { id, service })
 
       const backendService = {
         ...mapServiceToBackendService(service),
         serviceId: id
       }
 
-      console.log('Sending update payload:', backendService)
-
       // Try multiple endpoint formats
       let response
       try {
         // First try: PUT with ID in URL
         response = await api.put(`/service/${id}`, backendService)
-        console.log('Update successful with endpoint /Service/${id}')
+
       } catch (firstError: any) {
-        console.log('First endpoint failed, trying alternative...', firstError.message)
 
         // Second try: PUT with ID in body only
         response = await api.put('/service', backendService)
-        console.log('Update successful with endpoint /Service')
-      }
 
-      console.log('Update response:', response.data)
+      }
 
       const maybeService: BackendService | undefined = (response.data as any)?.data?.service ?? (response.data as any)?.data ?? response.data
 
@@ -364,11 +355,7 @@ export const ServiceManagementService = {
 
       return mapBackendServiceToService(maybeService as BackendService)
     } catch (error: any) {
-      console.error('Error in updateService:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      })
+
       throw new Error(error.response?.data?.message || `Failed to update service: ${error.message}`)
     }
   },
@@ -398,10 +385,7 @@ export const ServiceManagementService = {
         searchTerm: params.searchTerm
       }
 
-      console.log('Fetching service packages with params:', backendParams)
       const { data } = await api.get('/ServicePackages', { params: backendParams })
-      console.log('ServicePackages API response:', data)
-
 
       let packages: ServicePackage[] = []
 
@@ -415,8 +399,6 @@ export const ServiceManagementService = {
         packages = Array.isArray(data.data) ? data.data : []
       }
 
-      console.log('Mapped packages:', packages)
-
       return {
         packages,
         totalCount: packages.length,
@@ -425,16 +407,15 @@ export const ServiceManagementService = {
         totalPages: Math.ceil(packages.length / (params.pageSize || PAGINATION.DEFAULT_PAGE_SIZE))
       }
     } catch (error: any) {
-      console.error('Error fetching service packages:', error)
+
       throw new Error(error.response?.data?.message || `Failed to fetch service packages: ${error.message}`)
     }
   },
 
   async getServicePackageById(id: number): Promise<ServicePackage> {
     try {
-      console.log('Fetching service package by ID:', id)
+
       const { data } = await api.get(`/ServicePackages/${id}`)
-      console.log('ServicePackage by ID response:', data)
 
       // Handle different response formats
       if (data && typeof data === 'object') {
@@ -447,16 +428,15 @@ export const ServiceManagementService = {
 
       throw new Error('Invalid response format from server')
     } catch (error: any) {
-      console.error('Error fetching service package by ID:', error)
+
       throw new Error(error.response?.data?.message || `Failed to fetch service package: ${error.message}`)
     }
   },
 
   async getServicePackageByCode(code: string): Promise<ServicePackage> {
     try {
-      console.log('Fetching service package by code:', code)
+
       const { data } = await api.get(`/ServicePackages/code/${code}`)
-      console.log('ServicePackage by code response:', data)
 
       // Handle different response formats
       if (data && typeof data === 'object') {
@@ -469,14 +449,13 @@ export const ServiceManagementService = {
 
       throw new Error('Invalid response format from server')
     } catch (error: any) {
-      console.error('Error fetching service package by code:', error)
+
       throw new Error(error.response?.data?.message || `Failed to fetch service package: ${error.message}`)
     }
   },
 
   async createServicePackage(packageData: CreateServicePackageRequest): Promise<ServicePackage> {
     try {
-      console.log('Creating service package with data:', packageData)
 
       // Validate required fields
       if (!packageData.packageName?.trim()) {
@@ -496,7 +475,7 @@ export const ServiceManagementService = {
       }
 
       const { data } = await api.post('/ServicePackages', packageData)
-      console.log('Create service package response:', data)
+
       if (data && typeof data === 'object') {
         if (data.data && typeof data.data === 'object') {
           return data.data
@@ -507,14 +486,13 @@ export const ServiceManagementService = {
 
       throw new Error('Invalid response format from server')
     } catch (error: any) {
-      console.error('Error creating service package:', error)
+
       throw new Error(error.response?.data?.message || `Failed to create service package: ${error.message}`)
     }
   },
 
   async updateServicePackage(id: number, packageData: UpdateServicePackageRequest): Promise<ServicePackage> {
     try {
-      console.log('Updating service package:', { id, packageData })
 
       // Validate ID
       if (!id || id <= 0) {
@@ -542,7 +520,6 @@ export const ServiceManagementService = {
       }
 
       const { data } = await api.put(`/ServicePackages/${id}`, packageData)
-      console.log('Update service package response:', data)
 
       // Handle different response formats
       if (data && typeof data === 'object') {
@@ -555,14 +532,13 @@ export const ServiceManagementService = {
 
       throw new Error('Invalid response format from server')
     } catch (error: any) {
-      console.error('Error updating service package:', error)
+
       throw new Error(error.response?.data?.message || `Failed to update service package: ${error.message}`)
     }
   },
 
   async deleteServicePackage(id: number): Promise<void> {
     try {
-      console.log('Deleting service package with ID:', id)
 
       // Validate ID
       if (!id || id <= 0) {
@@ -570,9 +546,9 @@ export const ServiceManagementService = {
       }
 
       await api.delete(`/ServicePackages/${id}`)
-      console.log('Service package deleted successfully')
+
     } catch (error: any) {
-      console.error('Error deleting service package:', error)
+
       throw new Error(error.response?.data?.message || `Failed to delete service package: ${error.message}`)
     }
   },
@@ -589,13 +565,13 @@ export const ServiceManagementService = {
   // Check if package code exists
   async checkPackageCodeExists(code: string, excludeId?: number): Promise<boolean> {
     try {
-      console.log('Checking if package code exists:', { code, excludeId })
+
       const { data } = await api.get(`/ServicePackages/check-code`, {
         params: { code, excludeId }
       })
       return data?.exists || false
     } catch (error: any) {
-      console.error('Error checking package code:', error)
+
       return false
     }
   },
@@ -603,23 +579,19 @@ export const ServiceManagementService = {
   // Toggle package active status
   async togglePackageStatus(id: number): Promise<ServicePackage> {
     try {
-      console.log('Toggling package status:', id)
 
       // First, get the current package to know its current status
       const currentPackage = await this.getServicePackageById(id)
       const newStatus = !currentPackage.isActive
-
-      console.log('Current status:', currentPackage.isActive, 'New status:', newStatus)
 
       // Update the package with the new status
       const updatedPackage = await this.updateServicePackage(id, {
         isActive: newStatus
       })
 
-      console.log('Package status toggled successfully:', updatedPackage)
       return updatedPackage
     } catch (error: any) {
-      console.error('Error toggling package status:', error)
+
       throw new Error(error.response?.data?.message || `Failed to toggle package status: ${error.message}`)
     }
   },
@@ -627,28 +599,28 @@ export const ServiceManagementService = {
 
   async activatePackage(id: number): Promise<ServicePackage> {
     try {
-      console.log('Activating package:', id)
+
       const updatedPackage = await this.updateServicePackage(id, {
         isActive: true
       })
-      console.log('Package activated successfully:', updatedPackage)
+
       return updatedPackage
     } catch (error: any) {
-      console.error('Error activating package:', error)
+
       throw new Error(error.response?.data?.message || `Failed to activate package: ${error.message}`)
     }
   },
 
   async deactivatePackage(id: number): Promise<ServicePackage> {
     try {
-      console.log('Deactivating package:', id)
+
       const updatedPackage = await this.updateServicePackage(id, {
         isActive: false
       })
-      console.log('Package deactivated successfully:', updatedPackage)
+
       return updatedPackage
     } catch (error: any) {
-      console.error('Error deactivating package:', error)
+
       throw new Error(error.response?.data?.message || `Failed to deactivate package: ${error.message}`)
     }
   },
@@ -676,7 +648,7 @@ export const ServiceManagementService = {
         totalRevenue
       }
     } catch (error: any) {
-      console.error('Error getting package stats:', error)
+
       return {
         totalPackages: 0,
         activePackages: 0,

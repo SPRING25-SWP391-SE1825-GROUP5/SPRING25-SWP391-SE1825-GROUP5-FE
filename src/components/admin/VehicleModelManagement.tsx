@@ -208,7 +208,7 @@ export default function VehicleModelManagement() {
       setExporting(true);
       toast.success('Chức năng xuất dữ liệu sẽ được triển khai sau');
     } catch (err) {
-      console.error('Export models failed:', err);
+
       toast.error('Không thể xuất danh sách mẫu xe. Vui lòng thử lại!');
     } finally {
       setExporting(false);

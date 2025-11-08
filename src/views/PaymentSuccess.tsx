@@ -52,8 +52,6 @@ export default function PaymentSuccess() {
           return
         }
 
-        console.log('Payment result received:', { bookingId, orderId, type, status })
-
         // Xử lý promotion khi thanh toán thành công cho ORDER
         // CHỈ apply coupon và mark as USED khi thanh toán thành công
         if (type === 'order' && orderId && status === 'success') {
@@ -72,8 +70,7 @@ export default function PaymentSuccess() {
               const applyResult = await applyResponse.json()
               
               if (applyResult?.success) {
-                console.log('PaymentSuccess - Applied coupon to order:', pendingCouponCode)
-                
+
                 // Bước 2: Ngay lập tức mark as USED (chuyển APPLIED → USED)
                 // Vì đã thanh toán thành công nên mã sẽ chuyển sang USED và ẩn đi
                 const markResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/promotion/orders/${orderId}/mark-used`, {
@@ -86,19 +83,19 @@ export default function PaymentSuccess() {
                 const markResult = await markResponse.json()
                 
                 if (markResult?.success) {
-                  console.log('PaymentSuccess - Promotions marked as USED successfully')
+
                 } else {
-                  console.warn('PaymentSuccess - Failed to mark promotions as used:', markResult)
+
                 }
               } else {
-                console.warn('PaymentSuccess - Failed to apply coupon:', applyResult)
+
               }
               
               // Xóa coupon code khỏi sessionStorage sau khi xử lý
               sessionStorage.removeItem('pendingCouponCode')
               sessionStorage.removeItem(`appliedCoupon_${orderId}`)
             } catch (promoError: any) {
-              console.warn('PaymentSuccess - Error processing promotion:', promoError)
+
               // Không block UI nếu xử lý promotion fail
             }
           }
@@ -167,7 +164,7 @@ export default function PaymentSuccess() {
           setError(`Không thể lấy thông tin ${type === 'order' ? 'đơn hàng' : 'booking'}`)
         }
       } catch (err) {
-        console.error('Error handling payment result:', err)
+
         setError('Có lỗi xảy ra khi xử lý kết quả thanh toán')
       } finally {
         setLoading(false)
