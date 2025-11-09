@@ -144,6 +144,7 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<AdminDashboard />) },
       { path: 'orders', element: suspense(<AdminDashboard />) },
       { path: 'bookings', element: suspense(<AdminDashboard />) },
+      { path: 'reminders', element: suspense(<AdminDashboard />) },
       { path: 'feedback', element: suspense(<AdminDashboard />) },
       { path: 'users', element: suspense(<AdminDashboard />) },
       { path: 'staff', element: suspense(<AdminDashboard />) },

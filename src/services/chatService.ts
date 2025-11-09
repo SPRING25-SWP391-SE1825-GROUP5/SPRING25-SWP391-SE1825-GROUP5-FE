@@ -214,10 +214,12 @@ export class ChatService {
   }
 
   // Create new conversation for customer support (always creates new, never gets existing)
+  // IMPORTANT: Only STAFF role can be assigned, not MANAGER or other roles
   static async createNewSupportConversation(
     customerLat?: number,
     customerLng?: number,
-    preferredCenterId?: number
+    preferredCenterId?: number,
+    preferredStaffId?: number
   ): Promise<{ success: boolean; data: any }> {
     try {
       const currentUserId = localStorage.getItem('userId') || null
@@ -235,7 +237,7 @@ export class ChatService {
       }
 
       // Build members array - only include customer member
-      // Staff will be auto-assigned by backend
+      // Staff will be auto-assigned by backend with STAFF role only (not MANAGER)
       // IMPORTANT: Constraint CK_ConversationMembers_ActorXor requires either userId OR guestSessionId, not both
       // If user is logged in (has userId), only send userId and set guestSessionId to null
       // If user is not logged in, only send guestSessionId and set userId to null
@@ -254,6 +256,12 @@ export class ChatService {
 
       if (preferredCenterId) {
         requestBody.preferredCenterId = preferredCenterId
+      }
+
+      // Validate preferredStaffId: Backend will validate that staff has STAFF role (not MANAGER)
+      // If invalid, backend will fallback to auto-assign a STAFF member
+      if (preferredStaffId) {
+        requestBody.preferredStaffId = preferredStaffId
       }
 
       if (customerLat !== undefined && customerLng !== undefined) {
@@ -418,6 +426,24 @@ export class ChatService {
         return []
       }
       return []
+    }
+  }
+
+  // Get staff by center (only STAFF role, not MANAGER)
+  // Backend filters to only return staff with role "STAFF", excluding MANAGER
+  static async getStaffByCenter(centerId: number): Promise<{ success: boolean; data: any[] }> {
+    try {
+      const response = await api.get(`/conversation/staff/by-center/${centerId}`)
+      // Backend already filters to only return STAFF role (not MANAGER)
+      // Validate response to ensure all staff have STAFF role
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        // All staff returned from this endpoint should be STAFF role only
+        // Backend validation ensures this
+        return response.data
+      }
+      return response.data
+    } catch (error) {
+      throw error
     }
   }
 

@@ -4,10 +4,13 @@ import { BookingService, type CustomerBooking } from '@/services/bookingService'
 import { CustomerService } from '@/services/customerService'
 import vehicleModelService from '@/services/vehicleModelManagement'
 import { useNavigate } from 'react-router-dom'
-import { QrCodeIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline'
+import { WrenchScrewdriverIcon, BellIcon } from '@heroicons/react/24/outline'
+import { Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import MaintenanceDetailsTab from './MaintenanceDetailsTab'
 import { WorkOrderPartService } from '@/services/workOrderPartService'
+import { ReminderService, MaintenanceReminder } from '@/services/reminderService'
+import { ReminderCard } from '@/components/reminder'
 
 interface VehicleDetailViewProps {
   vehicle: Vehicle
@@ -38,6 +41,8 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [vehicleModelName, setVehicleModelName] = useState<string>('')
   const [expandedBookingId, setExpandedBookingId] = useState<number | null>(null)
+  const [vehicleReminders, setVehicleReminders] = useState<MaintenanceReminder[]>([])
+  const [loadingReminders, setLoadingReminders] = useState(true)
 
   // Load customer ID and vehicle model
   useEffect(() => {
@@ -86,7 +91,7 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
         setLoadingHistory(true)
         // Get all bookings for customer
         const response = await CustomerService.getCustomerBookings(customerId, { pageNumber: 1, pageSize: 100 })
-        
+
         let bookingsArray: CustomerBooking[] = []
         if (response && response.data) {
           if (Array.isArray(response.data)) {
@@ -98,10 +103,10 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
 
         // Filter bookings for this vehicle (by license plate) and only PAID/COMPLETED
         // Remove duplicates by bookingId first
-        const uniqueBookings = bookingsArray.filter((booking, index, self) => 
+        const uniqueBookings = bookingsArray.filter((booking, index, self) =>
           index === self.findIndex((b) => b.bookingId === booking.bookingId)
         )
-        
+
         const vehicleBookings = uniqueBookings.filter(booking => {
           const isVehicleMatch = booking.vehiclePlate?.toUpperCase() === vehicle.licensePlate?.toUpperCase()
           const isCompleted = booking.status === 'PAID' || booking.status === 'COMPLETED'
@@ -113,24 +118,24 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
           vehicleBookings.map(async (booking) => {
             try {
               const detail = await BookingService.getBookingDetail(booking.bookingId)
-              
+
               // Get technician name and timeslot from booking detail
               // API returns BookingResponse with TechnicianName directly (PascalCase from C#)
               const detailData = detail?.data as any
-              
+
               // Debug: log to see actual response structure
               if (!detailData?.TechnicianName && !detailData?.technicianName) {
                 console.log(`[VehicleDetailView] Booking ${booking.bookingId} detail data:`, detailData)
               }
-              
+
               // Check multiple possible locations for technician name (PascalCase first, then camelCase)
               const technicianName = detailData?.TechnicianName || detailData?.technicianName || detailData?.technicianInfo?.technicianName || detailData?.technicianInfo?.TechnicianName || undefined
-              
+
               // Get slotTime - BookingResponse has SlotTime directly (PascalCase)
               const slotTime = detailData?.SlotTime || detailData?.slotTime || detailData?.timeSlotInfo?.startTime || booking.slotTime || undefined
               // slotLabel might not be in BookingResponse, use from booking if available
               const slotLabel = detailData?.SlotLabel || detailData?.slotLabel || detailData?.timeSlotInfo?.slotLabel || booking.slotLabel || undefined
-              
+
               // Load summary (checklist and parts count)
               let summary = undefined
               try {
@@ -138,7 +143,7 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
                   BookingService.getMaintenanceChecklist(booking.bookingId).catch(() => ({ items: [] })),
                   WorkOrderPartService.list(booking.bookingId).catch(() => [])
                 ])
-                
+
                 let checklistItems: any[] = []
                 const responseAny = checklistResponse as any
                 if (responseAny?.items && Array.isArray(responseAny.items)) {
@@ -150,11 +155,11 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
                 } else if (Array.isArray(checklistResponse)) {
                   checklistItems = checklistResponse
                 }
-                
-                const partsReplaced = partsList.filter((p: any) => 
+
+                const partsReplaced = partsList.filter((p: any) =>
                   (p.status || '').toUpperCase() === 'CONSUMED'
                 ).length
-                
+
                 summary = {
                   checklistCount: checklistItems.length,
                   partsCount: partsList.length,
@@ -163,7 +168,7 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
               } catch (error) {
                 console.error(`Error loading summary for booking ${booking.bookingId}:`, error)
               }
-              
+
               return {
                 bookingId: booking.bookingId,
                 date: booking.date,
@@ -194,7 +199,7 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
         )
 
         // Remove duplicates by bookingId (keep the first occurrence)
-        const uniqueHistory = historyWithDetails.filter((item, index, self) => 
+        const uniqueHistory = historyWithDetails.filter((item, index, self) =>
           index === self.findIndex((t) => t.bookingId === item.bookingId)
         )
 
@@ -217,6 +222,35 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
 
     loadMaintenanceHistory()
   }, [customerId, vehicle.licensePlate])
+
+  // Load vehicle reminders
+  useEffect(() => {
+    const loadVehicleReminders = async () => {
+      if (!vehicle.vehicleId) {
+        setLoadingReminders(false)
+        return
+      }
+
+      try {
+        setLoadingReminders(true)
+        const reminders = await ReminderService.getVehicleAlerts(vehicle.vehicleId)
+        // Lọc chỉ reminders của vehicle này và chưa completed
+        const activeReminders = reminders.filter(r =>
+          r.vehicleId === vehicle.vehicleId &&
+          !r.isCompleted &&
+          (r.status === 'PENDING' || r.status === 'DUE' || r.status === 'OVERDUE')
+        )
+        setVehicleReminders(activeReminders)
+      } catch (error) {
+        console.error('Error loading vehicle reminders:', error)
+        setVehicleReminders([])
+      } finally {
+        setLoadingReminders(false)
+      }
+    }
+
+    loadVehicleReminders()
+  }, [vehicle.vehicleId])
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A'
@@ -334,6 +368,68 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
           </button>
         </div>
       </div>
+
+      {/* Vehicle Reminders Card */}
+      {vehicleReminders.length > 0 && (
+        <div style={{
+          background: '#fff',
+          borderRadius: '8px',
+          padding: '20px',
+          marginBottom: '20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            margin: '0 0 16px 0',
+            color: '#111827',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <BellIcon width={20} height={20} style={{ color: '#FFD875' }} />
+            Nhắc nhở bảo dưỡng
+            {vehicleReminders.some(r => r.status === 'OVERDUE' || r.status === 'DUE') && (
+              <span style={{
+                background: '#EF4444',
+                color: '#fff',
+                borderRadius: '12px',
+                padding: '2px 8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                marginLeft: 8
+              }}>
+                {vehicleReminders.filter(r => r.status === 'OVERDUE' || r.status === 'DUE').length}
+              </span>
+            )}
+          </h3>
+
+          {loadingReminders ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+              <Loader2 size={20} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+              <p style={{ margin: 0, fontSize: '14px' }}>Đang tải nhắc nhở...</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {vehicleReminders.map((reminder) => (
+                <ReminderCard
+                  key={reminder.reminderId}
+                  reminder={reminder}
+                  onRefresh={async () => {
+                    const reminders = await ReminderService.getVehicleAlerts(vehicle.vehicleId)
+                    const activeReminders = reminders.filter(r =>
+                      r.vehicleId === vehicle.vehicleId &&
+                      !r.isCompleted &&
+                      (r.status === 'PENDING' || r.status === 'DUE' || r.status === 'OVERDUE')
+                    )
+                    setVehicleReminders(activeReminders)
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Maintenance History Card */}
       <div style={{
@@ -502,8 +598,8 @@ export default function VehicleDetailView({ vehicle, onClose }: VehicleDetailVie
                       borderBottom: index < maintenanceHistory.length - 1 ? '1px solid #e5e7eb' : 'none'
                     }}>
                       {/* Maintenance Details Tab */}
-                      <MaintenanceDetailsTab 
-                        bookingId={history.bookingId} 
+                      <MaintenanceDetailsTab
+                        bookingId={history.bookingId}
                         serviceName={history.serviceName}
                       />
                     </div>

@@ -42,6 +42,50 @@ export interface Review {
   technicianName: string | null
 }
 
+export interface AdminFeedback {
+  feedbackId: number
+  customerId: number
+  customerName: string | null
+  customerEmail: string | null
+  bookingId: number | null
+  orderId: number | null
+  partId: number | null
+  partName: string | null
+  technicianId: number | null
+  technicianName: string | null
+  rating: number
+  comment: string | null
+  isAnonymous: boolean
+  createdAt: string
+}
+
+export interface AdminFeedbackStats {
+  total: number
+  averageRating: number
+  byRating: {
+    1: number
+    2: number
+    3: number
+    4: number
+    5: number
+  }
+  anonymous: number
+  nonAnonymous: number
+  byType: {
+    part: number
+    technician: number
+    both: number
+    general: number
+  }
+  bySource: {
+    booking: number
+    order: number
+    public_: number
+  }
+  recent: number
+  thisMonth: number
+}
+
 export interface ReviewsResponse {
   success: boolean
   message: string
@@ -161,7 +205,7 @@ class FeedbackService {
           pageSize
         }
       })
-      
+
       // Xử lý nhiều trường hợp response format
       if (data && typeof data === 'object') {
         return {
@@ -173,7 +217,7 @@ class FeedbackService {
           data: Array.isArray(data.data) ? data.data : []
         }
       }
-      
+
       return {
         success: false,
         message: 'Không thể lấy danh sách đánh giá',
@@ -191,6 +235,117 @@ class FeedbackService {
         pageSize,
         data: []
       }
+    }
+  }
+
+  /**
+   * Admin: List feedbacks với pagination
+   */
+  async listForAdmin(params?: {
+    page?: number
+    pageSize?: number
+    customerId?: number
+    bookingId?: number
+    orderId?: number
+    partId?: number
+    technicianId?: number
+    minRating?: number
+    maxRating?: number
+    isAnonymous?: boolean
+    from?: string
+    to?: string
+    searchTerm?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<{
+    success: boolean
+    data: AdminFeedback[]
+    pagination: {
+      currentPage: number
+      pageSize: number
+      totalItems: number
+      totalPages: number
+      hasNextPage: boolean
+      hasPreviousPage: boolean
+    }
+  }> {
+    try {
+      const { data } = await api.get('/Feedback/admin', { params })
+      if (!data || !data.success) {
+        throw new Error(data?.message || 'Không thể tải danh sách phản hồi')
+      }
+      return data
+    } catch (error: any) {
+      // Log full error object
+      console.error('Error fetching feedbacks for admin:', error)
+      console.error('Error type:', typeof error)
+      console.error('Error keys:', Object.keys(error || {}))
+
+      // Log response if exists
+      if (error?.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response statusText:', error.response.statusText)
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2))
+      }
+
+      // Log request config if exists
+      if (error?.config) {
+        console.error('Request URL:', error.config.url)
+        console.error('Request method:', error.config.method)
+      }
+
+      const errorMessage = error?.response?.data?.message || error?.message || 'Không thể tải danh sách phản hồi'
+      throw new Error(errorMessage)
+    }
+  }
+
+  /**
+   * Admin: Get statistics
+   */
+  async getStats(): Promise<{
+    success: boolean
+    data: AdminFeedbackStats
+  }> {
+    try {
+      const { data } = await api.get('/api/Feedback/stats')
+      if (!data || !data.success) {
+        throw new Error(data?.message || 'Không thể tải thống kê')
+      }
+      return data
+    } catch (error: any) {
+      // Log full error object
+      console.error('Error fetching feedback stats:', error)
+      console.error('Error type:', typeof error)
+      console.error('Error keys:', Object.keys(error || {}))
+
+      // Log response if exists
+      if (error?.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response statusText:', error.response.statusText)
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2))
+      }
+
+      // Log request config if exists
+      if (error?.config) {
+        console.error('Request URL:', error.config.url)
+        console.error('Request method:', error.config.method)
+      }
+
+      const errorMessage = error?.response?.data?.message || error?.message || 'Không thể tải thống kê'
+      throw new Error(errorMessage)
+    }
+  }
+
+  /**
+   * Admin: Delete feedback
+   */
+  async delete(feedbackId: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const { data } = await api.delete(`/Feedback/${feedbackId}`)
+      return data
+    } catch (error: any) {
+      console.error('Error deleting feedback:', error)
+      throw new Error(error?.response?.data?.message || 'Không thể xóa phản hồi')
     }
   }
 }

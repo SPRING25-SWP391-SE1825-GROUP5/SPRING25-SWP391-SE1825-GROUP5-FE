@@ -127,23 +127,33 @@ export class ServiceChecklistTemplateService {
     static async getAllTemplates(): Promise<{ items: ServiceChecklistTemplate[], total: number }> {
         try {
             const response = await api.get('/service-templates/all')
-            // Xử lý cả 2 trường hợp: { items: [...], total: N } hoặc trực tiếp array
+            // Backend trả về: { success: true, data: templates[] }
             if (response.data && typeof response.data === 'object') {
-                if (Array.isArray(response.data.items)) {
+                // Xử lý response từ backend: { success: true, data: [...] }
+                if (response.data.success && Array.isArray(response.data.data)) {
                     return {
-                        items: response.data.items,
-                        total: response.data.total ?? response.data.items.length
+                        items: response.data.data,
+                        total: response.data.data.length
                     }
-                } else if (Array.isArray(response.data)) {
+                }
+                // Xử lý trường hợp response.data là array trực tiếp
+                if (Array.isArray(response.data)) {
                     return {
                         items: response.data,
                         total: response.data.length
                     }
                 }
+                // Xử lý trường hợp có items property
+                if (Array.isArray(response.data.items)) {
+                    return {
+                        items: response.data.items,
+                        total: response.data.total ?? response.data.items.length
+                    }
+                }
             }
             return { items: [], total: 0 }
         } catch (error: any) {
-
+            console.error('Error fetching templates:', error)
             return { items: [], total: 0 }
         }
     }

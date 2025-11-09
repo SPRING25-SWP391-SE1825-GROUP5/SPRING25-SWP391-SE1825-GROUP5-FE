@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, X, Play } from 'lucide-react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { setConversations, setActiveConversation, setMessages, addMessage } from '@/store/chatSlice'
 import { ChatService } from '@/services/chatService'
 import signalRService from '@/services/signalRService'
+import ConfirmModal from './ConfirmModal'
 import ConversationSidebar from './ConversationSidebar'
 import ConversationDetail from './ConversationDetail'
 import type { ChatMessage } from '@/types/chat'
@@ -26,31 +27,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
   const [isConversationStarted, setIsConversationStarted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
   const chatBoxRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (isOpen) {
-      checkExistingConversation()
-      setupSignalR()
-    }
-
-    return () => {
-      if (!isOpen) {
-        signalRService.disconnect()
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
-
-  useEffect(() => {
-    if (isOpen && activeConversationId) {
-      loadMessages(activeConversationId)
-      joinConversation(activeConversationId)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, activeConversationId])
-
-  const checkExistingConversation = async () => {
+  const checkExistingConversation = useCallback(async () => {
     try {
       const convs = await ChatService.getConversations()
       if (convs.length > 0) {
@@ -58,17 +38,44 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         dispatch(setActiveConversation(convs[0].id))
         setIsConversationStarted(true)
       }
-    } catch (error) {
-
+    } catch {
+      // Error handling
     }
-  }
+  }, [dispatch])
 
-  const loadMessages = async (conversationId: string) => {
+  const setupSignalR = useCallback(async () => {
+    try {
+      await signalRService.connect()
+
+      const currentUserId = authUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
+
+      if (currentUserId !== 'guest') {
+        await signalRService.joinUserGroup(currentUserId)
+      }
+
+      signalRService.setOnMessageReceived((message: ChatMessage) => {
+        const currentUserIdForMessage = authUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
+        dispatch(addMessage({
+          conversationId: message.conversationId,
+          message,
+          currentUserId: currentUserIdForMessage
+        }))
+      })
+
+      signalRService.setOnNewConversation(() => {
+        checkExistingConversation()
+      })
+    } catch {
+      // Error handling
+    }
+  }, [authUser, dispatch, checkExistingConversation])
+
+  const loadMessages = useCallback(async (conversationId: string) => {
     try {
       const response = await ChatService.getConversationMessages(parseInt(conversationId), 1, 100)
       if (response.success && response.data) {
         const messages = Array.isArray(response.data) ? response.data : response.data.messages || []
-        const formattedMessages = messages.map((msg: any) => ({
+        const formattedMessages = messages.map((msg: ChatMessage & { messageId?: string; senderUserId?: string; createdAt?: string }) => ({
           id: String(msg.messageId || msg.id || ''),
           conversationId: conversationId,
           senderId: String(msg.senderUserId || msg.senderId || ''),
@@ -82,46 +89,38 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         }))
         dispatch(setMessages({ conversationId, messages: formattedMessages }))
       }
-    } catch (error) {
-
+    } catch {
+      // Error handling
     }
-  }
+  }, [dispatch])
 
-  const setupSignalR = async () => {
-    try {
-      await signalRService.connect()
-
-      const currentUserId = authUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
-
-      if (currentUserId !== 'guest') {
-        await signalRService.joinUserGroup(currentUserId)
-      }
-
-      signalRService.setOnMessageReceived((message: ChatMessage) => {
-        // Get currentUserId fresh each time (authUser might change)
-        const currentUserIdForMessage = authUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
-        dispatch(addMessage({
-          conversationId: message.conversationId,
-          message,
-          currentUserId: currentUserIdForMessage
-        }))
-      })
-
-      signalRService.setOnNewConversation((data) => {
-        checkExistingConversation()
-      })
-    } catch (error) {
-
-    }
-  }
-
-  const joinConversation = async (conversationId: string) => {
+  const joinConversation = useCallback(async (conversationId: string) => {
     try {
       await signalRService.joinConversation(conversationId)
-    } catch (error) {
+    } catch {
+      // Error handling
+    }
+  }, [])
 
+  useEffect(() => {
+    if (isOpen) {
+      checkExistingConversation()
+      setupSignalR()
+    }
+
+    return () => {
+      if (!isOpen) {
+        signalRService.disconnect()
     }
   }
+  }, [isOpen, checkExistingConversation, setupSignalR])
+
+  useEffect(() => {
+    if (isOpen && activeConversationId) {
+      loadMessages(activeConversationId)
+      joinConversation(activeConversationId)
+    }
+  }, [isOpen, activeConversationId, loadMessages, joinConversation])
 
   const handleStartConversation = async () => {
     if (isLoading) return
@@ -149,14 +148,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
           try {
             await signalRService.joinConversation(conversationId)
-          } catch (error) {
-
+          } catch {
+            // Error handling
           }
         }
       }
-    } catch (error) {
-
-      alert('Không thể kết nối. Vui lòng thử lại sau.')
+    } catch {
+      setShowErrorModal(true)
     } finally {
       setIsLoading(false)
     }
@@ -231,6 +229,17 @@ const ChatBox: React.FC<ChatBoxProps> = ({
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showErrorModal}
+        title="Lỗi kết nối"
+        message="Không thể kết nối. Vui lòng thử lại sau."
+        confirmText="Đóng"
+        cancelText=""
+        onConfirm={() => setShowErrorModal(false)}
+        onCancel={() => setShowErrorModal(false)}
+        type="info"
+      />
     </div>
   )
 }

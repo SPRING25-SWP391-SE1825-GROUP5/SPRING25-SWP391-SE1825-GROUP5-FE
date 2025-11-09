@@ -68,6 +68,9 @@ import SystemSettings from './SystemSettings'
 import ServiceTemplateManagement from './ServiceTemplateManagement'
 import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
+import ReminderManagement from '../../components/admin/ReminderManagement'
+import FeedbackManagement from '../../components/admin/FeedbackManagement'
+import OrderManagement from '../../components/admin/OrderManagement'
 import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
 import { CenterService, type Center } from '../../services/centerService'
 import { ReportsService } from '../../services/reportsService'
@@ -116,14 +119,6 @@ export default function AdminDashboard() {
       color: '#6366f1'
     },
     {
-      title: 'Báo cáo',
-      description: 'Xem báo cáo doanh thu, thống kê',
-      icon: BarChart3,
-      page: 'reports',
-      route: '/admin/reports',
-      color: 'var(--info-500)'
-    },
-    {
       title: 'Quản lý người dùng',
       description: 'Quản lý tài khoản khách hàng',
       icon: Users,
@@ -149,6 +144,7 @@ export default function AdminDashboard() {
       '/admin/': 'dashboard',
       '/admin/orders': 'orders',
       '/admin/bookings': 'bookings',
+      '/admin/reminders': 'reminders',
       '/admin/feedback': 'feedback',
       '/admin/users': 'users',
       '/admin/staff': 'staff',
@@ -176,6 +172,7 @@ export default function AdminDashboard() {
         const routeToPage: Record<string, string> = {
           'orders': 'orders',
           'bookings': 'bookings',
+          'reminders': 'reminders',
           'feedback': 'feedback',
           'users': 'users',
           'staff': 'staff',
@@ -256,7 +253,7 @@ export default function AdminDashboard() {
   const centersLoadedRef = useRef(false)
 
   // Handler for quick period selection
-  
+
   const [loading, setLoading] = useState(false)
   const [loadingStoreRevenue, setLoadingStoreRevenue] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -285,7 +282,7 @@ export default function AdminDashboard() {
   const loadDashboardSummary = async () => {
     try {
       const params: { centerId?: number; fromDate?: string; toDate?: string } = {}
-      
+
       if (selectedCenterId !== 'all') {
         params.centerId = selectedCenterId
       }
@@ -319,7 +316,7 @@ export default function AdminDashboard() {
         fromDate: revenueDateRange.fromDate,
         toDate: revenueDateRange.toDate
       })
-      
+
       if (response.success && response.data?.stores) {
         setRevenueByStore({
           stores: response.data.stores,
@@ -617,7 +614,7 @@ export default function AdminDashboard() {
     }
   }
 
-  
+
 
   // Load dashboard data when center selection or user clicks Apply on revenue filters
   useEffect(() => {
@@ -657,39 +654,13 @@ export default function AdminDashboard() {
   const renderPageContent = () => {
     switch (activePage) {
       case 'orders':
-        return (
-      <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Đơn hàng
-            </h2>
-      <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Quản lý đơn hàng sẽ được hiển thị ở đây...</p>
-      </div>
-    </div>
-  )
+        return <OrderManagement />
       case 'bookings':
         return <BookingManagement />
+      case 'reminders':
+        return <ReminderManagement />
       case 'feedback':
-        return (
-        <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Phản hồi
-            </h2>
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-            borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Quản lý phản hồi sẽ được hiển thị ở đây...</p>
-      </div>
-    </div>
-  )
+        return <FeedbackManagement />
       case 'users':
         return <UsersComponent />
       case 'staff':
@@ -892,13 +863,6 @@ export default function AdminDashboard() {
         page: 'settings',
         route: '/admin/settings',
         color: '#6366f1'
-      },
-      {
-        title: 'Báo cáo',
-        description: 'Xem báo cáo doanh thu, thống kê',
-        icon: BarChart3,
-        page: 'reports',
-        color: 'var(--info-500)'
       },
       {
         title: 'Quản lý người dùng',
@@ -1426,9 +1390,9 @@ export default function AdminDashboard() {
                   }}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="revenue" 
-                  fill="var(--primary-500)" 
+                <Bar
+                  dataKey="revenue"
+                  fill="var(--primary-500)"
                   name="Doanh thu (VND)"
                   radius={[8, 8, 0, 0]}
                 />
@@ -1757,7 +1721,7 @@ export default function AdminDashboard() {
             marginBottom: '32px',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
-            <img src="/email/10.webp" alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: sidebarCollapsed ? '0' : '12px', boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)' }} />
+            <img src="/src/assets/images/10.webp" alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: sidebarCollapsed ? '0' : '12px', boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)' }} />
             {!sidebarCollapsed && (
               <div>
                 <h1 style={{
@@ -1791,56 +1755,13 @@ export default function AdminDashboard() {
                 margin: '0 0 12px 0',
                 display: sidebarCollapsed ? 'none' : 'block'
               }}>
-                Tổng quan
-              </h3>
-              <div
-                onClick={() => setActivePage('dashboard')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  color: activePage === 'dashboard' ? 'var(--primary-500)' : 'var(--text-secondary)',
-                  background: activePage === 'dashboard' ? 'var(--primary-50)' : 'transparent',
-                  fontWeight: '500',
-                  marginBottom: '4px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  if (activePage !== 'dashboard') {
-                    e.currentTarget.style.background = 'var(--primary-50)'
-                    e.currentTarget.style.color = 'var(--primary-500)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activePage !== 'dashboard') {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = 'var(--text-secondary)'
-                  }
-                }}
-              >
-                <BarChart3 size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
-                {!sidebarCollapsed && 'Báo cáo'}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{
-                fontSize: '12px',
-                fontWeight: '600',
-                color: 'var(--text-tertiary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                margin: '0 0 12px 0',
-                display: sidebarCollapsed ? 'none' : 'block'
-              }}>
                 Quản lý
               </h3>
               {[
                 // Quản lý đơn hàng & lịch hẹn
                 { icon: ShoppingCart, label: 'Đơn hàng', page: 'orders', route: '/admin/orders' },
                 { icon: CalendarCheck, label: 'Đặt lịch', page: 'bookings', route: '/admin/bookings' },
+                { icon: Bell, label: 'Nhắc nhở', page: 'reminders', route: '/admin/reminders' },
                 { icon: MessageSquare, label: 'Phản hồi', page: 'feedback', route: '/admin/feedback' },
                 // Quản lý người dùng
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
@@ -1858,8 +1779,7 @@ export default function AdminDashboard() {
                 // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                // Báo cáo & Cài đặt
-                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' },
+                // Cài đặt
                 { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (
                 <div

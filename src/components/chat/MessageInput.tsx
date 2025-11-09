@@ -41,6 +41,8 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
   const lastTypingTimeRef = useRef<number>(0) // Track last typing indicator send time
   const stopTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track stop typing timeout (debounce)
   const isTypingRef = useRef<boolean>(false) // Track if currently typing
+  const lastActivityTimeRef = useRef<number>(0) // Track last user activity time
+  const typingCheckIntervalRef = useRef<NodeJS.Timeout | null>(null) // Track interval for checking typing status
 
   useImperativeHandle(ref, () => ({
     setReplyTo: (message: ChatMessage | null) => {
@@ -70,12 +72,26 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
 
   // Cleanup typing timeout on unmount and stop typing indicator
   useEffect(() => {
+    // Set up interval to check typing status every 3 seconds
+    // This ensures typing indicator is stopped even if timeout fails
+    typingCheckIntervalRef.current = setInterval(() => {
+      const now = Date.now()
+      // If user hasn't typed in last 3 seconds and typing indicator is still active, stop it
+      if (isTypingRef.current && now - lastActivityTimeRef.current > 3000) {
+        signalRService.sendTypingIndicator(conversationId, false)
+        isTypingRef.current = false
+      }
+    }, 3000)
+
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
       }
       if (stopTypingTimeoutRef.current) {
         clearTimeout(stopTypingTimeoutRef.current)
+      }
+      if (typingCheckIntervalRef.current) {
+        clearInterval(typingCheckIntervalRef.current)
       }
       // Stop typing indicator when component unmounts
       if (isTypingRef.current) {
@@ -101,32 +117,35 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
       typingTimeoutRef.current = null
     }
 
+    // Update last activity time
+    const now = Date.now()
+    lastActivityTimeRef.current = now
+
     if (value.trim()) {
       // User is typing - send typing indicator with throttle (max once per 500ms)
-      const now = Date.now()
       if (now - lastTypingTimeRef.current > 500) {
         signalRService.notifyTyping(conversationId)
         lastTypingTimeRef.current = now
         isTypingRef.current = true
       }
 
-      // Set up debounce to detect when user stops typing (1 second of no changes)
+      // Set up debounce to detect when user stops typing (2 seconds of no changes)
       stopTypingTimeoutRef.current = setTimeout(() => {
         if (isTypingRef.current) {
           signalRService.sendTypingIndicator(conversationId, false)
           isTypingRef.current = false
         }
         stopTypingTimeoutRef.current = null
-      }, 1000)
+      }, 2000)
 
-      // Auto-stop typing after 3 seconds of inactivity (backup)
+      // Auto-stop typing after 5 seconds of inactivity (backup safety)
       typingTimeoutRef.current = setTimeout(() => {
         if (isTypingRef.current) {
           signalRService.sendTypingIndicator(conversationId, false)
           isTypingRef.current = false
         }
         typingTimeoutRef.current = null
-      }, 3000)
+      }, 5000)
     } else {
       // Stop typing immediately if input is empty
       if (isTypingRef.current) {
@@ -145,11 +164,12 @@ const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({
   }
 
   const handleBlur = () => {
-    // Stop typing indicator when user leaves the input field
+    // Stop typing indicator immediately when user leaves the input field
     if (isTypingRef.current) {
       signalRService.sendTypingIndicator(conversationId, false)
       isTypingRef.current = false
     }
+    // Clear all timeouts
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current)
       typingTimeoutRef.current = null

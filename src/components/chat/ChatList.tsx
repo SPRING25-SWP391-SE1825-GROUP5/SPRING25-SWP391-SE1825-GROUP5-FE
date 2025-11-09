@@ -32,8 +32,8 @@ const ChatList: React.FC<ChatListProps> = ({
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
     if (query.trim()) {
-      const filtered = conversations.filter(conv => 
-        conv.participants.some(p => 
+      const filtered = conversations.filter(conv =>
+        conv.participants.some(p =>
           p.name.toLowerCase().includes(query.toLowerCase())
         ) ||
         conv.lastMessage?.content.toLowerCase().includes(query.toLowerCase())
@@ -44,7 +44,6 @@ const ChatList: React.FC<ChatListProps> = ({
     }
   }, [conversations])
 
-  // Update filtered conversations when conversations change
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredConversations(conversations)
@@ -57,17 +56,17 @@ const ChatList: React.FC<ChatListProps> = ({
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
     if (diffInHours < 24) {
-      return date.toLocaleTimeString('vi-VN', { 
-        hour: '2-digit', 
+      return date.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       })
     } else if (diffInHours < 168) { // 7 days
       return date.toLocaleDateString('vi-VN', { weekday: 'short' })
     } else {
-      return date.toLocaleDateString('vi-VN', { 
-        day: '2-digit', 
-        month: '2-digit' 
+      return date.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit'
       })
     }
   }, [])
@@ -75,7 +74,6 @@ const ChatList: React.FC<ChatListProps> = ({
   const authUser = useAppSelector((state) => state.auth.user)
 
   const getParticipantName = useCallback((conversation: ChatConversation) => {
-    // Ưu tiên hiển thị tên người KHÁC người dùng hiện tại
     const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
     const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
     return otherParticipant?.name || conversation.participants[0]?.name || 'Người dùng'
@@ -84,14 +82,8 @@ const ChatList: React.FC<ChatListProps> = ({
   const getParticipantAvatar = useCallback((conversation: ChatConversation) => {
     const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
     const otherParticipant = conversation.participants.find(p => p.id !== currentId) || conversation.participants.find(p => p.role !== 'customer')
-    
-    // If avatar already failed, use data URI placeholder
-    if (avatarErrors.has(conversation.id)) {
-      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='
-    }
-    
-    return otherParticipant?.avatar || '/default-avatar.png'
-  }, [authUser?.id, authUser?.userId, avatarErrors])
+    return otherParticipant?.avatar || null
+  }, [authUser?.id, authUser?.userId])
 
   const getParticipantRole = useCallback((conversation: ChatConversation) => {
     const currentId = authUser ? String(authUser.id ?? authUser.userId ?? '') : undefined
@@ -128,19 +120,12 @@ const ChatList: React.FC<ChatListProps> = ({
 
   const handleImageError = useCallback((conversationId: string, e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement
-    
-    // Prevent infinite loop by checking if we already tried the fallback
-    if (avatarErrors.has(conversationId)) {
-      // Use a data URI placeholder instead of another file request
-      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='
-      return
+    target.style.display = 'none'
+    const placeholder = target.parentElement?.querySelector('.conversation-avatar-placeholder') as HTMLElement
+    if (placeholder) {
+      placeholder.style.display = 'flex'
     }
-    
-    // Mark this conversation as having avatar error to prevent retry loop
     setAvatarErrors(prev => new Set(prev).add(conversationId))
-    
-    // Try fallback image only once
-    target.src = '/default-avatar.png'
     setLoadingAvatars(prev => {
       const newSet = new Set(prev)
       newSet.delete(conversationId)
@@ -156,12 +141,10 @@ const ChatList: React.FC<ChatListProps> = ({
     setIsSearching(prev => {
       const newValue = !prev
       if (newValue) {
-        // Focus vào input sau khi component re-render
         setTimeout(() => {
           searchInputRef.current?.focus()
         }, 100)
       } else {
-        // Clear search khi ẩn
         setSearchQuery('')
         setFilteredConversations(conversations)
       }
@@ -169,30 +152,26 @@ const ChatList: React.FC<ChatListProps> = ({
     })
   }, [conversations])
 
-  // Group conversations by participant to avoid duplicates
   const groupedConversations = useMemo(() => {
     const grouped = new Map<string, ChatConversation>()
-    
+
     filteredConversations.forEach((conversation) => {
       const otherParticipant = conversation.participants.find(p => p.role !== 'customer')
       if (otherParticipant) {
         const participantId = otherParticipant.id
         const existing = grouped.get(participantId)
-        
-        // If this participant doesn't exist yet, or if this conversation is newer
+
         if (!existing || new Date(conversation.updatedAt) > new Date(existing.updatedAt)) {
           grouped.set(participantId, conversation)
         }
       }
     })
-    
-    // Convert map to array and sort by updatedAt (newest first)
-    return Array.from(grouped.values()).sort((a, b) => 
+
+    return Array.from(grouped.values()).sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
   }, [filteredConversations])
 
-  // Memoize conversations list to prevent unnecessary re-renders
   const conversationsList = useMemo(() => {
     return groupedConversations.map((conversation) => {
       const participantName = getParticipantName(conversation)
@@ -232,10 +211,10 @@ const ChatList: React.FC<ChatListProps> = ({
           <div className="chat-list__search">
             <div className="search-input">
               <Search size={16} />
-              <input 
+              <input
                 ref={searchInputRef}
-                type="text" 
-                placeholder="Tìm kiếm cuộc trò chuyện..." 
+                type="text"
+                placeholder="Tìm kiếm cuộc trò chuyện..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
               />
@@ -277,10 +256,10 @@ const ChatList: React.FC<ChatListProps> = ({
         <div className="chat-list__search">
           <div className="search-input">
             <Search size={16} />
-            <input 
+            <input
               ref={searchInputRef}
-              type="text" 
-              placeholder="Tìm kiếm cuộc trò chuyện..." 
+              type="text"
+              placeholder="Tìm kiếm cuộc trò chuyện..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
             />
@@ -307,18 +286,26 @@ const ChatList: React.FC<ChatListProps> = ({
                 onClick={() => onConversationSelect(conversation)}
               >
                 <div className={`conversation-avatar ${loadingAvatars.has(conversation.id) ? 'loading' : ''}`}>
-                  <img 
-                    src={conversation.participantAvatar} 
-                    alt={conversation.participantName}
-                    loading="lazy"
-                    onLoad={() => handleImageLoad(conversation.id)}
-                    onError={(e) => handleImageError(conversation.id, e)}
-                    style={{
-                      opacity: loadingAvatars.has(conversation.id) ? 0 : 1,
-                      animation: loadingAvatars.has(conversation.id) ? 'none' : 'fadeIn 0.3s ease'
-                    }}
-                  />
-                  <div 
+                  {conversation.participantAvatar ? (
+                    <img
+                      src={conversation.participantAvatar}
+                      alt={conversation.participantName}
+                      loading="lazy"
+                      onLoad={() => handleImageLoad(conversation.id)}
+                      onError={(e) => handleImageError(conversation.id, e)}
+                      style={{
+                        opacity: loadingAvatars.has(conversation.id) ? 0 : 1,
+                        animation: loadingAvatars.has(conversation.id) ? 'none' : 'fadeIn 0.3s ease'
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="conversation-avatar-placeholder"
+                    style={{ display: conversation.participantAvatar ? 'none' : 'flex' }}
+                  >
+                    {conversation.participantName?.charAt(0).toUpperCase() || '?'}
+                  </div>
+                  <div
                     className="role-indicator"
                     style={{ backgroundColor: conversation.roleColor }}
                   >
@@ -353,17 +340,16 @@ const ChatList: React.FC<ChatListProps> = ({
                   </div>
 
                   <div className="conversation-actions">
-                    <span 
+                    <span
                       className="participant-role"
                       style={{ backgroundColor: conversation.roleColor }}
                     >
                       {conversation.roleLabel}
                     </span>
-                    <button 
+                    <button
                       className="more-btn"
                       onClick={(e) => {
                         e.stopPropagation()
-                        // Handle more actions
                       }}
                     >
                       <MoreVertical size={16} />

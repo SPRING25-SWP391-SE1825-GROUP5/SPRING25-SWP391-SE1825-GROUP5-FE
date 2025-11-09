@@ -1,4 +1,18 @@
 .contact-page {
+  &__staff-selection {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+    min-width: 400px;
+    max-width: 500px;
+  }
+
   // Override global button styles for minimize icon button
   &__minimize-icon-btn {
     // Override global button styles from index.css
@@ -357,6 +371,99 @@
       height: 24px;
       padding: 0;
       flex-shrink: 0;
+    }
+  }
+}
+
+.staff-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__title {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  &__center,
+  &__staff {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  &__select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1f2937;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-color: #9ca3af;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &:disabled {
+      background: #f3f4f6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__loading {
+    padding: 10px 12px;
+    color: #6b7280;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  &__empty {
+    padding: 10px 12px;
+    color: #9ca3af;
+    font-size: 14px;
+    text-align: center;
+    font-style: italic;
+  }
+
+  &__button {
+    margin-top: 8px;
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover:not(:disabled) {
+      background: #2563eb;
+    }
+
+    &:active:not(:disabled) {
+      background: #1d4ed8;
+    }
+
+    &:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
     }
   }
 }

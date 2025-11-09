@@ -1,0 +1,178 @@
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+.confirm-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 450px;
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+}
+
+.confirm-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.confirm-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.confirm-modal__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #111827;
+  }
+}
+
+.confirm-modal__body {
+  padding: 24px;
+}
+
+.confirm-modal__message {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.confirm-modal__footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  justify-content: flex-end;
+
+  &:has(.confirm-modal__btn--cancel:only-child),
+  &:has(.confirm-modal__btn--confirm:only-child) {
+    justify-content: center;
+  }
+}
+
+.confirm-modal__btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  min-width: 80px;
+
+  &--cancel {
+    background: #f3f4f6;
+    color: #374151;
+
+    &:hover {
+      background: #e5e7eb;
+    }
+  }
+
+  &--confirm {
+    &--delete {
+      background: #ef4444 !important;
+      color: white !important;
+      border: none !important;
+
+      &:hover,
+      &:hover:not(:disabled) {
+        background: #ef4444 !important;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4) !important;
+        transform: translateY(-1px) !important;
+        color: white !important;
+        border: none !important;
+      }
+
+      &:active,
+      &:active:not(:disabled) {
+        background: #dc2626 !important;
+        transform: translateY(0) !important;
+        color: white !important;
+        border: none !important;
+      }
+
+      &:focus,
+      &:focus-visible {
+        background: #ef4444 !important;
+        color: white !important;
+        border: none !important;
+        outline: 2px solid rgba(239, 68, 68, 0.5) !important;
+        outline-offset: 2px !important;
+      }
+    }
+
+    &--warning {
+      background: #f59e0b;
+      color: white;
+
+      &:hover {
+        background: #d97706;
+      }
+    }
+
+    &--info {
+      background: #3b82f6;
+      color: white;
+
+      &:hover {
+        background: #2563eb;
+      }
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
