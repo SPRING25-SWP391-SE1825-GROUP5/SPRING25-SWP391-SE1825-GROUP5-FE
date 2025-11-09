@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Plus,
@@ -55,6 +55,9 @@ type AdminUser = {
   emailVerified?: boolean;
 };
 import { UserService } from "@/services";
+import { CustomerService } from "@/services/customerService";
+import { VehicleService } from "@/services/vehicleService";
+import UserDetailsExpansion from "@/components/admin/UserDetailsExpansion";
 // import type { CreateUserByAdminRequest } from "@/services/userService";
 import './Users.scss'
 
@@ -63,8 +66,8 @@ export default function Users() {
   const [searchType, setSearchType] = useState("all"); // all, email, phone
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [sortBy, setSortBy] = useState("fullName");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   // Đã loại bỏ modal tạo người dùng và state liên quan
@@ -93,6 +96,9 @@ export default function Users() {
   const [addedFilters, setAddedFilters] = useState<AddedFilter[]>([]);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
+  const [customerIdByUserId, setCustomerIdByUserId] = useState<Record<number, number | null>>({});
+  const [loadingCustomerId, setLoadingCustomerId] = useState<Set<number>>(new Set());
   const roleRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
@@ -138,7 +144,7 @@ export default function Users() {
 
   useEffect(() => {
     fetchStats();
-  }, []); 
+  }, []);
 
   // Keep selections in sync with current list
   useEffect(() => {
@@ -197,35 +203,19 @@ export default function Users() {
 
       if (users.length > 0) {
         users = users.sort((a, b) => {
-          let aValue: any, bValue: any;
-          
-          switch (sortBy) {
-            case 'fullName':
-              aValue = a.fullName?.toLowerCase() || '';
-              bValue = b.fullName?.toLowerCase() || '';
-              break;
-            case 'email':
-              aValue = a.email?.toLowerCase() || '';
-              bValue = b.email?.toLowerCase() || '';
-              break;
-            case 'createdAt':
-              aValue = new Date(a.createdAt).getTime();
-              bValue = new Date(b.createdAt).getTime();
-              break;
-            case 'role':
-              aValue = a.role?.toLowerCase() || '';
-              bValue = b.role?.toLowerCase() || '';
-              break;
-            default:
-              aValue = a.fullName?.toLowerCase() || '';
-              bValue = b.fullName?.toLowerCase() || '';
-          }
+          // Ưu tiên CUSTOMER role trước
+          const aIsCustomer = a.role === 'CUSTOMER';
+          const bIsCustomer = b.role === 'CUSTOMER';
 
-          if (sortOrder === 'asc') {
-            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-          } else {
-            return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-          }
+          if (aIsCustomer && !bIsCustomer) return -1;
+          if (!aIsCustomer && bIsCustomer) return 1;
+
+          // Nếu cùng role (cả hai là CUSTOMER hoặc cả hai không phải), sort theo createdAt (mới nhất trước)
+          const aDate = new Date(a.createdAt).getTime();
+          const bDate = new Date(b.createdAt).getTime();
+
+          // Mới nhất trước (desc)
+          return bDate - aDate;
         });
       }
 
@@ -244,7 +234,7 @@ export default function Users() {
     try {
       const res = await UserService.getUsers({ pageNumber: 1, pageSize: 100 });
       const allUsers = res.data?.users || [];
-      
+
 
       setStatsData({
         totalUsers: allUsers.length,
@@ -375,9 +365,94 @@ export default function Users() {
     },
   ];
 
-  const handleViewUser = (user: AdminUser) => {
-    setSelectedUser(user);
-    setShowUserModal(true);
+  const handleViewUser = async (user: AdminUser) => {
+    // Toggle expand
+    if (expandedUserId === user.userId) {
+      setExpandedUserId(null);
+    } else {
+      setExpandedUserId(user.userId);
+      // Load customerId if not already loaded
+      if (!customerIdByUserId[user.userId] && !loadingCustomerId.has(user.userId)) {
+        await loadCustomerIdForUser(user.userId);
+      }
+    }
+  };
+
+  const loadCustomerIdForUser = async (userId: number) => {
+    // Only load for CUSTOMER role users
+    const user = users.find(u => u.userId === userId);
+    if (user?.role !== 'CUSTOMER') {
+      setCustomerIdByUserId(prev => ({ ...prev, [userId]: null }));
+      return;
+    }
+
+    try {
+      setLoadingCustomerId(prev => new Set(prev).add(userId));
+      // Try to get customerId using CustomerService or direct API call
+      try {
+        // Option 1: Try to get from UserService.findByEmailOrPhone (has customerId in response)
+        try {
+          // Use find-by-email-or-phone endpoint which returns customerId
+          const api = (await import('@/services/api')).default;
+          const response = await api.get(`/Users/find-by-email-or-phone`, {
+            params: { email: user.email }
+          });
+          if (response.data?.success && response.data?.data?.customerId) {
+            const customerId = response.data.data.customerId;
+            setCustomerIdByUserId(prev => ({ ...prev, [userId]: customerId }));
+            return;
+          }
+        } catch (err) {
+          console.warn('UserService.findByEmailOrPhone failed, trying alternative:', err);
+        }
+
+        // Option 2: Try to get customerId by calling CustomerService or direct API
+        // Since we don't have a direct API endpoint, we'll try to get it from vehicles
+        // Or we can use a workaround: try to get vehicles and extract customerId from first vehicle
+        try {
+          // Try to get vehicles for this user by searching
+          // This is a workaround - ideally we should have an API endpoint to get customerId from userId
+          const api = (await import('@/services/api')).default;
+          // Try calling CustomerService.getCurrentCustomer if it supports userId parameter
+          // Or try to get from vehicles
+          const vehiclesResponse = await VehicleService.getVehicles({ pageNumber: 1, pageSize: 100 });
+          if (vehiclesResponse.success && vehiclesResponse.data) {
+            const allVehicles = Array.isArray(vehiclesResponse.data)
+              ? vehiclesResponse.data
+              : (vehiclesResponse.data as any)?.Vehicles || (vehiclesResponse.data as any)?.vehicles || [];
+            // Find a vehicle that might belong to this user (by checking customerName or customerPhone)
+            const userVehicle = allVehicles.find((v: any) =>
+              v.customerName === user.fullName ||
+              v.customerPhone === user.phoneNumber ||
+              (v as any).CustomerName === user.fullName ||
+              (v as any).CustomerPhone === user.phoneNumber
+            );
+            if (userVehicle && (userVehicle.customerId || (userVehicle as any).CustomerId)) {
+              const customerId = userVehicle.customerId || (userVehicle as any).CustomerId;
+              setCustomerIdByUserId(prev => ({ ...prev, [userId]: customerId }));
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to get customerId from vehicles:', err);
+        }
+
+        // If all methods fail, set to null
+        setCustomerIdByUserId(prev => ({ ...prev, [userId]: null }));
+      } catch (err) {
+        console.error('Error loading customerId:', err);
+        setCustomerIdByUserId(prev => ({ ...prev, [userId]: null }));
+      }
+    } catch (err) {
+      console.error('Error loading customerId:', err);
+      setCustomerIdByUserId(prev => ({ ...prev, [userId]: null }));
+    } finally {
+      setLoadingCustomerId(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
   };
 
   const handleEditUser = (user: AdminUser) => {
@@ -387,23 +462,23 @@ export default function Users() {
     try {
       const newStatus = !user.isActive;
       await UserService.updateUserStatus(user.userId.toString(), newStatus);
-      
+
       // Update local state
-      setUsers(prevUsers => 
-        prevUsers.map(u => 
-          u.userId === user.userId 
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.userId === user.userId
             ? { ...u, isActive: newStatus }
             : u
         )
       );
-      
+
       toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} người dùng "${user.fullName}"`);
-      
+
     } catch (err: any) {
 
       // Extract error message from response
       let errorMessage = 'Không thể cập nhật trạng thái người dùng';
-      
+
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       } else if (err.response?.data?.error) {
@@ -411,7 +486,7 @@ export default function Users() {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       toast.error(`Lỗi: ${errorMessage}`);
     }
   };
@@ -480,12 +555,12 @@ export default function Users() {
     return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
   };
 
-  
+
   if (error) return (
-    <div style={{ 
-      padding: "32px", 
-      display: "flex", 
-      justifyContent: "center", 
+    <div style={{
+      padding: "32px",
+      display: "flex",
+      justifyContent: "center",
       alignItems: "center",
       minHeight: "200px",
       background: "var(--bg-secondary)"
@@ -508,9 +583,9 @@ export default function Users() {
   );
 
   return (
-    <div className="admin-users" style={{ 
-      padding: '0px 16px 16px 16px', 
-      background: '#fff', 
+    <div className="admin-users" style={{
+      padding: '0px 16px 16px 16px',
+      background: '#fff',
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -528,29 +603,29 @@ export default function Users() {
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
         @keyframes slideInFromTop {
-          from { 
-            opacity: 0; 
-            transform: translateY(-30px) translateX(-20px); 
+          from {
+            opacity: 0;
+            transform: translateY(-30px) translateX(-20px);
           }
-          to { 
-            opacity: 1; 
-            transform: translateY(0) translateX(0); 
+          to {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
           }
         }
       `}</style>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '32px',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
         <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '600', 
+          <h2 style={{
+            fontSize: '28px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: '0 0 8px 0',
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -559,15 +634,15 @@ export default function Users() {
           }}>
             Quản lý Người dùng
           </h2>
-          <p style={{ 
-            fontSize: '16px', 
+          <p style={{
+            fontSize: '16px',
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
             Quản lý và theo dõi tất cả người dùng trong hệ thống
           </p>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} />
         </div>
       {/* Toolbar thay thế cards + filters */}
@@ -584,7 +659,7 @@ export default function Users() {
             <div className="search-wrap">
               <Search size={14} className="icon" />
               <input
-                placeholder="Tìm kiếm" 
+                placeholder="Tìm kiếm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -596,9 +671,9 @@ export default function Users() {
             <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
               <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
             </button>
-            <button 
-              type="button" 
-              className="accent-button toolbar-adduser" 
+            <button
+              type="button"
+              className="accent-button toolbar-adduser"
               onClick={() => setOpenCreateModal(true)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 216, 117, 0.6), 0 0 40px rgba(255, 216, 117, 0.4)';
@@ -682,10 +757,10 @@ export default function Users() {
         boxShadow: 'none'
       }}>
         {error ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--error-500)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--error-500)'
           }}>
             <div style={{
               width: '48px',
@@ -702,10 +777,10 @@ export default function Users() {
             <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
           </div>
         ) : users.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '64px',
@@ -744,7 +819,7 @@ export default function Users() {
             }}>
               <thead>
                 <tr className="table-header-yellow" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
-                  <th 
+                  <th
                     style={{
                     padding: '16px 20px',
                     textAlign: 'left',
@@ -755,7 +830,7 @@ export default function Users() {
                   >
                     <span className="th-inner"><input type="checkbox" className="users-checkbox" aria-label="Chọn tất cả" checked={isAllSelected} onChange={(e)=>handleToggleAll(e.target.checked)} /> <UserIcon size={16} className="th-icon" /> Họ tên</span>
                   </th>
-                  <th 
+                  <th
                     style={{
                     padding: '16px 20px',
                     textAlign: 'left',
@@ -807,7 +882,7 @@ export default function Users() {
                   }}>
                     <span className="th-inner" style={{ justifyContent:'flex-start' }}><Clock size={16} className="th-icon" /> Trạng thái</span>
                   </th>
-                  <th 
+                  <th
                     style={{
                     padding: '14px 16px',
                     textAlign: 'left',
@@ -832,11 +907,11 @@ export default function Users() {
               </thead>
               <tbody>
                 {users.map((u, i) => (
-                  <tr 
-                    key={u.userId}
+                  <React.Fragment key={u.userId}>
+                  <tr
                     onClick={() => handleViewUser(u)}
                     style={{
-                      borderBottom: i < users.length - 1 ? '1px solid var(--border-primary)' : 'none',
+                      borderBottom: expandedUserId === u.userId ? 'none' : (i < users.length - 1 ? '1px solid var(--border-primary)' : 'none'),
                       transition: 'all 0.3s ease',
                       background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)',
                       transform: 'translateY(0)',
@@ -864,6 +939,11 @@ export default function Users() {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${u.fullName || 'người dùng'}`} checked={selectedUserIds.includes(u.userId)} onChange={(e)=>handleToggleOne(u.userId, e.target.checked)} onClick={(e)=>e.stopPropagation()} />
+                        {expandedUserId === u.userId ? (
+                          <ChevronUp size={16} style={{ color: '#FFD875', cursor: 'pointer' }} />
+                        ) : (
+                          <ChevronDown size={16} style={{ color: '#9CA3AF', cursor: 'pointer' }} />
+                        )}
                         {((u as any).avatarUrl || u.avatar) ? (
                           <img src={(u as any).avatarUrl || u.avatar || ''} alt={u.fullName || 'user'} className="users-avatar" />
                         ) : (
@@ -925,9 +1005,9 @@ export default function Users() {
                       padding: '8px 12px',
                       textAlign: 'left'
                     }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '8px', 
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
                         justifyContent: 'flex-start',
                         alignItems: 'center'
                       }}>
@@ -959,8 +1039,8 @@ export default function Users() {
                         >
                           <Eye size={16} />
                         </button>
-                        
-                        
+
+
                         <button type="button"
                           onClick={(e) => { e.stopPropagation(); handleToggleUserStatus(u); }}
                           style={{
@@ -992,6 +1072,16 @@ export default function Users() {
                       </div>
                     </td>
                   </tr>
+                  {expandedUserId === u.userId && (
+                    <UserDetailsExpansion
+                      userId={u.userId}
+                      customerId={customerIdByUserId[u.userId] || null}
+                      onRefresh={() => {
+                        // Refresh user list if needed
+                      }}
+                    />
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -1078,7 +1168,7 @@ export default function Users() {
               items.push(btn(2, pageNumber === 2));
               items.push(<span key="ellipsis" className="pager-ellipsis">…</span>);
               items.push(btn(5, pageNumber === 5));
-              
+
               return items;
             })()}
           </div>
@@ -1111,23 +1201,23 @@ export default function Users() {
     />
 
       {showUserModal && selectedUser && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           zIndex: 2000,
           backdropFilter: 'blur(4px)'
         }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
+          <div style={{
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
             borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '600px', 
-            maxWidth: '90vw', 
+            border: '1px solid var(--border-primary)',
+            width: '600px',
+            maxWidth: '90vw',
             maxHeight: '90vh',
             overflow: 'auto',
             padding: '32px',
@@ -1142,7 +1232,7 @@ export default function Users() {
               paddingBottom: "16px",
               borderBottom: "1px solid var(--border-primary)"
             }}>
-              <h3 style={{ 
+              <h3 style={{
                 margin: 0,
                 fontSize: "20px",
                 fontWeight: "600",
@@ -1173,7 +1263,7 @@ export default function Users() {
                 ✕
               </button>
             </div>
-            
+
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div style={{
                 display: "flex",
@@ -1198,7 +1288,7 @@ export default function Users() {
                   {selectedUser.fullName ? selectedUser.fullName.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div>
-                  <p style={{ 
+                  <p style={{
                     margin: "0 0 4px 0",
                     fontSize: "16px",
                     fontWeight: "600",
@@ -1206,7 +1296,7 @@ export default function Users() {
                   }}>
                     {selectedUser.fullName}
                   </p>
-                  <p style={{ 
+                  <p style={{
                     margin: 0,
                     fontSize: "14px",
                     color: "var(--text-secondary)"
@@ -1231,7 +1321,7 @@ export default function Users() {
                     <p style={{ margin: 0, fontSize: "14px", color: "var(--text-primary)" }}>{selectedUser.email}</p>
                   </div>
                 </div>
-                
+
                 <div style={{
                   display: "flex",
                   alignItems: "center",
@@ -1300,7 +1390,7 @@ export default function Users() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div style={{
                   display: "flex",
                   alignItems: "center",

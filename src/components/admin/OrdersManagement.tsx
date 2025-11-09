@@ -38,7 +38,7 @@ export default function OrdersManagement() {
   const [pageSize, setPageSize] = useState(10); // Mặc định 10 dòng mỗi trang
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  
+
   // Order detail modal state
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -86,7 +86,7 @@ export default function OrdersManagement() {
         sortOrder,
       };
 
-      const response = await OrderService.getAdminOrders(params);
+      const response = await OrderService.getAllOrders(params);
 
       // Debug: Log response để kiểm tra cấu trúc
       console.log('Orders API Response:', response);
@@ -105,17 +105,26 @@ export default function OrdersManagement() {
             totalCountValue = response.data.length;
           } else {
             // response.data là object với items/Items
-            ordersData = response.data.items || response.data.Items || [];
+            const dataObj = response.data as {
+              items?: any[]
+              Items?: any[]
+              totalCount?: number
+              TotalCount?: number
+              totalPages?: number
+              TotalPages?: number
+              [key: string]: any
+            }
+            ordersData = dataObj.items || dataObj.Items || [];
             // Ưu tiên lấy totalCount trước, sau đó tính totalPages
-            totalCountValue = response.data.totalCount || response.data.TotalCount || ordersData.length;
-            totalPagesValue = response.data.totalPages || response.data.TotalPages || 1;
+            totalCountValue = dataObj.totalCount || dataObj.TotalCount || ordersData.length;
+            totalPagesValue = dataObj.totalPages || dataObj.TotalPages || 1;
           }
-          
+
           // Nếu có totalCount nhưng totalPages = 1 và totalCount > pageSize, tính lại totalPages
           if (totalCountValue > pageSize && totalPagesValue === 1) {
             totalPagesValue = Math.ceil(totalCountValue / pageSize);
           }
-        } 
+        }
         // Case 2: response trực tiếp là array (không có trong type nhưng xử lý để an toàn)
         else if (Array.isArray(response as any)) {
           ordersData = response as any;
@@ -128,7 +137,12 @@ export default function OrdersManagement() {
             ordersData = response.data;
             totalCountValue = response.data.length;
           } else {
-            ordersData = response.data.items || response.data.Items || [];
+            const dataObj = response.data as {
+              items?: any[]
+              Items?: any[]
+              [key: string]: any
+            }
+            ordersData = dataObj.items || dataObj.Items || [];
             totalCountValue = ordersData.length;
           }
         }
@@ -144,7 +158,7 @@ export default function OrdersManagement() {
       // Ưu tiên: totalCount từ API > totalPages từ API > tính từ ordersData.length
       const finalTotalCount = totalCountValue || ordersData.length;
       let finalTotalPages = totalPagesValue;
-      
+
       // Nếu totalPages = 1 nhưng có nhiều items hơn pageSize, tính lại totalPages
       if (finalTotalPages === 1 && finalTotalCount > pageSize) {
         // Backend trả về tất cả items hoặc totalPages không đúng, tính lại
@@ -338,7 +352,7 @@ export default function OrdersManagement() {
     const customerName = (order.customerName || order.customer?.fullName || order.CustomerName || order.customerName || '').toLowerCase();
     const customerEmail = (order.customerEmail || order.customer?.email || order.CustomerEmail || order.customerEmail || '').toLowerCase();
     const customerPhone = (order.customerPhone || order.customer?.phoneNumber || order.CustomerPhone || order.customerPhone || '').toString();
-    
+
     return (
       orderId.includes(search) ||
       customerName.includes(search) ||
@@ -457,10 +471,10 @@ export default function OrdersManagement() {
           </div>
         ) : (() => {
           // Tính toán số items sẽ hiển thị
-          const displayOrders = searchTerm 
-            ? filteredOrders 
+          const displayOrders = searchTerm
+            ? filteredOrders
             : filteredOrders.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
-          
+
           if (displayOrders.length === 0) {
             return (
               <div className="booking-empty">
@@ -481,7 +495,7 @@ export default function OrdersManagement() {
               </div>
             );
           }
-          
+
           return (
             <>
               <div className="booking-total-count">
@@ -529,10 +543,10 @@ export default function OrdersManagement() {
                   {(() => {
                     // Nếu có searchTerm, hiển thị tất cả filteredOrders
                     // Nếu không có searchTerm, chỉ hiển thị items của trang hiện tại (pageSize items)
-                    const displayOrders = searchTerm 
-                      ? filteredOrders 
+                    const displayOrders = searchTerm
+                      ? filteredOrders
                       : filteredOrders.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
-                    
+
                     return displayOrders.map((order, i) => {
                     // Debug: Log order để kiểm tra cấu trúc
                     if (i === 0) {
@@ -614,9 +628,9 @@ export default function OrdersManagement() {
                   <li
                     key={size}
                     className={`pill-item ${pageSize === size ? 'active' : ''}`}
-                    onClick={() => { 
-                      setPageSize(size); 
-                      setPageNumber(1); 
+                    onClick={() => {
+                      setPageSize(size);
+                      setPageNumber(1);
                       setOpenPageSizeMenu(false);
                       // Reload data với pageSize mới
                     }}

@@ -21,14 +21,13 @@ import {
   CheckCircle,
   Plus,
   Trash2,
-  Send,
-  AlertCircle,
   RefreshCw,
 } from "lucide-react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
 import { ReminderService, MaintenanceReminder } from '@/services/reminderService';
-import './ReminderManagement.scss';
+import ConfirmModal from '@/components/chat/ConfirmModal';
+import './BookingManagement.scss';
 
 export default function ReminderManagement() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,20 +41,7 @@ export default function ReminderManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const [reminders, setReminders] = useState<MaintenanceReminder[]>([]);
-  const [stats, setStats] = useState<{
-    total: number
-    pending: number
-    due: number
-    overdue: number
-    completed: number
-    byType: {
-      maintenance: number
-      package: number
-      appointment: number
-    }
-  } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -73,6 +59,8 @@ export default function ReminderManagement() {
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [reminderToDelete, setReminderToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -95,29 +83,11 @@ export default function ReminderManagement() {
     fetchReminders();
   }, [pageNumber, pageSize, filterStatus, filterType, filterFromDate, filterToDate, sortBy, sortOrder, searchTerm]);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
   // Keep selections in sync
   useEffect(() => {
     const visibleIds = reminders.map(r => r.reminderId);
     setSelectedReminderIds(prev => prev.filter(id => visibleIds.includes(id)));
   }, [reminders]);
-
-  const fetchStats = async () => {
-    try {
-      setLoadingStats(true);
-      const response = await ReminderService.getStats();
-      if (response.success && response.data) {
-        setStats(response.data);
-      }
-    } catch (err: any) {
-      console.error('Error fetching stats:', err);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
 
   const fetchReminders = async () => {
     try {
@@ -184,35 +154,24 @@ export default function ReminderManagement() {
   };
 
   const handleDeleteReminder = async (reminderId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa nhắc nhở này?')) {
-      return;
-    }
+    setReminderToDelete(reminderId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!reminderToDelete) return;
 
     try {
-      setDeleting(reminderId);
-      await ReminderService.delete(reminderId);
+      setDeleting(reminderToDelete);
+      await ReminderService.delete(reminderToDelete);
       toast.success('Đã xóa nhắc nhở thành công');
       fetchReminders();
-      fetchStats();
     } catch (err: any) {
       toast.error(err.message || 'Không thể xóa nhắc nhở');
     } finally {
       setDeleting(null);
-    }
-  };
-
-  const handleDispatchReminders = async (reminderIds: number[]) => {
-    if (reminderIds.length === 0) {
-      toast.error('Vui lòng chọn ít nhất một nhắc nhở');
-      return;
-    }
-
-    try {
-      // TODO: Implement bulk dispatch
-      toast.success(`Đã gửi ${reminderIds.length} nhắc nhở`);
-      fetchReminders();
-    } catch (err: any) {
-      toast.error(err.message || 'Không thể gửi nhắc nhở');
+      setShowDeleteModal(false);
+      setReminderToDelete(null);
     }
   };
 
@@ -346,90 +305,35 @@ export default function ReminderManagement() {
   };
 
   if (error && reminders.length === 0 && !loading) return (
-    <div className="reminder-error">
-      <div className="reminder-error__container">
-        <div className="reminder-error__icon">⚠️</div>
-        <p className="reminder-error__message">{error}</p>
-        <button className="reminder-error__retry" onClick={fetchReminders}>Thử lại</button>
+    <div className="booking-error">
+      <div className="booking-error__container">
+        <div className="booking-error__icon">⚠️</div>
+        <p className="booking-error__message">{error}</p>
+        <button className="booking-error__retry" onClick={fetchReminders}>Thử lại</button>
       </div>
     </div>
   );
 
   return (
-    <div className="admin-reminder admin-reminders">
+    <div className="admin-booking admin-bookings">
       {/* Header */}
-      <div className="reminder-header">
+      <div className="booking-header">
         <div>
-          <h2 className="reminder-header__title">
+          <h2 className="booking-header__title">
             Quản lý Nhắc nhở Bảo dưỡng
           </h2>
-          <p className="reminder-header__subtitle">
+          <p className="booking-header__subtitle">
             Quản lý và theo dõi tất cả nhắc nhở bảo dưỡng trong hệ thống
           </p>
         </div>
       </div>
-
-      {/* Stats Cards */}
-      {stats && (
-        <div className="reminder-stats" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-          marginBottom: '24px'
-        }}>
-          <div style={{
-            background: 'var(--bg-card)',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid var(--border-primary)'
-          }}>
-            <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Tổng số</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)' }}>{stats.total}</div>
-          </div>
-          <div style={{
-            background: '#DBEAFE',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid #93C5FD'
-          }}>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '8px' }}>Chờ đến hạn</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: '#3B82F6' }}>{stats.pending}</div>
-          </div>
-          <div style={{
-            background: '#FEF3C7',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid #FCD34D'
-          }}>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '8px' }}>Đến hạn</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: '#F59E0B' }}>{stats.due}</div>
-          </div>
-          <div style={{
-            background: '#FEE2E2',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid #FCA5A5'
-          }}>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '8px' }}>Quá hạn</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: '#EF4444' }}>{stats.overdue}</div>
-          </div>
-          <div style={{
-            background: '#D1FAE5',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid #6EE7B7'
-          }}>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '8px' }}>Đã hoàn thành</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: '#10B981' }}>{stats.completed}</div>
-          </div>
-        </div>
-      )}
 
       {/* Toolbar */}
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
             <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
+            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng điều khiển</button>
             <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
             <div className="toolbar-sep" />
           </div>
@@ -449,16 +353,6 @@ export default function ReminderManagement() {
             </div>
           </div>
           <div className="toolbar-actions">
-            {selectedReminderIds.length > 0 && (
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={() => handleDispatchReminders(selectedReminderIds)}
-                style={{ background: '#FFD875', color: '#333' }}
-              >
-                <Send size={14} /> Gửi ({selectedReminderIds.length})
-              </button>
-            )}
             <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
             <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
             <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
@@ -523,38 +417,36 @@ export default function ReminderManagement() {
             />
           </div>
 
-          <button type="button" className="toolbar-chip" onClick={fetchReminders}>
-            <RefreshCw size={14} /> Làm mới
-          </button>
+          <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
         </div>
       </div>
 
       {/* Reminders List */}
-      <div className="reminder-table-container">
+      <div className="booking-table-container">
         {loading ? (
-          <div className="reminder-loading">
-            <div className="reminder-loading__spinner" />
-            <p className="reminder-loading__text">Đang tải...</p>
+          <div className="booking-loading">
+            <div className="booking-loading__spinner" />
+            <p className="booking-loading__text">Đang tải...</p>
           </div>
         ) : reminders.length === 0 ? (
-          <div className="reminder-empty">
-            <div className="reminder-empty__icon">
+          <div className="booking-empty">
+            <div className="booking-empty__icon">
               <Bell size={32} />
             </div>
-            <h4 className="reminder-empty__title">
+            <h4 className="booking-empty__title">
               {searchTerm || filterStatus !== 'all' ? 'Không tìm thấy nhắc nhở nào' : 'Chưa có nhắc nhở nào'}
             </h4>
-            <p className="reminder-empty__text">
+            <p className="booking-empty__text">
               {searchTerm || filterStatus !== 'all' ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc' : 'Nhắc nhở sẽ được hiển thị ở đây'}
             </p>
           </div>
         ) : (
           <>
-            <div className="reminder-total-count">
+            <div className="booking-total-count">
               Tổng số nhắc nhở: <strong>{totalCount}</strong>
             </div>
-            <div className="reminder-table-wrapper">
-              <table className="reminder-table users-table" style={{ borderCollapse: 'collapse' }}>
+            <div className="booking-table-wrapper">
+              <table className="booking-table users-table" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr className="table-header-yellow">
                     <th style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
@@ -610,7 +502,7 @@ export default function ReminderManagement() {
                       style={{ animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards` }}
                     >
                       <td style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
-                        <div className="reminder-id-cell">
+                        <div className="booking-id-cell">
                           <input
                             type="checkbox"
                             className="users-checkbox"
@@ -619,7 +511,7 @@ export default function ReminderManagement() {
                             onChange={(e) => handleToggleOne(reminder.reminderId, e.target.checked)}
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <span className="reminder-id-cell__text">#{reminder.reminderId}</span>
+                          <span className="booking-id-cell__text">#{reminder.reminderId}</span>
                         </div>
                       </td>
                       <td className="text-primary-bold">
@@ -653,10 +545,10 @@ export default function ReminderManagement() {
                         {formatDateTime(reminder.createdAt)}
                       </td>
                       <td>
-                        <div className="reminder-actions">
+                        <div className="booking-actions">
                           <button
                             type="button"
-                            className="reminder-action-btn"
+                            className="booking-action-btn"
                             onClick={(e) => { e.stopPropagation(); handleViewReminder(reminder); }}
                             title="Xem chi tiết"
                           >
@@ -664,13 +556,17 @@ export default function ReminderManagement() {
                           </button>
                           <button
                             type="button"
-                            className="reminder-action-btn"
+                            className="booking-action-btn"
                             onClick={(e) => { e.stopPropagation(); handleDeleteReminder(reminder.reminderId); }}
                             title="Xóa"
                             disabled={deleting === reminder.reminderId}
                             style={{ color: '#EF4444' }}
                           >
-                            <Trash2 size={16} />
+                            {deleting === reminder.reminderId ? (
+                              <RefreshCw size={16} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -684,7 +580,7 @@ export default function ReminderManagement() {
       </div>
 
       {/* Pagination */}
-      <div className="reminder-pagination">
+      <div className="booking-pagination">
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
           <div className="pill-select" ref={pageSizeRef} onClick={(e) => { e.stopPropagation(); setOpenPageSizeMenu(v => !v); }}>
@@ -756,7 +652,7 @@ export default function ReminderManagement() {
         </div>
       </div>
 
-      {/* Detail Modal - TODO: Implement */}
+      {/* Detail Modal */}
       {selectedReminder && showDetailModal && (
         <div style={{
           position: 'fixed',
@@ -804,7 +700,20 @@ export default function ReminderManagement() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        message="Bạn có chắc chắn muốn xóa nhắc nhở này? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setReminderToDelete(null);
+        }}
+        type="delete"
+      />
     </div>
   );
 }
-

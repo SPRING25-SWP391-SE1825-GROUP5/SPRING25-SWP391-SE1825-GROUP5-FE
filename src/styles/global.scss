@@ -353,15 +353,15 @@ table thead tr:first-child th {
 }
 /* Pagination pill giữ lớn như hiện tại */
 .pagination-info .pill-select {
-  width: 38px !important;
+  width: 70px !important;
   min-width: 0 !important;
-  max-width: 42px !important;
+  max-width: 80px !important;
 }
 .pagination-info .pill-select .pill-trigger {
   min-width: 0 !important;
-  width: 38px !important;
-  max-width: 42px !important;
-  padding: 0 2px !important;
+  width: 70px !important;
+  max-width: 80px !important;
+  padding: 0 4px !important;
   font-size: 13px !important;
   height: 26px !important;
   text-align:center !important;

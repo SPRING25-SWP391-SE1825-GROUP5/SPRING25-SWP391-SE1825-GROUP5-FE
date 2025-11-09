@@ -172,5 +172,17 @@ export const CustomerService = {
     const defaultParams = { pageNumber: 1, pageSize: 10, ...params }
     const { data } = await api.get<CustomerBookingsResponse>(`/Customer/${customerId}/bookings`, { params: defaultParams })
     return data
+  },
+
+  /**
+   * Get customer service credits
+   *
+   * @param customerId - Customer ID
+   * @returns Promise with customer's service credits
+   * @throws {Error} When request fails
+   */
+  async getCustomerCredits(customerId: number): Promise<CustomerServicePackagesResponse> {
+    const { data } = await api.get<CustomerServicePackagesResponse>(`/Customer/${customerId}/credits`)
+    return data
   }
 }

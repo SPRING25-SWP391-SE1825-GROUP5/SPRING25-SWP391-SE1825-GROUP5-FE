@@ -307,7 +307,7 @@ class FeedbackService {
     data: AdminFeedbackStats
   }> {
     try {
-      const { data } = await api.get('/api/Feedback/stats')
+      const { data } = await api.get('/Feedback/stats')
       if (!data || !data.success) {
         throw new Error(data?.message || 'Không thể tải thống kê')
       }

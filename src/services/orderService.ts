@@ -80,7 +80,20 @@ export const OrderService = {
     searchTerm?: string
     fromDate?: string
     toDate?: string
-  }): Promise<{ success: boolean; data?: any[]; total?: number; message?: string }> {
+  }): Promise<{
+    success: boolean
+    data?: any[] | {
+      items?: any[]
+      Items?: any[]
+      totalCount?: number
+      TotalCount?: number
+      totalPages?: number
+      TotalPages?: number
+      [key: string]: any
+    }
+    total?: number
+    message?: string
+  }> {
     const queryParams = new URLSearchParams()
     if (params?.page) queryParams.append('page', params.page.toString())
     if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
@@ -108,6 +121,11 @@ export const OrderService = {
       responseType: 'blob'
     })
     return response.data
+  },
+
+  async updateFulfillmentCenter(orderId: number, fulfillmentCenterId: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    const { data } = await api.put(`/Order/${orderId}/fulfillment-center`, { fulfillmentCenterId })
+    return data
   }
 }
 
