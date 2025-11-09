@@ -3,7 +3,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://localhost:5001/api',
   withCredentials: false,
-  timeout: 10000,
+  timeout: 30000, // Tăng timeout từ 10s lên 30s cho các API report/summary
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -131,20 +131,56 @@ api.interceptors.request.use((config) => {
       token = localStorage.getItem('authToken') || localStorage.getItem('token')
     }
 
+    // Trim token to remove any whitespace
+    if (token) {
+      token = token.trim()
+    }
+
     if (token) {
       if (!config.headers) {
         config.headers = {} as any
       }
       config.headers.Authorization = `Bearer ${token}`
+      
+      // Debug logging for inventory API calls
+      if (config.url?.includes('/Inventory/')) {
+        console.log('[API] Request to Inventory API:', {
+          url: config.url,
+          method: config.method,
+          hasToken: !!token,
+          tokenLength: token?.length,
+          tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
+          headers: {
+            Authorization: config.headers.Authorization ? 'Bearer ***' : 'missing'
+          }
+        })
+      }
+    } else {
+      // Log warning if no token for protected endpoints
+      if (config.url?.includes('/Inventory/')) {
+        console.warn('[API] WARNING: No token found for Inventory API request:', {
+          url: config.url,
+          method: config.method,
+          localStorage: typeof localStorage !== 'undefined' ? {
+            authToken: localStorage.getItem('authToken') ? 'exists' : 'missing',
+            token: localStorage.getItem('token') ? 'exists' : 'missing'
+          } : 'N/A'
+        })
+      }
     }
   } catch (error) {
     // If tokenGetter throws, try localStorage as fallback
     if (typeof localStorage !== 'undefined') {
       token = localStorage.getItem('authToken') || localStorage.getItem('token')
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`
+      if (token) {
+        token = token.trim()
+        if (config.headers) {
+          config.headers.Authorization = `Bearer ${token}`
+        }
       }
     }
+    
+    console.error('[API] Error getting token:', error)
   }
 
   // Add retry count to config if not present

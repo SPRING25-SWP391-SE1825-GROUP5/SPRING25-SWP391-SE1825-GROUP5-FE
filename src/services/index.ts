@@ -168,3 +168,34 @@ export { PromotionService } from './promotionService'
 // Cart Services
 export { CartService } from './cartService'
 export type { AddCartItemRequest } from './cartService'
+
+// Center Services
+export { CenterService } from './centerService'
+export type {
+  Center,
+  CreateCenterRequest,
+  UpdateCenterRequest,
+  CenterListParams,
+  CenterListResponse,
+  NearbyCentersParams,
+  NearbyCenter
+} from './centerService'
+
+// Inventory Services
+export { InventoryService } from './inventoryService'
+export type {
+  InventoryPart,
+  InventoryData,
+  InventoryResponse,
+  AvailablePart,
+  AvailablePartsResponse,
+  AddPartToInventoryRequest,
+  AddPartToInventoryResponse,
+  UpdatePartRequest,
+  UpdatePartResponse,
+  InventoryListItem,
+  GetInventoriesResponse,
+  UpdateInventoryPartRequest,
+  UpdateInventoryPartResponse,
+  GetInventoryPartsResponse
+} from './inventoryService'

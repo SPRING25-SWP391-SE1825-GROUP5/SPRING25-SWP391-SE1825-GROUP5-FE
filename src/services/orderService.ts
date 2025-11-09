@@ -9,12 +9,14 @@ export interface QuickOrderRequest {
   items: QuickOrderItemRequest[]
   notes?: string
   shippingAddress?: string
+  fulfillmentCenterId?: number  // Center được chọn từ FE để fulfill order
 }
 
 export interface CreateOrderRequest {
   items: QuickOrderItemRequest[]
   notes?: string
   shippingAddress?: string
+  fulfillmentCenterId?: number  // Center được chọn từ FE để fulfill order
 }
 
 export interface CreateOrderResponse {
