@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { addMessage } from '@/store/chatSlice'
-import { Send, Phone, Video, Info, Smile, Paperclip, Image, FileText } from 'lucide-react'
+import { Send, Phone, Video, Info, Smile, Paperclip } from 'lucide-react'
 import { ChatService } from '@/services/chatService'
 import type { ChatConversation, ChatMessage, ChatUser } from '@/types/chat'
 import './ChatArea.scss'
@@ -20,14 +20,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const dispatch = useAppDispatch()
   const { messages } = useAppSelector((state) => state.chat)
   const [newMessage, setNewMessage] = useState('')
-  const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Get messages for current conversation
-  const conversationMessages = conversation ? (messages[conversation.id] || []) : []
+  const conversationMessages = useMemo(() => {
+    return conversation ? (messages[conversation.id] || []) : []
+  }, [conversation, messages])
 
   useEffect(() => {
     scrollToBottom()
@@ -39,8 +39,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
   }, [newMessage])
-
-  // Messages are now loaded from Redux state, no need for separate loading
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -55,11 +53,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       const currentUserId = currentUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
       dispatch(addMessage({ conversationId: conversation.id, message, currentUserId }))
       setNewMessage('')
-
-      // Mark as read
       await ChatService.markAsRead(conversation.id)
-    } catch (error) {
-
+    } catch {
+      // Error handling
     } finally {
       setSending(false)
     }
@@ -75,8 +71,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files.length > 0 && conversation) {
-      // Handle file upload
-
+      // File upload handling
     }
   }
 
@@ -133,15 +128,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     return conversation.participants.find(p => p.id !== currentUser.id)
   }
 
-  const renderMessage = (message: ChatMessage, index: number) => {
-    // Logic đúng: tin nhắn của currentUser (người gửi) bên phải, người khác bên trái
-    // Đảm bảo so sánh string với string
+  const renderMessage = (message: ChatMessage) => {
     const isCurrentUser = String(message.senderId) === String(currentUser.id)
     const isLink = message.type === 'link' && message.content.includes('http')
     const senderDisplayName = message.senderName || (isCurrentUser ? currentUser.name : getOtherParticipant()?.name || 'Người dùng')
-
-    // Logic: tin nhắn có senderId '1' (user) hiển thị bên phải, còn lại bên trái
-    const isUserMessage = message.senderId === '1'
+    const isUserMessage = isCurrentUser
 
     return (
       <div key={message.id} className={`message ${isUserMessage ? 'message--sent' : 'message--received'}`}>
@@ -154,7 +145,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                   <div className="play-button">▶</div>
                 </div>
                 <div className="link-info">
-                  <h4>4K VIDEO ultrahd hdr sony 4K VIDEOS</h4>
+                  <h4>Video YouTube</h4>
                   <p>YouTube</p>
                 </div>
               </div>
@@ -191,15 +182,29 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     <div className="chat-area">
       <div className="chat-area__header">
         <div className="participant-info">
+          <div className="participant-avatar-wrapper">
+            {otherParticipant?.avatar ? (
           <img
-            src={otherParticipant?.avatar || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='}
+                src={otherParticipant.avatar}
             alt={otherParticipant?.name}
             className="participant-avatar"
             onError={(e) => {
               const target = e.target as HTMLImageElement
-              target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjOWNhM2FmIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5Ljc5MDg2IDE0IDggMTUuNzkwOSA4IDE4VjIwSDE2VjE4QzE2IDE1Ljc5MDkgMTQuMjA5MSAxNCAxMiAxNFoiIGZpbGw9IiM5Y2EzYWYiLz4KPC9zdmc+Cjwvc3ZnPgo='
-            }}
-          />
+                  target.style.display = 'none'
+                  const placeholder = target.parentElement?.querySelector('.participant-avatar-placeholder') as HTMLElement
+                  if (placeholder) {
+                    placeholder.style.display = 'flex'
+                  }
+                }}
+              />
+            ) : null}
+            <div
+              className="participant-avatar-placeholder"
+              style={{ display: otherParticipant?.avatar ? 'none' : 'flex' }}
+            >
+              {otherParticipant?.name?.charAt(0).toUpperCase() || '?'}
+            </div>
+          </div>
           <div className="participant-details">
             <h3>{otherParticipant?.name}</h3>
             <div className="participant-info">
@@ -229,18 +234,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       <div className="chat-area__messages">
-        {loading ? (
-          <div className="loading-messages">
-            <div className="loading-skeleton">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="message-skeleton">
-                  <div className="avatar-skeleton"></div>
-                  <div className="content-skeleton"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
           <div className="messages-container">
             {conversationMessages.map((message, index) => {
               const previousMessage = index > 0 ? conversationMessages[index - 1] : null
@@ -255,13 +248,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                       </span>
                     </div>
                   )}
-                  {renderMessage(message, index)}
+                  {renderMessage(message)}
                 </React.Fragment>
               )
             })}
             <div ref={messagesEndRef} />
           </div>
-        )}
       </div>
 
       <div className="chat-area__input">

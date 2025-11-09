@@ -128,6 +128,15 @@ export type {
   PartFilters
 } from './partService'
 
+// Reminder Services
+export { ReminderService } from './reminderService'
+export type {
+  MaintenanceReminder,
+  ReminderListResponse,
+  ReminderUpcomingResponse,
+  ReminderAlertsResponse
+} from './reminderService'
+
 // Configuration Services
 export { ConfigurationService } from './configurationService'
 export type {

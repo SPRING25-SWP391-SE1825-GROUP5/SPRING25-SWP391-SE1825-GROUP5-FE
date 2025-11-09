@@ -3,6 +3,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { setConversations, setActiveConversation, setMessages, addMessage } from '@/store/chatSlice'
 import { ChatService } from '@/services/chatService'
 import signalRService from '@/services/signalRService'
+import ConfirmModal from './ConfirmModal'
 import MessageInput, { MessageInputRef } from './MessageInput'
 import MessageList from './MessageList'
 import type { ChatMessage, ChatUser } from '@/types/chat'
@@ -21,6 +22,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
 
   const [isConversationStarted, setIsConversationStarted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
   const widgetRef = useRef<HTMLDivElement>(null)
   const messageInputRef = useRef<MessageInputRef | null>(null)
 
@@ -35,7 +37,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
 
     return () => {
       if (!isWidgetOpen || isContactMinimized) {
-        signalRService.disconnect()
+        signalRService.setOnMessageReceived(undefined)
+        signalRService.setOnNewConversation(undefined)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,7 +60,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
         dispatch(setActiveConversation(convs[0].id))
         setIsConversationStarted(true)
       }
-    } catch (error) {
+    } catch {
       // Error handled silently
     }
   }
@@ -82,7 +85,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
         }))
         dispatch(setMessages({ conversationId, messages: formattedMessages }))
       }
-    } catch (error) {
+    } catch {
       // Error handled silently
     }
   }
@@ -109,7 +112,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
       signalRService.setOnNewConversation(() => {
         checkExistingConversation()
       })
-    } catch (error) {
+    } catch {
       // Error handled silently
     }
   }
@@ -117,7 +120,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
   const joinConversation = async (conversationId: string) => {
     try {
       await signalRService.joinConversation(conversationId)
-    } catch (error) {
+    } catch {
       // Error handled silently
     }
   }
@@ -148,13 +151,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
 
           try {
             await signalRService.joinConversation(conversationId)
-          } catch (error) {
+          } catch {
             // Error handled silently
           }
         }
       }
-    } catch (error) {
-      alert('Không thể kết nối. Vui lòng thử lại sau.')
+    } catch {
+      setShowErrorModal(true)
     } finally {
       setIsLoading(false)
     }
@@ -212,15 +215,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
           </div>
         </div>
 
-        {!isConversationStarted ? (
+          {!isConversationStarted ? (
           <div className="contact-page__minimized-messages" style={{ padding: '20px', textAlign: 'center' }}>
             <p>Chào mừng đến với EV Center</p>
             <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
               Chúng tôi sẵn sàng hỗ trợ bạn 24/7
-            </p>
-            <button
-              onClick={handleStartConversation}
-              disabled={isLoading}
+              </p>
+              <button
+                onClick={handleStartConversation}
+                disabled={isLoading}
               style={{
                 marginTop: '16px',
                 padding: '8px 16px',
@@ -231,10 +234,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
                 fontSize: '13px',
                 fontWeight: 600
               }}
-            >
-              {isLoading ? 'Đang kết nối...' : 'Bắt đầu'}
-            </button>
-          </div>
+              >
+                {isLoading ? 'Đang kết nối...' : 'Bắt đầu'}
+              </button>
+            </div>
         ) : selectedConversation ? (
           <>
             <div className="contact-page__minimized-messages">
@@ -252,10 +255,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ className = '' }) => {
                 conversationId={selectedConversation.id}
                 className="contact-page__minimized-message-input"
               />
-            </div>
+        </div>
           </>
         ) : null}
       </div>
+
+      <ConfirmModal
+        isOpen={showErrorModal}
+        title="Lỗi kết nối"
+        message="Không thể kết nối. Vui lòng thử lại sau."
+        confirmText="Đóng"
+        cancelText=""
+        onConfirm={() => setShowErrorModal(false)}
+        onCancel={() => setShowErrorModal(false)}
+        type="info"
+      />
     </div>
   )
 }

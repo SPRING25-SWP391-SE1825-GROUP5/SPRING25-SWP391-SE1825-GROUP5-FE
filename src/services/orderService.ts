@@ -71,40 +71,44 @@ export const OrderService = {
     const { data } = await api.get(`/Order/${orderId}/payment/link`)
     return data
   },
-  async updateFulfillmentCenter(orderId: number, fulfillmentCenterId: number): Promise<{ success: boolean; message?: string; data?: any }> {
-    const { data } = await api.put(`/Order/${orderId}/fulfillment-center`, { fulfillmentCenterId })
-    return data
-  },
-  // Admin: Get all orders
-  async getAdminOrders(params?: {
-    pageNumber?: number
+
+  // Admin methods
+  async getAllOrders(params?: {
+    page?: number
     pageSize?: number
-    searchTerm?: string
     status?: string
+    searchTerm?: string
     fromDate?: string
     toDate?: string
-    sortBy?: string
-    sortOrder?: 'asc' | 'desc'
-  }): Promise<{
-    success: boolean
-    message?: string
-    data?: {
-      items?: any[]
-      Items?: any[]
-      totalCount?: number
-      TotalCount?: number
-      totalPages?: number
-      TotalPages?: number
-      pageNumber?: number
-      PageNumber?: number
-      pageSize?: number
-      PageSize?: number
-    }
-  }> {
-    const { data } = await api.get('/Order/admin', { params })
+  }): Promise<{ success: boolean; data?: any[]; total?: number; message?: string }> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.searchTerm) queryParams.append('searchTerm', params.searchTerm)
+    if (params?.fromDate) queryParams.append('fromDate', params.fromDate)
+    if (params?.toDate) queryParams.append('toDate', params.toDate)
+
+    const { data } = await api.get(`/Order/admin?${queryParams.toString()}`)
     return data
   },
-  // Ghi chú: Endpoint apply-coupon không tồn tại trong BE hiện tại. Chờ BE bổ sung.
+
+  async updateOrderStatus(orderId: number, status: string): Promise<{ success: boolean; data?: any; message?: string }> {
+    const { data } = await api.put(`/Order/${orderId}/status`, { status })
+    return data
+  },
+
+  async deleteOrder(orderId: number): Promise<{ success: boolean; message?: string }> {
+    const { data } = await api.delete(`/Order/${orderId}`)
+    return data
+  },
+
+  async exportOrders(): Promise<Blob> {
+    const response = await api.get('/Order/export', {
+      responseType: 'blob'
+    })
+    return response.data
+  }
 }
 
 
