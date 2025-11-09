@@ -173,6 +173,11 @@ const router = createBrowserRouter([
       { path: 'forgot-password/confirm', element: suspense(<ForgotPasswordConfirm />) },
     ],
   },
+  // Catch-all route for 404
+  {
+    path: '*',
+    element: suspense(<NotFound />),
+  },
 ])
 
 export function AppRouter() {

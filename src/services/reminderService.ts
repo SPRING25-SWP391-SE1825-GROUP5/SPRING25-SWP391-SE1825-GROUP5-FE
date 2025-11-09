@@ -74,7 +74,7 @@ export const ReminderService = {
     to?: string
   }): Promise<MaintenanceReminder[]> {
     try {
-      const { data } = await api.get<ReminderListResponse>('/api/reminders', { params })
+      const { data } = await api.get<ReminderListResponse>('/reminders', { params })
       return data.data || []
     } catch (error: any) {
       console.error('Error fetching reminders:', error)
@@ -87,7 +87,7 @@ export const ReminderService = {
    */
   async getUpcoming(customerId?: number): Promise<MaintenanceReminder[]> {
     try {
-      const { data } = await api.get<ReminderUpcomingResponse>('/api/reminders/upcoming', {
+      const { data } = await api.get<ReminderUpcomingResponse>('/reminders/upcoming', {
         params: customerId ? { customerId } : {}
       })
       return data.data || []
@@ -103,7 +103,7 @@ export const ReminderService = {
   async getVehicleAlerts(vehicleId: number): Promise<MaintenanceReminder[]> {
     try {
       if (vehicleId <= 0) return []
-      const { data } = await api.get<ReminderAlertsResponse>(`/api/reminders/vehicles/${vehicleId}/alerts`)
+      const { data } = await api.get<ReminderAlertsResponse>(`/reminders/vehicles/${vehicleId}/alerts`)
       return data.data || []
     } catch (error: any) {
       console.error('Error fetching vehicle alerts:', error)
@@ -116,7 +116,7 @@ export const ReminderService = {
    */
   async getById(reminderId: number): Promise<MaintenanceReminder | null> {
     try {
-      const { data } = await api.get<{ success: boolean; data: MaintenanceReminder }>(`/api/reminders/${reminderId}`)
+      const { data } = await api.get<{ success: boolean; data: MaintenanceReminder }>(`/reminders/${reminderId}`)
       return data.data || null
     } catch (error: any) {
       console.error('Error fetching reminder:', error)
@@ -129,7 +129,7 @@ export const ReminderService = {
    */
   async complete(reminderId: number): Promise<void> {
     try {
-      await api.patch(`/api/reminders/${reminderId}/complete`)
+      await api.patch(`/reminders/${reminderId}/complete`)
     } catch (error: any) {
       console.error('Error completing reminder:', error)
       throw new Error(error?.response?.data?.message || 'Không thể đánh dấu hoàn thành')
@@ -141,7 +141,7 @@ export const ReminderService = {
    */
   async snooze(reminderId: number, days: number = 7): Promise<void> {
     try {
-      await api.patch(`/api/reminders/${reminderId}/snooze`, { days })
+      await api.patch(`/reminders/${reminderId}/snooze`, { days })
     } catch (error: any) {
       console.error('Error snoozing reminder:', error)
       throw new Error(error?.response?.data?.message || 'Không thể hoãn nhắc nhở')
@@ -156,7 +156,7 @@ export const ReminderService = {
     dueMileage?: number
   }): Promise<void> {
     try {
-      await api.put(`/api/reminders/${reminderId}`, updates)
+      await api.put(`/reminders/${reminderId}`, updates)
     } catch (error: any) {
       console.error('Error updating reminder:', error)
       throw new Error(error?.response?.data?.message || 'Không thể cập nhật nhắc nhở')
@@ -175,7 +175,7 @@ export const ReminderService = {
     type?: 'MAINTENANCE' | 'PACKAGE' | 'APPOINTMENT'
   }): Promise<MaintenanceReminder> {
     try {
-      const { data } = await api.post<{ success: boolean; data: MaintenanceReminder }>('/api/reminders', reminder)
+      const { data } = await api.post<{ success: boolean; data: MaintenanceReminder }>('/reminders', reminder)
       return data.data
     } catch (error: any) {
       console.error('Error creating reminder:', error)
@@ -211,11 +211,31 @@ export const ReminderService = {
     }
   }> {
     try {
-      const { data } = await api.get('/api/reminders/admin', { params })
+      // Filter out undefined values from params
+      const cleanParams = Object.fromEntries(
+        Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
+      )
+      const { data } = await api.get('/reminders/admin', { params: cleanParams })
+      if (!data || !data.success) {
+        throw new Error(data?.message || 'Không thể tải danh sách nhắc nhở')
+      }
       return data
     } catch (error: any) {
       console.error('Error fetching reminders for admin:', error)
-      throw new Error(error?.response?.data?.message || 'Không thể tải danh sách nhắc nhở')
+      console.error('Error type:', typeof error)
+      console.error('Error keys:', Object.keys(error || {}))
+      if (error?.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response statusText:', error.response.statusText)
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2))
+      }
+      if (error?.config) {
+        console.error('Request URL:', error.config.url)
+        console.error('Request method:', error.config.method)
+        console.error('Request params:', JSON.stringify(error.config.params, null, 2))
+      }
+      const errorMessage = error?.response?.data?.message || error?.message || 'Không thể tải danh sách nhắc nhở'
+      throw new Error(errorMessage)
     }
   },
 
@@ -245,11 +265,26 @@ export const ReminderService = {
     }
   }> {
     try {
-      const { data } = await api.get('/api/reminders/stats')
+      const { data } = await api.get('/reminders/stats')
+      if (!data || !data.success) {
+        throw new Error(data?.message || 'Không thể tải thống kê')
+      }
       return data
     } catch (error: any) {
       console.error('Error fetching reminder stats:', error)
-      throw new Error(error?.response?.data?.message || 'Không thể tải thống kê')
+      console.error('Error type:', typeof error)
+      console.error('Error keys:', Object.keys(error || {}))
+      if (error?.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response statusText:', error.response.statusText)
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2))
+      }
+      if (error?.config) {
+        console.error('Request URL:', error.config.url)
+        console.error('Request method:', error.config.method)
+      }
+      const errorMessage = error?.response?.data?.message || error?.message || 'Không thể tải thống kê'
+      throw new Error(errorMessage)
     }
   },
 
@@ -258,7 +293,7 @@ export const ReminderService = {
    */
   async delete(reminderId: number): Promise<{ success: boolean; message: string }> {
     try {
-      const { data } = await api.delete(`/api/reminders/${reminderId}`)
+      const { data } = await api.delete(`/reminders/${reminderId}`)
       return data
     } catch (error: any) {
       console.error('Error deleting reminder:', error)
@@ -278,7 +313,7 @@ export const ReminderService = {
   }>): Promise<MaintenanceReminder[]> {
     try {
       const { data } = await api.post<{ success: boolean; data: MaintenanceReminder[] }>(
-        `/api/reminders/vehicles/${vehicleId}/set`,
+        `/reminders/vehicles/${vehicleId}/set`,
         { items }
       )
       return data.data || []

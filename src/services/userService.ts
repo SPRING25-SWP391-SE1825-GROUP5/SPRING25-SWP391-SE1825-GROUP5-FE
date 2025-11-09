@@ -69,7 +69,7 @@ export type UserListResponse = {
 /**
  * User Service
  * Handles user management operations (non-auth related)
- * 
+ *
  * @class UserService
  * @description Service responsible for user profile management,
  * user listing, user administration operations
@@ -84,7 +84,7 @@ export const UserService = {
   },
   /**
    * Update current user profile
-   * 
+   *
    * @param userData - Partial user data to update
    * @returns Promise with updated user data
    * @throws {Error} When update fails
@@ -96,30 +96,34 @@ export const UserService = {
 
   /**
    * Get user profile by ID
-   * 
+   *
    * @param userId - User ID to fetch
    * @returns Promise with user data
    * @throws {Error} When user not found or request fails
    */
   async getUserById(userId: string): Promise<User> {
-    const { data } = await api.get<User>(`/users/${userId}`)
-    return data
+    const { data } = await api.get<{ success: boolean; data: User } | User>(`/Users/${userId}`)
+    // Handle response structure: { success: true, data: user } or direct user object
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      return (data as { success: boolean; data: User }).data
+    }
+    return data as User
   },
 
   /**
    * Get paginated list of users (Admin only)
-   * 
-   * @param params - Query parameters for filtering, pagination and sorting        
+   *
+   * @param params - Query parameters for filtering, pagination and sorting
    * @returns Promise with user list and pagination info
    * @throws {Error} When request fails or unauthorized
    */
   async getUsers(params: GetUsersRequest = {}): Promise<UserListResponse> {
-    const defaultParams = { 
-      pageNumber: 1, 
-      pageSize: 100, 
+    const defaultParams = {
+      pageNumber: 1,
+      pageSize: 100,
       sortBy: 'fullName',
       sortOrder: 'asc',
-      ...params 
+      ...params
     }
     const { data } = await api.get<UserListResponse>('/user', { params: defaultParams })
     return data
@@ -149,7 +153,7 @@ export const UserService = {
 
   /**
    * Create new user (Admin only)
-   * 
+   *
    * @param userData - User creation data
    * @returns Promise with created user
    * @throws {Error} When creation fails or unauthorized
@@ -161,7 +165,7 @@ export const UserService = {
 
   /**
    * Create new user by admin with full details
-   * 
+   *
    * @param userData - Complete user creation data
    * @returns Promise with created user
    * @throws {Error} When creation fails or unauthorized
@@ -182,7 +186,7 @@ export const UserService = {
 
   /**
    * Update user by ID (Admin only)
-   * 
+   *
    * @param userId - User ID to update
    * @param userData - User data to update
    * @returns Promise with updated user
@@ -195,7 +199,7 @@ export const UserService = {
 
   /**
    * Delete user by ID (Admin only)
-   * 
+   *
    * @param userId - User ID to delete
    * @returns Promise that resolves when user deleted
    * @throws {Error} When deletion fails or unauthorized
@@ -206,7 +210,7 @@ export const UserService = {
 
   /**
    * Activate user account (Admin only)
-   * 
+   *
    * @param userId - User ID to activate
    * @returns Promise with updated user
    * @throws {Error} When activation fails or unauthorized
@@ -219,7 +223,7 @@ export const UserService = {
 
   /**
    * Deactivate user account (Admin only)
-   * 
+   *
    * @param userId - User ID to deactivate
    * @returns Promise with updated user
    * @throws {Error} When deactivation fails or unauthorized
@@ -241,7 +245,7 @@ export const UserService = {
 
   /**
    * Toggle user status (convenience method)
-   * 
+   *
    * @param userId - User ID to update
    * @param isActive - Active status
    * @returns Promise with updated user
@@ -253,7 +257,7 @@ export const UserService = {
 
   /**
    * Upload user avatar
-   * 
+   *
    * @param file - Avatar image file
    * @returns Promise with uploaded avatar URL
    * @throws {Error} When upload fails
@@ -261,7 +265,7 @@ export const UserService = {
   async uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
     const formData = new FormData()
     formData.append('avatar', file)
-    
+
     const { data } = await api.post<{ avatarUrl: string }>('/users/me/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -272,7 +276,7 @@ export const UserService = {
 
   /**
    * Get user preferences
-   * 
+   *
    * @returns Promise with user preferences
    * @throws {Error} When request fails
    */
@@ -283,7 +287,7 @@ export const UserService = {
 
   /**
    * Update user preferences
-   * 
+   *
    * @param preferences - User preferences object
    * @returns Promise with updated preferences
    * @throws {Error} When update fails
