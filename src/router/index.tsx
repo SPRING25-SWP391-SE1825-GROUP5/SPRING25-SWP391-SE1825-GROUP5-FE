@@ -49,6 +49,7 @@ const AdminReports = lazy(() => import('@/views/Admin/Reports'))
 const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
+const FulfillmentOrchestration = lazy(() => import('@/views/Manager/FulfillmentOrchestration'))
 const ChatDemo = lazy(() => import('@/views/ChatDemo'))
 const StaffChat = lazy(() => import('@/views/Staff/StaffChat'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
@@ -123,6 +124,7 @@ const router = createBrowserRouter([
     element: <ManagerLayout />,
     children: [
       { index: true, element: suspense(<ManagerDashboard />) },
+      { path: 'fulfillment', element: suspense(<FulfillmentOrchestration />) },
     ],
   },
   // Technician routes with technician layout (no global header)

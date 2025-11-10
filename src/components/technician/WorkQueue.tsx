@@ -90,7 +90,7 @@ interface WorkOrder {
   licensePlate: string
   bikeBrand?: string
   bikeModel?: string
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled'
+  status: 'pending' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'paid' | 'cancelled'
   priority: 'high' | 'medium' | 'low'
   estimatedTime: string
   description: string
@@ -1035,17 +1035,8 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
         {/* Row 1: Tabs + Search + Actions */}
         <div className="toolbar-top" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Tabs with icons */}
-            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid transparent', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <LayoutGrid size={14} /> Bảng
-            </button>
-            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid transparent', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <ChevronsRight size={14} /> Bảng điều khiển
-            </button>
-            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-primary)', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <List size={14} /> Danh sách
-            </button>
-          </div>
+            {/* removed tabs */}
+           </div>
           {/* Middle: Search */}
           <div className="toolbar-search" style={{ flex: 1, minWidth: '320px' }}>
             <div className="search-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -1054,20 +1045,12 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                 placeholder="Tìm kiếm theo tên, biển số, SĐT..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px 8px 36px', border: 'none', borderBottom: '1px solid transparent', background: 'transparent', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s ease' }}
-                onFocus={(e) => { e.currentTarget.style.borderBottomColor = '#FFD875' }}
-                onBlur={(e) => { e.currentTarget.style.borderBottomColor = 'transparent' }}
+                style={{ width: '100%', padding: '8px 12px 8px 36px', border: 'none', borderBottom: '1px solid transparent', background: 'transparent', fontSize: '13px', outline: 'none' }}
               />
             </div>
           </div>
           {/* Right: Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <button type="button" style={{ height: '32px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <EyeOff size={14} /> Ẩn
-            </button>
-            <button type="button" style={{ height: '32px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Sliders size={14} /> Tùy chỉnh
-            </button>
             <button
               type="button"
               onClick={() => setShowAllStatusesToggle(v => !v)}
@@ -1535,11 +1518,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     } catch { toast.error('Lỗi khi xác nhận checklist') }
                                   }}
                                   onConfirmParts={async () => {
-                                    try {
-                                      const res = await WorkOrderPartService.confirm(work.bookingId || work.id)
-                                      if ((res as any)?.success === false) toast.error((res as any)?.message || 'Xác nhận phụ tùng phát sinh thất bại')
-                                      else toast.success('Đã xác nhận phụ tùng phát sinh')
-                                    } catch { toast.error('Lỗi khi xác nhận phụ tùng phát sinh') }
+                                    toast.success('Đã lưu phụ tùng phát sinh')
                                   }}
                                 />
                               )}
@@ -1794,13 +1773,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   else toast.error(res?.message || 'Xác nhận checklist thất bại')
                                 } catch { toast.error('Lỗi khi xác nhận checklist') }
                               }}
-                              onConfirmParts={async () => {
-                                try {
-                                  const res = await WorkOrderPartService.confirm(work.bookingId || work.id)
-                                  if ((res as any)?.success === false) toast.error((res as any)?.message || 'Xác nhận phụ tùng phát sinh thất bại')
-                                  else toast.success('Đã xác nhận phụ tùng phát sinh')
-                                } catch { toast.error('Lỗi khi xác nhận phụ tùng phát sinh') }
-                              }}
+                              onConfirmParts={async () => { toast.success('Đã lưu phụ tùng phát sinh') }}
                             />
                           )}
                         </React.Fragment>

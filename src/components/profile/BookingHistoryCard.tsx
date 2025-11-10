@@ -9,6 +9,8 @@ import { feedbackService } from '@/services/feedbackService'
 import { useAppSelector } from '@/store/hooks'
 import { Star, MessageSquare, QrCode } from 'lucide-react'
 import QRCode from 'qrcode'
+import BookingQRCode from '@/components/booking/BookingQRCode'
+import UsePurchasedPartsPanel from '@/components/booking/UsePurchasedPartsPanel'
 
 interface BookingHistoryCardProps {
   booking: CustomerBooking
@@ -579,84 +581,29 @@ export default function BookingHistoryCard({
             animation: 'slideDown 0.3s ease-out'
           }}
         >
-          <div>
-            {/* Action Buttons - Only show for PENDING status in expanded section */}
-            {booking.status === 'PENDING' && (
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                marginTop: '12px',
-                paddingTop: '16px',
-                borderTop: '1px solid #e5e7eb'
-              }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onPayment?.(booking.bookingId)
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '20px'
+          }}>
+
+
+            {/* Sử dụng phụ tùng đã mua (panel) - chỉ cho PENDING/CONFIRMED */}
+            {(((booking.status || '').toUpperCase() === 'PENDING') || ((booking.status || '').toUpperCase() === 'CONFIRMED')) && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <UsePurchasedPartsPanel
+                  bookingId={booking.bookingId}
+                  // centerId có thể có trong bookingDetail nếu đã load; fallback undefined
+                  centerId={(bookingDetail as any)?.centerId ?? (booking as any)?.centerId}
+                  onSuccess={() => {
+                    // reload parts list (nếu đang có), hoặc đơn giản là thông báo
+                    try { (async () => { await WorkOrderPartService.list(booking.bookingId) })() } catch {}
                   }}
-                  disabled={isProcessingPayment}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: isProcessingPayment ? '#f3f4f6' : '#FFD875',
-                    color: '#111827',
-                    fontSize: '14px',
-                    fontWeight: '400',
-                    cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isProcessingPayment) {
-                      e.currentTarget.style.background = '#FFE082'
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(255, 216, 117, 0.3)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isProcessingPayment) {
-                      e.currentTarget.style.background = '#FFD875'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }
-                  }}
-                >
-                  {isProcessingPayment ? 'Đang xử lý...' : 'Thanh toán'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCancel?.(booking.bookingId)
-                  }}
-                  disabled={isCancelling}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: isCancelling ? '#f3f4f6' : '#fee2e2',
-                    color: isCancelling ? '#9ca3af' : '#991b1b',
-                    fontSize: '14px',
-                    fontWeight: '400',
-                    cursor: isCancelling ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isCancelling) {
-                      e.currentTarget.style.background = '#fecaca'
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.2)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isCancelling) {
-                      e.currentTarget.style.background = '#fee2e2'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }
-                  }}
-                >
-                  {isCancelling ? 'Đang hủy...' : 'Hủy đặt lịch'}
-                </button>
+                />
               </div>
             )}
+
+
 
             {/* Special Requests - Expanded */}
             {booking.specialRequests && booking.specialRequests !== 'string' && (

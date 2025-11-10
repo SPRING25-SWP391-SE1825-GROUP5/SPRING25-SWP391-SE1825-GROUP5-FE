@@ -508,10 +508,8 @@ export default function ServiceTemplateManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><FileText size={14}/> Danh sách</button>
-            <div className="toolbar-sep"></div>
+            {/* removed view mode buttons */}
+            {/* removed dashboard chip */}
           </div>
           <div className="toolbar-right">
             <div className="toolbar-search">
@@ -526,9 +524,7 @@ export default function ServiceTemplateManagement() {
               <span className="search-underline"></span>
             </div>
             <div className="toolbar-actions" style={{marginLeft:'auto'}}>
-              <button type="button" className="toolbar-btn"><EyeOff size={14}/> Ẩn</button>
-              <button type="button" className="toolbar-btn"><SlidersHorizontal size={14}/> Tuỳ chỉnh</button>
-              <button type="button" className="toolbar-btn"><Download size={14}/> Xuất</button>
+              {/* removed hide/customize/export buttons */}
               <button type="button" className="accent-button" onClick={() => setShowCreateModal(true)}><Plus size={16}/> Thêm mẫu checklist</button>
             </div>
           </div>

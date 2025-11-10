@@ -5,7 +5,7 @@
   .toolbar-left, .toolbar-right { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
   .toolbar-right { flex: 1; justify-content:flex-start; gap:6px; align-items:center; }
   .toolbar-filters { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .toolbar-sep { width:1px; height:24px; background:var(--border-primary); margin:0 8px; }
+  .toolbar-sep { display: none; }
   .toolbar-chip { padding:8px 10px; border:none; background:#fff; color:var(--text-primary); border-radius:8px; font-size:13px; font-weight:400; cursor:pointer; display:flex; align-items:center; gap:6px; }
   .toolbar-chip:hover { background:#f6f7f9; }
   .toolbar-btn { padding:8px 10px; border:1px solid var(--border-primary); background:#fff; color:var(--text-primary); border-radius:8px; font-size:13px; font-weight:400; cursor:pointer; display:flex; align-items:center; gap:6px; }
@@ -17,8 +17,8 @@
   @media (max-width: 768px) { .toolbar-search { flex: 1 1 100%; max-width: 100%; } }
   .toolbar-search .search-wrap { position:relative; width:100%; display:block; }
   .toolbar-search input { width:100% !important; padding:10px 12px 10px 34px; border:none; border-bottom:1px solid transparent; border-radius:0; background:#fff !important; color:var(--text-primary); font-size:13px; outline:none; box-shadow:none; position:relative; z-index:1; }
-  .toolbar-search .search-wrap::after { content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; width:auto; background:#FFD875; transform:scaleX(0); transform-origin:left; transition:transform .25s ease; z-index:0; }
-  .toolbar-search .search-wrap:focus-within::after { transform:scaleX(1); }
+  .toolbar-search .search-wrap::after { display: none; }
+  .toolbar-search .search-wrap:focus-within::after { display: none; }
   .toolbar-search .icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); z-index:2; pointer-events:none; }
   .toolbar-actions { display:flex; align-items:center; gap:8px; margin-left:auto; position:relative; z-index:2; flex:0 0 auto; }
 

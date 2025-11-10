@@ -649,10 +649,7 @@ export default function Users() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-          <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
-          <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng điều khiển</button>
-          <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
-          <div className="toolbar-sep" />
+          {/* removed view mode buttons */}
       </div>
         <div className="toolbar-right" style={{ flex: 1 }}>
           <div className="toolbar-search">
@@ -666,11 +663,7 @@ export default function Users() {
             </div>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
-            <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
-              <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
-            </button>
+            {/* removed hide/customize buttons */}
             <button
               type="button"
               className="accent-button toolbar-adduser"

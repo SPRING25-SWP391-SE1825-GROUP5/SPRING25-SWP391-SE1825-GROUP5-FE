@@ -15,21 +15,21 @@ interface PartsApprovalProps {
   status?: string // Status của work order part: DRAFT, CONSUMED, REJECTED, etc.
 }
 
-const PartsApproval: React.FC<PartsApprovalProps> = ({ 
-  bookingId, 
-  workOrderPartId, 
+const PartsApproval: React.FC<PartsApprovalProps> = ({
+  bookingId,
+  workOrderPartId,
   partId, // Giữ lại để backward compatible
-  partName, 
+  partName,
   unitPrice,
   quantity,
-  defaultNote, 
+  defaultNote,
   onApproved,
   mode = 'customer', // Mặc định là customer mode
   status // Status của work order part
 }) => {
   const [loading, setLoading] = useState(false)
   const [note, setNote] = useState(defaultNote || '')
-  
+
   // Kiểm tra xem đã được tiêu thụ hoặc từ chối chưa
   const statusUpper = (status || '').toUpperCase()
   const isConsumed = statusUpper === 'CONSUMED'
@@ -41,7 +41,7 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
   const doApprove = async (approve: boolean) => {
     try {
       setLoading(true)
-      
+
       if (mode === 'staff') {
         // Staff mode: dùng PUT /approve-and-consume hoặc PUT /reject
         if (approve) {
@@ -62,9 +62,10 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
           }
         }
       } else {
-        // Customer mode: dùng PUT /customer-approve hoặc PUT /customer-reject
-        const idempotencyKey = `${bookingId}-${workOrderPartId}-${approve ? 'approve' : 'reject'}`
-        const res = await WorkOrderPartService.customerApprove(bookingId, workOrderPartId, approve, note?.trim() || undefined, idempotencyKey)
+        // Customer mode: dùng PUT /customer-approve hoặc PUT /customer-reject (theo API mới)
+        const res = approve
+          ? await WorkOrderPartService.customerApprove(bookingId, workOrderPartId)
+          : await WorkOrderPartService.customerReject(bookingId, workOrderPartId)
         if (res?.success) {
           toast.success(approve ? 'Đã chấp thuận thay thế' : 'Đã từ chối thay thế')
           onApproved?.(approve)
@@ -100,14 +101,14 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
           </div>
         </div>
       )}
-      
+
       {/* Hiển thị trạng thái */}
       {isConsumed && (
-        <div style={{ 
-          padding: '12px', 
-          borderRadius: 8, 
-          background: '#D1FAE5', 
-          color: '#065F46', 
+        <div style={{
+          padding: '12px',
+          borderRadius: 8,
+          background: '#D1FAE5',
+          color: '#065F46',
           marginBottom: 12,
           display: 'flex',
           alignItems: 'center',
@@ -117,11 +118,11 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
         </div>
       )}
       {isRejected && (
-        <div style={{ 
-          padding: '12px', 
-          borderRadius: 8, 
-          background: '#FEE2E2', 
-          color: '#991B1B', 
+        <div style={{
+          padding: '12px',
+          borderRadius: 8,
+          background: '#FEE2E2',
+          color: '#991B1B',
           marginBottom: 12,
           display: 'flex',
           alignItems: 'center',
@@ -131,11 +132,11 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
         </div>
       )}
       {isPendingApproval && (
-        <div style={{ 
-          padding: '12px', 
-          borderRadius: 8, 
-          background: '#FEF3C7', 
-          color: '#92400E', 
+        <div style={{
+          padding: '12px',
+          borderRadius: 8,
+          background: '#FEF3C7',
+          color: '#92400E',
           marginBottom: 12,
           display: 'flex',
           alignItems: 'center',
@@ -145,11 +146,11 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
         </div>
       )}
       {isDraft && !isPendingApproval && !isConsumed && !isRejected && (
-        <div style={{ 
-          padding: '12px', 
-          borderRadius: 8, 
-          background: '#F3F4F6', 
-          color: '#374151', 
+        <div style={{
+          padding: '12px',
+          borderRadius: 8,
+          background: '#F3F4F6',
+          color: '#374151',
           marginBottom: 12,
           display: 'flex',
           alignItems: 'center',
@@ -158,7 +159,7 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
           <span style={{ fontWeight: 600 }}>📝 Nháp</span>
         </div>
       )}
-      
+
       {/* Chỉ hiển thị textarea cho customer mode và khi chưa được xử lý */}
       {mode === 'customer' && canApprove && (
         <textarea
@@ -169,7 +170,7 @@ const PartsApproval: React.FC<PartsApprovalProps> = ({
           disabled={loading}
         />
       )}
-      
+
       {/* Chỉ hiển thị buttons khi chưa được xử lý */}
       {canApprove && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

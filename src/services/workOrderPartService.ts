@@ -11,6 +11,10 @@ export interface WorkOrderPartItem {
   quantity: number
   notes?: string
   status?: string // DRAFT, CONSUMED, etc.
+  // Hints
+  sourceType?: 'CUSTOMER' | 'INVENTORY' | string
+  isCustomerSupplied?: boolean
+  orderItemId?: number // nếu đến từ đơn đã mua
 }
 
 export const WorkOrderPartService = {
@@ -28,7 +32,10 @@ export const WorkOrderPartService = {
       totalStock: r.totalStock ?? r.stock,
       quantity: r.quantity ?? r.quantityUsed ?? 1, // Map quantityUsed thành quantity
       notes: r.notes,
-      status: r.status // DRAFT, CONSUMED, etc.
+      status: r.status, // DRAFT, CONSUMED, etc.
+      sourceType: r.sourceType ?? r.SourceType,
+      isCustomerSupplied: r.isCustomerSupplied ?? r.customerSupplied ?? r.SourceType === 'CUSTOMER',
+      orderItemId: r.orderItemId ?? r.OrderItemId
     })) : []
   },
 
