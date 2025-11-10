@@ -12,15 +12,15 @@ interface CenterFormModalProps {
   center?: Center | null
 }
 
-const CenterFormModal: React.FC<CenterFormModalProps> = ({ 
-  open, 
-  onClose, 
-  onSuccess, 
+const CenterFormModal: React.FC<CenterFormModalProps> = ({
+  open,
+  onClose,
+  onSuccess,
   mode = 'create',
-  center = null 
+  center = null
 }) => {
   const [loading, setLoading] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     centerName: '',
     address: '',
@@ -86,7 +86,7 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
 
     setLoading(true)
     setErrors({}) // Clear previous errors
-    
+
     try {
       const payload = {
         centerName: formData.centerName.trim(),
@@ -106,7 +106,7 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
         await CenterService.updateCenter(center.centerId, payload as UpdateCenterRequest)
         toast.success('Cập nhật trung tâm thành công!')
       }
-      
+
       onSuccess()
       onClose()
     } catch (error: any) {
@@ -114,11 +114,11 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
       // Handle validation errors from backend
       if (error?.response?.status === 400) {
         const validationErrors: Record<string, string> = {}
-        
+
         // Check if errors object exists (structured validation errors)
         if (error?.response?.data?.errors) {
           const backendErrors = error.response.data.errors
-          
+
           // Map backend field names (PascalCase) to form field names (camelCase)
           const fieldMapping: Record<string, string> = {
             'CenterName': 'centerName',
@@ -126,7 +126,7 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
             'PhoneNumber': 'phoneNumber',
             'IsActive': 'isActive'
           }
-          
+
           // Extract first error message for each field
           Object.keys(backendErrors).forEach((backendField) => {
             const formField = fieldMapping[backendField] || backendField.charAt(0).toLowerCase() + backendField.slice(1)
@@ -136,19 +136,22 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
             }
           })
         }
-        
+
         // Check if message exists and try to map to fields based on keywords
         const errorMessage = error?.response?.data?.message || ''
         if (errorMessage) {
           // Map common error messages to fields
           const messageLower = errorMessage.toLowerCase()
-          
-          if (messageLower.includes('tên trung tâm') || messageLower.includes('centername') || messageLower.includes('tồn tại')) {
+
+          // Priority: Check phone number first (most specific)
+          if (messageLower.includes('số điện thoại') || messageLower.includes('phonenumber') || messageLower.includes('phone') ||
+              (messageLower.includes('tồn tại') && (messageLower.includes('số') || messageLower.includes('phone') || messageLower.includes('điện thoại')))) {
+            validationErrors.phoneNumber = errorMessage
+          } else if (messageLower.includes('tên trung tâm') || messageLower.includes('centername') ||
+                     (messageLower.includes('tồn tại') && messageLower.includes('tên'))) {
             validationErrors.centerName = errorMessage
           } else if (messageLower.includes('địa chỉ') || messageLower.includes('address')) {
             validationErrors.address = errorMessage
-          } else if (messageLower.includes('số điện thoại') || messageLower.includes('phonenumber') || messageLower.includes('phone')) {
-            validationErrors.phoneNumber = errorMessage
           } else {
             // If can't map to specific field, try to show on centerName as fallback for center-related errors
             if (messageLower.includes('trung tâm') || messageLower.includes('center')) {
@@ -156,7 +159,7 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
             }
           }
         }
-        
+
         // Only set errors if we found any
         if (Object.keys(validationErrors).length > 0) {
           setErrors(validationErrors)
@@ -219,8 +222,8 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
               {mode === 'create' ? 'Tạo Trung tâm Mới' : 'Cập nhật Trung tâm'}
             </h2>
             <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
-              {mode === 'create' 
-                ? 'Thêm trung tâm dịch vụ mới vào hệ thống' 
+              {mode === 'create'
+                ? 'Thêm trung tâm dịch vụ mới vào hệ thống'
                 : 'Cập nhật thông tin trung tâm dịch vụ'
               }
             </p>
@@ -247,29 +250,29 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
             {/* Tên trung tâm - Cột 1 */}
             <div>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                marginBottom: '10px', 
-                fontSize: '14px', 
-                fontWeight: '600', 
-                color: '#374151' 
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#374151'
               }}>
                 <Building2 size={18} style={{ color: '#6b7280' }} />
                 Tên trung tâm <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
-                <Building2 
-                  size={20} 
-                  style={{ 
-                    position: 'absolute', 
-                    left: '14px', 
-                    top: '50%', 
-                    transform: 'translateY(-50%)', 
+                <Building2
+                  size={20}
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
                     color: '#9ca3af',
                     pointerEvents: 'none'
-                  }} 
+                  }}
                 />
                 <input
                   type="text"
@@ -296,29 +299,29 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
 
             {/* Số điện thoại - Cột 2 */}
             <div>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                marginBottom: '10px', 
-                fontSize: '14px', 
-                fontWeight: '600', 
-                color: '#374151' 
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#374151'
               }}>
                 <Phone size={18} style={{ color: '#6b7280' }} />
                 Số điện thoại <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
-                <Phone 
-                  size={20} 
-                  style={{ 
-                    position: 'absolute', 
-                    left: '14px', 
-                    top: '50%', 
-                    transform: 'translateY(-50%)', 
+                <Phone
+                  size={20}
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
                     color: '#9ca3af',
                     pointerEvents: 'none'
-                  }} 
+                  }}
                 />
                 <input
                   type="text"
@@ -345,28 +348,28 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
 
             {/* Địa chỉ - Cột 1 (span full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                marginBottom: '10px', 
-                fontSize: '14px', 
-                fontWeight: '600', 
-                color: '#374151' 
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#374151'
               }}>
                 <MapPin size={18} style={{ color: '#6b7280' }} />
                 Địa chỉ <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
-                <MapPin 
-                  size={20} 
-                  style={{ 
-                    position: 'absolute', 
-                    left: '14px', 
-                    top: '16px', 
+                <MapPin
+                  size={20}
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '16px',
                     color: '#9ca3af',
                     pointerEvents: 'none'
-                  }} 
+                  }}
                 />
                 <textarea
                   value={formData.address}
@@ -394,10 +397,10 @@ const CenterFormModal: React.FC<CenterFormModalProps> = ({
             </div>
 
             {/* Toggle Switch hoạt động */}
-            <div style={{ 
+            <div style={{
               gridColumn: '1 / -1',
-              display: 'flex', 
-              alignItems: 'center', 
+              display: 'flex',
+              alignItems: 'center',
               gap: '12px',
               marginBottom: '32px'
             }}>
