@@ -166,7 +166,7 @@ export default function Cart() {
           // Lưu selectedIds vào sessionStorage để xóa khỏi cart sau khi thanh toán thành công
           const orderIdStr = String(orderId)
           sessionStorage.setItem(`orderSelectedIds_${orderIdStr}`, JSON.stringify(Array.from(selectedIds)))
-          
+
           toast.success('Tạo đơn hàng thành công')
           // Navigate to order confirmation page (ẩn orderId trong URL)
           navigate('/confirm-order', { state: { orderId: Number(orderId) }, replace: true })
@@ -178,23 +178,23 @@ export default function Cart() {
       }
     } catch (error: any) {
       console.error('Error creating order:', error)
-      
+
       // Xử lý lỗi authentication
       if (error?.response?.status === 401 || error?.isAuthError) {
         toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
         navigate('/auth/login', { state: { redirect: '/cart' } })
         return
       }
-      
+
       // Xử lý lỗi stock không đủ
       const errorMessage = error?.response?.data?.message || error?.userMessage || error?.message || 'Có lỗi khi tạo đơn hàng'
-      if (errorMessage.includes('Không đủ hàng') || 
+      if (errorMessage.includes('Không đủ hàng') ||
           errorMessage.includes('không đủ stock') ||
           errorMessage.includes('hết hàng')) {
         toast.error('Một số sản phẩm đã hết hàng tại chi nhánh đã chọn. Vui lòng chọn chi nhánh khác hoặc xóa sản phẩm khỏi giỏ hàng.')
         return
       }
-      
+
       // Xử lý các lỗi khác
       toast.error(errorMessage)
     } finally {
@@ -227,8 +227,8 @@ export default function Cart() {
           }
         }
 
-        if (cartId) {
-          const itemsResp = await CartService.getCartItems(cartId)
+        if (user?.customerId) {
+          const itemsResp = await CartService.getCartItems(Number(user.customerId))
           const mapped = (itemsResp?.data || []).map((it: any) => ({
             id: String(it.partId ?? it.id ?? it.part?.partId),
             name: it.partName ?? it.name ?? it.part?.partName ?? 'Sản phẩm',
@@ -260,7 +260,7 @@ export default function Cart() {
               <ShoppingBagIcon className="w-24 h-24" />
             </div>
             <h1>Giỏ hàng của bạn hiện đang trống</h1>
-            <button 
+            <button
               className="continue-shopping-btn"
               onClick={() => navigate('/products')}
             >
@@ -283,7 +283,7 @@ export default function Cart() {
           <div className="cart-items">
             <div className="cart-header">
               <h2>Giỏ hàng của bạn</h2>
-              <button 
+              <button
                 className="clear-cart-btn"
                 onClick={handleClearCart}
               >
@@ -313,8 +313,8 @@ export default function Cart() {
               {cart.items.map(item => (
                 <div key={item.id} className="cart-card">
                   <div className="item-image">
-                    <img 
-                      src={item.image} 
+                    <img
+                      src={item.image}
                       alt={item.name}
                       onError={(e) => {
                         e.currentTarget.src = 'https://via.placeholder.com/120x120/f5f5f5/666?text=Product'
@@ -329,10 +329,10 @@ export default function Cart() {
                       <div className="item-category">{item.category}</div>
                       {/* Hiển thị center đã chọn (nếu có) - không bắt buộc */}
                       {item.fulfillmentCenterId && (
-                        <div className="item-center" style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '4px', 
+                        <div className="item-center" style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
                           marginTop: '4px',
                           fontSize: '0.875rem',
                           color: '#666'
@@ -351,14 +351,14 @@ export default function Cart() {
                     </div>
 
                     <div className="quantity-controls">
-                      <button 
+                      <button
                         className="quantity-btn"
                         onClick={() => handleQuantityChange(String(item.id), item.quantity - 1)}
                       >
                         -
                       </button>
                       <span className="quantity">{item.quantity}</span>
-                      <button 
+                      <button
                         className="quantity-btn"
                         onClick={() => handleQuantityChange(String(item.id), item.quantity + 1)}
                       >
@@ -384,7 +384,7 @@ export default function Cart() {
                         }}
                         aria-label={`Chọn ${item.name}`}
                       />
-                      <button 
+                      <button
                         className="remove-btn"
                         onClick={() => handleRemoveItem(String(item.id))}
                         title="Xóa sản phẩm"
@@ -395,7 +395,7 @@ export default function Cart() {
                   </div>
 
                   {/* Inline select at far right with trash icon */}
-                  
+
                 </div>
               ))}
             </div>
@@ -405,12 +405,12 @@ export default function Cart() {
           <div className="cart-summary">
             <div className="summary-card">
               <h3>Tóm tắt đơn hàng</h3>
-              
+
               <div className="summary-row">
                 <span>Tạm tính (đã chọn {selectedCount} sản phẩm)</span>
                 <span>{formatPrice(selectedTotal)}</span>
               </div>
-              
+
               {/* Bỏ mục phí vận chuyển theo yêu cầu */}
 
               <div className="summary-divider"></div>
@@ -422,14 +422,14 @@ export default function Cart() {
 
 
               <div className="checkout-actions">
-                <button 
+                <button
                   className="checkout-btn"
                   onClick={handleConfirm}
                   disabled={selectedItems.length === 0 || isCreatingOrder}
                 >
                   {isCreatingOrder ? 'Đang tạo đơn hàng...' : 'Xác nhận'}
                 </button>
-                <button 
+                <button
                   className="continue-shopping-btn"
                   onClick={() => navigate('/products')}
                 >

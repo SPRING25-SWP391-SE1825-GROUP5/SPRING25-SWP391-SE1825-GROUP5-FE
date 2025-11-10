@@ -311,6 +311,12 @@ table thead tr:first-child th {
 
 /* Removed: table th:first-child:not(.cm-th) rule to allow border-right on first column */
 
+/* Global overrides for admin/technician toolbars */
+.toolbar-sep { display: none !important; }
+.toolbar-left { gap: 0 !important; }
+.toolbar-search .search-wrap::after, .search-wrap::after { display: none !important; content: none !important; }
+.toolbar-search .search-wrap:focus-within::after { display: none !important; }
+
 .pill-select {
   display: inline-flex;
   align-items: center;

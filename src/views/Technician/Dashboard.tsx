@@ -4,8 +4,8 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import toast from 'react-hot-toast'
 import { TechnicianService } from '@/services/technicianService'
-import { 
-  Wrench, 
+import {
+  Wrench,
   CheckCircle,
   CheckCircle2,
   Clock,
@@ -25,7 +25,6 @@ import {
   WorkQueue,
   WorkSchedule
 } from '@/components/technician'
-import TechnicianProfile from '@/components/technician/TechnicianProfile'
 import NotificationBell from '@/components/common/NotificationBell'
 import './technician.scss'
 import './technician-dashboard.scss'
@@ -82,14 +81,14 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
       technician: null
     }
   ])
-  
+
   const [activeTab, setActiveTab] = useState('overview')
   // timeEntries removed as it's not used
 
   const handleStatusUpdate = (newStatus: string) => {
-    setWorkQueue((prev: any) => 
-      prev.map((work: any) => 
-        work.id === selectedWork.id 
+    setWorkQueue((prev: any) =>
+      prev.map((work: any) =>
+        work.id === selectedWork.id
           ? { ...work, status: newStatus }
           : work
       )
@@ -145,7 +144,7 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
               </span>
             </div>
           </div>
-          
+
           <button
             onClick={() => {
               setIsDetailModalOpen(false)
@@ -168,7 +167,7 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
             </span>
           </div>
           <div className="work-detail-modal__content__progress__bar">
-            <div 
+            <div
               className="work-detail-modal__content__progress__bar__fill"
               style={{ width: `${progressPercentage}%` }}
             />
@@ -293,7 +292,7 @@ function WorkDetailModal({ selectedWork, setSelectedWork, setIsDetailModalOpen, 
                     Nhận việc
                   </button>
                 )}
-                
+
                 {selectedWork.status === 'Đang thực hiện' && (
                   <button
                     onClick={() => handleStatusUpdate('Hoàn thành')}
@@ -340,7 +339,7 @@ export default function TechnicianDashboard() {
   const [activePage, setActivePage] = useState('work-queue')
   const [selectedWork, setSelectedWork] = useState<any>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  
+
   // State cho thông tin kỹ thuật viên và trung tâm
   const [technicianInfo, setTechnicianInfo] = useState<any>(null)
   const [centerInfo, setCenterInfo] = useState<any>(null)
@@ -357,28 +356,28 @@ export default function TechnicianDashboard() {
 
       try {
         setLoading(true)
-        
+
         // Lấy technicianId từ userId
         const techInfo = await TechnicianService.getTechnicianIdByUserId(user.id)
-        
+
         if (techInfo.success && techInfo.data) {
           setTechnicianInfo(techInfo.data)
-          
-          
+
+
           // Kiểm tra xem technician có centerId không
           if (techInfo.data.centerId) {
             setHasCenter(true)
-            
+
             // Lấy thông tin chi tiết về trung tâm từ danh sách technicians của center
             try {
               const centerTechnicians = await TechnicianService.getTechniciansByCenter(techInfo.data.centerId)
-              
+
               if (centerTechnicians?.success && centerTechnicians?.data?.technicians) {
                 // Tìm technician hiện tại trong danh sách để lấy thông tin center
-                const currentTech = centerTechnicians.data.technicians.find((t: any) => 
+                const currentTech = centerTechnicians.data.technicians.find((t: any) =>
                   t.technicianId === techInfo.data.technicianId || t.userId === user.id
                 )
-                
+
                 if (currentTech) {
                   setCenterInfo({
                     centerId: currentTech.centerId,
@@ -413,7 +412,7 @@ export default function TechnicianDashboard() {
           setHasCenter(false)
           setCenterInfo(null)
         }
-        
+
       } catch (error) {
         toast.error('Không thể tải thông tin kỹ thuật viên')
         setHasCenter(false)
@@ -445,7 +444,10 @@ export default function TechnicianDashboard() {
       case 'work-schedule':
         return <WorkSchedule />
       case 'profile':
-        return <TechnicianProfile />
+        return <WorkQueue onViewDetails={(work) => {
+          setSelectedWork(work)
+          setIsDetailModalOpen(true)
+        }} />
       default:
         return <WorkQueue onViewDetails={(work) => {
           setSelectedWork(work)
@@ -531,7 +533,7 @@ export default function TechnicianDashboard() {
               fontSize: '14px',
               fontWeight: '600'
             }}>
-              {technicianInfo?.technicianName ? technicianInfo.technicianName.charAt(0).toUpperCase() : 
+              {technicianInfo?.technicianName ? technicianInfo.technicianName.charAt(0).toUpperCase() :
                user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'KT'}
             </div>
             <span style={{
@@ -605,11 +607,10 @@ export default function TechnicianDashboard() {
                 Công việc
               </h3>
             {[
-              { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },  
-              { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' },
-              { icon: Settings, label: 'Thông tin cá nhân', page: 'profile' }
+              { icon: Wrench, label: 'Hàng đợi công việc', page: 'work-queue' },
+              { icon: Calendar, label: 'Lịch làm việc', page: 'work-schedule' }
             ].map((item, index) => (
-              <div 
+              <div
                 key={index}
                 onClick={() => setActivePage(item.page)}
                   style={{
@@ -688,7 +689,7 @@ export default function TechnicianDashboard() {
 
       {/* Work Detail Modal */}
       {isDetailModalOpen && selectedWork && (
-        <WorkDetailModal 
+        <WorkDetailModal
           selectedWork={selectedWork}
           setSelectedWork={setSelectedWork}
           setIsDetailModalOpen={setIsDetailModalOpen}

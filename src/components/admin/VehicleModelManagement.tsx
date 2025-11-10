@@ -290,8 +290,7 @@ export default function VehicleModelManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
-            <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+            {/* removed view mode buttons */}
             <div className="toolbar-sep" />
           </div>
           <div className="toolbar-right">
@@ -307,14 +306,8 @@ export default function VehicleModelManagement() {
             </div>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
-            <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn" onClick={handleCreateModel}>
-              <Plus size={14} /> Thêm mẫu xe
-            </button>
-            <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
-              <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
-            </button>
+            {/* removed hide/customize buttons */}
+            {/* removed create model and export buttons */}
           </div>
         </div>
 

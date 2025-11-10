@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { 
-  Globe, 
-  Edit, 
-  X, 
-  Plus, 
-  CheckCircle, 
+import {
+  Globe,
+  Edit,
+  X,
+  Plus,
+  CheckCircle,
   Search,
   Eye,
   Users,
@@ -46,19 +46,19 @@ export default function CenterManagement() {
   const [sortBy, setSortBy] = useState('centerName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [totalPages, setTotalPages] = useState(1)
-  
+
   // Modal states
   const [formOpen, setFormOpen] = useState(false)
   const [selectedCenter, setSelectedCenter] = useState<Center | null>(null)
-  
-  
+
+
   // Detail modal states
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedCenterDetail, setSelectedCenterDetail] = useState<Center | null>(null)
   const [centerStaff, setCenterStaff] = useState<any[]>([])
   const [centerTechnicians, setCenterTechnicians] = useState<any[]>([])
   const [loadingDetails, setLoadingDetails] = useState(false)
-  
+
   // Stats states
   const [stats, setStats] = useState({
     totalCenters: 0,
@@ -76,16 +76,16 @@ export default function CenterManagement() {
   const fetchStats = async () => {
     try {
       setLoadingStats(true)
-      
+
       // Fetch all centers for stats
       const allCentersResponse = await CenterService.getCenters({ pageNumber: 1, pageSize: 1000 })
       const allCenters = allCentersResponse?.centers || []
-      
+
       // Calculate center stats
       const totalCenters = allCenters.length
       const activeCenters = allCenters.filter(center => center.isActive).length
       const inactiveCenters = totalCenters - activeCenters
-      
+
       setStats({
         totalCenters,
         activeCenters,
@@ -102,15 +102,15 @@ export default function CenterManagement() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Fetch all centers first (without pagination)
       const params: CenterListParams = { pageNumber: 1, pageSize: 1000 }
       if (searchTerm) params.searchTerm = searchTerm
       if (city) params.city = city
-      
+
       // Get all centers (both active and inactive)
       const response = await CenterService.getCenters(params)
-      
+
       let allCenters = response?.centers || []
 
       // Apply status filter
@@ -156,12 +156,12 @@ export default function CenterManagement() {
       const pageSize = 10;
       const calculatedTotalPages = Math.ceil(allCenters.length / pageSize);
       setTotalPages(calculatedTotalPages);
-      
+
       // Apply pagination to sorted results
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedCenters = allCenters.slice(startIndex, endIndex);
-      
+
       setCenters(paginatedCenters)
       setTotalItems(allCenters.length)
     } catch (err: any) {
@@ -191,7 +191,7 @@ export default function CenterManagement() {
       setSelectedCenterDetail(center)
       setDetailModalOpen(true)
       setLoadingDetails(true)
-      
+
       // Dùng API hợp nhất để lấy toàn bộ nhân sự theo center và tách theo role
       const employeesResp = await StaffService.getCenterEmployees({ centerId: center.centerId, pageSize: 1000 })
       const employees = (employeesResp as any)?.employees || []
@@ -223,11 +223,11 @@ export default function CenterManagement() {
       setCenterTechnicians(technicians)
     } catch (err: any) {
       // Improved error handling with better messages
-      const errorMessage = err?.userMessage || 
-                          err?.message || 
+      const errorMessage = err?.userMessage ||
+                          err?.message ||
                           err?.response?.data?.message ||
                           'Unknown error'
-      
+
       // Check if it's a backend restart error
       if (err?.isBackendRestart) {
         setError(`Server đang khởi động lại. Vui lòng đợi và thử lại sau...`)
@@ -310,9 +310,7 @@ export default function CenterManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><Users size={14}/> Danh sách</button>
+            {/* removed dashboard chip */}
             <div className="toolbar-sep"></div>
         </div>
           <div className="toolbar-right">
@@ -327,9 +325,7 @@ export default function CenterManagement() {
               </div>
             </div>
             <div className="toolbar-actions" style={{marginLeft:'auto'}}>
-              <button type="button" className="toolbar-btn"><Eye size={14}/> Ẩn</button>
-              <button type="button" className="toolbar-btn"><Settings size={14}/> Tuỳ chỉnh</button>
-              <button type="button" className="toolbar-btn"><Download size={14}/> Xuất</button>
+              {/* removed hide/customize buttons */}
               <button type="button" className="accent-button" onClick={openCreateForm}><Plus size={16}/> Thêm trung tâm</button>
             </div>
           </div>
@@ -373,7 +369,7 @@ export default function CenterManagement() {
 
       {/* Centers List */}
       <div className="center-management__content">
-        
+
         {loading ? (
           <div className="center-management__loading">
             <div className="center-management__loading-spinner" />
@@ -461,7 +457,7 @@ export default function CenterManagement() {
                         >
                           <Eye size={16} />
                         </button>
-                        
+
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditForm(center); }}
                           className="action-button"
@@ -541,41 +537,41 @@ export default function CenterManagement() {
 
       {/* Detail Modal */}
       {detailModalOpen && selectedCenterDetail && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          background: 'rgba(0,0,0,0.6)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           zIndex: 2000,
           backdropFilter: 'blur(4px)'
         }}>
-          <div style={{ 
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
+          <div style={{
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
             borderRadius: '20px',
-            border: '1px solid var(--border-primary)', 
-            width: '900px', 
-            maxWidth: '95vw', 
+            border: '1px solid var(--border-primary)',
+            width: '900px',
+            maxWidth: '95vw',
             maxHeight: '90vh',
             overflow: 'auto',
             padding: '32px',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
             animation: 'modalSlideIn 0.3s ease-out'
           }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
               marginBottom: '24px',
               paddingBottom: '16px',
               borderBottom: '2px solid var(--border-primary)'
             }}>
               <div>
-                <h3 style={{ 
-                  margin: '0 0 4px 0', 
-                  fontSize: '24px', 
+                <h3 style={{
+                  margin: '0 0 4px 0',
+                  fontSize: '24px',
                   fontWeight: '700',
                   background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
                   WebkitBackgroundClip: 'text',
@@ -583,19 +579,19 @@ export default function CenterManagement() {
                 }}>
                   Chi tiết Trung tâm
                 </h3>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: 'var(--text-secondary)' 
+                <p style={{
+                  margin: 0,
+                  fontSize: '14px',
+                  color: 'var(--text-secondary)'
                 }}>
                   {selectedCenterDetail.centerName}
                 </p>
               </div>
               <button
                 onClick={() => setDetailModalOpen(false)}
-                style={{ 
-                  border: 'none', 
-                  background: 'var(--bg-secondary)', 
+                style={{
+                  border: 'none',
+                  background: 'var(--bg-secondary)',
                   color: 'var(--text-primary)',
                   cursor: 'pointer',
                   padding: '12px',
@@ -626,9 +622,9 @@ export default function CenterManagement() {
               marginBottom: '24px',
               border: '1px solid var(--border-primary)'
             }}>
-              <h4 style={{ 
-                margin: '0 0 16px 0', 
-                fontSize: '18px', 
+              <h4 style={{
+                margin: '0 0 16px 0',
+                fontSize: '18px',
                 fontWeight: '600',
                 color: 'var(--text-primary)'
               }}>
@@ -693,28 +689,28 @@ export default function CenterManagement() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
               {/* Staff Section */}
               <div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  marginBottom: '16px' 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '16px'
                 }}>
                   <Users size={20} style={{ color: 'var(--primary-500)' }} />
-                  <h4 style={{ 
-                    margin: 0, 
-                    fontSize: '18px', 
+                  <h4 style={{
+                    margin: 0,
+                    fontSize: '18px',
                     fontWeight: '600',
                     color: 'var(--text-primary)'
                   }}>
                     Nhân viên ({centerStaff.length})
                   </h4>
                 </div>
-                
+
                 {loadingDetails ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
-                    color: 'var(--text-secondary)' 
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: 'var(--text-secondary)'
                   }}>
                     <div style={{
                       width: '32px',
@@ -728,9 +724,9 @@ export default function CenterManagement() {
                     <p style={{ margin: 0, fontSize: '14px' }}>Đang tải nhân viên...</p>
                   </div>
                 ) : centerStaff.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
                     color: 'var(--text-secondary)',
                     background: 'var(--bg-secondary)',
                     borderRadius: '12px',
@@ -740,8 +736,8 @@ export default function CenterManagement() {
                     <p style={{ margin: 0, fontSize: '14px' }}>Chưa có nhân viên nào</p>
                   </div>
                 ) : (
-                  <div style={{ 
-                    maxHeight: '300px', 
+                  <div style={{
+                    maxHeight: '300px',
                     overflow: 'auto',
                     background: 'var(--bg-secondary)',
                     borderRadius: '12px',
@@ -770,16 +766,16 @@ export default function CenterManagement() {
                           {staff.userFullName?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            fontSize: '14px', 
-                            fontWeight: '600', 
+                          <div style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
                             color: 'var(--text-primary)',
                             marginBottom: '2px'
                           }}>
                             {staff.userFullName || 'Không có tên'}
                           </div>
-                          <div style={{ 
-                            fontSize: '12px', 
+                          <div style={{
+                            fontSize: '12px',
                             color: 'var(--text-secondary)'
                           }}>
                             ID: {staff.staffId}
@@ -817,28 +813,28 @@ export default function CenterManagement() {
 
               {/* Technicians Section */}
               <div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  marginBottom: '16px' 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '16px'
                 }}>
                   <Wrench size={20} style={{ color: 'var(--primary-500)' }} />
-                  <h4 style={{ 
-                    margin: 0, 
-                    fontSize: '18px', 
+                  <h4 style={{
+                    margin: 0,
+                    fontSize: '18px',
                     fontWeight: '600',
                     color: 'var(--text-primary)'
                   }}>
                     Kỹ thuật viên ({centerTechnicians.length})
                   </h4>
                 </div>
-                
+
                 {loadingDetails ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
-                    color: 'var(--text-secondary)' 
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: 'var(--text-secondary)'
                   }}>
                     <div style={{
                       width: '32px',
@@ -852,9 +848,9 @@ export default function CenterManagement() {
                     <p style={{ margin: 0, fontSize: '14px' }}>Đang tải kỹ thuật viên...</p>
                   </div>
                 ) : centerTechnicians.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '40px', 
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
                     color: 'var(--text-secondary)',
                     background: 'var(--bg-secondary)',
                     borderRadius: '12px',
@@ -864,8 +860,8 @@ export default function CenterManagement() {
                     <p style={{ margin: 0, fontSize: '14px' }}>Chưa có kỹ thuật viên nào</p>
                   </div>
                 ) : (
-                  <div style={{ 
-                    maxHeight: '300px', 
+                  <div style={{
+                    maxHeight: '300px',
                     overflow: 'auto',
                     background: 'var(--bg-secondary)',
                     borderRadius: '12px',
@@ -894,16 +890,16 @@ export default function CenterManagement() {
                           {technician.userFullName?.charAt(0)?.toUpperCase() || 'T'}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            fontSize: '14px', 
-                            fontWeight: '600', 
+                          <div style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
                             color: 'var(--text-primary)',
                             marginBottom: '2px'
                           }}>
                             {technician.userFullName || 'Không có tên'}
                           </div>
-                          <div style={{ 
-                            fontSize: '12px', 
+                          <div style={{
+                            fontSize: '12px',
                             color: 'var(--text-secondary)'
                           }}>
                             ID: {technician.technicianId}

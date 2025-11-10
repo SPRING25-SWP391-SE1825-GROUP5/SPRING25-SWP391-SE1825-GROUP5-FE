@@ -16,9 +16,9 @@ interface WorkQueueRowExpansionProps {
   status?: string
   items: ChecklistRow[]
   onSetItemResult: (
-    resultId: number, 
-    partId: number | undefined, 
-    result: 'PASS' | 'FAIL', 
+    resultId: number,
+    partId: number | undefined,
+    result: 'PASS' | 'FAIL',
     notes?: string,
     replacementInfo?: {
       requireReplacement?: boolean
@@ -43,6 +43,7 @@ export default function WorkQueueRowExpansion({
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [showSelectPart, setShowSelectPart] = useState(false)
   const [parts, setParts] = useState<WorkOrderPartItem[]>([])
+  const [availabilityByPartId, setAvailabilityByPartId] = useState<Record<number, { available: boolean; availableQuantity: number }>>({})
   const [summary, setSummary] = useState<{ total: number; pass: number; fail: number; na: number } | null>(null)
   // Edit part modal state
   const [editingPartId, setEditingPartId] = useState<number | null>(null)
@@ -75,7 +76,7 @@ export default function WorkQueueRowExpansion({
       try {
         // 1. Load phụ tùng phát sinh thông thường từ API /Booking/{bookingId}/parts
         let list = await WorkOrderPartService.list(bookingId)
-        
+
         // 1b. Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
         list = await Promise.all(list.map(async (p) => {
           try {
@@ -83,14 +84,14 @@ export default function WorkQueueRowExpansion({
             console.log(`[DEBUG] Loading part detail for partId: ${p.partId}`)
             const partDetail = await PartService.getPartById(p.partId)
             console.log(`[DEBUG] Part ${p.partId} response:`, partDetail)
-            
+
             if (partDetail.success && partDetail.data) {
               const raw = partDetail.data as any
               // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
               const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
-              
+
               console.log(`[DEBUG] Part ${p.partId} - Raw data:`, raw, 'Mapped unitPrice:', unitPrice)
-              
+
               return {
                 ...p,
                 partNumber: partDetail.data.partNumber || p.partNumber,
@@ -105,22 +106,22 @@ export default function WorkQueueRowExpansion({
           } catch (err) {
             console.error(`[DEBUG] Lỗi khi load chi tiết phụ tùng ${p.partId}:`, err)
           }
-          
+
           return p
         }))
-        
+
         // 2. Load checklist từ API để lấy thông tin replacement parts (chỉ với quyền KTV)
         let replacementParts: WorkOrderPartItem[] = []
         try {
           const checklistRes = await TechnicianService.getMaintenanceChecklist(bookingId)
           const checklistItems = checklistRes?.items || checklistRes?.data?.items || checklistRes?.data?.results || []
-          
+
           // 3. Lấy các phụ tùng thay thế từ checklist (các items có result = FAIL và có replacementPartId)
           for (const item of checklistItems) {
             const result = (item as any).result || ''
             const replacementPartId = (item as any).replacementPartId
             const replacementQuantity = (item as any).replacementQuantity
-            
+
             if ((result === 'FAIL' || result === 'fail') && replacementPartId) {
               try {
                 const partDetail = await PartService.getPartById(replacementPartId)
@@ -150,9 +151,30 @@ export default function WorkQueueRowExpansion({
         } catch (err) {
           console.error('Lỗi khi load checklist để lấy replacement parts:', err)
         }
-        
+
         // 4. Merge 2 danh sách
-        setParts([...list, ...replacementParts])
+        const merged = [...list, ...replacementParts]
+        setParts(merged)
+        // Load availability cho phụ tùng kho theo centerId
+        try {
+          if (centerId) {
+            const entries = await Promise.all(
+              merged.map(async (p) => {
+                try {
+                  const res = await PartService.checkPartAvailability(p.partId, p.quantity || 1, centerId)
+                  return [p.partId, { available: !!res.available, availableQuantity: Number(res.availableQuantity || 0) }] as const
+                } catch {
+                  return [p.partId, { available: false, availableQuantity: 0 }] as const
+                }
+              })
+            )
+            const map: Record<number, { available: boolean; availableQuantity: number }> = {}
+            entries.forEach(([pid, val]) => { map[pid] = val })
+            setAvailabilityByPartId(map)
+          } else {
+            setAvailabilityByPartId({})
+          }
+        } catch {}
       } catch {
         setParts([])
       }
@@ -220,7 +242,7 @@ export default function WorkQueueRowExpansion({
       ;(async () => {
         try {
           let list = await WorkOrderPartService.list(bookingId)
-          
+
           // Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
           list = await Promise.all(list.map(async (p) => {
             try {
@@ -230,7 +252,7 @@ export default function WorkQueueRowExpansion({
                 const raw = partDetail.data as any
                 // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
                 const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
-                
+
                 return {
                   ...p,
                   partNumber: partDetail.data.partNumber || p.partNumber,
@@ -245,18 +267,18 @@ export default function WorkQueueRowExpansion({
             }
             return p
           }))
-          
+
           // Load replacement parts từ checklist
           let replacementParts: WorkOrderPartItem[] = []
           try {
             const checklistRes = await TechnicianService.getMaintenanceChecklist(bookingId)
             const checklistItems = checklistRes?.items || checklistRes?.data?.items || checklistRes?.data?.results || []
-            
+
             for (const item of checklistItems) {
               const result = (item as any).result || ''
               const replacementPartId = (item as any).replacementPartId
               const replacementQuantity = (item as any).replacementQuantity
-              
+
               if ((result === 'FAIL' || result === 'fail') && replacementPartId) {
                 try {
                   const partDetail = await PartService.getPartById(replacementPartId)
@@ -286,7 +308,7 @@ export default function WorkQueueRowExpansion({
           } catch (err) {
             console.error('Lỗi khi load checklist để lấy replacement parts:', err)
           }
-          
+
           setParts([...list, ...replacementParts])
         } catch { /* ignore */ }
       })()
@@ -296,7 +318,7 @@ export default function WorkQueueRowExpansion({
 
   const handleSet = async (row: ChecklistRow, val: 'PASS' | 'FAIL') => {
     if (!row?.resultId) return
-    
+
     // Nếu là PASS, gửi lên BE ngay
     if (val === 'PASS') {
       try {
@@ -371,7 +393,7 @@ export default function WorkQueueRowExpansion({
                   const isPass = (row.result === 'PASS' || row.result === 'pass')
                   const statusColor = isPass ? '#10B981' : isFail ? '#EF4444' : '#6B7280'
                   const statusText = isPass ? 'Đạt' : isFail ? 'Không đạt' : 'Chưa đánh giá'
-                  
+
                   return (
                     <tr key={`${workId}-${row.resultId || idx}`}>
                       <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13 }}>{idx + 1}</td>
@@ -462,15 +484,15 @@ export default function WorkQueueRowExpansion({
                   const isApproved = approvalStatus === 'CONSUMED'
                   const isDraft = approvalStatus === 'DRAFT'
                   const isRejected = approvalStatus === 'REJECTED'
-                  
+
                   // Replacement parts chỉ đọc (read-only), không cho chỉnh sửa
                   const canEdit = isInProgress && !isApproved && !isReplacementPart
-                  
+
                   // Trạng thái duyệt - xử lý đầy đủ các status
                   let statusText = 'Nháp'
                   let statusColor = '#6B7280'
                   const statusUpper = approvalStatus
-                  
+
                   if (statusUpper === 'CONSUMED') {
                     statusText = 'Đã xác nhận'
                     statusColor = '#10B981'
@@ -488,7 +510,7 @@ export default function WorkQueueRowExpansion({
                     statusText = statusUpper || 'Nháp'
                     statusColor = '#6B7280'
                   }
-                  
+
                   return (
                     <tr key={p.id}>
                       <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13 }}>{p.partNumber || p.partId}</td>
@@ -497,16 +519,46 @@ export default function WorkQueueRowExpansion({
                       <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13 }}>{(p.unitPrice || 0).toLocaleString('vi-VN')}</td>
                       <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.quantity}</td>
                       <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13 }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '4px 8px',
-                          border: `1px solid ${statusColor}`,
-                          color: statusColor,
-                          borderRadius: 6,
-                          background: `${statusColor}15`,
-                          fontSize: 12,
-                          fontWeight: 500
-                        }}>{statusText}</span>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '4px 8px',
+                            border: `1px solid ${statusColor}`,
+                            color: statusColor,
+                            borderRadius: 6,
+                            background: `${statusColor}15`,
+                            fontSize: 12,
+                            fontWeight: 500
+                          }}>{statusText}</span>
+                          {/* Nguồn phụ tùng */}
+                          <span title={p.isCustomerSupplied ? 'Phụ tùng do khách mang đến' : 'Phụ tùng từ kho'} style={{
+                            display: 'inline-block',
+                            padding: '2px 6px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            border: '1px solid',
+                            borderColor: p.isCustomerSupplied ? '#F59E0B' : '#10B981',
+                            color: p.isCustomerSupplied ? '#92400E' : '#065F46',
+                            background: p.isCustomerSupplied ? '#FEF3C7' : '#ECFDF5'
+                          }}>{p.isCustomerSupplied ? 'KH' : 'Kho'}</span>
+                          {/* Khả dụng tại chi nhánh */}
+                          {centerId ? (() => {
+                            const info = availabilityByPartId[p.partId]
+                            const availQty = info?.availableQuantity ?? 0
+                            const need = p.quantity || 1
+                            const ok = (info?.available ?? false) && availQty >= need
+                            const low = (info?.available ?? false) && availQty > 0 && availQty < need
+                            const color = ok ? '#065F46' : low ? '#92400E' : '#991B1B'
+                            const bg = ok ? '#ECFDF5' : low ? '#FEF3C7' : '#FEF2F2'
+                            const bd = ok ? '#10B981' : low ? '#F59E0B' : '#EF4444'
+                            const label = ok ? 'Đủ' : low ? `Thiếu (${availQty}/${need})` : 'Hết'
+                            return (
+                              <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 6, fontSize: 11, border: `1px solid ${bd}`, color, background: bg }}>
+                                Kho: {label}
+                              </span>
+                            )
+                          })() : null}
+                        </div>
                       </td>
                       <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center' }}>
                         {isInProgress && isDraft && !isReplacementPart && (
@@ -516,13 +568,13 @@ export default function WorkQueueRowExpansion({
                               setShowDeleteConfirm(true)
                             }}
                             disabled={deletingPartId === p.id}
-                            style={{ 
-                              padding: '6px 12px', 
-                              border: '1px solid #EF4444', 
-                              borderRadius: 6, 
-                              background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF', 
+                            style={{
+                              padding: '6px 12px',
+                              border: '1px solid #EF4444',
+                              borderRadius: 6,
+                              background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF',
                               color: deletingPartId === p.id ? '#9ca3af' : '#EF4444',
-                              cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer', 
+                              cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer',
                               fontSize: 13,
                               fontWeight: 600,
                               transition: 'all 0.2s ease'
@@ -542,6 +594,34 @@ export default function WorkQueueRowExpansion({
                           >
                             {deletingPartId === p.id ? 'Đang xóa...' : 'Xóa'}
                           </button>
+                        )}
+                        {/* Tiêu hao phụ tùng khách mang đến nếu có liên kết OrderItemId */}
+                        {isInProgress && p.isCustomerSupplied && p.orderItemId && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await WorkOrderPartService.consumeCustomerPart(bookingId, p.id, p.orderItemId!, p.quantity || 1)
+                                if (res?.success) {
+                                  toast.success('Đã tiêu hao phụ tùng khách mang đến')
+                                } else {
+                                  toast.error(res?.message || 'Không thể tiêu hao phụ tùng')
+                                }
+                              } catch (e: any) {
+                                toast.error(e?.response?.data?.message || e?.message || 'Lỗi khi tiêu hao phụ tùng')
+                              }
+                            }}
+                            style={{
+                              marginLeft: 8,
+                              padding: '6px 12px',
+                              border: '1px solid #10B981',
+                              borderRadius: 6,
+                              background: '#ECFDF5',
+                              color: '#065F46',
+                              cursor: 'pointer',
+                              fontSize: 13,
+                              fontWeight: 600
+                            }}
+                          >Tiêu hao</button>
                         )}
                       </td>
                     </tr>
@@ -606,22 +686,22 @@ export default function WorkQueueRowExpansion({
 
         {/* Modal xác nhận xóa phụ tùng */}
         {showDeleteConfirm && partToDelete && (
-          <div 
-            style={{ 
-              position: 'fixed', 
-              inset: 0, 
-              background: 'rgba(0, 0, 0, 0.5)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              zIndex: 2000 
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000
             }}
             onClick={() => {
               setShowDeleteConfirm(false)
               setPartToDelete(null)
             }}
           >
-            <div 
+            <div
               style={{
                 background: '#FFFFFF',
                 borderRadius: '12px',
@@ -727,7 +807,7 @@ export default function WorkQueueRowExpansion({
                 // Gửi result FAIL + description + thông tin phụ tùng thay thế lên BE trong một request
                 // API: PUT /api/maintenance-checklist/{bookingId}/results/{resultId}
                 // Request body: { description, result, requireReplacement, replacementPartId, replacementQuantity }
-                
+
                 // Lấy phụ tùng đầu tiên từ danh sách đã chọn (lấy từ API GET /api/parts/by-category/{categoryId})
                 const firstPart = selectedParts.length > 0 ? selectedParts[0] : null
                 const replacementInfo = firstPart ? {
@@ -735,15 +815,15 @@ export default function WorkQueueRowExpansion({
                   replacementPartId: firstPart.part.partId, // partId từ API GET /api/parts/by-category/{categoryId}
                   replacementQuantity: firstPart.quantity    // số lượng user nhập vào
                 } : undefined // Không gửi replacementInfo nếu không có phụ tùng
-                
+
                 const resultResponse = await onSetItemResult(
-                  modalResultId, 
-                  undefined, 
-                  'FAIL', 
+                  modalResultId,
+                  undefined,
+                  'FAIL',
                   notes,
                   replacementInfo
                 )
-                
+
                 // Kiểm tra nếu API update tình trạng thành công
                 if (resultResponse === undefined || (resultResponse as any)?.success !== false) {
                   // Nếu có nhiều phụ tùng, thêm các phụ tùng còn lại (bỏ qua phụ tùng đầu tiên đã gửi trong request body)
@@ -874,8 +954,8 @@ function SelectPartModal({ onClose, onSelect, centerId, initialQuantity }: Selec
                     >
                       <td style={{ padding: '10px', textAlign: 'center' }}>
                         {p.imageUrl && p.imageUrl !== 'NULL' ? (
-                          <img 
-                            src={p.imageUrl} 
+                          <img
+                            src={p.imageUrl}
                             alt={p.partName}
                             style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4, border: '1px solid #E5E7EB' }}
                             onError={(e) => {
@@ -988,7 +1068,7 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
 
   const handleUpdateQuantity = (index: number, newQuantity: number) => {
     if (newQuantity < 1) return
-    setSelectedParts(prev => prev.map((sp, i) => 
+    setSelectedParts(prev => prev.map((sp, i) =>
       i === index ? { ...sp, quantity: newQuantity } : sp
     ))
   }
@@ -998,7 +1078,7 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
       setError('Vui lòng nhập mô tả lý do không đạt')
       return
     }
-    
+
     setSubmitting(true)
     setError(null)
     try {
@@ -1025,7 +1105,7 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
               {error}
             </div>
           )}
-          
+
           {/* Phần mô tả */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: '#374151', fontWeight: 500 }}>Mô tả *</label>
@@ -1037,10 +1117,10 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
               }}
               placeholder="Nhập mô tả về lý do không đạt..."
               rows={4}
-              style={{ 
-                width: '100%', 
-                padding: '8px 10px', 
-                border: '1px solid #D1D5DB', 
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: '1px solid #D1D5DB',
                 borderRadius: 8,
                 fontSize: 13,
                 fontFamily: 'inherit',
@@ -1128,8 +1208,8 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
                       <tr key={p.partId} style={{ borderBottom: '1px solid #F1F5F9' }}>
                         <td style={{ padding: '10px', textAlign: 'center' }}>
                           {p.imageUrl && p.imageUrl !== 'NULL' ? (
-                            <img 
-                              src={p.imageUrl} 
+                            <img
+                              src={p.imageUrl}
                               alt={p.partName}
                               style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4, border: '1px solid #E5E7EB' }}
                               onError={(e) => {
@@ -1186,7 +1266,7 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
             </div>
           </div>
         </div>
-        
+
         {/* Footer với nút xác nhận */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button

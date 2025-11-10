@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   Eye,
   Warehouse,
-  Calendar,
   Package,
   ChevronUp,
   ChevronDown,
@@ -11,20 +10,12 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  RefreshCw,
-  LayoutGrid,
-  List as ListIcon,
-  EyeOff,
-  SlidersHorizontal,
-  Download,
   Settings,
   Plus,
-  Edit,
-  Trash2,
 } from "lucide-react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
-import { InventoryService, InventoryListItem, InventoryPart } from '@/services/inventoryService';
+import { InventoryService, InventoryListItem } from '@/services/inventoryService';
 import { CenterService, Center } from '@/services/centerService';
 import InventoryPartsModal from './Inventory/InventoryPartsModal';
 import './InventoryManagement.scss';
@@ -40,7 +31,7 @@ export default function InventoryManagement() {
   const [inventories, setInventories] = useState<InventoryListItem[]>([]);
   const [centers, setCenters] = useState<Center[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingCenters, setLoadingCenters] = useState(false);
+  // const [loadingCenters, setLoadingCenters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -54,7 +45,7 @@ export default function InventoryManagement() {
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
   const centerRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
-  const [exporting, setExporting] = useState(false);
+  // const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -88,15 +79,12 @@ export default function InventoryManagement() {
 
   const fetchCenters = async () => {
     try {
-      setLoadingCenters(true);
       const response = await CenterService.getCenters({ pageSize: 100 });
       if (response.centers) {
         setCenters(response.centers);
       }
-    } catch (err) {
-
-    } finally {
-      setLoadingCenters(false);
+    } catch {
+      // ignore
     }
   };
 
@@ -120,8 +108,9 @@ export default function InventoryManagement() {
         setError(response.message || 'Có lỗi xảy ra khi tải danh sách kho');
         toast.error(response.message || 'Có lỗi xảy ra khi tải danh sách kho');
       }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi tải danh sách kho';
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string } | undefined;
+      const errorMessage = e?.response?.data?.message || e?.message || 'Có lỗi xảy ra khi tải danh sách kho';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -181,7 +170,7 @@ export default function InventoryManagement() {
         });
         setShowPartsModal(true);
       }
-    } catch (err) {
+    } catch {
       toast.error('Không thể tải chi tiết kho');
     }
   };
@@ -192,27 +181,7 @@ export default function InventoryManagement() {
     fetchInventories();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const handleExport = async () => {
-    try {
-      setExporting(true);
-      toast.success('Chức năng xuất dữ liệu sẽ được triển khai sau');
-    } catch (err) {
-
-      toast.error('Không thể xuất danh sách kho. Vui lòng thử lại!');
-    } finally {
-      setExporting(false);
-    }
-  };
+  // removed export and last-updated formatting
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
@@ -247,9 +216,9 @@ export default function InventoryManagement() {
   };
 
   // Apply client-side sorting
-  const sortedInventories = [...inventories].sort((a, b) => {
-    let aValue: any;
-    let bValue: any;
+  const sortedInventories = [...inventories].sort((a: InventoryListItem, b: InventoryListItem) => {
+    let aValue: number | string;
+    let bValue: number | string;
 
     switch (sortBy) {
       case 'inventoryId':
@@ -265,20 +234,18 @@ export default function InventoryManagement() {
         bValue = b.partsCount;
         break;
       case 'lastUpdated':
-        aValue = new Date(a.lastUpdated).getTime();
-        bValue = new Date(b.lastUpdated).getTime();
+        aValue = 0; bValue = 0;
         break;
       default:
         return 0;
     }
 
-    if (typeof aValue === 'string') {
-      return sortOrder === 'asc'
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
     }
-
-    return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    const aNum = typeof aValue === 'number' ? aValue : 0;
+    const bNum = typeof bValue === 'number' ? bValue : 0;
+    return sortOrder === 'asc' ? aNum - bNum : bNum - aNum;
   });
 
   if (error && inventories.length === 0) return (
@@ -309,9 +276,7 @@ export default function InventoryManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+            {/* removed view mode buttons */}
             <div className="toolbar-sep" />
           </div>
           <div className="toolbar-right">
@@ -329,13 +294,7 @@ export default function InventoryManagement() {
               </div>
             </div>
           </div>
-          <div className="toolbar-actions">
-            <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
-            <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
-              <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
-            </button>
-          </div>
+          <div className="toolbar-actions">{/* removed hide/customize and export */}</div>
         </div>
 
         <div className="toolbar-filters">
@@ -398,7 +357,7 @@ export default function InventoryManagement() {
               <table className="inventory-table users-table" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr className="table-header-yellow">
-                    <th style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                    <th>
                       <span className="th-inner">
                         <input
                           type="checkbox"
@@ -420,11 +379,7 @@ export default function InventoryManagement() {
                         <Package size={16} className="th-icon" /> Số lượng phụ tùng {getSortIcon('partsCount')}
                       </span>
                     </th>
-                    <th className="sortable" onClick={() => handleSort('lastUpdated')}>
-                      <span className="th-inner sortable">
-                        <Calendar size={16} className="th-icon" /> Cập nhật lần cuối {getSortIcon('lastUpdated')}
-                      </span>
-                    </th>
+                    {/* removed 'Cập nhật lần cuối' column */}
                     <th>
                       <span className="th-inner"><Settings size={16} className="th-icon" /> Thao tác</span>
                     </th>
@@ -437,7 +392,7 @@ export default function InventoryManagement() {
                       onClick={() => handleViewInventory(inventory)}
                       style={{ animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards` }}
                     >
-                      <td style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                      <td>
                         <div className="inventory-id-cell">
                           <input
                             type="checkbox"
@@ -459,9 +414,7 @@ export default function InventoryManagement() {
                       <td className="text-secondary">
                         {inventory.partsCount}
                       </td>
-                      <td className="text-secondary">
-                        {formatDate(inventory.lastUpdated)}
-                      </td>
+                      {/* removed lastUpdated cell */}
                       <td>
                         <div className="inventory-actions">
                           <button

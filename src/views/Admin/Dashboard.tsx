@@ -70,7 +70,7 @@ import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
 import ReminderManagement from '../../components/admin/ReminderManagement'
 import FeedbackManagement from '../../components/admin/FeedbackManagement'
-import OrderManagement from '../../components/admin/OrderManagement'
+import OrdersManagement from '../../components/admin/OrdersManagement'
 import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
 import { CenterService, type Center } from '../../services/centerService'
 import { ReportsService } from '../../services/reportsService'
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
   // Load dashboard summary
   const loadDashboardSummary = async () => {
     const params: { centerId?: number; fromDate?: string; toDate?: string } = {}
-    
+
     if (selectedCenterId !== 'all') {
       params.centerId = selectedCenterId
     }
@@ -293,7 +293,7 @@ export default function AdminDashboard() {
 
     // Tạo key để track request, tránh gọi duplicate
     const requestKey = `${params.centerId || 'all'}_${params.fromDate}_${params.toDate}`
-    
+
     // Nếu đang load với cùng params, skip
     if (summaryLoadingRef.current === requestKey) {
       return
@@ -304,7 +304,7 @@ export default function AdminDashboard() {
 
     try {
       const response = await ReportsService.getDashboardSummary(params)
-      
+
       if (response?.success && response.data) {
         const data: any = response.data
         // Thử lấy từ summary trước
@@ -426,14 +426,14 @@ export default function AdminDashboard() {
       const to = revenueDateRange.toDate
       if (bookingStatusCenterId === 'all') {
         const activeCenters = centers && centers.length > 0 ? centers.filter(c => c.isActive) : []
-        
+
         // Giới hạn số lượng centers để tránh quá nhiều API calls
         // Nếu có quá nhiều centers, có thể cần tối ưu backend để có API aggregate
         if (activeCenters.length > 10) {
           console.warn(`Quá nhiều centers (${activeCenters.length}), chỉ load 10 centers đầu tiên`)
         }
         const centersToLoad = activeCenters.slice(0, 10)
-        
+
         const results = await Promise.allSettled(
           centersToLoad.map(c => ReportsService.getBookingStatusCounts(c.centerId, { from, to }))
         )
@@ -589,7 +589,7 @@ export default function AdminDashboard() {
       (async () => { await loadServicesStats() })(),
       (async () => { await loadRevenueByStore() })(),
     ])
-    
+
     // Load summary riêng (có thể chậm, không block UI)
     loadDashboardSummary().catch(err => {
       console.error('Dashboard summary failed (non-blocking):', err)
@@ -768,7 +768,7 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     const isLoading = loadingSummary && !summaryData
-    
+
     return [
       {
         title: 'Tổng doanh thu',
@@ -827,7 +827,7 @@ export default function AdminDashboard() {
   const renderPageContent = () => {
     switch (activePage) {
       case 'orders':
-        return <OrderManagement />
+        return <OrdersManagement />
       case 'bookings':
         return <BookingManagement />
       case 'reminders':

@@ -10,7 +10,7 @@ export type Appointment = {
   licensePlate: string
   appointmentDate: string
   appointmentTime: string
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+  status: 'pending' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled'
   priority: 'normal' | 'high'
   estimatedCost: number
   requestedServices: ServiceItem[]
@@ -35,11 +35,12 @@ const getStatusText = (status: Appointment['status']) => {
   const map: Record<Appointment['status'], string> = {
     pending: 'Chờ xác nhận',
     confirmed: 'Đã xác nhận',
+    checked_in: 'Đã check-in',
     in_progress: 'Đang thực hiện',
     completed: 'Hoàn thành',
     cancelled: 'Đã hủy',
   }
-  return map[status]
+  return map[status] || status
 }
 
 const formatDate = (dateString: string) =>

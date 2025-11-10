@@ -260,6 +260,16 @@
     }
   }
 
+  &--checked-in {
+    background: #D1FAE5;
+    color: #10B981;
+    border: 1px solid #10B981;
+
+    .dot {
+      background: #10B981;
+    }
+  }
+
   &--in-progress {
     background: #FEF3C7;
     color: #F59E0B;

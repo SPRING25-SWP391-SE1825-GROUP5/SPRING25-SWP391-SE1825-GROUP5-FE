@@ -138,7 +138,7 @@ export default function PartManagement() {
   // Build ordered source list based on full dataset, then paginate
   const buildOrderedAllParts = () => {
     const text = (s: string) => (s || '').toLowerCase()
-    
+
     // Apply search filter
     let filtered = !searchTerm
       ? allParts
@@ -147,7 +147,7 @@ export default function PartManagement() {
           String(part.id).toLowerCase().includes(text(searchTerm)) ||
           String((part as any).partNumber || '').toLowerCase().includes(text(searchTerm))
         )
-    
+
     // Apply status filter
     if (filterStatus !== 'all') {
       filtered = filtered.filter((part) => {
@@ -156,7 +156,7 @@ export default function PartManagement() {
         return true
       })
     }
-    
+
     // Apply rating filter
     if (filterRating !== 'all') {
       filtered = filtered.filter((part) => {
@@ -168,7 +168,7 @@ export default function PartManagement() {
         }
       })
     }
-    
+
     // Apply price filter
     if (filterPrice !== 'all') {
       filtered = filtered.filter((part) => {
@@ -187,10 +187,10 @@ export default function PartManagement() {
         }
       })
     }
-    
-    
+
+
     let sorted = [...filtered]
-    
+
     // Apply sorting
     if (sortBy) {
       sorted = sorted.sort((a, b) => {
@@ -215,7 +215,7 @@ export default function PartManagement() {
           default:
             return 0
         }
-        
+
         if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
         if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
         return 0
@@ -224,7 +224,7 @@ export default function PartManagement() {
       // Default sort by ID desc
       sorted = sorted.sort((a, b) => Number(b.id) - Number(a.id))
     }
-    
+
     return sorted
   }
 
@@ -376,9 +376,7 @@ export default function PartManagement() {
       <div className="users-toolbar" style={{marginBottom: 16}}>
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><List size={14}/> Danh sách</button>
+            {/* removed view mode buttons */}
             <div className="toolbar-sep"/>
           </div>
           <div className="toolbar-right" style={{flex:1}}>
@@ -389,8 +387,7 @@ export default function PartManagement() {
               </div>
             </div>
             <div className="toolbar-actions">
-              <button type="button" className="toolbar-chip"><EyeOff size={14}/> Ẩn</button>
-              <button type="button" className="toolbar-btn" onClick={()=>{ /* xuất dữ liệu tạm thời chưa triển khai */ }}><Download size={14}/> Xuất</button>
+              {/* removed hide button */}
               <button type="button" className="toolbar-adduser accent-button" onClick={()=>setIsModalOpen(true)}>
                 <Plus size={16}/> Thêm phụ tùng
               </button>
@@ -453,10 +450,10 @@ export default function PartManagement() {
       {/* Parts List - Bảng chuẩn Users */}
       <div className="parts-table-wrapper">
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '40px',
@@ -470,10 +467,10 @@ export default function PartManagement() {
             <p style={{ margin: 0, fontSize: '16px' }}>Đang tải phụ tùng...</p>
           </div>
         ) : error ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--error-500)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--error-500)'
           }}>
             <div style={{
               width: '48px',
@@ -490,10 +487,10 @@ export default function PartManagement() {
             <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
           </div>
         ) : partsData.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '64px',

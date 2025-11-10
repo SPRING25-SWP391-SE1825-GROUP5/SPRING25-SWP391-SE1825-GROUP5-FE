@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { 
-  Package, 
-  Edit, 
-  X, 
-  Plus, 
-  CheckCircle, 
+import {
+  Package,
+  Edit,
+  X,
+  Plus,
+  CheckCircle,
   Search,
   Eye,
   Users,
@@ -34,9 +34,9 @@ import {
   RefreshCw
 } from 'lucide-react'
 import './ServicePackageManagement.scss'
-import { 
-  ServiceManagementService, 
-  type ServicePackage, 
+import {
+  ServiceManagementService,
+  type ServicePackage,
   type ServicePackageListParams,
   type CreateServicePackageRequest,
   type UpdateServicePackageRequest,
@@ -65,7 +65,7 @@ export default function ServicePackageManagement() {
   const [openServiceMenu, setOpenServiceMenu] = useState(false)
   const statusRef = useRef<HTMLDivElement | null>(null)
   const serviceRef = useRef<HTMLDivElement | null>(null)
-  
+
   // Modal states
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'update' | 'view'>('create')
@@ -85,7 +85,7 @@ export default function ServicePackageManagement() {
     validFrom: '',
     validTo: ''
   })
-  
+
   const [fieldErrors, setFieldErrors] = useState({
     packageName: '',
     packageCode: '',
@@ -93,13 +93,13 @@ export default function ServicePackageManagement() {
     totalCredits: '',
     price: ''
   })
-  
+
   const [deletingPackageId, setDeletingPackageId] = useState<number | null>(null)
-  
+
   // Detail modal states
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedPackageDetail, setSelectedPackageDetail] = useState<ServicePackage | null>(null)
-  
+
   // Stats states
   const [stats, setStats] = useState({
     totalPackages: 0,
@@ -112,7 +112,7 @@ export default function ServicePackageManagement() {
   // Real-time validation
   const validateField = (field: string, value: string | number) => {
     const errors = { ...fieldErrors }
-    
+
     switch (field) {
       case 'packageName':
         if (!value || (typeof value === 'string' && !value.trim())) {
@@ -154,7 +154,7 @@ export default function ServicePackageManagement() {
         }
         break
     }
-    
+
     setFieldErrors(errors)
   }
 
@@ -170,10 +170,10 @@ export default function ServicePackageManagement() {
   const fetchStats = async () => {
     try {
       setLoadingStats(true)
-      
+
       // Use the new getPackageStats method
       const packageStats = await ServiceManagementService.getPackageStats()
-      
+
       setStats({
         totalPackages: packageStats.totalPackages,
         activePackages: packageStats.activePackages,
@@ -185,12 +185,12 @@ export default function ServicePackageManagement() {
       try {
         const allPackagesResponse = await ServiceManagementService.getServicePackages({ pageNumber: 1, pageSize: 1000 })
         const allPackages = allPackagesResponse?.packages || []
-        
+
         const totalPackages = allPackages.length
         const activePackages = allPackages.filter(pkg => pkg.isActive).length
         const inactivePackages = totalPackages - activePackages
         const totalRevenue = allPackages.reduce((sum, pkg) => sum + pkg.price, 0)
-        
+
         setStats({
           totalPackages,
           activePackages,
@@ -209,15 +209,15 @@ export default function ServicePackageManagement() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Fetch all packages first (without pagination)
       const params: ServicePackageListParams = { pageNumber: 1, pageSize: 1000 }
       if (searchTerm) params.searchTerm = searchTerm
       if (serviceId) params.serviceId = serviceId
-      
+
       // Get all packages (both active and inactive)
       const response = await ServiceManagementService.getServicePackages(params)
-      
+
       let allPackages = response?.packages || []
 
       // Apply status filter
@@ -263,12 +263,12 @@ export default function ServicePackageManagement() {
       const calculatedTotalPages = Math.ceil(allPackages.length / pageSize);
       setTotalPages(calculatedTotalPages);
       setTotalCount(allPackages.length);
-      
+
       // Apply pagination to sorted results
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedPackages = allPackages.slice(startIndex, endIndex);
-      
+
       setPackages(paginatedPackages)
     } catch (err: any) {
       setError('Không thể tải danh sách gói dịch vụ: ' + (err.message || 'Unknown error'))
@@ -280,17 +280,17 @@ export default function ServicePackageManagement() {
   const openCreateForm = () => {
     setFormMode('create')
     setSelectedPackage(null)
-    setFormValues({ 
-      packageName: '', 
-      packageCode: '', 
-      description: '', 
-      serviceId: 0, 
-      totalCredits: 0, 
-      price: 0, 
-      discountPercent: 0, 
-      isActive: true, 
-      validFrom: '', 
-      validTo: '' 
+    setFormValues({
+      packageName: '',
+      packageCode: '',
+      description: '',
+      serviceId: 0,
+      totalCredits: 0,
+      price: 0,
+      discountPercent: 0,
+      isActive: true,
+      validFrom: '',
+      validTo: ''
     })
     setFormError(null)
     setFieldErrors({ packageName: '', packageCode: '', serviceId: '', totalCredits: '', price: '' })
@@ -434,9 +434,9 @@ export default function ServicePackageManagement() {
   }, [])
 
   return (
-    <div className="service-packages" style={{ 
-      padding: '24px', 
-      background: '#fff', 
+    <div className="service-packages" style={{
+      padding: '24px',
+      background: '#fff',
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -470,9 +470,7 @@ export default function ServicePackageManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><Package size={14}/> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><Package size={14}/> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><Package size={14}/> Danh sách</button>
+            {/* removed view mode buttons */}
             <div className="toolbar-sep"/>
             </div>
           <div className="toolbar-right" style={{flex:1}}>
@@ -483,9 +481,7 @@ export default function ServicePackageManagement() {
               </div>
               </div>
             <div className="toolbar-actions">
-              <button type="button" className="toolbar-chip"><Eye size={14}/> Ẩn</button>
-              <button type="button" className="toolbar-chip"><Edit size={14}/> Tùy chỉnh</button>
-              <button type="button" className="toolbar-btn"><CreditCard size={14}/> Xuất</button>
+              {/* removed hide/customize buttons */}
               <button type="button" className="toolbar-adduser accent-button" onClick={openCreateForm}>
                 <Plus size={16}/> Thêm gói dịch vụ
               </button>
@@ -538,12 +534,12 @@ export default function ServicePackageManagement() {
       {/* Section: Middle (table content) */}
       <section className="spm-section spm-section--middle">
       <div className="packages-table-wrapper">
-        
+
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '40px',
@@ -557,10 +553,10 @@ export default function ServicePackageManagement() {
             <p style={{ margin: 0, fontSize: '16px' }}>Đang tải gói dịch vụ...</p>
           </div>
         ) : error ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--error-500)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--error-500)'
           }}>
             <div style={{
               width: '48px',
@@ -576,10 +572,10 @@ export default function ServicePackageManagement() {
             <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
           </div>
         ) : packages.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '64px',
@@ -618,7 +614,7 @@ export default function ServicePackageManagement() {
                   color: 'var(--text-primary)',
                   boxShadow: 'inset 0 -1px 0 var(--border-primary)'
                 }}>
-                  <th 
+                  <th
                     style={{
                       padding: '16px 20px',
                       textAlign: 'left',
@@ -629,8 +625,8 @@ export default function ServicePackageManagement() {
                     }}
                   >
                     <div className="th-label">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="table-checkbox"
                         checked={packages.length>0 && selectedIds.length===packages.length}
                         onChange={(e)=>{
@@ -649,7 +645,7 @@ export default function ServicePackageManagement() {
                   }}>
                     <div className="th-label"><span className="th-icon"><Wrench size={14}/></span><span className="th-text">Dịch vụ</span></div>
                   </th>
-                  <th 
+                  <th
                     style={{
                       padding: '16px 20px',
                       textAlign: 'left',
@@ -661,7 +657,7 @@ export default function ServicePackageManagement() {
                   >
                     <div className="th-label"><span className="th-icon"><Zap size={14}/></span><span className="th-text">Credits</span></div>
                   </th>
-                  <th 
+                  <th
                     onClick={() => handleSort('price')}
                     style={{
                       padding: '16px 20px',
@@ -683,8 +679,8 @@ export default function ServicePackageManagement() {
                   >
                     <div className="th-label">
                       <span className="th-icon"><DollarSign size={14}/></span><span className="th-text">Giá</span>
-                      <div style={{ 
-                        display: 'flex', 
+                      <div style={{
+                        display: 'flex',
                         alignItems: 'center',
                         opacity: sortBy === 'price' ? 1 : 0.4,
                         transition: 'opacity 0.2s ease'
@@ -715,7 +711,7 @@ export default function ServicePackageManagement() {
               </thead>
               <tbody>
                 {packages.map((pkg, index) => (
-                  <tr 
+                  <tr
                     key={pkg.packageId}
                     style={{
                       borderBottom: index < packages.length - 1 ? '1px solid var(--border-primary)' : 'none',
@@ -742,8 +738,8 @@ export default function ServicePackageManagement() {
                       fontWeight: 400
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           className="table-checkbox"
                           checked={selectedIds.includes(pkg.packageId)}
                           onChange={(e)=>{
@@ -795,9 +791,9 @@ export default function ServicePackageManagement() {
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'left' }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '8px', 
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
                         justifyContent: 'flex-start',
                         alignItems: 'center'
                       }}>
@@ -829,7 +825,7 @@ export default function ServicePackageManagement() {
                         >
                           <Eye size={16} />
                         </button>
-                        
+
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditForm(pkg); }}
                           style={{
@@ -858,7 +854,7 @@ export default function ServicePackageManagement() {
                         >
                           <Edit size={16} />
                         </button>
-                        
+
                         {pkg.isActive ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); deactivatePackage(pkg.packageId); }}
@@ -918,7 +914,7 @@ export default function ServicePackageManagement() {
                             <ToggleLeft size={16} />
                           </button>
                         )}
-                        
+
                         <button
                           onClick={(e) => { e.stopPropagation(); deletePackage(pkg.packageId); }}
                           disabled={deletingPackageId === pkg.packageId}

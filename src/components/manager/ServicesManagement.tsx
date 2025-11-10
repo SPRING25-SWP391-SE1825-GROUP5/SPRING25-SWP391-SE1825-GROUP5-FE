@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { 
+import {
   Wrench,
   Search,
   Plus,
@@ -22,12 +22,12 @@ import ServiceCreateModal from './ServiceCreateModal'
 
 export default function ServicesManagement() {
   // User info không cần dùng trong màn hình này
-  
+
   // State Management
   const [apiServices, setApiServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Service filters/pagination
   const [servicePage, setServicePage] = useState(1)
   const [servicePageSize, setServicePageSize] = useState(10)
@@ -42,18 +42,18 @@ export default function ServicesManagement() {
   const [openPriceMenu, setOpenPriceMenu] = useState(false)
   const [priceRange, setPriceRange] = useState<'all' | 'lt10' | '10to50' | 'gt50'>('all')
   const [exporting, setExporting] = useState(false)
-  
+
   // Refs for dropdown management
   const servicePageSizeRef = useRef<HTMLDivElement | null>(null)
   const statusRef = useRef<HTMLDivElement | null>(null)
   const priceRef = useRef<HTMLDivElement | null>(null)
-  
+
   // Service detail modal
   const [serviceDetailOpen, setServiceDetailOpen] = useState(false)
   const [serviceDetailLoading, setServiceDetailLoading] = useState(false)
   const [serviceDetailError, setServiceDetailError] = useState<string | null>(null)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
-  
+
   // Service form modal
   const [serviceFormOpen, setServiceFormOpen] = useState(false)
   const [editData, setEditData] = useState<Service | null>(null)
@@ -65,14 +65,14 @@ export default function ServicesManagement() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Fetch all services first (without pagination)
-      const params: ServiceListParams = { 
-        pageNumber: 1, 
+      const params: ServiceListParams = {
+        pageNumber: 1,
         pageSize: 1000, // Get all services
         search: serviceSearch
       }
-      
+
       // Get all services (both active and inactive)
       const response = await ServiceManagementService.getServices(params)
       let allServices = response.services || []
@@ -135,12 +135,12 @@ export default function ServicesManagement() {
       const calculatedTotalPages = Math.ceil(allServices.length / servicePageSize);
       setTotalPages(calculatedTotalPages);
       setTotalCount(allServices.length);
-      
+
       // Apply pagination to sorted results
       const startIndex = (servicePage - 1) * servicePageSize;
       const endIndex = startIndex + servicePageSize;
       const paginatedServices = allServices.slice(startIndex, endIndex);
-      
+
       setApiServices(paginatedServices)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -225,7 +225,7 @@ export default function ServicesManagement() {
         setError('Không thể tải dữ liệu dịch vụ')
       }
     }
-    
+
     loadData()
   }, [fetchServices])
 
@@ -256,9 +256,9 @@ export default function ServicesManagement() {
   }
 
   return (
-      <div className="services-management" style={{ 
-      padding: '24px', 
-      background: '#fff', 
+      <div className="services-management" style={{
+      padding: '24px',
+      background: '#fff',
       minHeight: '100vh',
       animation: 'fadeIn 0.5s ease-out'
     }}>
@@ -277,18 +277,18 @@ export default function ServicesManagement() {
         }
       `}</style>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '32px',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
         <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
+          <h2 style={{
+            fontSize: '28px',
+            fontWeight: '700',
             color: 'var(--text-primary)',
             margin: '0 0 8px 0',
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -297,15 +297,15 @@ export default function ServicesManagement() {
           }}>
             Quản lý Dịch vụ
           </h2>
-          <p style={{ 
-            fontSize: '16px', 
+          <p style={{
+            fontSize: '16px',
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
             Quản lý và theo dõi các dịch vụ xe điện
           </p>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} />
       </div>
 
@@ -313,9 +313,7 @@ export default function ServicesManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><LayoutGrid size={14} /> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+            {/* removed dashboard chip */}
             <div className="toolbar-sep" />
           </div>
           <div className="toolbar-right" style={{ flex: 1 }}>
@@ -323,18 +321,14 @@ export default function ServicesManagement() {
               <div className="search-wrap">
                 <Search size={14} className="icon" />
             <input
-                  placeholder="Tìm dịch vụ theo tên" 
+                  placeholder="Tìm dịch vụ theo tên"
               value={serviceSearch}
                   onChange={(e) => setServiceSearch(e.target.value)}
               />
             </div>
             </div>
             <div className="toolbar-actions">
-              <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
-              <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-              <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
-                <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
-              </button>
+              {/* removed export button */}
               <button type="button" className="toolbar-adduser accent-button" onClick={() => openCreateService()}>
                 <Plus size={14} /> Thêm dịch vụ
               </button>
@@ -383,14 +377,14 @@ export default function ServicesManagement() {
           <button type="button" className="toolbar-chip"><Plus size={14} /> Thêm bộ lọc</button>
         </div>
       </div>
-      
+
         {/* Services List */}
-        
+
             {loading ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px', 
-                color: 'var(--text-secondary)' 
+              <div style={{
+                textAlign: 'center',
+                padding: '60px',
+                color: 'var(--text-secondary)'
               }}>
                 <div style={{
                   width: '40px',
@@ -404,10 +398,10 @@ export default function ServicesManagement() {
                 <p style={{ margin: 0, fontSize: '16px' }}>Đang tải dịch vụ...</p>
               </div>
             ) : error ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px', 
-                color: 'var(--error-500)' 
+              <div style={{
+                textAlign: 'center',
+                padding: '60px',
+                color: 'var(--error-500)'
               }}>
                 <div style={{
                   width: '48px',
@@ -424,10 +418,10 @@ export default function ServicesManagement() {
                 <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
               </div>
             ) : apiServices.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px', 
-                color: 'var(--text-secondary)' 
+              <div style={{
+                textAlign: 'center',
+                padding: '60px',
+                color: 'var(--text-secondary)'
               }}>
                 <div style={{
                   width: '64px',
@@ -593,21 +587,21 @@ export default function ServicesManagement() {
       {/* Service Detail Modal */}
       {serviceDetailOpen && (
         <div style={{
-          position: 'fixed', 
-          inset: 0, 
+          position: 'fixed',
+          inset: 0,
           background: 'rgba(0,0,0,0.5)',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           zIndex: 2000
         }}>
           <div style={{
-            background: 'var(--bg-card)', 
-            color: 'var(--text-primary)', 
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
             borderRadius: '12px',
-            border: '1px solid var(--border-primary)', 
-            width: '600px', 
-            maxWidth: '90vw', 
+            border: '1px solid var(--border-primary)',
+            width: '600px',
+            maxWidth: '90vw',
             maxHeight: '90vh',
             overflow: 'auto',
             padding: '24px'
@@ -617,8 +611,8 @@ export default function ServicesManagement() {
               <button
                 onClick={() => { setServiceDetailOpen(false); setSelectedService(null); }}
                 style={{
-                  border: 'none', 
-                  background: 'transparent', 
+                  border: 'none',
+                  background: 'transparent',
                   color: 'var(--text-primary)',
                   cursor: 'pointer',
                   padding: '8px',
@@ -628,7 +622,7 @@ export default function ServicesManagement() {
                 <X size={20} />
               </button>
             </div>
-            
+
             {serviceDetailLoading ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Đang tải chi tiết dịch vụ...</div>
             ) : serviceDetailError ? (
@@ -647,7 +641,7 @@ export default function ServicesManagement() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div>
                   <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500' }}>Mô tả</label>
                   <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: '1.5' }}>{selectedService.description}</p>
@@ -659,7 +653,7 @@ export default function ServicesManagement() {
                     <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: '1.5', fontStyle: 'italic' }}>{selectedService.notes}</p>
                   </div>
                 )}
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500' }}>Trạng thái</label>
