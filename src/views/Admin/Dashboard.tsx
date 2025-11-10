@@ -36,7 +36,8 @@ import {
   Save,
   UserCheck,
   DollarSign,
-  Activity
+  Activity,
+  Brain
 } from 'lucide-react'
 import {
   AreaChart,
@@ -66,6 +67,7 @@ import { useAppSelector } from '@/store/hooks'
 import TimeSlotManagement from './TimeSlotManagement'
 import SystemSettings from './SystemSettings'
 import ServiceTemplateManagement from './ServiceTemplateManagement'
+import RagIngest from './RagIngest'
 import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
 import ReminderManagement from '../../components/admin/ReminderManagement'
@@ -158,7 +160,8 @@ export default function AdminDashboard() {
       '/admin/maintenance-checklist': 'maintenance-checklist',
       '/admin/promotions': 'promotions',
       '/admin/reports': 'reports',
-      '/admin/settings': 'settings'
+      '/admin/settings': 'settings',
+      '/admin/rag-ingest': 'rag-ingest'
     }
 
     if (routeMap[pathname]) {
@@ -186,7 +189,8 @@ export default function AdminDashboard() {
           'maintenance-checklist': 'maintenance-checklist',
           'promotions': 'promotions',
           'reports': 'reports',
-          'settings': 'settings'
+          'settings': 'settings',
+          'rag-ingest': 'rag-ingest'
         }
         if (routeToPage[routeName]) {
           setActivePage(routeToPage[routeName])
@@ -876,6 +880,8 @@ export default function AdminDashboard() {
         return <SystemSettings />
       case 'maintenance-checklist':
         return <ServiceTemplateManagement />
+      case 'rag-ingest':
+        return <RagIngest />
       case 'dashboard':
         return renderDashboardContent()
       default:
@@ -1894,6 +1900,8 @@ export default function AdminDashboard() {
                 // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
+                // AI & RAG
+                { icon: Brain, label: 'RAG Ingest', page: 'rag-ingest', route: '/admin/rag-ingest' },
                 // Cài đặt
                 { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (

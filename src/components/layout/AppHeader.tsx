@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { 
+import {
   ShoppingCart,
   User,
-  Bell,
   Download,
   Wrench,
   Package,
@@ -18,7 +17,7 @@ import {
   ChevronDown,
   LayoutDashboard
 } from 'lucide-react'
-import NotificationBell from '@/components/common/NotificationBell'
+// NotificationBell removed per request
 import NavigationDropdown, { type MenuItem } from './NavigationDropdown'
 import logo from '@/assets/images/logo-black.webp'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -64,7 +63,7 @@ const NewAppHeader: React.FC = () => {
       } catch (apiError) {
         // Continue with local logout even if API fails
       }
-      
+
       // Always clear local state
       dispatch(logout())
       toast.success('Đăng xuất thành công!')
@@ -185,7 +184,7 @@ const NewAppHeader: React.FC = () => {
   // Hàm lấy dashboard URL dựa trên role
   const getDashboardUrl = (): string | null => {
     if (!user?.role) return null
-    
+
     const role = user.role.toUpperCase()
     switch (role) {
       case 'STAFF':
@@ -213,16 +212,13 @@ const NewAppHeader: React.FC = () => {
     <>
       {/* Download App Section - removed as requested */}
 
-      {/* Notification Bell - Only show when logged in */}
-      {user && (
-        <NotificationBell />
-      )}
-            
+      {/* Notification Bell removed */}
+
       {/* Shopping Cart - Only show when logged in */}
       {user && (
       <NavLink
         to="/cart"
-        className="header-icon-btn" 
+        className="header-icon-btn"
         aria-label="Shopping cart"
       >
         <ShoppingCart size={20} />
@@ -243,8 +239,8 @@ const NewAppHeader: React.FC = () => {
           >
             {renderAvatar()}
             </button>
-            
-          <div 
+
+          <div
             className={`dropdown ${showUserDropdown ? 'active' : ''}`}
             onMouseEnter={() => setShowUserDropdown(true)}
             onMouseLeave={() => setShowUserDropdown(false)}
@@ -269,7 +265,7 @@ const NewAppHeader: React.FC = () => {
                 </div>
               )}
               <div className="dropdown-item">
-                  <button 
+                  <button
                   className="dropdown-link dropdown-link--logout"
                     onClick={handleLogout}
                   >

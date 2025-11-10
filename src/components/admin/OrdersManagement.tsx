@@ -20,8 +20,9 @@ import {
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
 import { OrderService } from '@/services/orderService';
-import OrderDetailModal from './Order/OrderDetailModal';
 import './BookingManagement.scss'; // Reuse booking styles
+import OrderItemsTable from './Orders/OrderItemsTable';
+import './Orders/OrdersManagement.scss';
 
 export default function OrdersManagement() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,9 +40,10 @@ export default function OrdersManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Order detail modal state
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  // Row expand state + cached items per order
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<number>>(new Set());
+  const [orderItemsById, setOrderItemsById] = useState<Record<number, any[]>>({});
+  const [loadingItemsForId, setLoadingItemsForId] = useState<number | null>(null);
 
   // Custom dropdown state
   const [openStatusMenu, setOpenStatusMenu] = useState(false);
@@ -88,8 +90,7 @@ export default function OrdersManagement() {
 
       const response = await OrderService.getAllOrders(params);
 
-      // Debug: Log response để kiểm tra cấu trúc
-      console.log('Orders API Response:', response);
+      // debug removed
 
       // Xử lý nhiều cấu trúc response khác nhau
       let ordersData: any[] = [];
@@ -148,11 +149,7 @@ export default function OrdersManagement() {
         }
       }
 
-      console.log('Parsed Orders Data:', ordersData);
-      console.log('Total Count:', totalCountValue);
-      console.log('Total Pages from API:', totalPagesValue);
-      console.log('Page Size:', pageSize);
-      console.log('Page Number:', pageNumber);
+      // debug removed
 
       // Tính toán totalPages dựa trên totalCount và pageSize
       // Ưu tiên: totalCount từ API > totalPages từ API > tính từ ordersData.length
@@ -163,7 +160,7 @@ export default function OrdersManagement() {
       if (finalTotalPages === 1 && finalTotalCount > pageSize) {
         // Backend trả về tất cả items hoặc totalPages không đúng, tính lại
         finalTotalPages = Math.ceil(finalTotalCount / pageSize);
-        console.log('Tính lại totalPages từ totalCount:', finalTotalPages, '(totalCount:', finalTotalCount, ', pageSize:', pageSize, ')');
+        // debug removed
       } else if (finalTotalPages === 1 && finalTotalCount <= pageSize) {
         // Đúng rồi, chỉ có 1 trang
         finalTotalPages = 1;
@@ -173,11 +170,8 @@ export default function OrdersManagement() {
       } else {
         // Fallback: tính từ totalCount
         finalTotalPages = Math.ceil(finalTotalCount / pageSize);
-        console.log('Fallback: tính totalPages từ totalCount:', finalTotalPages);
       }
 
-      console.log('Final Total Pages:', finalTotalPages);
-      console.log('Final Total Count:', finalTotalCount);
 
       setOrders(ordersData);
       setTotalPages(finalTotalPages);
@@ -187,7 +181,6 @@ export default function OrdersManagement() {
         setError(response.message || 'Không có dữ liệu đơn hàng');
       }
     } catch (err: any) {
-      console.error('Fetch Orders Error:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi tải danh sách đơn hàng';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -196,23 +189,63 @@ export default function OrdersManagement() {
     }
   };
 
-  const handleViewOrder = async (order: any) => {
-    try {
-      const orderId = order.orderId || order.id || order.OrderId || order.orderID || order.Id;
-      if (orderId) {
-        setSelectedOrderId(orderId);
-        setShowDetailModal(true);
-      } else {
-        toast.error('Không tìm thấy mã đơn hàng');
-      }
-    } catch (err) {
-      toast.error('Không thể mở chi tiết đơn hàng');
+  const toggleExpand = async (order: any) => {
+    const orderId: number | undefined = order.orderId || order.id || order.OrderId || order.orderID || order.Id;
+    if (!orderId) {
+      toast.error('Không tìm thấy mã đơn hàng');
+      return;
     }
-  };
 
-  const handleCloseDetailModal = () => {
-    setShowDetailModal(false);
-    setSelectedOrderId(null);
+    setExpandedRowIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+      return next;
+    });
+
+    // Ưu tiên dùng items có sẵn trong object order nếu backend đã trả kèm
+    if (!orderItemsById[orderId]) {
+      const inlineItems = Array.isArray(order.orderItems) ? order.orderItems
+        : Array.isArray(order.OrderItems) ? order.OrderItems
+        : undefined;
+      if (inlineItems && inlineItems.length > 0) {
+        setOrderItemsById(prev => ({ ...prev, [orderId]: inlineItems }));
+        return;
+      }
+
+      // Nếu không có sẵn, mới gọi API để lấy items
+      try {
+        setLoadingItemsForId(orderId);
+        const resp = await OrderService.getOrderItems(orderId);
+        let items: any[] = [];
+        if (resp) {
+          // Common: { success, data: [...] }
+          if (Array.isArray((resp as any).data)) {
+            items = (resp as any).data as any[];
+          }
+          // { success, data: { items: [...] } }
+          else if ((resp as any).data && Array.isArray((resp as any).data.items)) {
+            items = (resp as any).data.items as any[];
+          }
+          // { success, data: { Items: [...] } }
+          else if ((resp as any).data && Array.isArray((resp as any).data.Items)) {
+            items = (resp as any).data.Items as any[];
+          }
+          // { items: [...] }
+          else if (Array.isArray((resp as any).items)) {
+            items = (resp as any).items as any[];
+          }
+          // Fallback: response là array
+          else if (Array.isArray(resp as any)) {
+            items = resp as unknown as any[];
+          }
+        }
+        setOrderItemsById(prev => ({ ...prev, [orderId]: items }));
+      } catch (e: any) {
+        toast.error(e?.response?.data?.message || e?.message || 'Không tải được danh sách sản phẩm');
+      } finally {
+        setLoadingItemsForId(null);
+      }
+    }
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -304,7 +337,6 @@ export default function OrdersManagement() {
       setExporting(true);
       toast.success('Chức năng xuất dữ liệu sẽ được triển khai sau');
     } catch (err) {
-      console.error('Export orders failed:', err);
       toast.error('Không thể xuất danh sách đơn hàng. Vui lòng thử lại!');
     } finally {
       setExporting(false);
@@ -557,9 +589,10 @@ export default function OrdersManagement() {
                     const createdAt = order.createdAt || order.CreatedAt || order.createdDate || order.CreatedDate || order.orderDate || order.OrderDate || '';
 
                       return (
+                        <>
                         <tr
                           key={orderId}
-                          onClick={() => handleViewOrder(order)}
+                          onClick={() => toggleExpand(order)}
                           style={{ animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards` }}
                         >
                           <td style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
@@ -591,14 +624,113 @@ export default function OrdersManagement() {
                               <button
                                 type="button"
                                 className="booking-action-btn"
-                                onClick={(e) => { e.stopPropagation(); handleViewOrder(order); }}
-                                title="Xem chi tiết"
+                                onClick={(e) => { e.stopPropagation(); toggleExpand(order); }}
+                                title="Xem sản phẩm đã mua"
                               >
                                 <Eye size={16} />
                               </button>
                             </div>
                           </td>
                         </tr>
+                        {/* Expanded Row: show purchased items */}
+                        {(() => {
+                          const isExpanded = !!(orderId && expandedRowIds.has(Number(orderId)));
+                          if (!isExpanded) return null;
+                          const items = orderId ? orderItemsById[Number(orderId)] : undefined;
+                          return (
+                            <tr className="expanded-row">
+                              <td colSpan={7} style={{ background: '#fafafa' }}>
+                                <div style={{ padding: '12px 16px' }}>
+                                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                                    Sản phẩm trong đơn #{orderId}
+                                  </div>
+                                  {(() => {
+                                    const isLoadingItems = loadingItemsForId === Number(orderId);
+                                    const fulfillmentCenterName = order.fulfillmentCenterName || order.FulfillmentCenterName || order.fulfillmentCenter?.centerName || order.FulfillmentCenter?.CenterName || 'Chưa chọn';
+                                    const customerDisplay = customerName || '-';
+                                    const statusLabel = getStatusLabel(status);
+                                    const totalDisplay = formatPrice(totalAmount);
+
+                                    return (
+                                      <div className="orders-expand">
+                                        <div className="orders-expand__section">
+                                          <div className="orders-expand__title">Thông tin đơn hàng</div>
+                                          <div className="orders-expand__grid">
+                                            <div className="orders-expand__field">
+                                              <div className="label">Mã đơn</div>
+                                              <div className="value">#{orderId}</div>
+                                            </div>
+                                            <div className="orders-expand__field">
+                                              <div className="label">Khách hàng</div>
+                                              <div className="value">{customerDisplay}</div>
+                                            </div>
+                                            <div className="orders-expand__field">
+                                              <div className="label">Trạng thái</div>
+                                              <div className="value">{statusLabel}</div>
+                                            </div>
+                                            <div className="orders-expand__field">
+                                              <div className="label">Tổng tiền</div>
+                                              <div className="value">{totalDisplay}</div>
+                                            </div>
+                                            <div className="orders-expand__field">
+                                              <div className="label">Chi nhánh</div>
+                                              <div className="value">{fulfillmentCenterName}</div>
+                                            </div>
+                                            <div className="orders-expand__field">
+                                              <div className="label">Ngày tạo</div>
+                                              <div className="value">{formatDateTime(createdAt)}</div>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="orders-expand__section">
+                                          <div className="orders-expand__title">Danh sách sản phẩm</div>
+                                          <div className="orders-expand__items">
+                                            {isLoadingItems ? (
+                                              <div className="orders-expand__skeleton">
+                                                <div className="skeleton-row" />
+                                                <div className="skeleton-row" />
+                                                <div className="skeleton-row" />
+                                              </div>
+                                            ) : (!items || items.length === 0) ? (
+                                              <div className="orders-expand__empty">Không có sản phẩm</div>
+                                            ) : (
+                                              (items || []).map((it: any, idx: number) => {
+                                                const partId = it.partId || it.PartId || it.id || it.Id || idx + 1;
+                                                const name = it.partName || it.PartName || it.name || it.Name || `Item #${idx + 1}`;
+                                                const qty = it.quantity || it.Quantity || it.qty || 0;
+                                                const unit = it.unitPrice || it.UnitPrice || it.price || it.Price || 0;
+                                                const number = it.partNumber || it.PartNumber || '';
+                                                const brand = it.brand || it.Brand || '';
+                                                return (
+                                                  <div key={`${orderId}-${partId}-${idx}`} className="orders-expand__item">
+                                                    <div className="item-left">
+                                                      <div className="item-title">{name}</div>
+                                                      <div className="item-meta">
+                                                        <span className="meta">Mã SP: {number || '-'}</span>
+                                                        <span className="dot">•</span>
+                                                        <span className="meta">Thương hiệu: {brand || '-'}</span>
+                                                      </div>
+                                                    </div>
+                                                    <div className="item-right">
+                                                      <div className="meta">SL: <strong>{qty}</strong></div>
+                                                      <div className="price">{formatPrice(unit)}</div>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })()}
+                        </>
                       );
                     });
                   })()}
@@ -696,14 +828,7 @@ export default function OrdersManagement() {
         </div>
       </div>
 
-      {/* Order Detail Modal */}
-      {selectedOrderId && (
-        <OrderDetailModal
-          isOpen={showDetailModal}
-          orderId={selectedOrderId}
-          onClose={handleCloseDetailModal}
-        />
-      )}
+      {/* Modal removed: sử dụng hàng mở rộng để hiển thị sản phẩm */}
     </div>
   );
 }

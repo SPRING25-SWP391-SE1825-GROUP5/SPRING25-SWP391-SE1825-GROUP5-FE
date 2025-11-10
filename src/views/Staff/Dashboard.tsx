@@ -3,30 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
 import toast from 'react-hot-toast'
-import { 
-  Users, 
-  Calendar, 
-  ClipboardList, 
-  Bell,
-  Search,
+import {
+  Calendar,
+  ClipboardList,
   Menu,
   LogOut,
-  Settings,
   BarChart3,
-  Package,
-  PlusCircle,
-  MessageCircle
+  Package
 } from 'lucide-react'
-import CustomersPage from '@/components/staff/CustomersPage'
 import InventoryPage from '@/components/staff/InventoryPage'
-import AppointmentsPage from '@/components/staff/AppointmentsPage'
 import AppointmentManagement from '@/components/staff/AppointmentManagement'
 import ServiceOrdersPage from '@/components/staff/ServiceOrdersPage'
-import SettingsPage from '@/components/staff/SettingsPage'
-import DashboardContent from '@/components/staff/DashboardContent'
 import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
-import StaffBookingForm from '@/components/staff/StaffBookingForm'
-import StaffChatInterface from '@/components/chat/StaffChatInterface'
 import './staff.scss'
 import PartsApproval from '@/components/booking/PartsApproval'
 import { WorkOrderPartService } from '@/services/workOrderPartService'
@@ -34,12 +22,14 @@ import PaymentModal from '@/components/payment/PaymentModal'
 import { BookingService } from '@/services/bookingService'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { feedbackService } from '@/services/feedbackService'
+import logoImage from '@/assets/images/10.webp'
+import WorkQueue from '@/components/technician/WorkQueue'
 
 export default function StaffDashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState('work-queue')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [approvalBookingId, setApprovalBookingId] = useState<number | ''>('')
   const [parts, setParts] = useState<Array<{ id: number; partId: number; partName?: string; status?: string }>>([])
@@ -60,24 +50,18 @@ export default function StaffDashboard() {
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
-      case 'customers':
-        return <CustomersPage />
       case 'appointments':
         return <AppointmentManagement />
       case 'service-orders':
         return <ServiceOrdersPage />
       case 'inventory':
         return <InventoryPage />
-      case 'settings':
-        return <SettingsPage />
       case 'technician-schedule':
         return <TechnicianSchedulePage />
-      case 'create-booking':
-        return <StaffBookingForm />
-      case 'chat':
-        return <StaffChatInterface />
+      case 'work-queue':
+        return <WorkQueue mode="staff" />
       default:
-        return <DashboardContent />
+        return <WorkQueue mode="staff" />
     }
   }
 
@@ -118,32 +102,17 @@ export default function StaffDashboard() {
           >
             <Menu size={20} />
           </button>
-          <h1 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
+          <h1 style={{
+            fontSize: '20px',
+            fontWeight: '600',
             color: 'var(--text-primary)',
             margin: 0
           }}>
             Staff Panel
           </h1>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={20} style={{ color: 'var(--text-tertiary)' }} />
-          </div>
-          <div style={{ position: 'relative' }}>
-            <Bell size={20} style={{ color: 'var(--text-tertiary)' }} />
-            <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              width: '8px',
-              height: '8px',
-              background: 'var(--error-500)',
-              borderRadius: '50%'
-            }} />
-          </div>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -169,9 +138,9 @@ export default function StaffDashboard() {
             }}>
               S
             </div>
-            <span style={{ 
-              fontSize: '14px', 
-              fontWeight: '500', 
+            <span style={{
+              fontSize: '14px',
+              fontWeight: '500',
               color: 'var(--text-primary)'
             }}>
               Staff User
@@ -182,7 +151,7 @@ export default function StaffDashboard() {
       </div>
 
       {/* Sidebar */}
-      <div 
+      <div
         className={`staff-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
         style={{
           width: sidebarCollapsed ? '80px' : '280px',
@@ -197,43 +166,40 @@ export default function StaffDashboard() {
       >
         <div style={{ padding: '24px' }}>
           {/* Logo */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             marginBottom: '32px',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'var(--primary-500)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              marginRight: sidebarCollapsed ? '0' : '12px'
-            }}>
-              S
-            </div>
+            <img
+              src={logoImage}
+              alt="Logo"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                marginRight: sidebarCollapsed ? '0' : '12px',
+                objectFit: 'cover',
+                boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)'
+              }}
+            />
             {!sidebarCollapsed && (
               <div>
-                <h1 style={{ 
-                  fontSize: '20px', 
-                  fontWeight: '700', 
+                <h1 style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
                   color: 'var(--text-primary)',
                   margin: '0'
                 }}>
                   Staff Panel
                 </h1>
-                <p style={{ 
-                  fontSize: '12px', 
+                <p style={{
+                  fontSize: '12px',
                   color: 'var(--text-secondary)',
                   margin: '0'
                 }}>
-                  Quản lý khách hàng và dịch vụ
+                  Quản lý dịch vụ
                 </p>
               </div>
             )}
@@ -242,53 +208,53 @@ export default function StaffDashboard() {
           {/* Navigation */}
           <nav>
             <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ 
-                fontSize: '12px', 
-                fontWeight: '600', 
+              <h3 style={{
+                fontSize: '12px',
+                fontWeight: '600',
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 margin: '0 0 12px 0',
                 display: sidebarCollapsed ? 'none' : 'block'
               }}>
-                Tổng quan
+                Tác vụ
               </h3>
-              <div 
-                onClick={() => setActivePage('dashboard')}
+              <div
+                onClick={() => setActivePage('work-queue')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   padding: '12px 16px',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  color: activePage === 'dashboard' ? 'var(--primary-500)' : 'var(--text-secondary)',
-                  background: activePage === 'dashboard' ? 'var(--primary-50)' : 'transparent',
+                  color: activePage === 'work-queue' ? 'var(--primary-500)' : 'var(--text-secondary)',
+                  background: activePage === 'work-queue' ? 'var(--primary-50)' : 'transparent',
                   fontWeight: '500',
                   marginBottom: '4px',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  if (activePage !== 'dashboard') {
+                  if (activePage !== 'work-queue') {
                     e.currentTarget.style.background = 'var(--primary-50)'
                     e.currentTarget.style.color = 'var(--primary-500)'
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (activePage !== 'dashboard') {
+                  if (activePage !== 'work-queue') {
                     e.currentTarget.style.background = 'transparent'
                     e.currentTarget.style.color = 'var(--text-secondary)'
                   }
                 }}
               >
-                <BarChart3 size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
-                {!sidebarCollapsed && 'Dashboard'}
+                <ClipboardList size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
+                {!sidebarCollapsed && 'Hàng đợi công việc'}
               </div>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ 
-                fontSize: '12px', 
-                fontWeight: '600', 
+              <h3 style={{
+                fontSize: '12px',
+                fontWeight: '600',
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
@@ -298,14 +264,10 @@ export default function StaffDashboard() {
                 Quản lý
               </h3>
               {[
-                { icon: Users, label: 'Khách hàng', page: 'customers' },
                 { icon: Calendar, label: 'Lịch hẹn', page: 'appointments' },
-                { icon: MessageCircle, label: 'Chat hỗ trợ', page: 'chat' },
-                { icon: PlusCircle, label: 'Tạo Booking', page: 'create-booking' },
-                { icon: Package, label: 'Quản lý kho', page: 'inventory' },
-                { icon: Settings, label: 'Cài đặt', page: 'settings' }
+                { icon: Package, label: 'Quản lý kho', page: 'inventory' }
               ].map((item, index) => (
-                <div 
+                <div
                   key={index}
                   onClick={() => setActivePage(item.page)}
                   style={{
@@ -338,7 +300,7 @@ export default function StaffDashboard() {
               ))}
 
               {/* Technician Schedule Link */}
-              <div 
+              <div
                 onClick={() => setActivePage('technician-schedule')}
                 style={{
                   display: 'flex',
@@ -396,13 +358,13 @@ export default function StaffDashboard() {
       </div>
 
       {/* Main Content */}
-      <div 
+      <div
         className="staff-main-content"
         style={{
           marginLeft: sidebarCollapsed ? '80px' : '280px',
           padding: '32px',
-          paddingTop: '96px', // Add space for header
-          background: 'var(--bg-secondary)',
+          paddingTop: '96px',
+          background: '#fff',
           minHeight: '100vh',
           transition: 'margin-left 0.3s ease',
           width: sidebarCollapsed ? 'calc(100% - 80px)' : 'calc(100% - 280px)',
@@ -452,16 +414,15 @@ export default function StaffDashboard() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
                 {parts.map(p => (
-                  <PartsApproval 
-                    key={p.id} 
-                    bookingId={Number(approvalBookingId)} 
-                    workOrderPartId={p.id} 
-                    partId={p.partId} 
-                    partName={p.partName} 
+                  <PartsApproval
+                    key={p.id}
+                    bookingId={Number(approvalBookingId)}
+                    workOrderPartId={p.id}
+                    partId={p.partId}
+                    partName={p.partName}
                     mode="staff"
                     status={p.status}
                     onApproved={async () => {
-                      // Reload lại danh sách sau khi approve/reject
                       if (approvalBookingId) {
                         setLoadingParts(true)
                         try {
@@ -553,7 +514,6 @@ export default function StaffDashboard() {
             open={showPaymentModal}
             onClose={() => setShowPaymentModal(false)}
             onPaymentSuccess={() => {
-              // Sau khi thanh toán offline thành công: mở Feedback ngay
               setShowPaymentModal(false)
               setFeedbackBookingId(Number(paymentBookingId))
               setShowFeedbackModal(true)
