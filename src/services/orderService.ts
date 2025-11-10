@@ -126,6 +126,12 @@ export const OrderService = {
   async updateFulfillmentCenter(orderId: number, fulfillmentCenterId: number): Promise<{ success: boolean; message?: string; data?: any }> {
     const { data } = await api.put(`/Order/${orderId}/fulfillment-center`, { fulfillmentCenterId })
     return data
+  },
+
+  async getAvailableParts(orderId: number, centerId?: number): Promise<{ success: boolean; message?: string; data?: any[] }> {
+    const params = centerId ? `?centerId=${centerId}` : ''
+    const { data } = await api.get(`/Order/${orderId}/available-parts${params}`)
+    return data
   }
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BookingService, type Booking } from '@/services/bookingService'
 import { StaffService } from '@/services/staffService'
-import { RefreshCw, Calendar, Search, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, Wrench, CreditCard } from 'lucide-react'
+import { RefreshCw, Calendar, Search, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Repeat, Wrench, CreditCard, QrCode } from 'lucide-react'
 import QuickPartsApprovalModal from '@/components/booking/QuickPartsApprovalModal'
 import PaymentModal from '@/components/payment/PaymentModal'
+import QRCodeScanner from '@/components/admin/QRCodeScanner'
 import toast from 'react-hot-toast'
 
 export default function AppointmentManagement() {
@@ -28,12 +29,13 @@ export default function AppointmentManagement() {
   const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null)
   const [paymentTotalAmount, setPaymentTotalAmount] = useState<number>(0)
   const [loadingPaymentBooking, setLoadingPaymentBooking] = useState(false)
+  const [showQRScanner, setShowQRScanner] = useState(false)
 
   const loadData = async () => {
     try {
       setLoading(true)
       setError(null)
- 
+
       let cid: number | null = centerId
       let cname: string = centerName
 
@@ -79,7 +81,16 @@ export default function AppointmentManagement() {
   const filteredBookings = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return (bookings || []).filter(b => {
-      const matchStatus = statusFilter === 'all' || (b.status || '').toLowerCase() === statusFilter
+      const bookingStatus = (b.status || '').toLowerCase()
+      const filterStatus = statusFilter.toLowerCase()
+      // Map status filter values to match API response
+      const statusMap: { [key: string]: string } = {
+        'inprogress': 'in_progress',
+        'checked_in': 'checked_in'
+      }
+      const mappedFilter = statusMap[filterStatus] || filterStatus
+      const matchStatus = statusFilter === 'all' || bookingStatus === mappedFilter || bookingStatus === filterStatus ||
+                          (filterStatus === 'inprogress' && bookingStatus === 'in_progress')
       const matchTerm = !term ||
         (b.customerInfo?.fullName || '').toLowerCase().includes(term) ||
         (b.vehicleInfo?.licensePlate || '').toLowerCase().includes(term) ||
@@ -98,25 +109,25 @@ export default function AppointmentManagement() {
   }, [filteredBookings, pageNumber, pageSize])
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: 'var(--bg-secondary)', 
+    <div style={{
+      padding: '24px',
+      background: 'var(--bg-secondary)',
       minHeight: '100%',
       animation: 'fadeIn 0.5s ease-out'
     }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '32px',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
         <div>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
+          <h2 style={{
+            fontSize: '28px',
+            fontWeight: '700',
             color: 'var(--text-primary)',
             margin: '0 0 8px 0',
             background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
@@ -131,6 +142,33 @@ export default function AppointmentManagement() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowQRScanner(true)}
+            style={{
+              padding: '12px 20px',
+              background: '#10B981',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#059669'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#10B981'
+            }}
+          >
+            <QrCode size={18} />
+            Quét QR Check-in
+          </button>
           <button onClick={loadData} disabled={loading} style={{
             padding: '12px 20px',
             background: 'var(--bg-card)',
@@ -174,29 +212,29 @@ export default function AppointmentManagement() {
         marginBottom: '24px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
       }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '16px',
           alignItems: 'end'
         }}>
           <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
               marginBottom: '8px',
             }}>
               Tìm kiếm
             </label>
             <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: 'var(--text-tertiary)' 
+              <Search size={16} style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-tertiary)'
               }} />
               <input
                 placeholder="Tìm theo khách hàng, biển số, dịch vụ, trung tâm..."
@@ -227,12 +265,12 @@ export default function AppointmentManagement() {
           </div>
 
           <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px' 
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+              marginBottom: '8px'
             }}>
               Trạng thái
             </label>
@@ -254,6 +292,7 @@ export default function AppointmentManagement() {
               <option value="all">Tất cả trạng thái</option>
               <option value="pending">Chờ xử lý</option>
               <option value="confirmed">Đã xác nhận</option>
+              <option value="checked_in">Đã check-in</option>
               <option value="inprogress">Đang thực hiện</option>
               <option value="completed">Hoàn thành</option>
               <option value="cancelled">Đã hủy</option>
@@ -261,7 +300,7 @@ export default function AppointmentManagement() {
           </div>
 
           <div>
-            <button 
+            <button
               onClick={() => {
                 setPageNumber(1)
                 setSearchTerm('')
@@ -307,15 +346,15 @@ export default function AppointmentManagement() {
         border: '1px solid var(--border-primary)',
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '24px' 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
         }}>
-          <h3 style={{ 
-            fontSize: '20px', 
-            fontWeight: '700', 
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: '700',
             color: 'var(--text-primary)',
             margin: '0'
           }}>
@@ -329,8 +368,8 @@ export default function AppointmentManagement() {
             <button
               disabled={pageNumber === 1}
               onClick={() => setPageNumber((p) => p - 1)}
-              style={{ 
-                padding: '6px 10px', 
+              style={{
+                padding: '6px 10px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-primary)',
                 background: pageNumber === 1 ? 'var(--bg-secondary)' : 'var(--bg-card)',
@@ -370,8 +409,8 @@ export default function AppointmentManagement() {
             <button
               disabled={pageNumber === totalPages}
               onClick={() => setPageNumber((p) => p + 1)}
-              style={{ 
-                padding: '6px 10px', 
+              style={{
+                padding: '6px 10px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-primary)',
                 background: pageNumber === totalPages ? 'var(--bg-secondary)' : 'var(--bg-card)',
@@ -400,10 +439,10 @@ export default function AppointmentManagement() {
         </div>
 
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '40px',
@@ -417,10 +456,10 @@ export default function AppointmentManagement() {
             <p style={{ margin: 0, fontSize: '16px' }}>Đang tải lịch hẹn...</p>
           </div>
         ) : error ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--error-500)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--error-500)'
           }}>
             <div style={{
               width: '48px',
@@ -437,10 +476,10 @@ export default function AppointmentManagement() {
             <p style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{error}</p>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '60px', 
-            color: 'var(--text-secondary)' 
+          <div style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: 'var(--text-secondary)'
           }}>
             <div style={{
               width: '64px',
@@ -488,7 +527,7 @@ export default function AppointmentManagement() {
               </thead>
               <tbody>
                 {paginatedBookings.map((b, idx) => (
-                  <tr 
+                  <tr
                     key={b.bookingId}
                     style={{
                       borderBottom: '1px solid var(--border-primary)',
@@ -579,13 +618,13 @@ export default function AppointmentManagement() {
                               fontWeight: 600,
                               opacity: loadingPaymentBooking ? 0.6 : 1
                             }}
-                            onMouseEnter={(e) => { 
+                            onMouseEnter={(e) => {
                               if (!loadingPaymentBooking) {
                                 e.currentTarget.style.background = 'var(--success-100)'
                                 e.currentTarget.style.borderColor = 'var(--success-500)'
                               }
                             }}
-                            onMouseLeave={(e) => { 
+                            onMouseLeave={(e) => {
                               if (!loadingPaymentBooking) {
                                 e.currentTarget.style.background = 'var(--success-50)'
                                 e.currentTarget.style.borderColor = 'var(--success-200)'
@@ -656,7 +695,7 @@ export default function AppointmentManagement() {
       )}
 
       {/* Modal: Update Booking Status */}
-      {showStatusModal && (
+      {showStatusModal && statusBookingId && (
         <div
           role="dialog"
           aria-modal="true"
@@ -691,6 +730,9 @@ export default function AppointmentManagement() {
               >
                 <option value="" disabled>— Chọn —</option>
                 {(statusCurrent === 'PENDING') && <option value="CONFIRMED">CONFIRMED</option>}
+                {(statusCurrent === 'CONFIRMED') && <option value="CHECKED_IN">CHECKED_IN</option>}
+                {(statusCurrent === 'CONFIRMED') && <option value="IN_PROGRESS">IN_PROGRESS</option>}
+                {(statusCurrent === 'CHECKED_IN') && <option value="IN_PROGRESS">IN_PROGRESS</option>}
               </select>
 
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
@@ -753,7 +795,7 @@ export default function AppointmentManagement() {
           <button
             disabled={pageNumber === 1}
             onClick={() => setPageNumber(1)}
-            style={{ 
+            style={{
               padding: '8px 12px', borderRadius: '8px',
               border: '1px solid var(--border-primary)',
               background: pageNumber === 1 ? 'var(--bg-secondary)' : 'var(--bg-card)',
@@ -771,7 +813,7 @@ export default function AppointmentManagement() {
           <button
             disabled={pageNumber === 1}
             onClick={() => setPageNumber((p) => p - 1)}
-            style={{ 
+            style={{
               padding: '8px 12px', borderRadius: '8px',
               border: '1px solid var(--border-primary)',
               background: pageNumber === 1 ? 'var(--bg-secondary)' : 'var(--bg-card)',
@@ -793,7 +835,7 @@ export default function AppointmentManagement() {
           <button
             disabled={pageNumber === totalPages}
             onClick={() => setPageNumber((p) => p + 1)}
-            style={{ 
+            style={{
               padding: '8px 12px', borderRadius: '8px',
               border: '1px solid var(--border-primary)',
               background: pageNumber === totalPages ? 'var(--bg-secondary)' : 'var(--bg-card)',
@@ -811,7 +853,7 @@ export default function AppointmentManagement() {
           <button
             disabled={pageNumber === totalPages}
             onClick={() => setPageNumber(totalPages)}
-            style={{ 
+            style={{
               padding: '8px 12px', borderRadius: '8px',
               border: '1px solid var(--border-primary)',
               background: pageNumber === totalPages ? 'var(--bg-secondary)' : 'var(--bg-card)',
@@ -827,6 +869,19 @@ export default function AppointmentManagement() {
           </button>
         </div>
       </div>
+
+      {/* QR Code Scanner */}
+      {showQRScanner && (
+        <QRCodeScanner
+          isOpen={showQRScanner}
+          onClose={() => setShowQRScanner(false)}
+          onCheckInSuccess={(bookingId) => {
+            setShowQRScanner(false)
+            loadData() // Refresh bookings list
+            toast.success(`Check-in thành công cho booking #${bookingId}`)
+          }}
+        />
+      )}
     </div>
   )
 }

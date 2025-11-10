@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { 
-  Plus, 
-  Calendar, 
-  Users, 
-  Clock, 
-  CheckCircle, 
+import {
+  Plus,
+  Calendar,
+  Users,
+  Clock,
+  CheckCircle,
   TrendingUp,
   Filter,
   Search
@@ -107,6 +107,7 @@ const serviceStatsData = [
 // Status configuration
 const statusConfig = {
   confirmed: { label: 'Đã xác nhận', color: 'var(--success-500)', bgColor: 'var(--success-50)' },
+  checked_in: { label: 'Đã check-in', color: '#10B981', bgColor: '#D1FAE5' },
   in_progress: { label: 'Đang xử lý', color: 'var(--warning-500)', bgColor: 'var(--warning-50)' },
   completed: { label: 'Hoàn thành', color: 'var(--primary-500)', bgColor: 'var(--primary-50)' },
   pending: { label: 'Chờ xử lý', color: 'var(--text-tertiary)', bgColor: 'var(--bg-tertiary)' },
@@ -124,7 +125,7 @@ export default function BookingManagementPage() {
 
   // Calculate stats
   const totalBookings = mockBookingData.length
-  const todayBookings = mockBookingData.filter(booking => 
+  const todayBookings = mockBookingData.filter(booking =>
     new Date(booking.createdAt).toDateString() === new Date().toDateString()
   ).length
   const pendingBookings = mockBookingData.filter(booking => booking.status === 'pending').length
@@ -179,23 +180,23 @@ export default function BookingManagementPage() {
   return (
     <div className="booking-management-page">
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '32px' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '32px'
       }}>
         <div>
-          <h1 style={{ 
-            fontSize: '28px', 
-            fontWeight: '700', 
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: '700',
             color: 'var(--text-primary)',
             margin: '0 0 8px 0'
           }}>
             Quản lý Booking
           </h1>
-          <p style={{ 
-            fontSize: '16px', 
+          <p style={{
+            fontSize: '16px',
             color: 'var(--text-secondary)',
             margin: '0'
           }}>
@@ -272,24 +273,24 @@ export default function BookingManagementPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
               <XAxis dataKey="name" stroke="var(--text-secondary)" />
               <YAxis stroke="var(--text-secondary)" />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
                   borderRadius: '8px'
                 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="bookings" 
-                stroke="var(--primary-500)" 
+              <Line
+                type="monotone"
+                dataKey="bookings"
+                stroke="var(--primary-500)"
                 strokeWidth={3}
                 name="Tổng Booking"
               />
-              <Line 
-                type="monotone" 
-                dataKey="completed" 
-                stroke="var(--success-500)" 
+              <Line
+                type="monotone"
+                dataKey="completed"
+                stroke="var(--success-500)"
                 strokeWidth={3}
                 name="Hoàn thành"
               />
@@ -315,7 +316,7 @@ export default function BookingManagementPage() {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-primary)',
@@ -335,7 +336,7 @@ export default function BookingManagementPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
             <XAxis dataKey="name" stroke="var(--text-secondary)" />
             <YAxis stroke="var(--text-secondary)" />
-            <Tooltip 
+            <Tooltip
               contentStyle={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-primary)',
@@ -367,6 +368,7 @@ export default function BookingManagementPage() {
           <option value="all">Tất cả trạng thái</option>
           <option value="pending">Chờ xử lý</option>
           <option value="confirmed">Đã xác nhận</option>
+          <option value="checked_in">Đã check-in</option>
           <option value="in_progress">Đang xử lý</option>
           <option value="completed">Hoàn thành</option>
           <option value="cancelled">Đã hủy</option>

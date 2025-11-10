@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Settings, AlertCircle } from 'lucide-react'
 import { BookingService, AdminBookingSummary } from '@/services/bookingService'
+import { BOOKING_STATUSES, getStatusLabel, STATUS_LABELS } from '@/utils/bookingStatus'
 import toast from 'react-hot-toast'
 import './_booking-modal.scss'
 
@@ -13,12 +14,13 @@ interface BookingStatusModalProps {
 }
 
 const ALLOWED_STATUSES = [
-  { value: 'PENDING', label: 'Chờ xác nhận' },
-  { value: 'CONFIRMED', label: 'Đã xác nhận' },
-  { value: 'IN_PROGRESS', label: 'Đang xử lý' },
-  { value: 'COMPLETED', label: 'Hoàn thành' },
-  { value: 'PAID', label: 'Đã thanh toán' },
-  { value: 'CANCELLED', label: 'Đã hủy' }
+  { value: BOOKING_STATUSES.PENDING, label: STATUS_LABELS.PENDING },
+  { value: BOOKING_STATUSES.CONFIRMED, label: STATUS_LABELS.CONFIRMED },
+  { value: BOOKING_STATUSES.CHECKED_IN, label: STATUS_LABELS.CHECKED_IN },
+  { value: BOOKING_STATUSES.IN_PROGRESS, label: STATUS_LABELS.IN_PROGRESS },
+  { value: BOOKING_STATUSES.COMPLETED, label: STATUS_LABELS.COMPLETED },
+  { value: BOOKING_STATUSES.PAID, label: STATUS_LABELS.PAID },
+  { value: BOOKING_STATUSES.CANCELLED, label: STATUS_LABELS.CANCELLED }
 ]
 
 const BookingStatusModal: React.FC<BookingStatusModalProps> = ({
@@ -49,7 +51,7 @@ const BookingStatusModal: React.FC<BookingStatusModalProps> = ({
       setError(null)
 
       const response = await BookingService.updateBookingStatus(booking.bookingId, selectedStatus)
-      
+
       if (response.success) {
         toast.success('Cập nhật trạng thái thành công')
         onSuccess()
@@ -67,9 +69,7 @@ const BookingStatusModal: React.FC<BookingStatusModalProps> = ({
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    return ALLOWED_STATUSES.find(s => s.value === status)?.label || status
-  }
+  // Use centralized getStatusLabel from utils
 
   if (!isOpen || !booking) return null
 
@@ -139,8 +139,8 @@ const BookingStatusModal: React.FC<BookingStatusModalProps> = ({
             <button className="btn-secondary" onClick={onClose} disabled={loading}>
               Hủy
             </button>
-            <button 
-              className="btn-primary" 
+            <button
+              className="btn-primary"
               onClick={handleSubmit}
               disabled={loading || selectedStatus === booking.status}
             >

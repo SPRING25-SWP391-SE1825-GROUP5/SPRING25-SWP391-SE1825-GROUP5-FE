@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { 
+import {
   FunnelIcon,
   MagnifyingGlassIcon,
   StarIcon,
@@ -26,15 +26,15 @@ export default function Products() {
   const { category, subcategory } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  
+
   // State cho API data
   const [parts, setParts] = useState<Part[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<string[]>([])
   const [brands, setBrands] = useState<string[]>([])
-  
-  // State cho filters 
+
+  // State cho filters
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -51,7 +51,7 @@ export default function Products() {
   const [maxPrice, setMaxPrice] = useState(30000000)
   const [minPriceInput, setMinPriceInput] = useState('0')
   const [maxPriceInput, setMaxPriceInput] = useState('30.000.000')
-  
+
   // State cho inventory
   const [centers, setCenters] = useState<Center[]>([])
   const [inventoryByCenter, setInventoryByCenter] = useState<Map<number, Map<number, InventoryPart | null>>>(new Map())
@@ -99,19 +99,19 @@ export default function Products() {
       try {
         setLoadingInventory(true)
         console.log(`[Products] Loading inventory for ${centers.length} centers and ${parts.length} parts...`)
-        
+
         // Load inventory for all centers in parallel
         const inventoryMap = new Map<number, Map<number, InventoryPart | null>>()
-        
+
         await Promise.allSettled(
           centers.map(async (center) => {
             try {
               const inventoryId = center.centerId
               const partsResponse = await InventoryService.getInventoryParts(inventoryId)
-              
+
               if (partsResponse.success && partsResponse.data) {
                 let partsArray: InventoryPart[] = []
-                
+
                 if (Array.isArray(partsResponse.data)) {
                   partsArray = partsResponse.data
                 } else if (partsResponse.data && typeof partsResponse.data === 'object') {
@@ -123,10 +123,10 @@ export default function Products() {
                     }
                   }
                 }
-                
+
                 // Tạo map cho center này: partId -> InventoryPart
                 const centerPartsMap = new Map<number, InventoryPart | null>()
-                
+
                 // Tìm tất cả parts trong danh sách
                 parts.forEach(part => {
                   const partId = part.partId
@@ -135,7 +135,7 @@ export default function Products() {
                   ) || null
                   centerPartsMap.set(partId, partInInventory)
                 })
-                
+
                 inventoryMap.set(center.centerId, centerPartsMap)
               } else {
                 inventoryMap.set(center.centerId, new Map())
@@ -148,13 +148,13 @@ export default function Products() {
         )
 
         setInventoryByCenter(inventoryMap)
-        
+
         // Tính toán stock cao nhất cho mỗi part
         const maxStockMap = new Map<number, number>()
-        
+
         parts.forEach(part => {
           let maxStock = 0
-          
+
           inventoryMap.forEach((centerPartsMap) => {
             const inventoryPart = centerPartsMap.get(part.partId)
             const stock = inventoryPart?.currentStock ?? 0
@@ -162,10 +162,10 @@ export default function Products() {
               maxStock = stock
             }
           })
-          
+
           maxStockMap.set(part.partId, maxStock)
         })
-        
+
         setPartMaxStock(maxStockMap)
         console.log(`[Products] Calculated max stock for ${maxStockMap.size} parts`)
       } catch (error: any) {
@@ -196,7 +196,7 @@ export default function Products() {
       }
 
       const response = await PartService.getPartAvailability(filters)
-      
+
       if (response.success) {
         setParts(response.data)
       } else {
@@ -228,7 +228,7 @@ export default function Products() {
     if (parts.length > 0) {
       const uniqueCategories = [...new Set(parts.map(part => part.brand))].sort()
       const uniqueBrands = [...new Set(parts.map(part => part.brand))].sort()
-      
+
       setCategories(uniqueCategories)
       setBrands(uniqueBrands)
     }
@@ -318,8 +318,8 @@ export default function Products() {
             ) : star === Math.ceil(rating) && rating % 1 !== 0 ? (
               <>
                 <StarIcon className="w-4 h-4 text-gray-300 absolute" />
-                <StarSolid 
-                  className="w-4 h-4 text-yellow-400" 
+                <StarSolid
+                  className="w-4 h-4 text-yellow-400"
                   style={{ clipPath: `inset(0 ${100 - (rating % 1) * 100}% 0 0)` }}
                 />
               </>
@@ -329,13 +329,13 @@ export default function Products() {
           </div>
         ))}
         <span className="ml-1 text-sm text-gray-600">{rating}</span>
-        <StarSolid 
-          className="ml-1" 
-          style={{ 
-            width: '14px', 
-            height: '14px', 
-            color: '#FFC107' 
-          }} 
+        <StarSolid
+          className="ml-1"
+          style={{
+            width: '14px',
+            height: '14px',
+            color: '#FFC107'
+          }}
         />
       </div>
     )
@@ -374,8 +374,8 @@ export default function Products() {
         }
       }
 
-      if (cartId) {
-        await CartService.addItem(cartId, { partId: part.partId, quantity: 1 })
+      if (user?.customerId) {
+        await CartService.addItem(Number(user.customerId), { partId: part.partId, quantity: 1 })
       }
     } catch (_) {
       // Silently ignore BE sync errors to keep UX smooth
@@ -427,21 +427,21 @@ export default function Products() {
   // Filter và sort parts
   const filteredParts = parts.filter(part => {
     // Tìm kiếm theo tên sản phẩm
-    const matchesSearch = debouncedSearchTerm === '' || 
+    const matchesSearch = debouncedSearchTerm === '' ||
       part.partName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       part.partNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       part.brand.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-    
+
     // Lọc theo thương hiệu
     const matchesBrand =
       (selectedBrands.length === 0 && (selectedBrand === 'Tất cả thương hiệu' || part.brand === selectedBrand)) ||
       (selectedBrands.length > 0 && selectedBrands.includes(part.brand))
-    
+
     // Lọc theo giá
     const low = Number.isFinite(minPrice) ? minPrice : 0
     const high = Number.isFinite(maxPrice) ? maxPrice : Number.MAX_SAFE_INTEGER
     const matchesPrice = part.unitPrice >= low && part.unitPrice <= high
-    
+
     return matchesSearch && matchesBrand && matchesPrice
   })
 
@@ -472,7 +472,7 @@ export default function Products() {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
     }, 300)
-    
+
     return () => clearTimeout(timer)
   }, [searchTerm])
 
@@ -615,7 +615,7 @@ export default function Products() {
                 <div className="sort-group">
                   <AdjustmentsHorizontalIcon className="sort-icon" />
                   <label className="sort-label">Sắp xếp</label>
-                  <select 
+                  <select
                     className="sort-select"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
@@ -638,7 +638,7 @@ export default function Products() {
               ) : error ? (
                 <div className="error-section">
                   <p className="error-message">{error}</p>
-                  <button 
+                  <button
                     className="retry-btn"
                     onClick={loadPartsData}
                   >
@@ -650,12 +650,12 @@ export default function Products() {
                   <div className="no-results-icon">🔍</div>
                   <h3>Không tìm thấy sản phẩm</h3>
                   <p>
-                    {debouncedSearchTerm 
+                    {debouncedSearchTerm
                       ? `Không có sản phẩm nào phù hợp với "${debouncedSearchTerm}"`
                       : 'Không có sản phẩm nào phù hợp với bộ lọc hiện tại'
                     }
                   </p>
-                  <button 
+                  <button
                     className="clear-filters-btn"
                     onClick={() => {
                       setSearchTerm('')
@@ -669,8 +669,8 @@ export default function Products() {
               ) : (
                 <div className="products-grid">
                   {currentProducts.map(part => (
-                    <div 
-                      key={part.partId} 
+                    <div
+                      key={part.partId}
                       className="product-card"
                       onClick={() => navigate(`/product/${part.partId}`)}
                     >
@@ -700,17 +700,17 @@ export default function Products() {
                         <div className="product-rating">
                           {renderStars(part.rating)}
                         </div>
-                        <div className="product-stock" style={{ 
-                          fontSize: '13px', 
-                          color: '#666', 
+                        <div className="product-stock" style={{
+                          fontSize: '13px',
+                          color: '#666',
                           marginTop: '4px',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '4px'
                         }}>
                           <span>Số lượng:</span>
-                          <span style={{ 
-                            fontWeight: 600, 
+                          <span style={{
+                            fontWeight: 600,
                             color: (() => {
                               if (loadingInventory) return '#999'
                               const maxStock = partMaxStock.get(part.partId) ?? 0
@@ -722,22 +722,22 @@ export default function Products() {
                             ) : (
                               (() => {
                                 const maxStock = partMaxStock.get(part.partId) ?? 0
-                                return maxStock > 0 
+                                return maxStock > 0
                                   ? `${maxStock.toLocaleString('vi-VN')} sản phẩm`
                                   : 'Hết hàng'
                               })()
                             )}
                           </span>
                         </div>
-                        
+
                         <div className="product-actions">
                           {(() => {
                             const maxStock = partMaxStock.get(part.partId) ?? 0
                             const isOutOfStock = maxStock === 0
-                            
+
                             return (
                               <>
-                                <button 
+                                <button
                                   className="action-btn add-to-cart-btn"
                                   onClick={(e) => handleAddToCart(part, e)}
                                   disabled={isOutOfStock}
@@ -750,8 +750,8 @@ export default function Products() {
                                   <PlusIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
                                   <span>{isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}</span>
                                 </button>
-                                
-                                <button 
+
+                                <button
                                   className="action-btn buy-now-btn"
                                   onClick={(e) => handleBuyNow(part, e)}
                                   disabled={isOutOfStock || buyingId === part.partId}
@@ -763,10 +763,10 @@ export default function Products() {
                                 >
                                   <BoltIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
                                   <span>
-                                    {buyingId === part.partId 
-                                      ? 'Đang tạo...' 
-                                      : isOutOfStock 
-                                        ? 'Hết hàng' 
+                                    {buyingId === part.partId
+                                      ? 'Đang tạo...'
+                                      : isOutOfStock
+                                        ? 'Hết hàng'
                                         : 'Mua ngay'
                                     }
                                   </span>
@@ -787,16 +787,16 @@ export default function Products() {
                   <div className="pagination-info">
                     Hiển thị {startIndex + 1}-{Math.min(endIndex, sortedParts.length)} trong {sortedParts.length} sản phẩm
                   </div>
-                  
+
                   <div className="pagination">
-                    <button 
+                    <button
                       className="pagination-btn"
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
                     >
                       Trước
                     </button>
-                    
+
                     <div className="pagination-numbers">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                         <button
@@ -808,8 +808,8 @@ export default function Products() {
                         </button>
                       ))}
                     </div>
-                    
-                    <button 
+
+                    <button
                       className="pagination-btn"
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}

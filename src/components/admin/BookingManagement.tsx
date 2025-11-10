@@ -26,6 +26,7 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
 import { BookingService, AdminBookingSummary, GetBookingsByCenterParams, GetAllBookingsForAdminParams, BookingDetail } from '@/services/bookingService';
 import { CenterService, Center } from '@/services/centerService';
+import { getStatusBadgeClass, getStatusLabel } from '@/utils/bookingStatus';
 import BookingDetailModal from './Booking/BookingDetailModal';
 import BookingStatusModal from './Booking/BookingStatusModal';
 import './BookingManagement.scss';
@@ -206,45 +207,7 @@ export default function BookingManagement() {
     setSelectedBooking(null);
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    const statusUpper = status.toUpperCase();
-    switch (statusUpper) {
-      case 'PENDING':
-        return 'status-badge status-badge--pending';
-      case 'CONFIRMED':
-        return 'status-badge status-badge--confirmed';
-      case 'IN_PROGRESS':
-        return 'status-badge status-badge--in-progress';
-      case 'COMPLETED':
-        return 'status-badge status-badge--completed';
-      case 'PAID':
-        return 'status-badge status-badge--paid';
-      case 'CANCELLED':
-        return 'status-badge status-badge--cancelled';
-      default:
-        return 'status-badge status-badge--default';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const statusUpper = status.toUpperCase();
-    switch (statusUpper) {
-      case 'PENDING':
-        return 'Chờ xác nhận';
-      case 'CONFIRMED':
-        return 'Đã xác nhận';
-      case 'IN_PROGRESS':
-        return 'Đang xử lý';
-      case 'COMPLETED':
-        return 'Hoàn thành';
-      case 'PAID':
-        return 'Đã thanh toán';
-      case 'CANCELLED':
-        return 'Đã hủy';
-      default:
-        return status;
-    }
-  };
+  // Use centralized utilities from bookingStatus.ts (imported at top)
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN', {
@@ -268,6 +231,7 @@ export default function BookingManagement() {
     { value: 'all', label: 'Tất cả trạng thái' },
     { value: 'PENDING', label: 'Chờ xác nhận' },
     { value: 'CONFIRMED', label: 'Đã xác nhận' },
+    { value: 'CHECKED_IN', label: 'Đã check-in' },
     { value: 'IN_PROGRESS', label: 'Đang xử lý' },
     { value: 'COMPLETED', label: 'Hoàn thành' },
     { value: 'PAID', label: 'Đã thanh toán' },
@@ -702,6 +666,7 @@ export default function BookingManagement() {
           onSuccess={handleStatusUpdateSuccess}
         />
       )}
+
     </div>
   );
 }

@@ -427,7 +427,7 @@ export default function ServiceTemplateManagement() {
     setTemplateIdForDeleteParts(templateId)
     setPartsToDelete(partIds)
     setShowDeletePartsModal(true)
-  }
+    }
 
   const confirmDeleteParts = async () => {
     if (!templateIdForDeleteParts || partsToDelete.length === 0) return
@@ -622,7 +622,7 @@ export default function ServiceTemplateManagement() {
                     <TemplateRow
                       key={templateId}
                       template={template}
-                      templateId={templateId}
+                                            templateId={templateId}
                       isExpanded={isExpanded}
                       items={items}
                       isLoading={isLoading}
@@ -645,39 +645,39 @@ export default function ServiceTemplateManagement() {
                       onToggleAddRow={() => handleToggleAddRow(templateId)}
                       onTogglePartSelection={(partId) => handleTogglePartSelection(templateId, partId)}
                       onSelectAllParts={() => handleSelectAllParts(templateId)}
-                      onSearchChange={(term) => setSearchPartsTerm(prev => ({ ...prev, [templateId]: term }))}
-                      onTogglePart={(partId) => {
-                        setSelectedPartsForRow(prev => {
-                          const current = prev[templateId] || new Set()
-                          const updated = new Set(current)
-                          if (updated.has(partId)) {
-                            updated.delete(partId)
-                          } else {
-                            updated.add(partId)
-                          }
-                          return { ...prev, [templateId]: updated }
-                        })
-                      }}
-                      onSelectAll={() => {
-                        const filteredParts = (availablePartsForTemplate[templateId] || []).filter(part =>
-                          (searchPartsTerm[templateId] || '').trim() === '' ||
+                                            onSearchChange={(term) => setSearchPartsTerm(prev => ({ ...prev, [templateId]: term }))}
+                                            onTogglePart={(partId) => {
+                                              setSelectedPartsForRow(prev => {
+                                                const current = prev[templateId] || new Set()
+                                                const updated = new Set(current)
+                                                if (updated.has(partId)) {
+                                                  updated.delete(partId)
+                                                } else {
+                                                  updated.add(partId)
+                                                }
+                                                return { ...prev, [templateId]: updated }
+                                              })
+                                            }}
+                                            onSelectAll={() => {
+                                              const filteredParts = (availablePartsForTemplate[templateId] || []).filter(part =>
+                                                (searchPartsTerm[templateId] || '').trim() === '' ||
                           part.partName?.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
                           part.partNumber?.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
                           part.brand?.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase())
                         )
                         const allPartIds = new Set((filteredParts || []).map(p => p.partId))
-                        setSelectedPartsForRow(prev => ({ ...prev, [templateId]: allPartIds }))
-                      }}
-                      onAdd={(partIds) => handleAddPartsBatchInline(templateId, partIds)}
-                      onDropPart={(partId) => {
-                        setSelectedPartsForRow(prev => {
-                          const current = prev[templateId] || new Set()
-                          const updated = new Set(current)
-                          updated.add(partId)
-                          return { ...prev, [templateId]: updated }
-                        })
-                        handleAddPartsBatchInline(templateId, [partId])
-                      }}
+                                              setSelectedPartsForRow(prev => ({ ...prev, [templateId]: allPartIds }))
+                                            }}
+                                            onAdd={(partIds) => handleAddPartsBatchInline(templateId, partIds)}
+                                            onDropPart={(partId) => {
+                                              setSelectedPartsForRow(prev => {
+                                                const current = prev[templateId] || new Set()
+                                                const updated = new Set(current)
+                                                updated.add(partId)
+                                                return { ...prev, [templateId]: updated }
+                                              })
+                                              handleAddPartsBatchInline(templateId, [partId])
+                                            }}
                       formatDate={formatDate}
                     />
                   )
@@ -841,6 +841,6 @@ export default function ServiceTemplateManagement() {
         }}
         type="delete"
       />
-    </div>
+              </div>
   )
 }

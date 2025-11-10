@@ -159,7 +159,7 @@ export default function ProfileHistory() {
   const handlePaymentSuccess = async () => {
     // Reload lại danh sách booking sau khi thanh toán thành công
     if (!user?.id) return
-    
+
     try {
       setLoading(true)
       let currentCustomerId = user.customerId
@@ -236,7 +236,7 @@ export default function ProfileHistory() {
   return (
     <div className="profile-v2__section">
       <div className="card-header" style={{ padding: '0 0 8px' }}>
-        <h3 className="card-title">Lịch sử đặt lịch</h3>
+        <h3 className="card-title" style={{ color: '#111827', fontWeight: 400, fontSize: '1rem' }}>Lịch sử đặt lịch</h3>
       </div>
       <div style={{
         display: 'flex',

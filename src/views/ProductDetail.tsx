@@ -40,14 +40,14 @@ const convertPartToProduct = (part: any): Product => {
   // Xử lý giá linh hoạt - có thể là unitPrice, UnitPrice, price, hoặc Price
   const unitPrice = part.unitPrice ?? part.UnitPrice ?? part.price ?? part.Price ?? 0
   const totalStock = part.totalStock ?? part.TotalStock ?? part.stock ?? part.Stock ?? 0
-  
+
   console.log('[ProductDetail] Converting part - unitPrice:', unitPrice, 'from:', {
     unitPrice: part.unitPrice,
     UnitPrice: part.UnitPrice,
     price: part.price,
     Price: part.Price
   })
-  
+
   return {
     ...part,
     // Map Part properties to Product properties
@@ -80,7 +80,7 @@ export default function ProductDetail() {
   const dispatch = useAppDispatch()
   const user = useAppSelector((s) => s.auth.user)
   const cart = useAppSelector((s) => s.cart)
-  
+
   const [product, setProduct] = useState<Product | null>(null)
   const [allParts, setAllParts] = useState<Part[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,29 +98,29 @@ export default function ProductDetail() {
   useEffect(() => {
     const loadProduct = async () => {
       if (!id) return
-      
+
       try {
         setLoading(true)
         setError(null)
-        
+
         // Load all parts first to get related products
         const allPartsResponse = await PartService.getPartAvailability()
         if (allPartsResponse.success) {
           setAllParts(allPartsResponse.data)
         }
-        
+
         // Load specific product details
         const productId = parseInt(id)
         const response = await PartService.getPartById(productId)
-        
+
         console.log('[ProductDetail] API Response:', response)
         console.log('[ProductDetail] Response data:', response.data)
-        
+
         if (response.success && response.data) {
           const partData = response.data
           console.log('[ProductDetail] Part data unitPrice:', partData.unitPrice)
           console.log('[ProductDetail] Part data keys:', Object.keys(partData))
-          
+
           const productData = convertPartToProduct(partData)
           console.log('[ProductDetail] Converted product data:', productData)
           console.log('[ProductDetail] Product unitPrice:', productData.unitPrice)
@@ -171,21 +171,21 @@ export default function ProductDetail() {
       try {
         setLoadingInventory(true)
         console.log(`[ProductDetail] Loading inventory for all ${centers.length} centers...`)
-        
+
         // Load inventory for all centers in parallel
         const inventoryMap = new Map<number, InventoryPart | null>()
-        
+
         await Promise.allSettled(
           centers.map(async (center) => {
             try {
               const inventoryId = center.centerId
               console.log(`[ProductDetail] Loading inventory for center ${inventoryId}...`)
-              
+
               const partsResponse = await InventoryService.getInventoryParts(inventoryId)
-              
+
               if (partsResponse.success && partsResponse.data) {
                 let partsArray: InventoryPart[] = []
-                
+
                 if (Array.isArray(partsResponse.data)) {
                   partsArray = partsResponse.data
                 } else if (partsResponse.data && typeof partsResponse.data === 'object') {
@@ -197,7 +197,7 @@ export default function ProductDetail() {
                     }
                   }
                 }
-                
+
                 // Tìm part trong inventory
                 let partInInventory: InventoryPart | null = null
                 if (partsArray.length > 0) {
@@ -205,7 +205,7 @@ export default function ProductDetail() {
                     (p: InventoryPart) => p.partId === product.partId
                   ) || null
                 }
-                
+
                 inventoryMap.set(center.centerId, partInInventory)
                 console.log(`[ProductDetail] Center ${inventoryId}: stock = ${partInInventory?.currentStock ?? 0}`)
               } else {
@@ -219,11 +219,11 @@ export default function ProductDetail() {
         )
 
         setInventoryByCenter(inventoryMap)
-        
+
         // Tìm center có stock cao nhất và set làm mặc định
         let maxStock = -1
         let bestCenterId: number | null = null
-        
+
         inventoryMap.forEach((part, centerId) => {
           const stock = part?.currentStock ?? 0
           if (stock > maxStock) {
@@ -231,12 +231,12 @@ export default function ProductDetail() {
             bestCenterId = centerId
           }
         })
-        
+
         // Nếu không có center nào có stock, chọn center đầu tiên
         if (bestCenterId === null && centers.length > 0) {
           bestCenterId = centers[0].centerId
         }
-        
+
         if (bestCenterId !== null && !selectedCenterId) {
           console.log(`[ProductDetail] Setting default center to ${bestCenterId} (stock: ${maxStock})`)
           setSelectedCenterId(bestCenterId)
@@ -269,16 +269,16 @@ export default function ProductDetail() {
       try {
         setLoadingInventory(true)
         console.log(`[ProductDetail] Loading inventory for center ${selectedCenterId}...`)
-        
+
         // inventoryId chính là centerId (1-1 mapping)
         const inventoryId = selectedCenterId
-        
+
         // Gọi API GET /api/Inventory/{inventoryId}/parts
         const partsResponse = await InventoryService.getInventoryParts(inventoryId)
-        
+
         if (partsResponse.success && partsResponse.data) {
           let partsArray: InventoryPart[] = []
-          
+
           if (Array.isArray(partsResponse.data)) {
             partsArray = partsResponse.data
           } else if (partsResponse.data && typeof partsResponse.data === 'object') {
@@ -290,7 +290,7 @@ export default function ProductDetail() {
               }
             }
           }
-          
+
           // Tìm part trong inventory
           let partInInventory: InventoryPart | null = null
           if (partsArray.length > 0) {
@@ -298,7 +298,7 @@ export default function ProductDetail() {
               (p: InventoryPart) => p.partId === product.partId
             ) || null
           }
-          
+
           // Cập nhật map
           setInventoryByCenter(prev => {
             const newMap = new Map(prev)
@@ -336,7 +336,7 @@ export default function ProductDetail() {
   // Get related products based on same brand
   const getRelatedProducts = (): Product[] => {
     if (!product || allParts.length === 0) return []
-    
+
     return allParts
       .filter(p => p.partId !== product.partId) // Exclude current product
       .filter(p => p.brand === product.brand) // Same brand
@@ -346,26 +346,26 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!product) return
-    
+
     // Không yêu cầu chọn center khi add to cart - sẽ chọn sau ở confirm order
     // Chỉ validate stock nếu đã chọn center (optional)
     if (selectedCenterId) {
       const inventoryPart = inventoryByCenter.get(selectedCenterId)
       const stock = inventoryPart?.currentStock ?? 0
       const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-      
+
       if (isOutOfStock) {
         toast.error('Sản phẩm đã hết hàng tại chi nhánh này')
         return
       }
-      
+
       // Validate stock đủ cho quantity
       if (stock < quantity) {
         toast.error(`Không đủ hàng tại chi nhánh đã chọn. Hiện có: ${stock}, bạn cần: ${quantity}`)
         return
       }
     }
-    
+
     // Add to cart with quantity (không bắt buộc fulfillmentCenterId)
     const itemId = product.partId.toString()
     const productPrice = product.unitPrice ?? product.price ?? 0
@@ -379,10 +379,10 @@ export default function ProductDetail() {
       inStock: product.inStock || true,
       fulfillmentCenterId: selectedCenterId ?? undefined  // Optional - có thể không có
     }
-    
+
     // Check if item already exists in cart
     const existingItem = cart.items.find(item => item.id === itemId)
-    
+
     if (existingItem) {
       // Update quantity if item exists (không cần kiểm tra center vì sẽ chọn sau)
       dispatch(updateQuantity({
@@ -411,16 +411,14 @@ export default function ProductDetail() {
     try {
       const userId = user?.id
       const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
-      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem(cartIdKey)) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cartIdKey))
-      let cartId = storedCartId ? Number(storedCartId) : null
-      if (!cartId) return
-      await CartService.addItem(cartId, { partId: product.partId, quantity: quantity })
+      if (!user?.customerId) return
+      await CartService.addItem(Number(user.customerId), { partId: product.partId, quantity: quantity })
     } catch (_) { /* ignore */ }
   }
 
   const handleBuyNow = () => {
     if (!product) return
-    
+
     // Add to cart first
     handleAddToCart()
     // Navigate to cart
@@ -433,7 +431,7 @@ export default function ProductDetail() {
     if (price === null || price === undefined || isNaN(price) || price < 0) {
       return '0 ₫'
     }
-    
+
     try {
       return new Intl.NumberFormat('vi-VN', {
         style: 'currency',
@@ -514,12 +512,12 @@ export default function ProductDetail() {
         <div className="product-main">
           <div className="product-gallery">
             <div className="main-image">
-              <img 
-                src={product.images?.[selectedImage] || `https://picsum.photos/seed/${product.partId}/600/600`} 
+              <img
+                src={product.images?.[selectedImage] || `https://picsum.photos/seed/${product.partId}/600/600`}
                 alt={product.partName}
               />
             </div>
-            
+
             {product.images && product.images.length > 1 && (
               <div className="thumbnail-gallery">
                 {product.images.map((image, index) => (
@@ -589,14 +587,14 @@ export default function ProductDetail() {
                   </span>
                 )}
               </div>
-              
+
               {selectedCenterId ? (
                 <div className="center-stock-info">
                   {loadingInventory ? (
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
                       padding: '24px',
                       color: '#666'
                     }}>
@@ -608,7 +606,7 @@ export default function ProductDetail() {
                   ) : (() => {
                     const inventoryPart = inventoryByCenter.get(selectedCenterId)
                     console.log('[ProductDetail] Rendering stock info for center', selectedCenterId, 'inventoryPart:', inventoryPart)
-                    
+
                     // Kiểm tra xem có part trong inventory không
                     // Nếu inventoryPart là undefined, có nghĩa là chưa load hoặc không có
                     // Nếu là null, có nghĩa là đã load nhưng không tìm thấy
@@ -696,17 +694,17 @@ export default function ProductDetail() {
                     } else {
                       isDisabled = !product.inStock
                     }
-                    
+
                     return (
                       <>
-                        <button 
+                        <button
                           onClick={() => setQuantity(Math.max(1, quantity - 1))}
                           disabled={quantity <= 1 || isDisabled}
                         >
                           -
                         </button>
                         <span className="quantity-value">{quantity}</span>
-                        <button 
+                        <button
                           onClick={() => setQuantity(quantity + 1)}
                           disabled={isDisabled}
                         >
@@ -730,10 +728,10 @@ export default function ProductDetail() {
                   } else {
                     isDisabled = !product.inStock
                   }
-                  
+
                   return (
                     <>
-                      <button 
+                      <button
                         className="btn btn-primary"
                         onClick={handleAddToCart}
                         disabled={isDisabled}
@@ -741,8 +739,8 @@ export default function ProductDetail() {
                         <ShoppingCartIcon className="w-5 h-5" />
                         Thêm vào giỏ hàng
                       </button>
-                      
-                      <button 
+
+                      <button
                         className="btn btn-secondary"
                         onClick={handleBuyNow}
                         disabled={isDisabled}
@@ -761,13 +759,13 @@ export default function ProductDetail() {
         {/* Product Details Tabs */}
         <div className="product-tabs">
           <div className="tab-headers">
-            <button 
+            <button
               className={`tab-header ${activeTab === 'description' ? 'active' : ''}`}
               onClick={() => setActiveTab('description')}
             >
               Mô tả sản phẩm
             </button>
-            <button 
+            <button
               className={`tab-header ${activeTab === 'specifications' ? 'active' : ''}`}
               onClick={() => setActiveTab('specifications')}
             >
@@ -802,24 +800,24 @@ export default function ProductDetail() {
           <div className="related-products">
             <div className="related-header">
               <h2>Sản phẩm liên quan</h2>
-              <button 
+              <button
                 className="view-all-btn"
                 onClick={() => navigate('/products')}
               >
                 Xem tất cả sản phẩm
               </button>
             </div>
-            
+
             <div className="related-grid">
               {relatedProducts.map(relatedProduct => (
-                <div 
+                <div
                   key={relatedProduct.partId}
                   className="related-product-card"
                   onClick={() => navigate(`/product/${relatedProduct.partId}`)}
                 >
                   <div className="product-image">
-                    <img 
-                      src={relatedProduct.images?.[0] || `https://picsum.photos/seed/${relatedProduct.partId}/300/300`} 
+                    <img
+                      src={relatedProduct.images?.[0] || `https://picsum.photos/seed/${relatedProduct.partId}/300/300`}
                       alt={relatedProduct.partName}
                     />
                   </div>

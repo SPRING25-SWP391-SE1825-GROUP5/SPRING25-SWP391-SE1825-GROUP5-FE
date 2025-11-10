@@ -165,6 +165,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
   const getStatusLabel = (val: string) => {
     if (val === 'PENDING') return 'Chờ xác nhận'
     if (val === 'CONFIRMED') return 'Đã xác nhận'
+    if (val === 'CHECKED_IN') return 'Đã check-in'
     if (val === 'IN_PROGRESS') return 'Đang làm việc'
     if (val === 'COMPLETED') return 'Hoàn thành'
     if (val === 'PAID') return 'Đã thanh toán'
@@ -373,6 +374,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       // Uppercase status từ dropdown
       'PENDING': 'pending',
       'CONFIRMED': 'confirmed',
+      'CHECKED_IN': 'checked_in',
       'IN_PROGRESS': 'in_progress',
       'COMPLETED': 'completed',
       'PAID': 'paid',
@@ -380,6 +382,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       // Lowercase status từ API
       'pending': 'pending',
       'confirmed': 'confirmed',
+      'checked_in': 'checked_in',
       'in_progress': 'in_progress',
       'processing': 'in_progress',
       'completed': 'completed',
@@ -481,7 +484,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       }
       // Toggle to hide less-important statuses by default
       if (!showAllStatusesToggle) {
-        const keep = work.status === 'in_progress' || work.status === 'confirmed'
+        const keep = work.status === 'in_progress' || work.status === 'confirmed' || work.status === 'checked_in'
         matchesStatus = matchesStatus && keep
       }
 
@@ -668,6 +671,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     switch (status) {
       case 'pending': return 'Chờ xác nhận'
       case 'confirmed': return 'Đã xác nhận'
+      case 'checked_in': return 'Đã check-in'
       case 'in_progress': return 'Đang làm việc'
       case 'completed': return 'Hoàn thành'
       case 'paid': return 'Đã thanh toán'
@@ -680,6 +684,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     switch (status) {
       case 'pending': return '#8b5cf6' // Tím
       case 'confirmed': return '#F97316' // Cam
+      case 'checked_in': return '#10B981' // Xanh lá
       case 'in_progress': return '#3B82F6' // Xanh dương
       case 'completed': return '#10B981' // Xanh lá
       case 'paid': return '#3B82F6' // Xanh dương
@@ -886,7 +891,8 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
     // Dùng chữ HOA để khớp với mapStatusToApi và dữ liệu từ backend
     const validTransitions: { [key: string]: string[] } = {
       'PENDING': ['CONFIRMED', 'CANCELLED'],
-      'CONFIRMED': ['IN_PROGRESS', 'CANCELLED'],
+      'CONFIRMED': ['CHECKED_IN', 'IN_PROGRESS', 'CANCELLED'],
+      'CHECKED_IN': ['IN_PROGRESS', 'CANCELLED'],
       'IN_PROGRESS': ['COMPLETED', 'CANCELLED'],
       'COMPLETED': ['PAID'],
       'PAID': [],
@@ -1107,6 +1113,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                   { value: 'all', label: 'Tất cả trạng thái' },
                   { value: 'PENDING', label: 'Chờ xác nhận' },
                   { value: 'CONFIRMED', label: 'Đã xác nhận' },
+                  { value: 'CHECKED_IN', label: 'Đã check-in' },
                   { value: 'IN_PROGRESS', label: 'Đang làm việc' },
                   { value: 'COMPLETED', label: 'Hoàn thành' },
                   { value: 'PAID', label: 'Đã thanh toán' },
@@ -1501,9 +1508,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                     try {
                                       const response = await TechnicianService.updateMaintenanceChecklistItem(
-                                        work.bookingId || work.id, 
-                                        resultId, 
-                                        newResult, 
+                                        work.bookingId || work.id,
+                                        resultId,
+                                        newResult,
                                         notes,
                                         replacementInfo
                                       )
@@ -1761,9 +1768,9 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                               onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                 try {
                                   const response = await TechnicianService.updateMaintenanceChecklistItem(
-                                    work.bookingId || work.id, 
-                                    resultId, 
-                                    newResult, 
+                                    work.bookingId || work.id,
+                                    resultId,
+                                    newResult,
                                     notes,
                                     replacementInfo
                                   )

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Settings, User, Car, MapPin, Wrench, Clock, Calendar, Phone, Mail, DollarSign, FileText, History } from 'lucide-react'
 import { BookingService, AdminBookingSummary, BookingDetail } from '@/services/bookingService'
+import { getStatusBadgeClass, getStatusLabel } from '@/utils/bookingStatus'
 import toast from 'react-hot-toast'
 import './_booking-modal.scss'
 
@@ -74,45 +75,7 @@ const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
     })
   }
 
-  const getStatusBadgeClass = (status: string) => {
-    const statusUpper = status.toUpperCase()
-    switch (statusUpper) {
-      case 'PENDING':
-        return 'status-badge status-badge--pending'
-      case 'CONFIRMED':
-        return 'status-badge status-badge--confirmed'
-      case 'IN_PROGRESS':
-        return 'status-badge status-badge--in-progress'
-      case 'COMPLETED':
-        return 'status-badge status-badge--completed'
-      case 'PAID':
-        return 'status-badge status-badge--paid'
-      case 'CANCELLED':
-        return 'status-badge status-badge--cancelled'
-      default:
-        return 'status-badge status-badge--default'
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    const statusUpper = status.toUpperCase()
-    switch (statusUpper) {
-      case 'PENDING':
-        return 'Chờ xác nhận'
-      case 'CONFIRMED':
-        return 'Đã xác nhận'
-      case 'IN_PROGRESS':
-        return 'Đang xử lý'
-      case 'COMPLETED':
-        return 'Hoàn thành'
-      case 'PAID':
-        return 'Đã thanh toán'
-      case 'CANCELLED':
-        return 'Đã hủy'
-      default:
-        return status
-    }
-  }
+  // Use centralized utilities (imported at top)
 
   if (!isOpen || !booking) return null
 
