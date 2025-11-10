@@ -437,22 +437,13 @@ export default function TechnicianDashboard() {
   const renderPageContent = () => {
     switch (activePage) {
       case 'work-queue':
-        return <WorkQueue onViewDetails={(work) => {
-          setSelectedWork(work)
-          setIsDetailModalOpen(true)
-        }} />
+        return <WorkQueue />
       case 'work-schedule':
         return <WorkSchedule />
       case 'profile':
-        return <WorkQueue onViewDetails={(work) => {
-          setSelectedWork(work)
-          setIsDetailModalOpen(true)
-        }} />
+        return <WorkQueue />
       default:
-        return <WorkQueue onViewDetails={(work) => {
-          setSelectedWork(work)
-          setIsDetailModalOpen(true)
-        }} />
+        return <WorkQueue />
     }
   }
 

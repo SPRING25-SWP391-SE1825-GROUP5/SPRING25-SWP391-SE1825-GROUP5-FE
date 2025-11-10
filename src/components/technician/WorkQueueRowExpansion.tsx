@@ -2,12 +2,16 @@ import React, { useMemo, useState } from 'react'
 import { PartService, Part } from '@/services/partService'
 import { TechnicianService } from '@/services/technicianService'
 import { WorkOrderPartService, WorkOrderPartItem } from '@/services/workOrderPartService'
-import bookingRealtimeService from '@/services/bookingRealtimeService'
 import { BookingService } from '@/services/bookingService'
+import bookingRealtimeService from '@/services/bookingRealtimeService'
 import toast from 'react-hot-toast'
-// removed BookingService summary call; compute locally from items
+import BookingTechnicianInfo from '@/components/technician/BookingTechnicianInfo'
+import BookingTimeSlotInfo from '@/components/technician/BookingTimeSlotInfo'
+import WorkQueueChecklist, { ChecklistRow as ChecklistRowType } from '@/components/technician/WorkQueueChecklist'
+import WorkQueuePartsList from '@/components/technician/WorkQueuePartsList'
+import { useAppSelector } from '@/store/hooks'
 
-type ChecklistRow = { resultId: number; partId?: number; partName?: string; categoryId?: number; categoryName?: string; description?: string; result?: string | null; notes?: string; status?: string }
+type ChecklistRow = ChecklistRowType
 
 interface WorkQueueRowExpansionProps {
   workId: number
@@ -15,6 +19,10 @@ interface WorkQueueRowExpansionProps {
   centerId?: number
   status?: string
   items: ChecklistRow[]
+  technicianName?: string
+  technicianPhone?: string
+  slotLabel?: string
+  workDate?: string
   onSetItemResult: (
     resultId: number,
     partId: number | undefined,
@@ -36,10 +44,18 @@ export default function WorkQueueRowExpansion({
   centerId,
   status,
   items,
+  technicianName,
+  technicianPhone,
+  slotLabel,
+  workDate,
   onSetItemResult,
   onConfirmChecklist,
   onConfirmParts
 }: WorkQueueRowExpansionProps) {
+  const user = useAppSelector((s: any) => s.auth.user)
+  const roles = (user?.role ? [user.role] : (user?.roles || [])) as string[]
+  const hasRole = (name: string) => roles.some(r => String(r).toUpperCase().includes(name))
+  const canApproveCustomerParts = hasRole('STAFF') || hasRole('MANAGER')
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [showSelectPart, setShowSelectPart] = useState(false)
   const [parts, setParts] = useState<WorkOrderPartItem[]>([])
@@ -350,6 +366,12 @@ export default function WorkQueueRowExpansion({
   return (
     <tr style={{ background: '#FAFAFA' }}>
       <td colSpan={7} style={{ padding: '12px 16px', borderTop: '1px solid #E5E7EB' }}>
+        {/* Info cards (align with Admin style) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <BookingTechnicianInfo bookingId={bookingId} technicianName={technicianName} technicianPhone={technicianPhone} />
+          <BookingTimeSlotInfo bookingId={bookingId} slotLabel={slotLabel} workDate={workDate} />
+        </div>
+
         <div>
           <h4 style={{ margin: '0 0 12px 0', fontSize: 14, color: '#374151', fontWeight: 400 }}>Danh sách kiểm tra</h4>
           {summary && (
@@ -361,8 +383,7 @@ export default function WorkQueueRowExpansion({
             </div>
           )}
           <div style={{ overflowX: 'auto' }}>
-            <table
-              style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}
+            <div
               onDragOver={(e) => { if (isInProgress) e.preventDefault() }}
               onDrop={async (e) => {
                 if (!isInProgress) return
@@ -378,82 +399,8 @@ export default function WorkQueueRowExpansion({
                 } catch {}
               }}
             >
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>#</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Phụ tùng</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Mô tả</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Trạng thái</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Đánh giá</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((row, idx) => {
-                  const isFail = (row.result === 'FAIL' || row.result === 'fail')
-                  const isPass = (row.result === 'PASS' || row.result === 'pass')
-                  const statusColor = isPass ? '#10B981' : isFail ? '#EF4444' : '#6B7280'
-                  const statusText = isPass ? 'Đạt' : isFail ? 'Không đạt' : 'Chưa đánh giá'
-
-                  return (
-                    <tr key={`${workId}-${row.resultId || idx}`}>
-                      <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13 }}>{idx + 1}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13, color: '#111827' }}>{row.partName || row.categoryName || '-'}</td>
-                      <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13, color: '#374151' }}>{row.description || '-'}</td>
-                      <td style={{ border: '1px solid #E5E7EB', padding: '10px', fontSize: 13 }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '4px 8px',
-                          border: `1px solid ${statusColor}`,
-                          color: statusColor,
-                          borderRadius: 6,
-                          background: '#FFFFFF'
-                        }}>{statusText}</span>
-                      </td>
-                      <td style={{ border: '1px solid #E5E7EB', padding: '10px' }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleSet(row, 'PASS')}
-                            disabled={!isChecklistEditable || updatingId === row.resultId}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: 6,
-                              border: `1px solid ${(row.result === 'PASS' || row.result === 'pass') ? '#FFD875' : '#D1D5DB'}`,
-                              background: (row.result === 'PASS' || row.result === 'pass') ? '#FFF6D1' : (isChecklistEditable ? '#FFFFFF' : '#F9FAFB'),
-                              color: '#374151',
-                              fontSize: 13,
-                              fontWeight: 400,
-                              cursor: (!isChecklistEditable || updatingId === row.resultId) ? 'not-allowed' : 'pointer'
-                            }}
-                          >Đạt</button>
-                          <button
-                            onClick={() => handleSet(row, 'FAIL')}
-                            disabled={!isChecklistEditable || updatingId === row.resultId}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: 6,
-                              border: `1px solid ${(row.result === 'FAIL' || row.result === 'fail') ? '#FFD875' : '#D1D5DB'}`,
-                              background: (row.result === 'FAIL' || row.result === 'fail') ? '#FFF6D1' : (isChecklistEditable ? '#FFFFFF' : '#F9FAFB'),
-                              color: '#374151',
-                              fontSize: 13,
-                              fontWeight: 400,
-                              cursor: (!isChecklistEditable || updatingId === row.resultId) ? 'not-allowed' : 'pointer'
-                            }}
-                          >Không đạt</button>
-                          {/* Bỏ input ghi chú và gợi ý inline theo yêu cầu */}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-                {items.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ border: '1px solid #E5E7EB', padding: '16px', textAlign: 'center', fontSize: 13, color: '#6B7280' }}>
-                      Không có hạng mục kiểm tra
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              <WorkQueueChecklist rows={items} isEditable={isChecklistEditable} onSet={handleSet} updatingId={updatingId} />
+            </div>
           </div>
         </div>
 
@@ -464,178 +411,25 @@ export default function WorkQueueRowExpansion({
             <h4 style={{ margin: 0, fontSize: 14, color: '#374151', fontWeight: 400 }}>Phụ tùng phát sinh</h4>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Mã</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Tên phụ tùng</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Thương hiệu</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Đơn giá</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Số lượng</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'left', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Trạng thái</th>
-                  <th style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center', fontSize: 13, fontWeight: 400, background: '#FFF8E6' }}>Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {parts.map((p) => {
-                  // Phân biệt replacement parts (từ checklist) và parts thông thường
-                  const isReplacementPart = p.id < 0 // Replacement parts có id âm
-                  const approvalStatus = (p.status || '').toUpperCase()
-                  const isApproved = approvalStatus === 'CONSUMED'
-                  const isDraft = approvalStatus === 'DRAFT'
-                  const isRejected = approvalStatus === 'REJECTED'
-
-                  // Replacement parts chỉ đọc (read-only), không cho chỉnh sửa
-                  const canEdit = isInProgress && !isApproved && !isReplacementPart
-
-                  // Trạng thái duyệt - xử lý đầy đủ các status
-                  let statusText = 'Nháp'
-                  let statusColor = '#6B7280'
-                  const statusUpper = approvalStatus
-
-                  if (statusUpper === 'CONSUMED') {
-                    statusText = 'Đã xác nhận'
-                    statusColor = '#10B981'
-                  } else if (statusUpper === 'PENDING_CUSTOMER_APPROVAL') {
-                    statusText = 'Chờ xác nhận'
-                    statusColor = '#F59E0B'
-                  } else if (statusUpper === 'REJECTED') {
-                    statusText = 'Đã từ chối'
-                    statusColor = '#EF4444'
-                  } else if (statusUpper === 'DRAFT') {
-                    statusText = 'Nháp'
-                    statusColor = '#6B7280'
-                  } else {
-                    // Fallback cho các status khác
-                    statusText = statusUpper || 'Nháp'
-                    statusColor = '#6B7280'
-                  }
-
-                  return (
-                    <tr key={p.id}>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13 }}>{p.partNumber || p.partId}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13, color: '#111827' }}>{p.partName || '-'}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13 }}>{p.brand || '-'}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13 }}>{(p.unitPrice || 0).toLocaleString('vi-VN')}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'right', fontSize: 13 }}>{p.quantity}</td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '4px 8px',
-                            border: `1px solid ${statusColor}`,
-                            color: statusColor,
-                            borderRadius: 6,
-                            background: `${statusColor}15`,
-                            fontSize: 12,
-                            fontWeight: 500
-                          }}>{statusText}</span>
-                          {/* Nguồn phụ tùng */}
-                          <span title={p.isCustomerSupplied ? 'Phụ tùng do khách mang đến' : 'Phụ tùng từ kho'} style={{
-                            display: 'inline-block',
-                            padding: '2px 6px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            border: '1px solid',
-                            borderColor: p.isCustomerSupplied ? '#F59E0B' : '#10B981',
-                            color: p.isCustomerSupplied ? '#92400E' : '#065F46',
-                            background: p.isCustomerSupplied ? '#FEF3C7' : '#ECFDF5'
-                          }}>{p.isCustomerSupplied ? 'KH' : 'Kho'}</span>
-                          {/* Khả dụng tại chi nhánh */}
-                          {centerId ? (() => {
-                            const info = availabilityByPartId[p.partId]
-                            const availQty = info?.availableQuantity ?? 0
-                            const need = p.quantity || 1
-                            const ok = (info?.available ?? false) && availQty >= need
-                            const low = (info?.available ?? false) && availQty > 0 && availQty < need
-                            const color = ok ? '#065F46' : low ? '#92400E' : '#991B1B'
-                            const bg = ok ? '#ECFDF5' : low ? '#FEF3C7' : '#FEF2F2'
-                            const bd = ok ? '#10B981' : low ? '#F59E0B' : '#EF4444'
-                            const label = ok ? 'Đủ' : low ? `Thiếu (${availQty}/${need})` : 'Hết'
-                            return (
-                              <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 6, fontSize: 11, border: `1px solid ${bd}`, color, background: bg }}>
-                                Kho: {label}
-                              </span>
-                            )
-                          })() : null}
-                        </div>
-                      </td>
-                      <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center' }}>
-                        {isInProgress && isDraft && !isReplacementPart && (
-                          <button
-                            onClick={() => {
-                              setPartToDelete({ id: p.id, name: p.partName || 'phụ tùng này' })
-                              setShowDeleteConfirm(true)
-                            }}
-                            disabled={deletingPartId === p.id}
-                            style={{
-                              padding: '6px 12px',
-                              border: '1px solid #EF4444',
-                              borderRadius: 6,
-                              background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF',
-                              color: deletingPartId === p.id ? '#9ca3af' : '#EF4444',
-                              cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer',
-                              fontSize: 13,
-                              fontWeight: 600,
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (deletingPartId !== p.id) {
-                                e.currentTarget.style.background = '#FEE2E2'
-                                e.currentTarget.style.borderColor = '#DC2626'
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (deletingPartId !== p.id) {
-                                e.currentTarget.style.background = '#FFFFFF'
-                                e.currentTarget.style.borderColor = '#EF4444'
-                              }
-                            }}
-                          >
-                            {deletingPartId === p.id ? 'Đang xóa...' : 'Xóa'}
-                          </button>
-                        )}
-                        {/* Tiêu hao phụ tùng khách mang đến nếu có liên kết OrderItemId */}
-                        {isInProgress && p.isCustomerSupplied && p.orderItemId && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                const res = await WorkOrderPartService.consumeCustomerPart(bookingId, p.id, p.orderItemId!, p.quantity || 1)
-                                if (res?.success) {
-                                  toast.success('Đã tiêu hao phụ tùng khách mang đến')
-                                } else {
-                                  toast.error(res?.message || 'Không thể tiêu hao phụ tùng')
-                                }
-                              } catch (e: any) {
-                                toast.error(e?.response?.data?.message || e?.message || 'Lỗi khi tiêu hao phụ tùng')
-                              }
-                            }}
-                            style={{
-                              marginLeft: 8,
-                              padding: '6px 12px',
-                              border: '1px solid #10B981',
-                              borderRadius: 6,
-                              background: '#ECFDF5',
-                              color: '#065F46',
-                              cursor: 'pointer',
-                              fontSize: 13,
-                              fontWeight: 600
-                            }}
-                          >Tiêu hao</button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-                {parts.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ border: '1px solid #FFD875', padding: '16px', textAlign: 'center', fontSize: 13, color: '#6B7280' }}>
-                      Chưa có phụ tùng phát sinh
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <WorkQueuePartsList
+              parts={parts}
+              centerId={centerId}
+              isInProgress={isInProgress}
+              deletingPartId={deletingPartId}
+              availabilityByPartId={availabilityByPartId}
+              canApproveCustomerParts={canApproveCustomerParts}
+              onApproveCustomerPart={async (partId) => {
+                try {
+                  const res = await BookingService.approveBookingPart(bookingId, partId)
+                  if (res?.success === false) throw new Error(res?.message || 'Không thể duyệt')
+                  setParts(prev => prev.map(p => p.id === partId ? { ...p, status: 'CONSUMED' } : p))
+                  toast.success('Đã duyệt phụ tùng')
+                } catch (e: any) {
+                  toast.error(e?.message || 'Không thể duyệt phụ tùng')
+                }
+              }}
+              onDelete={(pid) => { setPartToDelete({ id: pid, name: '' }); setShowDeleteConfirm(true) }}
+            />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: 8, gap: 12 }}>
             <div style={{ fontSize: 13, color: '#111827', fontWeight: 400 }}>

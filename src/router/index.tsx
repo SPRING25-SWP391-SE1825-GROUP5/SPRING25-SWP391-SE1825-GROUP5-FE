@@ -37,7 +37,6 @@ const Profile = lazy(() => import('@/views/Profile'))
 const Users = lazy(() => import('@/views/Users'))
 const MyVehicles = lazy(() => import('@/views/Customer/MyVehicles'))
 const MaintenanceHistory = lazy(() => import('@/views/Customer/MaintenanceHistory'))
-const StaffCustomers = lazy(() => import('@/views/Staff/Customers'))
 const StaffAppointments = lazy(() => import('@/views/Staff/Appointments'))
 const StaffTechnicianSchedule = lazy(() => import('@/components/staff/TechnicianSchedulePage'))
 const StaffServiceOrders = lazy(() => import('@/views/Staff/ServiceOrders'))
@@ -51,12 +50,12 @@ const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
 const FulfillmentOrchestration = lazy(() => import('@/views/Manager/FulfillmentOrchestration'))
 const ChatDemo = lazy(() => import('@/views/ChatDemo'))
-const StaffChat = lazy(() => import('@/views/Staff/StaffChat'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 const ServiceTemplateManagement = lazy(() => import('@/views/Admin/ServiceTemplateManagement'))
 const SystemSettings = lazy(() => import('@/views/Admin/SystemSettings'))
+const RagIngest = lazy(() => import('@/views/Admin/RagIngest'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
 
@@ -111,11 +110,9 @@ const router = createBrowserRouter([
     element: <StaffLayout />,
     children: [
       { index: true, element: suspense(<StaffDashboard />) },
-      { path: 'customers', element: suspense(<StaffCustomers />) },
       { path: 'appointments', element: suspense(<StaffAppointments />) },
       { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
       { path: 'technician-schedule', element: suspense(<StaffTechnicianSchedule />) },
-      { path: 'chat', element: suspense(<StaffChat />) },
     ],
   },
   // Manager routes with manager layout (no global header)
@@ -144,6 +141,7 @@ const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: suspense(<AdminDashboard />) },
+      { path: 'rag-ingest', element: suspense(<RagIngest />) },
       { path: 'orders', element: suspense(<AdminDashboard />) },
       { path: 'bookings', element: suspense(<AdminDashboard />) },
       { path: 'reminders', element: suspense(<AdminDashboard />) },
