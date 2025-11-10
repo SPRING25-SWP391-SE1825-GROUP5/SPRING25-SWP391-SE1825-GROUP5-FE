@@ -247,6 +247,10 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
               {discountAmount > 0 && (
                 <div className="price-item discount"><span className="label">Giảm giá</span><span className="value">-{formatPrice(discountAmount)}</span></div>
               )}
+              <div className="price-item total">
+                <span className="label">Tổng cộng</span>
+                <span className="value">{formatPrice(Math.max(0, subtotal - discountAmount))}</span>
+              </div>
               <form onSubmit={handleSubmit}>
                 <div className="form-actions column">
                   <button type="button" onClick={onPrev} className="btn-secondary">Quay lại</button>
@@ -259,36 +263,117 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
       </div>
 
       <style>{`
-        .confirmation-step { max-width: 1100px; margin: 0 auto; padding: 1rem 1.25rem; }
+        .confirmation-step { 
+          max-width: 1200px; 
+          margin: 0 auto; 
+          padding: 2rem 1.5rem; 
+          background: #FFF9E5;
+          min-height: 100vh;
+        }
 
-        .step-header { text-align: center; margin-bottom: 1rem; }
+        .step-header { text-align: center; margin-bottom: 2rem; }
 
-        .step-header h2 { color: #1e293b; margin-bottom: 0.25rem; font-size: 1.35rem; }
+        .step-header h2 { 
+          color: #1e293b; 
+          margin-bottom: 0.5rem; 
+          font-size: 1.75rem; 
+          font-weight: 700;
+        }
 
-        .step-header p { color: #64748b; font-size: 0.85rem; }
+        .step-header p { color: #64748b; font-size: 0.95rem; }
 
-        .confirmation-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; align-items: start; }
-        .confirmation-left { display: flex; flex-direction: column; gap: 0.75rem; }
-        .confirmation-right { position: relative; }
-        .sticky-card { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 0.75rem; }
+        .confirmation-layout { 
+          display: grid; 
+          grid-template-columns: 72% 28%; 
+          gap: 1.25rem; 
+          align-items: start; 
+        }
+        
+        .confirmation-left { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 1rem; 
+        }
+        
+        .confirmation-right { 
+          position: relative; 
+        }
+        
+        .sticky-card { 
+          position: sticky; 
+          top: 20px; 
+          display: flex; 
+          flex-direction: column; 
+          gap: 1rem; 
+        }
 
-        .info-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.9rem 1rem; }
-        .info-section.compact h3 { margin: 0 0 0.6rem 0; font-size: 1rem; }
+        .info-section { 
+          background: #ffffff; 
+          border: 1px solid #e2e8f0; 
+          border-radius: 12px; 
+          padding: 1.25rem 1.5rem; 
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .info-section.compact h3 { 
+          margin: 0 0 0.75rem 0; 
+          font-size: 1.1rem; 
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
 
-        .info-section h3 { color: #1e293b; font-weight: 600; }
+        .info-section h3 { 
+          color: #1e293b; 
+          font-weight: 600; 
+        }
 
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem 0.75rem; }
-        .info-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .info-grid { 
+          display: grid; 
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+          gap: 0.75rem 1rem; 
+        }
+        
+        .info-grid.two-col { 
+          grid-template-columns: repeat(2, minmax(0, 1fr)); 
+        }
 
-        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; }
+        .info-item { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          padding: 0.5rem 0; 
+        }
 
-        .info-item .label { color: #64748b; font-weight: 500; font-size: 0.9rem; }
-        .info-item .value { color: #1e293b; font-weight: 600; font-size: 0.95rem; }
+        .info-item .label { 
+          color: #64748b; 
+          font-weight: 500; 
+          font-size: 0.95rem; 
+        }
+        
+        .info-item .value { 
+          color: #1e293b; 
+          font-weight: 700; 
+          font-size: 1rem; 
+        }
 
-        .services-list { display: flex; flex-direction: column; gap: 0.5rem; }
-        .services-list.compact-list .service-item { padding: 0.6rem 0.75rem; }
+        .services-list { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 0.75rem; 
+        }
+        
+        .services-list.compact-list .service-item { 
+          padding: 1rem 1.25rem; 
+        }
 
-        .service-item { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; }
+        .service-item { 
+          background: #ffffff; 
+          border: 1px solid #e2e8f0; 
+          border-radius: 10px; 
+          padding: 1.25rem; 
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        }
 
         .service-info {
           display: flex;
@@ -296,16 +381,33 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           align-items: center;
         }
 
-        .service-name { color: #1e293b; font-weight: 600; font-size: 0.95rem; }
+        .service-name { 
+          color: #1e293b; 
+          font-weight: 600; 
+          font-size: 1rem; 
+        }
 
-        .service-price { color: #059669; font-weight: 700; }
+        .service-price { 
+          color: #059669; 
+          font-weight: 700; 
+          font-size: 1.1rem;
+        }
 
         .notes-section { margin-top: 0.5rem; }
         .compact-notes h4 { margin: 0 0 0.25rem 0; font-size: 0.85rem; }
         .compact-notes p { margin: 0; font-size: 0.85rem; color: #475569; }
 
-        .price-summary { background: var(--progress-current, #1ec774); color: white; padding: 1rem; border-radius: 12px; }
-        .compact-summary .price-item { padding: 0.4rem 0; }
+        .price-summary { 
+          background: #FFD875; 
+          color: #1e293b; 
+          padding: 1rem; 
+          border-radius: 12px; 
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .compact-summary .price-item { 
+          padding: 0.5rem 0; 
+        }
 
         .price-item {
           display: flex;
@@ -314,43 +416,76 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           padding: 0.5rem 0;
         }
 
+        .price-item .label {
+          color: #1e293b;
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+
+        .price-item .value {
+          color: #1e293b;
+          font-weight: 700;
+          font-size: 1rem;
+        }
+
         .price-item.discount {
-          color: #fbbf24;
+          color: #dc2626;
         }
 
         .price-item.total {
-          border-top: 1px solid rgba(255,255,255,0.2);
-          margin-top: 0.5rem;
-          padding-top: 0.75rem;
+          border-top: 1px solid rgba(0, 0, 0, 0.1);
+          margin-top: 0.75rem;
+          padding-top: 1rem;
           font-weight: 700;
-          font-size: 1.125rem;
+          font-size: 1.25rem;
         }
 
-        .form-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.75rem; }
-        .form-actions.column { flex-direction: column; }
+        .form-actions { 
+          display: flex; 
+          gap: 0.625rem; 
+          justify-content: center; 
+          margin-top: 0.875rem; 
+          flex-direction: column;
+        }
+        
+        .form-actions.column { 
+          flex-direction: column; 
+        }
 
         .btn-secondary, .btn-primary {
-          padding: 0.65rem 1rem;
+          padding: 0.625rem 1rem;
           border-radius: 8px;
           font-weight: 600;
+          font-size: 0.85rem;
           cursor: pointer;
           transition: all 0.2s ease;
           border: none;
+          width: 100%;
         }
 
         .btn-secondary {
-          background: #f1f5f9;
+          background: #FFF9E5;
           color: #475569;
-          border: 1px solid #cbd5e1;
+          border: 1px solid #e2e8f0;
         }
 
         .btn-secondary:hover {
-          background: #e2e8f0;
+          background: #fff6d6;
+          border-color: #cbd5e1;
         }
 
-        .btn-primary { background: var(--progress-current, #1ec774); color: #0f172a; }
+        .btn-primary { 
+          background: #FFD875; 
+          color: #1e293b; 
+          font-weight: 700;
+          font-size: 0.9rem;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
 
-        .btn-primary:hover:not(:disabled) { filter: brightness(0.95); }
+        .btn-primary:hover:not(:disabled) { 
+          background: #ffedac;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
 
         .btn-primary:disabled {
           background: #9ca3af;
@@ -380,8 +515,32 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({ data, isGuest, onSu
           100% { transform: rotate(360deg); }
         }
 
-        @media (max-width: 1024px) { .confirmation-layout { grid-template-columns: 1fr; } .sticky-card { position: static; } }
-        @media (max-width: 768px) { .confirmation-step { padding: 0.75rem; } .info-grid { grid-template-columns: 1fr; } .btn-secondary, .btn-primary { width: 100%; } }
+        @media (max-width: 1024px) { 
+          .confirmation-layout { 
+            grid-template-columns: 1fr; 
+          } 
+          .sticky-card { 
+            position: static; 
+          }
+          .confirmation-step {
+            padding: 1.5rem 1rem;
+          }
+        }
+        
+        @media (max-width: 768px) { 
+          .confirmation-step { 
+            padding: 1rem 0.75rem; 
+          } 
+          .info-grid { 
+            grid-template-columns: 1fr; 
+          } 
+          .btn-secondary, .btn-primary { 
+            width: 100%; 
+          }
+          .step-header h2 {
+            font-size: 1.5rem;
+          }
+        }
       `}</style>
     </div>
   )

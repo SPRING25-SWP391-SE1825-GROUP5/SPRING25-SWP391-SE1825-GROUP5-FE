@@ -1,20 +1,34 @@
 import React, { useEffect, useState } from 'react'
 import { CheckCircle, Calendar, MapPin, Phone, Mail } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
+import { useAppSelector } from '@/store/hooks'
 
 const BookingSuccess: React.FC = () => {
   const [searchParams] = useSearchParams()
   const [countdown, setCountdown] = useState(5)
+  const user = useAppSelector((state) => state.auth.user)
   
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
   const amount = searchParams.get('amount')
   const status = searchParams.get('status')
   
+  // Xác định redirect path dựa trên role của user
+  const getRedirectPath = () => {
+    if (user?.role) {
+      const role = user.role.toLowerCase()
+      if (role === 'staff') {
+        return '/staff'
+      }
+    }
+    return '/'
+  }
+  
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          window.location.href = '/'
+          const redirectPath = getRedirectPath()
+          window.location.href = redirectPath
           return 0
         }
         return prev - 1
@@ -22,7 +36,7 @@ const BookingSuccess: React.FC = () => {
     }, 1000)
     
     return () => clearInterval(timer)
-  }, [])
+  }, [user?.role])
 
   const formatPrice = (price: string | null) => {
     if (!price) return '0 VND'
@@ -103,12 +117,14 @@ const BookingSuccess: React.FC = () => {
         
         {/* Auto Redirect */}
         <div className="redirect-info">
-          <p>Tự động chuyển về trang chủ sau <strong>{countdown}</strong> giây</p>
+          <p>
+            Tự động chuyển về {user?.role?.toLowerCase() === 'staff' ? 'trang staff' : 'trang chủ'} sau <strong>{countdown}</strong> giây
+          </p>
           <button 
             className="btn-primary"
-            onClick={() => window.location.href = '/'}
+            onClick={() => window.location.href = getRedirectPath()}
           >
-            Về trang chủ ngay
+            {user?.role?.toLowerCase() === 'staff' ? 'Về trang staff ngay' : 'Về trang chủ ngay'}
           </button>
         </div>
       </div>
