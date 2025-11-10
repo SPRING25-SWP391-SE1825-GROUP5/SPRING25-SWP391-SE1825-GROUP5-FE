@@ -827,7 +827,43 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         fetchTechnicianBookings(selectedDate) // Preserve current page
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái.')
+      const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi cập nhật trạng thái.'
+      
+      // Kiểm tra nếu lỗi liên quan đến checklist chưa được xác nhận
+      const isChecklistError = errorMessage.toLowerCase().includes('checklist') || 
+                                errorMessage.toLowerCase().includes('maintenance-checklist') ||
+                                (newStatus === 'completed' && (errorMessage.toLowerCase().includes('xác nhận') || errorMessage.toLowerCase().includes('confirm')))
+      
+      if (isChecklistError) {
+        // Format message đơn giản: loại bỏ phần API endpoint và giữ lại thông báo chính
+        let displayMessage = errorMessage
+        // Loại bỏ phần hướng dẫn gọi API nếu có
+        if (displayMessage.includes('Vui lòng gọi API') || displayMessage.includes('/api/')) {
+          // Lấy phần trước "Vui lòng gọi API" hoặc trước "/api/"
+          const parts = displayMessage.split(/Vui lòng gọi API|\/api\//)
+          displayMessage = parts[0].trim()
+          if (!displayMessage.endsWith('.')) {
+            displayMessage += '.'
+          }
+        }
+        
+        toast.error(displayMessage, {
+          duration: 5000,
+          style: {
+            background: '#DC2626',
+            color: '#fff',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            maxWidth: '450px',
+            lineHeight: '1.5'
+          }
+        })
+      } else {
+        toast.error(errorMessage, {
+          duration: 4000
+        })
+      }
     } finally {
       setUpdatingStatus(prev => {
         const newSet = new Set(prev)
@@ -861,15 +897,19 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
 
   // Helper function để map status từ UI sang API format
   const mapStatusToApi = (uiStatus: string): string => {
+    if (!uiStatus) return 'PENDING'
+    // Normalize to lowercase để xử lý cả chữ HOA và chữ thường
+    const normalized = uiStatus.toLowerCase().trim()
     const statusMap: { [key: string]: string } = {
       'pending': 'PENDING',
       'confirmed': 'CONFIRMED',
+      'checked_in': 'CHECKED_IN',
       'in_progress': 'IN_PROGRESS',
       'completed': 'COMPLETED',
       'paid': 'PAID',
       'cancelled': 'CANCELLED'
     }
-    return statusMap[uiStatus] || 'PENDING'
+    return statusMap[normalized] || 'PENDING'
   }
 
   // Helper function để kiểm tra trạng thái có thể chuyển được không

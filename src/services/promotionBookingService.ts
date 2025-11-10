@@ -1,12 +1,6 @@
 import api from './api'
 import type { Promotion } from '@/types/promotion'
 
-export interface PromotionValidationRequest {
-    code: string
-    orderAmount: number
-    orderType: 'BOOKING' | 'ORDER'
-}
-
 export interface PromotionValidationResponse {
     isValid: boolean
     message: string
@@ -45,7 +39,7 @@ export interface SavedPromotion {
     code: string
     description: string
     discountValue: number
-    discountType: 'FIXED_AMOUNT' | 'PERCENT'
+    discountType: 'FIXED' | 'PERCENT'
     minOrderAmount: number
     startDate: string
     endDate: string
@@ -71,25 +65,6 @@ export interface SavedPromotion {
  * Provides APIs for public customers to use promotions
  */
 export const PromotionBookingService = {
-    /**
-     * Validate a promotion code for a booking
-     * This endpoint should be accessible to public customers
-     */
-    async validatePromotion(request: PromotionValidationRequest): Promise<PromotionValidationResponse> {
-        try {
-            const { data } = await api.post<{ success: boolean; data: PromotionValidationResponse }>('/promotion/validate', request)
-
-            if (!data.success) {
-                throw new Error('Validation failed')
-            }
-
-            return data.data
-        } catch (error: unknown) {
-            const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
-            throw new Error(message || 'Lỗi xác thực mã khuyến mãi')
-        }
-    },
-
     /**
      * Apply a promotion to a booking
      * Requires authentication (customer must be logged in)
