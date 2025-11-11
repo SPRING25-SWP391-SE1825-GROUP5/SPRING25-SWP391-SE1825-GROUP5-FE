@@ -20,7 +20,7 @@ const VehicleModelFormModal: React.FC<VehicleModelFormModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<CreateVehicleModelRequest>({
     modelName: '',
-    brand: '',
+    brand: '', // Keep for API compatibility but not shown in form
     isActive: true
   })
   const [loading, setLoading] = useState(false)
@@ -33,13 +33,13 @@ const VehicleModelFormModal: React.FC<VehicleModelFormModalProps> = ({
       if (model) {
         setFormData({
           modelName: model.modelName,
-          brand: model.brand,
+          brand: '', // Brand field removed from form
           isActive: model.isActive
         })
       } else {
         setFormData({
           modelName: '',
-          brand: '',
+          brand: '', // Brand field removed from form
           isActive: true
         })
       }
@@ -52,10 +52,6 @@ const VehicleModelFormModal: React.FC<VehicleModelFormModalProps> = ({
 
     if (!formData.modelName?.trim()) {
       newErrors.modelName = 'Tên mẫu xe là bắt buộc'
-    }
-
-    if (!formData.brand?.trim()) {
-      newErrors.brand = 'Hãng xe là bắt buộc'
     }
 
     setErrors(newErrors)
@@ -72,24 +68,29 @@ const VehicleModelFormModal: React.FC<VehicleModelFormModalProps> = ({
 
     try {
       setLoading(true)
-      
+
       if (isEditMode && model) {
         const updateData: UpdateVehicleModelRequest = {
           modelName: formData.modelName,
-          brand: formData.brand,
+          brand: '', // Brand field removed from form
           isActive: formData.isActive
         }
         await vehicleModelService.update(model.modelId, updateData)
         toast.success('Cập nhật mẫu xe thành công')
       } else {
-        await vehicleModelService.create(formData)
+        const createData: CreateVehicleModelRequest = {
+          modelName: formData.modelName,
+          brand: '', // Brand field removed from form
+          isActive: formData.isActive
+        }
+        await vehicleModelService.create(createData)
         toast.success('Tạo mẫu xe thành công')
       }
 
       onSuccess()
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra'
-      
+
       // Handle validation errors from backend
       if (err.response?.status === 400 && err.response?.data?.errors) {
         const backendErrors = err.response.data.errors
@@ -151,32 +152,6 @@ const VehicleModelFormModal: React.FC<VehicleModelFormModalProps> = ({
               )}
             </div>
 
-            {/* Brand */}
-            <div className="form-group">
-              <label className="form-label">
-                Hãng xe <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                className={`form-input ${errors.brand ? 'error' : ''}`}
-                value={formData.brand}
-                onChange={(e) => {
-                  setFormData({ ...formData, brand: e.target.value })
-                  if (errors.brand) {
-                    setErrors({ ...errors, brand: '' })
-                  }
-                }}
-                placeholder="VD: Tesla, Vinfast, Toyota..."
-                disabled={loading}
-              />
-              {errors.brand && (
-                <div className="form-error">
-                  <AlertCircle size={14} />
-                  {errors.brand}
-                </div>
-              )}
-            </div>
-
             {/* Is Active */}
             <div className="form-group form-group--full">
               <label className="form-checkbox-label">
@@ -194,16 +169,16 @@ const VehicleModelFormModal: React.FC<VehicleModelFormModalProps> = ({
 
           {/* Actions */}
           <div className="vehicle-model-modal__actions">
-            <button 
-              type="button" 
-              className="btn-secondary" 
+            <button
+              type="button"
+              className="btn-secondary"
               onClick={onClose}
               disabled={loading}
             >
               Hủy
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn-primary"
               disabled={loading}
             >
