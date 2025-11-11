@@ -46,7 +46,7 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   }
 
   const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
-  const [dateFilterType, setDateFilterType] = useState<'custom' | 'today' | 'thisWeek' | 'all'>('all')
+  const [dateFilterType, setDateFilterType] = useState<'custom' | 'today' | 'thisWeek' | 'all'>('today')
   const [loading, setLoading] = useState(false)
   const [, setError] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set())
@@ -54,6 +54,14 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10) // Hàng mỗi trang
+  const [apiPagination, setApiPagination] = useState<{
+    currentPage: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPreviousPage: boolean
+  } | null>(null)
 
   // Virtualization state (windowed rows)
   const ROW_HEIGHT = 64 // px, ước lượng chiều cao mỗi hàng (bao gồm border)
@@ -68,10 +76,11 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
 
   // Additional filters
   const [serviceTypeFilter, setServiceTypeFilter] = useState('all')
+  const [timeSlotFilter, setTimeSlotFilter] = useState('all')
   const { selectedIds, sortBy, setSortBy, sortOrder, setSortOrder, toggleRowSelected, toggleAllSelected } = useWorkQueueData()
 
-  // Show only key statuses by default (set true to show all by default)
-  const [showAllStatusesToggle, setShowAllStatusesToggle] = useState(true)
+  // Show only key statuses by default (set false to show only important statuses)
+  const [showAllStatusesToggle, setShowAllStatusesToggle] = useState(false)
 
   // Lấy thông tin user từ store và resolve đúng technicianId
   const user = useAppSelector((state) => state.auth.user)
@@ -174,8 +183,8 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   const [workIdToChecklist, setWorkIdToChecklist] = useState<Record<number, ChecklistRowType[]>>({})
   const [workIdToRating, setWorkIdToRating] = useState<Record<number, number>>({})
 
-  // Function để fetch bookings từ API
-  const fetchTechnicianBookings = useCallback(async (date?: string) => {
+  // Function để fetch bookings từ API với pagination
+  const fetchTechnicianBookings = useCallback(async (date?: string, page: number = 1) => {
     try {
       setLoading(true)
       setError(null)
@@ -198,11 +207,34 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         // Staff mode: ưu tiên theo center được assign
         if (centerId) {
           try {
-            const centerResp = await BookingService.getBookingsByCenter(centerId)
-            const arr = (centerResp as any)?.data?.bookings || (centerResp as any)?.data?.Bookings || (centerResp as any)?.bookings || []
+            // Sử dụng API với pagination
+            // Chỉ gửi fromDate/toDate khi dateFilterType là 'today' hoặc 'custom'
+            const today = getCurrentDateString()
+            const params: any = {
+              centerId,
+              page,
+              pageSize: itemsPerPage,
+              sortBy: sortBy === 'createdAt' ? 'createdAt' : sortBy,
+              sortOrder: sortOrder
+            }
+            
+            // Chỉ thêm date filter khi là 'custom' date
+            // Không gửi date filter khi 'today' vì API sẽ lấy tất cả
+            if (dateFilterType === 'custom' && date) {
+              params.fromDate = date
+              params.toDate = date
+            }
+            
+            // Chỉ thêm status filter khi không phải 'all'
+            if (statusFilter !== 'all') {
+              params.status = statusFilter.toUpperCase()
+            }
+            
+            const centerResp = await BookingService.getBookingsByCenterAdmin(params)
+            const arr = (centerResp as any)?.data?.bookings || []
             bookingsData = (arr as any[]).map((b: any) => ({
               bookingId: b.bookingId || b.id,
-              status: b.status,
+              status: mapBookingStatus(b.status),
               serviceId: b.serviceInfo?.serviceId,
               serviceName: b.serviceInfo?.serviceName,
               centerId: b.centerInfo?.centerId,
@@ -221,19 +253,55 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
               workEndTime: null,
               createdAt: b.createdAt || b.bookingDate
             }))
+            // Lưu pagination info từ API
+            if (centerResp?.data?.pagination) {
+              setApiPagination(centerResp.data.pagination)
+            }
           } catch (e: any) {
-            setError(e?.message || 'Không thể tải lịch hẹn theo trung tâm')
-            setWorkQueue([])
+            const errorMsg = e?.message || 'Không thể tải lịch hẹn theo trung tâm'
+            const statusCode = e?.response?.status
+            
+            setError(errorMsg)
+            // Không clear data khi có lỗi - giữ data cũ để tránh mất data khi token hết hạn hoặc lỗi tạm thời
+            // Chỉ hiển thị lỗi và log, không clear workQueue và apiPagination
+            console.warn('Lỗi khi fetch booking data từ center:', errorMsg, 'Status:', statusCode, 'Giữ data cũ để tránh mất data.')
+            
+            // Chỉ hiển thị toast nếu không phải là lỗi 401/403 (token hết hạn - sẽ được xử lý bởi interceptor)
+            if (statusCode !== 401 && statusCode !== 403) {
+              toast.error(`Không thể cập nhật dữ liệu: ${errorMsg}`, { duration: 5000 })
+            }
             return
           }
         } else {
           // Fallback: lấy tất cả booking cho staff chưa gán center (dành cho manager)
           try {
-            const adminResp = await BookingService.getAllBookingsForAdmin({ page: 1, pageSize: 50 })
+            // Sử dụng API với pagination
+            // Chỉ gửi fromDate/toDate khi dateFilterType là 'today' hoặc 'custom'
+            const today = getCurrentDateString()
+            const params: any = {
+              page,
+              pageSize: itemsPerPage,
+              sortBy: sortBy === 'createdAt' ? 'createdAt' : sortBy,
+              sortOrder: sortOrder
+            }
+            
+            // Chỉ thêm date filter khi là 'custom' date
+            // Không gửi date filter khi 'today' vì API sẽ lấy tất cả
+            if (dateFilterType === 'custom' && date) {
+              params.fromDate = date
+              params.toDate = date
+            }
+            
+            // Chỉ thêm status filter khi không phải 'all'
+            if (statusFilter !== 'all') {
+              params.status = statusFilter.toUpperCase()
+            }
+            
+            const adminResp = await BookingService.getAllBookingsForAdmin(params)
             const arr = (adminResp as any)?.data?.bookings || []
             bookingsData = (arr as any[]).map((b: any) => ({
               bookingId: b.bookingId || b.id,
-              status: b.status,
+              status: mapBookingStatus(b.status),
               serviceId: b.serviceInfo?.serviceId,
               serviceName: b.serviceInfo?.serviceName,
               centerId: b.centerInfo?.centerId,
@@ -252,9 +320,23 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
               workEndTime: null,
               createdAt: b.createdAt || b.bookingDate
             }))
+            // Lưu pagination info từ API
+            if (adminResp?.data?.pagination) {
+              setApiPagination(adminResp.data.pagination)
+            }
           } catch (e: any) {
-            setError(e?.message || 'Không thể tải danh sách booking')
-            setWorkQueue([])
+            const errorMsg = e?.message || 'Không thể tải danh sách booking'
+            const statusCode = e?.response?.status
+            
+            setError(errorMsg)
+            // Không clear data khi có lỗi - giữ data cũ để tránh mất data khi token hết hạn hoặc lỗi tạm thời
+            // Chỉ hiển thị lỗi và log, không clear workQueue và apiPagination
+            console.warn('Lỗi khi fetch booking data từ admin:', errorMsg, 'Status:', statusCode, 'Giữ data cũ để tránh mất data.')
+            
+            // Chỉ hiển thị toast nếu không phải là lỗi 401/403 (token hết hạn - sẽ được xử lý bởi interceptor)
+            if (statusCode !== 401 && statusCode !== 403) {
+              toast.error(`Không thể cập nhật dữ liệu: ${errorMsg}`, { duration: 5000 })
+            }
             return
           }
         }
@@ -297,7 +379,33 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         // Transform API data to WorkOrder format
         const transformedData: WorkOrder[] = bookingsData.map((booking: TechnicianBooking) => {
           // Ưu tiên createdAt hợp lệ; nếu không, dựng từ date + slot
-          const createdAt = buildCreatedAt(booking, date)
+          const createdAt = buildCreatedAt(booking, booking.date)
+          
+          // Lấy workDate từ booking.date (từ API), fallback về date parameter hoặc ngày hiện tại
+          const getWorkDate = (): string => {
+            if (booking.date) {
+              // Nếu booking.date là string format YYYY-MM-DD, dùng luôn
+              if (/^\d{4}-\d{2}-\d{2}$/.test(booking.date)) {
+                return booking.date
+              }
+              // Nếu là ISO string hoặc date string khác, extract date part
+              try {
+                const d = new Date(booking.date)
+                if (!isNaN(d.getTime())) {
+                  const year = d.getFullYear()
+                  const month = String(d.getMonth() + 1).padStart(2, '0')
+                  const day = String(d.getDate()).padStart(2, '0')
+                  return `${year}-${month}-${day}`
+                }
+              } catch (e) {
+                // Ignore
+              }
+            }
+            // Fallback về date parameter hoặc ngày hiện tại
+            return date || getCurrentDateString()
+          }
+          
+          const workDateValue = getWorkDate()
 
           return {
             id: booking.bookingId,
@@ -312,13 +420,13 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
             priority: 'medium' as 'low' | 'medium' | 'high', // Default priority
             estimatedTime: '1 giờ', // Default time
             description: `Dịch vụ: ${booking.serviceName}`, // Tạo description từ serviceName
-            scheduledDate: date || new Date().toISOString().split('T')[0],
-            scheduledTime: booking.slotTime.replace(' SA', '').replace(' CH', ''),
+            scheduledDate: workDateValue,
+            scheduledTime: booking.slotTime?.replace(' SA', '').replace(' CH', '') || '',
             createdAt: createdAt, // Thời gian tạo booking
             serviceType: 'maintenance', // Default service type
             assignedTechnician: '', // Không có trong API
             parts: [], // Không có trong API
-            workDate: date || new Date().toISOString().split('T')[0],
+            workDate: workDateValue,
             startTime: booking.workStartTime || '',
             endTime: booking.workEndTime || '',
             serviceName: booking.serviceName,
@@ -335,13 +443,22 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         setWorkQueue([])
       }
     } catch (err: any) {
-      setError(err?.message || 'Không thể tải dữ liệu')
-      toast.error(err?.message || 'Không thể tải danh sách công việc')
-      setWorkQueue([])
+      const errorMsg = err?.message || 'Không thể tải dữ liệu'
+      const statusCode = err?.response?.status
+      
+      setError(errorMsg)
+      // Không clear data khi có lỗi - giữ data cũ để tránh mất data khi token hết hạn hoặc lỗi tạm thời
+      // Chỉ hiển thị lỗi và log, không clear workQueue
+      console.warn('Lỗi khi fetch booking data (technician mode):', errorMsg, 'Status:', statusCode, 'Giữ data cũ để tránh mất data.')
+      
+      // Chỉ hiển thị toast nếu không phải là lỗi 401/403 (token hết hạn - sẽ được xử lý bởi interceptor)
+      if (statusCode !== 401 && statusCode !== 403) {
+        toast.error(`Không thể cập nhật dữ liệu: ${errorMsg}`, { duration: 5000 })
+      }
     } finally {
       setLoading(false)
     }
-  }, [technicianId, centerId, mode])
+  }, [technicianId, centerId, mode, itemsPerPage, dateFilterType, statusFilter, sortBy, sortOrder])
 
   // Helper functions để map data
   const mapBookingStatus = (status: string) => {
@@ -381,50 +498,89 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
 
   // Load data khi component mount và khi date filter thay đổi
   useEffect(() => {
+    // Reset về trang 1 khi filter thay đổi
+    setCurrentPage(1)
     // Khi dateFilterType là 'today', 'custom' thì fetch data theo ngày cụ thể
     // Còn 'thisWeek', 'all' thì chỉ filter ở client-side (data đã có)
     if (dateFilterType === 'today') {
       const today = getCurrentDateString()
-      fetchTechnicianBookings(today)
+      fetchTechnicianBookings(today, 1)
     } else if (dateFilterType === 'custom') {
-      fetchTechnicianBookings(selectedDate)
+      fetchTechnicianBookings(selectedDate, 1)
+    } else if (dateFilterType === 'all') {
+      // Với 'all', vẫn fetch với page 1
+      fetchTechnicianBookings(undefined, 1)
     }
-    // 'thisWeek', 'all' không fetch, chỉ filter client-side với data đã có
-  }, [fetchTechnicianBookings, dateFilterType, selectedDate])
+    // 'thisWeek' không fetch, chỉ filter client-side với data đã có
+  }, [fetchTechnicianBookings, dateFilterType, selectedDate, statusFilter, sortBy, sortOrder])
 
-  // Initial load: when technicianId/centerId is resolved, fetch without date to get all
+  // Initial load: when technicianId/centerId is resolved, fetch today's data
   useEffect(() => {
     if (!idsResolved) return // Wait for IDs to be resolved
+
+    // Always fetch today's data on initial load
+    const today = getCurrentDateString()
+    setSelectedDate(today)
+    setDateFilterType('today')
+    setCurrentPage(1)
 
     // For technician mode: only fetch when technicianId is available
     if (mode === 'technician') {
       if (technicianId) {
-        fetchTechnicianBookings(undefined)
+        fetchTechnicianBookings(today, 1)
       }
     } else {
       // For staff mode: fetch even if centerId is null (will use fallback to getAllBookingsForAdmin)
       // This ensures data loads for staff users regardless of center assignment
-      fetchTechnicianBookings(undefined)
+      fetchTechnicianBookings(today, 1)
     }
   }, [idsResolved, technicianId, centerId, mode, fetchTechnicianBookings])
 
   // Realtime: join center-date group and refresh on booking.updated
   useEffect(() => {
-    (async () => {
+    let isMounted = true
+    
+    // Join realtime group
+    ;(async () => {
       try {
         const today = getCurrentDateString()
-        const firstCenterId = workQueue[0]?.centerId
-        if (firstCenterId) await bookingRealtimeService.joinCenterDate(firstCenterId, today)
-      } catch {}
-    })()
-    bookingRealtimeService.setOnBookingUpdated(() => {
-      // lightweight refresh; chỉ refresh khi đã có centerId/technicianId hợp lệ
-      if ((mode === 'technician' && technicianId) || (mode === 'staff' && centerId)) {
-        fetchTechnicianBookings(selectedDate)
+        // Trong staff mode, có thể centerId là null, cần lấy từ workQueue hoặc dùng centerId từ state
+        const centerIdToUse = centerId || workQueue[0]?.centerId
+        if (centerIdToUse && isMounted) {
+          await bookingRealtimeService.joinCenterDate(centerIdToUse, today)
+        }
+      } catch (e) {
+        console.warn('Không thể join realtime group:', e)
       }
-    })
-    return () => { /* no-op cleanup */ }
-  }, [workQueue.length, selectedDate, mode, technicianId, centerId])
+    })()
+    
+    // Set up realtime callback với đúng parameters
+    const handleBookingUpdate = () => {
+      if (!isMounted) return
+      
+      // Refresh data với đúng page và date filter
+      const refreshDate = dateFilterType === 'today' 
+        ? getCurrentDateString() 
+        : dateFilterType === 'custom' 
+        ? selectedDate 
+        : undefined
+      
+      // Trong staff mode, luôn refresh (kể cả khi centerId null, sẽ dùng fallback)
+      if (mode === 'staff') {
+        fetchTechnicianBookings(refreshDate, currentPage)
+      } else if (mode === 'technician' && technicianId) {
+        fetchTechnicianBookings(refreshDate, currentPage)
+      }
+    }
+    
+    bookingRealtimeService.setOnBookingUpdated(handleBookingUpdate)
+    
+    // Cleanup: remove callback khi unmount hoặc dependencies thay đổi
+    return () => {
+      isMounted = false
+      bookingRealtimeService.setOnBookingUpdated(() => {}) // Clear callback
+    }
+  }, [workQueue.length, selectedDate, mode, technicianId, centerId, dateFilterType, currentPage, fetchTechnicianBookings])
 
   // Helper function để lấy date range từ dateFilterType
   const getDateRange = (filterType: typeof dateFilterType): { startDate?: string; endDate?: string } | null => {
@@ -469,8 +625,9 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         matchesStatus = work.status === mappedStatus
       }
       // Toggle to hide less-important statuses by default
+      // Trong staff mode, hiển thị cả pending vì cần xác nhận
       if (!showAllStatusesToggle) {
-        const keep = work.status === 'in_progress' || work.status === 'confirmed' || work.status === 'checked_in'
+        const keep = work.status === 'pending' || work.status === 'in_progress' || work.status === 'confirmed' || work.status === 'checked_in'
         matchesStatus = matchesStatus && keep
       }
 
@@ -480,16 +637,31 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         matchesServiceType = work.serviceType === serviceTypeFilter
       }
 
-      // Date filter - filter theo createdAt (thời gian tạo booking)
+      // Time slot filter
+      let matchesTimeSlot = true
+      if (timeSlotFilter && timeSlotFilter !== 'all') {
+        const workSlotTime = work.slotLabel || work.scheduledTime || ''
+        // So sánh time slot (có thể là format "10:00-10:30" hoặc "10:00")
+        // Lấy phần đầu của time slot để so sánh
+        const workSlotStart = workSlotTime.split('-')[0].trim().split(' ')[0]
+        const filterSlotStart = timeSlotFilter.split('-')[0].trim().split(' ')[0]
+        matchesTimeSlot = workSlotStart === filterSlotStart || workSlotTime.includes(timeSlotFilter) || workSlotTime === timeSlotFilter
+      }
+
+      // Date filter - ưu tiên scheduledDate/workDate, fallback về createdAt
       let matchesDate = true
       if (dateFilterType !== 'all') {
         const dateRange = getDateRange(dateFilterType)
 
-        // Extract date từ createdAt (format: YYYY-MM-DD)
-        const getDateFromCreatedAt = (createdAt: string): string | null => {
-          if (!createdAt) return null
+        // Extract date từ scheduledDate/workDate hoặc createdAt (format: YYYY-MM-DD)
+        const getDateFromString = (dateStr: string): string | null => {
+          if (!dateStr) return null
           try {
-            const date = new Date(createdAt)
+            // Nếu đã là format YYYY-MM-DD thì trả về luôn
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+              return dateStr
+            }
+            const date = new Date(dateStr)
             if (isNaN(date.getTime())) return null
             const year = date.getFullYear()
             const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -500,26 +672,26 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
           }
         }
 
-        const workCreatedDate = work.createdAt ? getDateFromCreatedAt(work.createdAt) : null
+        // Ưu tiên scheduledDate/workDate, fallback về createdAt
+        const workDate = work.workDate || work.scheduledDate || work.createdAt
+        const workDateStr = workDate ? getDateFromString(workDate) : null
 
-        if (dateRange && workCreatedDate) {
-          if (dateRange.startDate && dateRange.endDate) {
-            // Range filter (tuần này)
-            matchesDate = workCreatedDate >= dateRange.startDate && workCreatedDate <= dateRange.endDate
-          } else if (dateRange.startDate) {
-            // Single date filter (hôm nay)
-            matchesDate = workCreatedDate === dateRange.startDate
-          }
-        } else if (dateFilterType === 'custom' && workCreatedDate) {
+        // Chỉ filter ở client-side khi là custom date hoặc thisWeek
+        // Khi 'today', API không gửi date filter nên trả về tất cả, client-side cũng không nên filter
+        if (dateFilterType === 'custom' && workDateStr) {
           // Custom date filter
-          matchesDate = workCreatedDate === selectedDate
-        } else if (!workCreatedDate) {
-          // Nếu không có createdAt, không match (trừ khi là 'all')
-          matchesDate = false
+          matchesDate = workDateStr === selectedDate
+        } else if (dateFilterType === 'thisWeek' && dateRange && workDateStr) {
+          // Range filter (tuần này) - chỉ khi có dateRange
+          if (dateRange.startDate && dateRange.endDate) {
+            matchesDate = workDateStr >= dateRange.startDate && workDateStr <= dateRange.endDate
+          }
         }
+        // Khi dateFilterType === 'today', không filter ở client-side
+        // Vì API không gửi date filter nên trả về tất cả booking
       }
 
-      return matchesSearch && matchesStatus && matchesServiceType && matchesDate
+      return matchesSearch && matchesStatus && matchesServiceType && matchesTimeSlot && matchesDate
     })
     .sort((a, b) => {
       // Quick sort functionality
@@ -563,19 +735,41 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
       }
     })
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredWork.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedWork = filteredWork.slice(startIndex, endIndex)
-
   // Determine virtualization usage
   // Disable virtualization when grouping by slot for simpler UX
   const useGrouping = true
   const useVirtualization = !useGrouping && filteredWork.length > 50
   const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + BUFFER_ROWS
+
+  // Pagination logic - sử dụng từ API nếu có, fallback về client-side
+  const totalPages = apiPagination?.totalPages || Math.ceil(filteredWork.length / itemsPerPage)
+  const totalItems = apiPagination?.totalItems || filteredWork.length
+  
+  // Khi dùng API pagination, không cần slice vì API đã trả về đúng page
+  // Khi không dùng API pagination (technician mode), vẫn slice client-side
+  const paginatedWork = mode === 'technician' 
+    ? filteredWork.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : filteredWork
+
+  // Group by slot key for UI grouping - group the paginated items when grouping is enabled
+  const groupedSlots = useMemo(() => {
+    const sourceData = useGrouping ? paginatedWork : filteredWork
+    const groups = new Map<string, WorkOrder[]>()
+    sourceData.forEach(w => {
+      const key = (w.scheduledTime || '').trim()
+      const k = key || '—'
+      if (!groups.has(k)) groups.set(k, [])
+      groups.get(k)!.push(w)
+    })
+    return Array.from(groups.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([slotKey, items]) => ({ slotKey, items }))
+  }, [useGrouping, paginatedWork, filteredWork])
+
   const totalRows = useVirtualization ? filteredWork.length : paginatedWork.length
-  const displayRows = useVirtualization ? filteredWork.slice(virtStart, Math.min(virtEnd, filteredWork.length)) : paginatedWork
+  const displayRows = useVirtualization 
+    ? filteredWork.slice(virtStart, Math.min(virtEnd, filteredWork.length))
+    : paginatedWork
 
   // Handle scroll to compute virtual window
   const handleVirtScroll = useCallback(() => {
@@ -595,25 +789,34 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
     }
   }, [useVirtualization, filteredWork.length])
 
-  // Group by slot key for UI grouping
-  const groupedSlots = useMemo(() => {
-    const groups = new Map<string, WorkOrder[]>()
-    filteredWork.forEach(w => {
-      const key = (w.scheduledTime || '').trim()
-      const k = key || '—'
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k)!.push(w)
-    })
-    return Array.from(groups.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([slotKey, items]) => ({ slotKey, items }))
-  }, [filteredWork])
 
+  // Handle page change - fetch new data from API
+  const handlePageChange = useCallback((newPage: number) => {
+    setCurrentPage(newPage)
+    const today = getCurrentDateString()
+    if (dateFilterType === 'today') {
+      fetchTechnicianBookings(today, newPage)
+    } else if (dateFilterType === 'custom') {
+      fetchTechnicianBookings(selectedDate, newPage)
+    } else {
+      fetchTechnicianBookings(undefined, newPage)
+    }
+  }, [dateFilterType, selectedDate, fetchTechnicianBookings])
 
-  // Reset to first page when filters change
+  // Reset to first page and refetch when filters change (chỉ cho staff mode với API pagination)
   useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter, serviceTypeFilter, dateFilterType, selectedDate, sortBy, sortOrder])
+    if (mode === 'staff' && (statusFilter !== 'all' || serviceTypeFilter !== 'all')) {
+      setCurrentPage(1)
+      const today = getCurrentDateString()
+      if (dateFilterType === 'today') {
+        fetchTechnicianBookings(today, 1)
+      } else if (dateFilterType === 'custom') {
+        fetchTechnicianBookings(selectedDate, 1)
+      } else {
+        fetchTechnicianBookings(undefined, 1)
+      }
+    }
+  }, [statusFilter, serviceTypeFilter, mode, dateFilterType, selectedDate, fetchTechnicianBookings])
 
   // Sort handlers
   const handleSort = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate') => {
@@ -634,15 +837,20 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
 
   // Làm mới: reset tất cả filter về mặc định và refetch theo hôm nay
   const handleRefreshFilters = useCallback(() => {
+    const today = getCurrentDateString()
     setSearchTerm('')
     setStatusFilter('all')
     setServiceTypeFilter('all')
-    setDateFilterType('all') // Hiển thị tất cả trong dataset hiện có
+    setTimeSlotFilter('all')
+    setDateFilterType('today') // Reset về ngày hiện tại
+    setSelectedDate(today)
     setSortBy('bookingId')
     setSortOrder('desc')
+    setShowAllStatusesToggle(false) // Reset về hiển thị "Quan trọng"
     setCurrentPage(1)
-    // Không refetch để giữ "tất cả" theo dataset hiện tại
-  }, [])
+    // Refetch data cho ngày hiện tại
+    fetchTechnicianBookings(today, 1)
+  }, [fetchTechnicianBookings])
 
   // Ensure selectedDate is always current date on mount
   useEffect(() => {
@@ -758,6 +966,11 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   const handleStatusUpdate = async (e: React.MouseEvent, workId: number, newStatus: string) => {
     e.stopPropagation()
       setUpdatingStatus(prev => new Set(prev).add(workId))
+    
+    // Lấy status hiện tại của work item
+    const currentWork = workQueue.find(w => w.id === workId)
+    const currentStatus = currentWork?.status || ''
+    
     try {
       // Xác nhận bằng toast tùy biến thay cho window.confirm
       const confirmViaToast = (message: string): Promise<boolean> => {
@@ -805,6 +1018,10 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         })
       }
 
+      if (newStatus === 'confirmed') {
+        const ok = await confirmViaToast('Xác nhận booking này?')
+        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
+      }
       if (newStatus === 'in_progress') {
         const ok = await confirmViaToast('Bắt đầu làm việc cho booking này?')
         if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
@@ -824,10 +1041,26 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
       if (response.data) {
         toast.success(`Cập nhật trạng thái thành công!`)
         // Refresh the list after successful update
-        fetchTechnicianBookings(selectedDate) // Preserve current page
+        const today = getCurrentDateString()
+        if (dateFilterType === 'today') {
+          fetchTechnicianBookings(today, currentPage)
+        } else if (dateFilterType === 'custom') {
+          fetchTechnicianBookings(selectedDate, currentPage)
+        } else {
+          fetchTechnicianBookings(undefined, currentPage)
+        }
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái.')
+      // Xử lý thông báo lỗi đặc biệt cho trường hợp chuyển từ CONFIRMED sang IN_PROGRESS
+      let errorMessage = err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái.'
+      
+      // Kiểm tra nếu đang cố chuyển từ CONFIRMED sang IN_PROGRESS và có lỗi
+      if (newStatus === 'in_progress' && (currentStatus === 'confirmed' || currentStatus.toLowerCase() === 'confirmed')) {
+        // Luôn hiển thị thông báo về check-in khi không thể chuyển từ CONFIRMED sang IN_PROGRESS
+        errorMessage = 'Khách hàng chưa tới check-in. Vui lòng đợi khách hàng check-in trước khi bắt đầu làm việc.'
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setUpdatingStatus(prev => {
         const newSet = new Set(prev)
@@ -846,7 +1079,14 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
       if (response.data) {
         toast.success(`Hủy booking thành công!`)
         // Refresh the list after successful update
-        fetchTechnicianBookings(selectedDate) // Preserve current page
+        const today = getCurrentDateString()
+        if (dateFilterType === 'today') {
+          fetchTechnicianBookings(today, currentPage)
+        } else if (dateFilterType === 'custom') {
+          fetchTechnicianBookings(selectedDate, currentPage)
+        } else {
+          fetchTechnicianBookings(undefined, currentPage)
+        }
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy booking.')
@@ -924,6 +1164,9 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
         onServiceTypeChange={(v) => setServiceTypeFilter(v)}
         statusFilter={statusFilter}
         onStatusChange={(v) => setStatusFilter(v)}
+        timeSlotFilter={timeSlotFilter}
+        onTimeSlotChange={(v) => setTimeSlotFilter(v)}
+        availableTimeSlots={Array.from(new Set(workQueue.map(w => w.slotLabel || w.scheduledTime || '').filter(Boolean))).sort()}
         showAllStatusesToggle={showAllStatusesToggle}
         onToggleShowAll={() => setShowAllStatusesToggle(v => !v)}
         onResetFilters={handleRefreshFilters}
@@ -962,9 +1205,23 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                             </div>
                           ) : (
           <>
-            <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
-              Tổng số công việc: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{filteredWork.length}</strong>
-                    </div>
+             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
+               <div>
+                 Tổng số công việc: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>
+                   {apiPagination ? apiPagination.totalItems : filteredWork.length}
+                 </strong>
+                 {totalPages > 1 && (
+                   <span style={{ marginLeft: 12 }}>
+                     (Trang {currentPage}/{totalPages})
+                   </span>
+                 )}
+                 {apiPagination && (
+                   <span style={{ marginLeft: 12, color: 'var(--text-tertiary)' }}>
+                     Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, apiPagination.totalItems)} / {apiPagination.totalItems}
+                   </span>
+                 )}
+               </div>
+             </div>
       <div
         ref={virtContainerRef}
         onScroll={useVirtualization ? handleVirtScroll : undefined}
@@ -1209,6 +1466,31 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                                     justifyContent: 'flex-start',
                                     alignItems: 'center'
                                   }}>
+                                    {/* Xác nhận (chỉ dành cho staff, từ pending -> confirmed) */}
+                                    {mode === 'staff' && (
+                                      <button type="button"
+                                        onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'confirmed'); }}
+                                        disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed')}
+                                        style={{
+                                          padding: '8px',
+                                          border: '2px solid var(--border-primary)',
+                                          borderRadius: '10px',
+                                          background: '#F97316',
+                                          color: '#ffffff',
+                                          cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed')) ? 'not-allowed' : 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          transition: 'all 0.2s ease',
+                                          width: '36px',
+                                          height: '36px',
+                                          opacity: !canTransitionTo(work.status, 'confirmed') ? 0.5 : 1
+                                        }}
+                                        title={canTransitionTo(work.status, 'confirmed') ? 'Xác nhận booking' : 'Không khả dụng'}
+                                      >
+                                        {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                      </button>
+                                    )}
                                     {/* Bắt đầu */}
                                   <button type="button"
                                     onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
@@ -1292,6 +1574,7 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                                   technicianPhone={work.technicianPhone}
                                   slotLabel={work.slotLabel || work.scheduledTime}
                                   workDate={work.workDate || work.scheduledDate}
+                                  mode={mode}
                                   onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                     try {
                                       const response = await TechnicianService.updateMaintenanceChecklistItem(
@@ -1469,6 +1752,31 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                                 justifyContent: 'flex-start',
                                 alignItems: 'center'
                               }}>
+                                {/* Xác nhận (chỉ dành cho staff, từ pending -> confirmed) */}
+                                {mode === 'staff' && (
+                                  <button type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'confirmed'); }}
+                                    disabled={updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed')}
+                                    style={{
+                                      padding: '8px',
+                                      border: '2px solid var(--border-primary)',
+                                      borderRadius: '10px',
+                                      background: '#F97316',
+                                      color: '#ffffff',
+                                      cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed')) ? 'not-allowed' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.2s ease',
+                                      width: '36px',
+                                      height: '36px',
+                                      opacity: !canTransitionTo(work.status, 'confirmed') ? 0.5 : 1
+                                    }}
+                                    title={canTransitionTo(work.status, 'confirmed') ? 'Xác nhận booking' : 'Không khả dụng'}
+                                  >
+                                    {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                  </button>
+                                )}
                                 {/* Bắt đầu */}
                                 <button type="button"
                                   onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
@@ -1552,6 +1860,7 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                               technicianPhone={work.technicianPhone}
                               slotLabel={work.slotLabel || work.scheduledTime}
                               workDate={work.workDate || work.scheduledDate}
+                              mode={mode}
                               onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                 try {
                                   const response = await TechnicianService.updateMaintenanceChecklistItem(
@@ -1602,8 +1911,10 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
           </div>
 
       {/* Pagination (ẩn khi dùng virtualization) */}
-      {!loading && filteredWork.length > 0 && !useVirtualization && (
-        <WorkQueuePagination currentPage={currentPage} totalPages={totalPages} onChange={setCurrentPage} />
+      {!loading && (filteredWork.length > 0 || (apiPagination && apiPagination.totalItems > 0)) && !useVirtualization && totalPages > 1 && (
+        <div style={{ marginTop: '24px', padding: '16px 0' }}>
+          <WorkQueuePagination currentPage={currentPage} totalPages={totalPages} onChange={handlePageChange} />
+        </div>
       )}
     </div>
   )

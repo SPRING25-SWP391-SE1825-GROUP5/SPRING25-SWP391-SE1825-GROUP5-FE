@@ -23,6 +23,7 @@ interface WorkQueueRowExpansionProps {
   technicianPhone?: string
   slotLabel?: string
   workDate?: string
+  mode?: 'technician' | 'staff'
   onSetItemResult: (
     resultId: number,
     partId: number | undefined,
@@ -48,6 +49,7 @@ export default function WorkQueueRowExpansion({
   technicianPhone,
   slotLabel,
   workDate,
+  mode = 'technician',
   onSetItemResult,
   onConfirmChecklist,
   onConfirmParts
@@ -72,6 +74,7 @@ export default function WorkQueueRowExpansion({
   const [checklistConfirmed, setChecklistConfirmed] = useState(false)
   const [confirmingChecklist, setConfirmingChecklist] = useState(false)
   const [deletingPartId, setDeletingPartId] = useState<number | null>(null)
+  const [approvingPartId, setApprovingPartId] = useState<number | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [partToDelete, setPartToDelete] = useState<{ id: number; name: string } | null>(null)
   // Tính tổng tiền phụ tùng - chỉ tính những phụ tùng đã được approve (status = CONSUMED)
@@ -366,11 +369,13 @@ export default function WorkQueueRowExpansion({
   return (
     <tr style={{ background: '#FAFAFA' }}>
       <td colSpan={7} style={{ padding: '12px 16px', borderTop: '1px solid #E5E7EB' }}>
-        {/* Info cards (align with Admin style) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <BookingTechnicianInfo bookingId={bookingId} technicianName={technicianName} technicianPhone={technicianPhone} />
-          <BookingTimeSlotInfo bookingId={bookingId} slotLabel={slotLabel} workDate={workDate} />
-        </div>
+        {/* Info cards (align with Admin style) - chỉ hiển thị cho staff/admin/manager, không hiển thị cho technician */}
+        {mode !== 'technician' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <BookingTechnicianInfo bookingId={bookingId} technicianName={technicianName} technicianPhone={technicianPhone} />
+            <BookingTimeSlotInfo bookingId={bookingId} slotLabel={slotLabel} workDate={workDate} />
+          </div>
+        )}
 
         <div>
           <h4 style={{ margin: '0 0 12px 0', fontSize: 14, color: '#374151', fontWeight: 400 }}>Danh sách kiểm tra</h4>
@@ -416,6 +421,7 @@ export default function WorkQueueRowExpansion({
               centerId={centerId}
               isInProgress={isInProgress}
               deletingPartId={deletingPartId}
+              approvingPartId={approvingPartId}
               availabilityByPartId={availabilityByPartId}
               canApproveCustomerParts={canApproveCustomerParts}
               onApproveCustomerPart={async (partId) => {
@@ -426,6 +432,33 @@ export default function WorkQueueRowExpansion({
                   toast.success('Đã duyệt phụ tùng')
                 } catch (e: any) {
                   toast.error(e?.message || 'Không thể duyệt phụ tùng')
+                }
+              }}
+              onApprovePart={async (partId) => {
+                // Duyệt và tiêu phụ phụ tùng phát sinh (chuyển từ DRAFT sang CONSUMED)
+                setApprovingPartId(partId)
+                try {
+                  const res = await WorkOrderPartService.staffApproveAndConsume(bookingId, partId)
+                  if (res?.success === false) throw new Error(res?.message || 'Không thể duyệt phụ tùng')
+                  // Cập nhật status của phụ tùng thành CONSUMED
+                  setParts(prev => prev.map(p => p.id === partId ? { ...p, status: 'CONSUMED' } : p))
+                  toast.success('Đã duyệt và tiêu phụ phụ tùng')
+                  // Refresh availability nếu có centerId
+                  // Note: getAvailabilityForParts method không tồn tại, đã bỏ qua refresh availability
+                  // if (centerId) {
+                  //   try {
+                  //     const availRes = await WorkOrderPartService.getAvailabilityForParts(centerId, [partId])
+                  //     if (availRes?.data) {
+                  //       setAvailabilityByPartId(prev => ({ ...prev, ...availRes.data }))
+                  //     }
+                  //   } catch (e) {
+                  //     console.warn('Không thể refresh availability:', e)
+                  //   }
+                  // }
+                } catch (e: any) {
+                  toast.error(e?.message || 'Không thể duyệt phụ tùng')
+                } finally {
+                  setApprovingPartId(null)
                 }
               }}
               onDelete={(pid) => { setPartToDelete({ id: pid, name: '' }); setShowDeleteConfirm(true) }}
@@ -902,7 +935,9 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
 
           {/* Phần mô tả */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: '#374151', fontWeight: 500 }}>Mô tả *</label>
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: '#374151', fontWeight: 500 }}>
+              Mô tả <span style={{ color: '#EF4444', fontWeight: 'normal' }}>*</span>
+            </label>
             <textarea
               value={notes}
               onChange={(e) => {
@@ -913,7 +948,7 @@ function CategoryPartsModal({ categoryId, resultId, centerId, onClose, onConfirm
               rows={4}
               style={{
                 width: '100%',
-                padding: '8px 10px',
+                padding: '8px 16px 8px 10px',
                 border: '1px solid #D1D5DB',
                 borderRadius: 8,
                 fontSize: 13,

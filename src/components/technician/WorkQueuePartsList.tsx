@@ -10,9 +10,11 @@ interface Props {
   availabilityByPartId?: Record<number, { available: boolean; availableQuantity: number }>
   canApproveCustomerParts?: boolean
   onApproveCustomerPart?: (partId: number) => Promise<void> | void
+  onApprovePart?: (partId: number) => Promise<void> | void
+  approvingPartId?: number | null
 }
 
-export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDelete, deletingPartId, availabilityByPartId = {}, canApproveCustomerParts, onApproveCustomerPart }: Props) {
+export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDelete, deletingPartId, availabilityByPartId = {}, canApproveCustomerParts, onApproveCustomerPart, onApprovePart, approvingPartId }: Props) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
@@ -53,23 +55,6 @@ export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDe
                 <td style={{ border: '1px solid #FFD875', padding: '10px', fontSize: 13 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-block', padding: '4px 8px', border: `1px solid ${statusColor}`, color: statusColor, borderRadius: 0, background: `${statusColor}15`, fontSize: 12, fontWeight: 500 }}>{statusText}</span>
-                    <span title={p.isCustomerSupplied ? 'Phụ tùng do khách mang đến' : 'Phụ tùng từ kho'} style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 6, fontSize: 11, border: '1px solid', borderColor: p.isCustomerSupplied ? '#F59E0B' : '#10B981', color: p.isCustomerSupplied ? '#92400E' : '#065F46', background: p.isCustomerSupplied ? '#FEF3C7' : '#ECFDF5' }}>{p.isCustomerSupplied ? 'KH' : 'Kho'}</span>
-                    {centerId ? (() => {
-                      const info = availabilityByPartId[p.partId]
-                      const availQty = info?.availableQuantity ?? 0
-                      const need = p.quantity || 1
-                      const ok = (info?.available ?? false) && availQty >= need
-                      const low = (info?.available ?? false) && availQty > 0 && availQty < need
-                      const color = ok ? '#065F46' : low ? '#92400E' : '#991B1B'
-                      const bg = ok ? '#ECFDF5' : low ? '#FEF3C7' : '#FEF2F2'
-                      const bd = ok ? '#10B981' : low ? '#F59E0B' : '#EF4444'
-                      const label = ok ? 'Đủ' : low ? `Thiếu (${availQty}/${need})` : 'Hết'
-                      return (
-                        <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 0, fontSize: 11, border: `1px solid ${bd}`, color, background: bg }}>
-                          Kho: {label}
-                        </span>
-                      )
-                    })() : null}
                   </div>
                 </td>
                 <td style={{ border: '1px solid #FFD875', padding: '10px', textAlign: 'center' }}>
@@ -77,6 +62,27 @@ export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDe
                     {canEdit && onDelete && (
                       <button onClick={() => onDelete(p.id)} disabled={deletingPartId === p.id} style={{ padding: '6px 12px', border: '1px solid #EF4444', borderRadius: 6, background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF', color: deletingPartId === p.id ? '#9ca3af' : '#EF4444', cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s ease' }}> {deletingPartId === p.id ? 'Đang xóa...' : 'Xóa'} </button>
                     )}
+                    {/* Nút Duyệt cho phụ tùng phát sinh (status DRAFT) - để xác nhận sẽ dùng và tiêu phụ phụ tùng */}
+                    {isInProgress && !isApproved && !isReplacementPart && (approvalStatus === 'DRAFT' || !approvalStatus) && onApprovePart && (
+                      <button 
+                        onClick={() => onApprovePart(p.id)} 
+                        disabled={approvingPartId === p.id}
+                        style={{ 
+                          padding: '6px 12px', 
+                          border: '1px solid #10B981', 
+                          borderRadius: 6, 
+                          background: approvingPartId === p.id ? '#f3f4f6' : '#ECFDF5', 
+                          color: approvingPartId === p.id ? '#9ca3af' : '#065F46', 
+                          cursor: approvingPartId === p.id ? 'not-allowed' : 'pointer', 
+                          fontSize: 13, 
+                          fontWeight: 600,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {approvingPartId === p.id ? 'Đang duyệt...' : 'Duyệt'}
+                      </button>
+                    )}
+                    {/* Nút Duyệt cho phụ tùng cần customer approval (status PENDING_CUSTOMER_APPROVAL) */}
                     {canApproveCustomerParts && (approvalStatus === 'PENDING_CUSTOMER_APPROVAL') && onApproveCustomerPart && (
                       <button onClick={() => onApproveCustomerPart(p.id)} style={{ padding: '6px 12px', border: '1px solid #10B981', borderRadius: 6, background: '#ECFDF5', color: '#065F46', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Duyệt</button>
                     )}
