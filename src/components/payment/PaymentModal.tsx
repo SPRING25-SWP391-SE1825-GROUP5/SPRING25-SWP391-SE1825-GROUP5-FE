@@ -4,6 +4,7 @@ import { PaymentService, type PaymentBreakdownResponse } from '@/services/paymen
 import { WorkOrderPartService, type WorkOrderPartItem } from '@/services/workOrderPartService'
 import { PartService } from '@/services/partService'
 import { PayOSService } from '@/services/payOSService'
+import { PromotionBookingService, type BookingPromotionInfo } from '@/services/promotionBookingService'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -27,11 +28,13 @@ export default function PaymentModal({
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
   const [breakdown, setBreakdown] = useState<PaymentBreakdownResponse['data'] | null>(null)
   const [workParts, setWorkParts] = useState<WorkOrderPartItem[]>([])
+  const [appliedPromotions, setAppliedPromotions] = useState<BookingPromotionInfo[]>([])
 
   // Load breakdown khi modal mở
   useEffect(() => {
     if (open && bookingId) {
       loadBreakdown()
+      loadAppliedPromotions()
       // Load thêm work order parts để có đơn giá làm fallback (giống như kỹ thuật viên)
       ;(async () => {
         try {
@@ -77,13 +80,32 @@ export default function PaymentModal({
       const response = await PaymentService.getBookingBreakdown(bookingId)
       if (response.success && response.data) {
         setBreakdown(response.data)
+        // Log để debug promotion
+        console.log('PaymentModal - Breakdown loaded:', {
+          bookingId,
+          total: response.data.total,
+          subtotal: response.data.subtotal,
+          promotion: response.data.promotion,
+          partsAmount: response.data.partsAmount
+        })
       } else {
         toast.error(response.message || 'Không thể tải thông tin hóa đơn')
       }
     } catch (error: any) {
+      console.error('PaymentModal - Error loading breakdown:', error)
       toast.error(error?.message || 'Lỗi khi tải thông tin hóa đơn')
     } finally {
       setLoadingBreakdown(false)
+    }
+  }
+
+  const loadAppliedPromotions = async () => {
+    try {
+      const promotions = await PromotionBookingService.getBookingPromotions(bookingId)
+      setAppliedPromotions(promotions || [])
+    } catch (error: any) {
+      // Không hiển thị lỗi nếu không có promotion hoặc lỗi nhỏ
+      setAppliedPromotions([])
     }
   }
 
@@ -135,8 +157,11 @@ export default function PaymentModal({
   const handlePayOSPayment = async () => {
     setProcessing(true)
     try {
+      // Sử dụng giá đã giảm từ breakdown nếu có, nếu không thì dùng totalAmount prop
+      const finalAmount = breakdown?.total ?? totalAmount
+      
       // BE: POST /api/Payment/booking/{bookingId}/link
-      const response = await PayOSService.createPaymentLink(bookingId, totalAmount)
+      const response = await PayOSService.createPaymentLink(bookingId, finalAmount)
       if (response.success && response.data?.checkoutUrl) {
         window.open(response.data.checkoutUrl, '_blank')
         toast.success('Đang chuyển đến trang thanh toán PayOS...')
@@ -159,11 +184,15 @@ export default function PaymentModal({
   const handleOfflinePayment = async () => {
     setProcessing(true)
     try {
+      // Sử dụng giá đã giảm từ breakdown nếu có, nếu không thì dùng totalAmount prop
+      const finalAmount = breakdown?.total ?? totalAmount
+      
       // Gọi API offline payment
       const { data } = await api.post(`/Payment/booking/${bookingId}/payments/offline`, {
         bookingId,
-        amount: totalAmount,
-        paymentMethod: 'CASH'
+        amount: Math.round(finalAmount),
+        paidByUserId: 0, // TODO: Lấy từ auth context
+        note: 'Thanh toán tại trung tâm'
       })
       
       if (data.success) {
@@ -348,12 +377,24 @@ export default function PaymentModal({
             {breakdown.promotion.applied && (
               <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, color: '#374151', fontWeight: 600 }}>
-                    Khuyến mãi:
-                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400, marginLeft: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 14, color: '#374151', fontWeight: 600 }}>
+                      Khuyến mãi:
+                      {appliedPromotions.length > 0 && (
+                        <span style={{ fontSize: 13, color: '#059669', fontWeight: 600, marginLeft: 8 }}>
+                          {appliedPromotions[0].code}
+                        </span>
+                      )}
+                    </span>
+                    {appliedPromotions.length > 0 && appliedPromotions[0].description && (
+                      <span style={{ fontSize: 12, color: '#6B7280', fontStyle: 'italic' }}>
+                        {appliedPromotions[0].description}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400 }}>
                       (Chỉ áp dụng cho dịch vụ/gói)
                     </span>
-                  </span>
+                  </div>
                   <span style={{ fontSize: 14, color: '#059669', fontWeight: 600 }}>-{breakdown.promotion.discountAmount.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
               </div>
@@ -392,12 +433,14 @@ export default function PaymentModal({
             {/* PayOS */}
             <button
               onClick={() => setSelectedMethod('PAYOS')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'PAYOS' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'PAYOS' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -413,12 +456,14 @@ export default function PaymentModal({
             {/* VNPay */}
             <button
               onClick={() => setSelectedMethod('VNPAY')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'VNPAY' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'VNPAY' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -434,12 +479,14 @@ export default function PaymentModal({
             {/* SEPAY QR */}
             <button
               onClick={() => setSelectedMethod('SEPAY_QR')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'SEPAY_QR' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'SEPAY_QR' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -455,12 +502,14 @@ export default function PaymentModal({
             {/* Offline */}
             <button
               onClick={() => setSelectedMethod('OFFLINE')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'OFFLINE' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'OFFLINE' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,

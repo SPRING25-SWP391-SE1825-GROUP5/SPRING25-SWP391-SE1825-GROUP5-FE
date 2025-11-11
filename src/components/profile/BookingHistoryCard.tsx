@@ -375,19 +375,13 @@ export default function BookingHistoryCard({
             fontSize: '18px',
             fontWeight: '400',
             margin: 0,
+            marginBottom: '8px',
             color: '#111827',
             display: 'flex',
             alignItems: 'center',
             gap: '12px'
           }}>
             <span>{booking.serviceName}</span>
-            <span style={{
-              fontSize: '14px',
-              color: '#6b7280',
-              fontWeight: '400'
-            }}>
-              Mã đặt lịch: #{booking.bookingId}
-            </span>
             {isNewest && (
               <span style={{
                 padding: '2px 8px',
@@ -402,6 +396,13 @@ export default function BookingHistoryCard({
               </span>
             )}
           </h3>
+          <div style={{
+            fontSize: '14px',
+            color: '#6b7280',
+            fontWeight: '400'
+          }}>
+            Mã đặt lịch: #{booking.bookingId}
+          </div>
         </div>
 
         {/* Booking Details */}
@@ -518,7 +519,7 @@ export default function BookingHistoryCard({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                zIndex: 10
+                zIndex: 5
               }}
             >
               <img
@@ -1225,4 +1226,5 @@ export default function BookingHistoryCard({
     </>
   )
 }
+
 

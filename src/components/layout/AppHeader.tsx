@@ -122,51 +122,7 @@ const NewAppHeader: React.FC = () => {
     {
       id: 'products',
       label: 'Sản phẩm',
-      href: '/products',
-      dropdown: {
-        type: 'mega',
-        width: 'md',
-        sections: [
-          {
-            id: 'main-parts',
-            title: 'Phụ tùng chính',
-            items: [
-              {
-                id: 'battery-charger',
-                label: 'Pin & Bộ sạc',
-                href: '/products',
-                icon: <Zap size={16} />,
-                description: 'Pin lithium-ion cao cấp'
-              },
-              {
-                id: 'electric-motor',
-                label: 'Động cơ điện',
-                href: '/products',
-                icon: <Settings size={16} />,
-                description: 'Động cơ hiệu suất cao'
-              }
-            ]
-          },
-          {
-            id: 'accessories',
-            title: 'Phụ kiện',
-            items: [
-              {
-                id: 'charging-cable',
-                label: 'Cáp sạc',
-                href: '/products',
-                icon: <Package size={16} />
-              },
-              {
-                id: 'tools',
-                label: 'Dụng cụ',
-                href: '/products',
-                icon: <Wrench size={16} />
-              }
-            ]
-          }
-        ]
-      }
+      href: '/products'
     },
     {
       id: 'promotions',

@@ -1101,15 +1101,19 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
 
   // Helper function để map status từ UI sang API format
   const mapStatusToApi = (uiStatus: string): string => {
+    if (!uiStatus) return 'PENDING'
+    // Normalize to lowercase để xử lý cả chữ HOA và chữ thường
+    const normalized = uiStatus.toLowerCase().trim()
     const statusMap: { [key: string]: string } = {
       'pending': 'PENDING',
       'confirmed': 'CONFIRMED',
+      'checked_in': 'CHECKED_IN',
       'in_progress': 'IN_PROGRESS',
       'completed': 'COMPLETED',
       'paid': 'PAID',
       'cancelled': 'CANCELLED'
     }
-    return statusMap[uiStatus] || 'PENDING'
+    return statusMap[normalized] || 'PENDING'
   }
 
   // Helper function để kiểm tra trạng thái có thể chuyển được không

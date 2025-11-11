@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { OrderService } from '@/services/orderService'
 import WorkOrderPartService from '@/services/workOrderPartService'
+import { useAppSelector } from '@/store/hooks'
 import toast from 'react-hot-toast'
 
 type Props = {
@@ -20,9 +21,22 @@ type AvailablePartItem = {
   canUse?: boolean
 }
 
+type OrderWithParts = {
+  orderId: number
+  orderNumber?: string
+  totalAmount?: number
+  createdAt?: string
+  fulfillmentCenterId?: number
+  fulfillmentCenterName?: string
+  availableParts?: AvailablePartItem[]
+}
+
 const UsePurchasedPartsPanel: React.FC<Props> = ({ bookingId, centerId, onClose, onSuccess }) => {
+  const user = useAppSelector((state) => state.auth.user)
   const [orderIdInput, setOrderIdInput] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [loadingOrders, setLoadingOrders] = useState(false)
+  const [orders, setOrders] = useState<OrderWithParts[]>([])
   const [items, setItems] = useState<AvailablePartItem[]>([])
   const [selected, setSelected] = useState<Record<number, number>>({})
 
@@ -31,33 +45,46 @@ const UsePurchasedPartsPanel: React.FC<Props> = ({ bookingId, centerId, onClose,
     [selected]
   )
 
-  const loadAvailable = async () => {
-    const orderId = Number(orderIdInput.trim())
-    if (!orderId || Number.isNaN(orderId)) {
-      toast.error('Vui lòng nhập mã đơn hàng hợp lệ')
+  // Load danh sách đơn hàng có phụ tùng có thể dùng (API tối ưu - 1 call)
+  const loadOrders = async () => {
+    const customerId = user?.customerId || user?.id
+    if (!customerId) {
+      toast.error('Không xác định được thông tin khách hàng')
+      return
+    }
+    if (!centerId) {
+      toast.error('Không xác định được chi nhánh của booking')
       return
     }
     try {
-      setLoading(true)
-      const resp = await OrderService.getAvailableParts(orderId, centerId)
-      const raw = (resp?.data || []) as any[]
-      const mapped: AvailablePartItem[] = raw.map((r: any) => ({
-        orderItemId: r.orderItemId,
-        partId: r.partId,
-        partName: r.partName,
-        availableQty: Number(r.availableQty ?? 0),
-        unitPrice: Number(r.unitPrice ?? 0),
-        warning: r.warning,
-        canUse: r.canUse
+      setLoadingOrders(true)
+      const resp = await OrderService.getAvailableOrdersForBooking(Number(customerId), centerId)
+      const ordersData = Array.isArray(resp?.data) ? resp.data : []
+      const mapped: OrderWithParts[] = ordersData.map((o: any) => ({
+        orderId: o.orderId,
+        orderNumber: o.orderNumber || `#${o.orderId}`,
+        totalAmount: o.totalAmount || 0,
+        createdAt: o.createdAt,
+        fulfillmentCenterId: o.fulfillmentCenterId,
+        fulfillmentCenterName: o.fulfillmentCenterName,
+        availableParts: (o.availableParts || []).map((p: any) => ({
+          orderItemId: p.orderItemId,
+          partId: p.partId,
+          partName: p.partName,
+          availableQty: Number(p.availableQty ?? 0),
+          unitPrice: Number(p.unitPrice ?? 0),
+          warning: p.warning,
+          canUse: p.canUse === true
+        }))
       }))
-      setItems(mapped)
+      setOrders(mapped)
       if (mapped.length === 0) {
-        toast('Không có phụ tùng có thể dùng tại chi nhánh này')
+        toast('Không có đơn hàng nào có phụ tùng có thể dùng tại chi nhánh này')
       }
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || e?.message || 'Không thể tải phụ tùng đã mua')
+      toast.error(e?.response?.data?.message || e?.message || 'Không thể tải danh sách đơn hàng')
     } finally {
-      setLoading(false)
+      setLoadingOrders(false)
     }
   }
 
@@ -112,10 +139,35 @@ const UsePurchasedPartsPanel: React.FC<Props> = ({ bookingId, centerId, onClose,
     }
   }
 
+  // Load danh sách đơn hàng khi component mount hoặc centerId thay đổi
+  useEffect(() => {
+    if ((user?.customerId || user?.id) && centerId) {
+      loadOrders()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.customerId, user?.id, centerId])
+
   useEffect(() => {
     setItems([])
     setSelected({})
+    setOrderIdInput('')
   }, [bookingId, centerId])
+
+  // Tự động hiển thị phụ tùng khi chọn đơn hàng (từ response đã có sẵn)
+  useEffect(() => {
+    if (orderIdInput && orderIdInput.trim()) {
+      const selectedOrder = orders.find(o => String(o.orderId) === orderIdInput)
+      if (selectedOrder?.availableParts) {
+        setItems(selectedOrder.availableParts)
+      } else {
+        setItems([])
+        setSelected({})
+      }
+    } else {
+      setItems([])
+      setSelected({})
+    }
+  }, [orderIdInput, orders])
 
   return (
     <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, background: '#fff' }}>
@@ -129,20 +181,24 @@ const UsePurchasedPartsPanel: React.FC<Props> = ({ bookingId, centerId, onClose,
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-        <input
-          type="number"
-          placeholder="Nhập mã đơn hàng (OrderId)"
+        <select
           value={orderIdInput}
           onChange={(e) => setOrderIdInput(e.target.value)}
-          style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6 }}
-        />
-        <button
-          onClick={loadAvailable}
-          disabled={loading || !orderIdInput.trim()}
-          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#FFD875', color: '#111827', cursor: 'pointer' }}
+          disabled={loadingOrders}
+          style={{ flex: 1, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
         >
-          {loading ? 'Đang tải...' : 'Tải phụ tùng'}
-        </button>
+          <option value="">-- Chọn đơn hàng đã thanh toán --</option>
+          {orders.map((order) => (
+            <option key={order.orderId} value={String(order.orderId)}>
+              {order.orderNumber} - {order.totalAmount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount) : ''}
+            </option>
+          ))}
+        </select>
+        {loadingOrders && (
+          <div style={{ padding: '8px 12px', color: '#6b7280', fontSize: 14 }}>
+            Đang tải đơn hàng...
+          </div>
+        )}
       </div>
 
       {items.length > 0 && (

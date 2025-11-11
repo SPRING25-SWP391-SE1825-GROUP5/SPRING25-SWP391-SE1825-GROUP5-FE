@@ -132,6 +132,31 @@ export const OrderService = {
     const params = centerId ? `?centerId=${centerId}` : ''
     const { data } = await api.get(`/Order/${orderId}/available-parts${params}`)
     return data
+  },
+
+  /**
+   * Lấy danh sách đơn hàng đã thanh toán có phụ tùng có thể dùng cho booking tại chi nhánh
+   * Tối ưu: chỉ trả về những đơn hàng có ít nhất 1 phụ tùng có thể dùng, kèm thông tin phụ tùng
+   */
+  async getAvailableOrdersForBooking(customerId: number, centerId: number): Promise<{ success: boolean; message?: string; data?: Array<{
+    orderId: number
+    orderNumber?: string
+    totalAmount?: number
+    createdAt?: string
+    fulfillmentCenterId?: number
+    fulfillmentCenterName?: string
+    availableParts?: Array<{
+      orderItemId: number
+      partId: number
+      partName: string
+      availableQty: number
+      unitPrice?: number
+      canUse: boolean
+      warning?: string | null
+    }>
+  }> }> {
+    const { data } = await api.get(`/Order/customer/${customerId}/available-for-booking?centerId=${centerId}`)
+    return data
   }
 }
 
