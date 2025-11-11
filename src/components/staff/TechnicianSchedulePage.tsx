@@ -531,15 +531,15 @@ export default function TechnicianSchedulePage() {
         marginBottom: '24px'
       }}>
         <h1 style={{
-          fontSize: '24px',
-          fontWeight: 700,
+          fontSize: '16px',
+          fontWeight: 300,
           margin: 0,
           color: 'var(--text-primary)'
         }}>Lịch làm việc kỹ thuật viên</h1>
         <p style={{
           margin: '8px 0 0 0',
           color: 'var(--text-secondary)',
-          fontSize: '14px'
+          fontSize: '12px'
         }}>Tạo lịch theo ngày hoặc theo tuần. Tất cả nhãn và lỗi hiển thị bằng tiếng Việt.</p>
       </div>
 
@@ -567,10 +567,7 @@ export default function TechnicianSchedulePage() {
       )}
 
       <div style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-primary)',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+        background: 'transparent',
         padding: '24px',
         marginBottom: '24px',
         overflow: 'hidden'
@@ -580,10 +577,11 @@ export default function TechnicianSchedulePage() {
           <button type="button" onClick={() => setViewTab('create')} style={{
             padding: '8px 12px',
             borderRadius: '8px',
-            border: viewTab === 'create' ? '2px solid var(--primary-500)' : '1px solid var(--border-primary)',
+            border: viewTab === 'create' ? '2px solid var(--primary-500)' : 'none',
             background: viewTab === 'create' ? 'var(--primary-50)' : 'transparent',
             color: 'var(--text-primary)',
-            fontWeight: 700,
+            fontWeight: 300,
+            fontSize: '12px',
             cursor: 'pointer'
           }}>Tạo lịch</button>
           <button type="button" onClick={() => setViewTab('read')} style={{
@@ -592,7 +590,8 @@ export default function TechnicianSchedulePage() {
             border: viewTab === 'read' ? '2px solid var(--primary-500)' : '1px solid var(--border-primary)',
             background: viewTab === 'read' ? 'var(--primary-50)' : 'transparent',
             color: 'var(--text-primary)',
-            fontWeight: 700,
+            fontWeight: 300,
+            fontSize: '12px',
             cursor: 'pointer'
           }}>Xem lịch</button>
         </div>
@@ -600,26 +599,73 @@ export default function TechnicianSchedulePage() {
         {/* Create View */}
         <div id="createView" style={{ display: viewTab === 'create' ? 'block' : 'none' }}>
         <form onSubmit={handleSubmit} style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '20px',
-          alignItems: 'start'
+          display: 'table',
+          width: '100%',
+          borderCollapse: 'separate',
+          borderSpacing: '0 12px'
         }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)' }}>Chế độ</label>
-            <select value={form.mode} onChange={(e) => setField('mode', e.target.value as any)} style={{
-              width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
-            }}>
-              <option value="ngay">Theo ngày</option>
-              <option value="tuan">Theo tuần (dải ngày)</option>
-            </select>
+          <div style={{ display: 'table-row' }}>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}>
+              <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Chế độ</label>
+            </div>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
+              <select 
+                value={form.mode} 
+                onChange={(e) => setField('mode', e.target.value as any)} 
+                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                style={{
+                  width: '100%', 
+                  padding: '12px 16px', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  boxSizing: 'border-box', 
+                  fontSize: '12px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  outline: 'none'
+                }}
+              >
+                <option value="ngay">Theo ngày</option>
+                <option value="tuan">Theo tuần (dải ngày)</option>
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
-            <select value={form.technicianId} onChange={(e) => setField('technicianId', e.target.value)} style={{
-              width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
-            }}>
+          <div style={{ display: 'table-row' }}>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}>
+              <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
+            </div>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
+              <select 
+                value={form.technicianId} 
+                onChange={(e) => setField('technicianId', e.target.value)} 
+                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                style={{
+                  width: '100%', 
+                  padding: '12px 16px', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  boxSizing: 'border-box', 
+                  fontSize: '12px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  outline: 'none'
+                }}
+              >
               <option value="">-- Chọn kỹ thuật viên --</option>
               {technicians.length === 0 ? (
                 <option value="" disabled>Không có kỹ thuật viên nào trong chi nhánh</option>
@@ -629,64 +675,165 @@ export default function TechnicianSchedulePage() {
                 ))
               )}
             </select>
-            {errors.technicianId && <div style={{ color: 'var(--error-600)', fontSize: '12px', marginTop: '6px' }}>{errors.technicianId}</div>}
+            {errors.technicianId && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.technicianId}</div>}
             {technicians.length === 0 && currentStaffCenterId && (
-              <div style={{ color: 'var(--warning-600)', fontSize: '12px', marginTop: '6px' }}>
+              <div style={{ color: 'var(--warning-600)', fontSize: '11px', marginTop: '4px' }}>
                 ⚠️ Không có kỹ thuật viên nào trong chi nhánh của bạn. Chỉ hiển thị kỹ thuật viên thuộc cùng chi nhánh.
               </div>
             )}
+            </div>
           </div>
 
           {/* Khung giờ bị ẩn cho chế độ full-time theo ngày/tuần */}
 
           {form.mode === 'ngay' ? (
-            <div>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)' }}>Ngày làm việc</label>
-              <input type="date" value={form.workDate} min={new Date().toISOString().slice(0,10)} onChange={(e) => setField('workDate', e.target.value)} style={{
-                width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
-              }} />
-              {errors.workDate && <div style={{ color: 'var(--error-600)', fontSize: '12px', marginTop: '6px' }}>{errors.workDate}</div>}
+            <div style={{ display: 'table-row' }}>
+              <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}>
+                <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ngày làm việc</label>
+              </div>
+              <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
+                <input 
+                  type="date" 
+                  value={form.workDate} 
+                  min={new Date().toISOString().slice(0,10)} 
+                  onChange={(e) => setField('workDate', e.target.value)} 
+                  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                  onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                  onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                  onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                  style={{
+                    width: '100%', 
+                    padding: '12px 16px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: 'var(--bg-secondary)', 
+                    boxSizing: 'border-box', 
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-primary)',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    outline: 'none'
+                  }} 
+                />
+                {errors.workDate && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.workDate}</div>}
+              </div>
             </div>
           ) : (
             <>
-              <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)' }}>Ngày bắt đầu</label>
-                <input type="date" value={form.startDate} min={new Date().toISOString().slice(0,10)} onChange={(e) => setField('startDate', e.target.value)} style={{
-                  width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
-                }} />
-                {errors.startDate && <div style={{ color: 'var(--error-600)', fontSize: '12px', marginTop: '6px' }}>{errors.startDate}</div>}
+              <div style={{ display: 'table-row' }}>
+                <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}>
+                  <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ngày bắt đầu</label>
+                </div>
+                <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
+                  <input 
+                    type="date" 
+                    value={form.startDate} 
+                    min={new Date().toISOString().slice(0,10)} 
+                    onChange={(e) => setField('startDate', e.target.value)} 
+                    onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                    onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                    onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                    onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                    style={{
+                      width: '100%', 
+                      padding: '12px 16px', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      background: 'var(--bg-secondary)', 
+                      boxSizing: 'border-box', 
+                      fontSize: '12px',
+                      fontWeight: 300,
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      outline: 'none'
+                    }} 
+                  />
+                  {errors.startDate && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.startDate}</div>}
+                </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)' }}>Ngày kết thúc</label>
-                <input type="date" value={form.endDate} min={form.startDate || undefined} onChange={(e) => setField('endDate', e.target.value)} style={{
-                  width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
-                }} />
-                {errors.endDate && <div style={{ color: 'var(--error-600)', fontSize: '12px', marginTop: '6px' }}>{errors.endDate}</div>}
+              <div style={{ display: 'table-row' }}>
+                <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}>
+                  <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ngày kết thúc</label>
+                </div>
+                <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
+                  <input 
+                    type="date" 
+                    value={form.endDate} 
+                    min={form.startDate || undefined} 
+                    onChange={(e) => setField('endDate', e.target.value)} 
+                    onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                    onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                    onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                    onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                    style={{
+                      width: '100%', 
+                      padding: '12px 16px', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      background: 'var(--bg-secondary)', 
+                      boxSizing: 'border-box', 
+                      fontSize: '12px',
+                      fontWeight: 300,
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      outline: 'none'
+                    }} 
+                  />
+                  {errors.endDate && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.endDate}</div>}
+                </div>
               </div>
             </>
           )}
 
-          {/* Trạng thái khả dụng bị ẩn cho chế độ full-time theo ngày/tuần */}
-
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)' }}>Ghi chú</label>
-            <input value={form.notes} onChange={(e) => setField('notes', e.target.value)} placeholder="Tối đa 255 ký tự" style={{
-              width: '100%', padding: '12px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)', boxSizing: 'border-box'
-            }} />
-            {errors.notes && <div style={{ color: 'var(--error-600)', fontSize: '12px', marginTop: '6px' }}>{errors.notes}</div>}
+          <div style={{ display: 'table-row' }}>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}>
+              <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ghi chú</label>
+            </div>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
+              <input 
+                value={form.notes} 
+                onChange={(e) => setField('notes', e.target.value)} 
+                placeholder="Tối đa 255 ký tự" 
+                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                style={{
+                  width: '100%', 
+                  padding: '12px 16px', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  boxSizing: 'border-box', 
+                  fontSize: '12px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  outline: 'none'
+                }} 
+              />
+              {errors.notes && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.notes}</div>}
+            </div>
           </div>
 
-          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button type="submit" disabled={!canSubmit} style={{
-              padding: '12px 20px', border: 'none', borderRadius: '10px', color: 'white',
-              background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-              opacity: canSubmit ? 1 : 0.6, cursor: canSubmit ? 'pointer' : 'not-allowed', fontWeight: 600
-            }}>
-              {loading ? 'Đang lưu...' : form.mode === 'ngay' ? 'Tạo lịch (1 ngày)' : 'Tạo lịch (dải ngày)'}
-            </button>
+          <div style={{ display: 'table-row' }}>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', width: '150px' }}></div>
+            <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle', paddingTop: '8px' }}>
+              <button type="submit" disabled={!canSubmit} style={{
+                padding: '12px 20px', border: 'none', borderRadius: '10px', color: 'white',
+                background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
+                opacity: canSubmit ? 1 : 0.6, cursor: canSubmit ? 'pointer' : 'not-allowed', fontWeight: 300, fontSize: '12px'
+              }}>
+                {loading ? 'Đang lưu...' : form.mode === 'ngay' ? 'Tạo lịch (1 ngày)' : 'Tạo lịch (dải ngày)'}
+              </button>
+            </div>
           </div>
         </form>
-        <div style={{ gridColumn: '1 / -1', color: 'var(--text-tertiary)', fontSize: '14px', marginTop: '5px' }}>
+        <div style={{ marginTop: '12px', paddingLeft: '166px', color: 'var(--text-tertiary)', fontSize: '12px' }}>
           {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ cho 7 ngày liên tiếp sử dụng API tối ưu.'}
         </div>
         </div>
@@ -695,19 +842,37 @@ export default function TechnicianSchedulePage() {
       {/* Read View */}
       <div id="readView" style={{
         display: viewTab === 'read' ? 'block' : 'none',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-primary)',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+        background: 'transparent',
         padding: '24px'
       }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>Lịch đã tạo</h2>
+        <h2 style={{ fontSize: '14px', fontWeight: 300, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>Lịch đã tạo</h2>
         {/* Viewing controls */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', alignItems: 'end' }}>
           {centers.length > 0 && (
             <div>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Xem theo</label>
-              <select value={viewMode} onChange={(e) => setViewMode(e.target.value as any)} style={{ width: '100%', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }}>
+              <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Xem theo</label>
+              <select 
+                value={viewMode} 
+                onChange={(e) => setViewMode(e.target.value as any)} 
+                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                style={{ 
+                  width: '100%', 
+                  padding: '10px 14px', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  fontSize: '12px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  outline: 'none'
+                }}
+              >
                 <option value="technician">Kỹ thuật viên</option>
                 <option value="center">Trung tâm</option>
               </select>
@@ -717,8 +882,29 @@ export default function TechnicianSchedulePage() {
           {viewMode === 'center'
             ? (
               <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Trung tâm</label>
-                <select value={form.centerId} onChange={(e) => setForm((s) => ({ ...s, centerId: e.target.value }))} style={{ minWidth: '260px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }}>
+                <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Trung tâm</label>
+                <select 
+                  value={form.centerId} 
+                  onChange={(e) => setForm((s) => ({ ...s, centerId: e.target.value }))} 
+                  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                  onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                  onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                  onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                  style={{ 
+                    minWidth: '260px', 
+                    padding: '10px 14px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: 'var(--bg-secondary)', 
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    outline: 'none'
+                  }}
+                >
                   <option value="">-- Chọn trung tâm --</option>
                   {centers.map((c: any) => (
                     <option key={c.centerId} value={c.centerId}>{c.centerName}</option>
@@ -727,8 +913,29 @@ export default function TechnicianSchedulePage() {
               </div>
             ) : (
               <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
-                <select value={form.technicianId} onChange={(e) => setField('technicianId', e.target.value)} style={{ minWidth: '260px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }}>
+                <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
+                <select 
+                  value={form.technicianId} 
+                  onChange={(e) => setField('technicianId', e.target.value)} 
+                  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                  onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                  onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                  onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                  style={{ 
+                    minWidth: '260px', 
+                    padding: '10px 14px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: 'var(--bg-secondary)', 
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    outline: 'none'
+                  }}
+                >
                   <option value="">-- Chọn kỹ thuật viên --</option>
                   {technicians.length === 0 ? (
                     <option value="" disabled>Không có kỹ thuật viên nào trong chi nhánh</option>
@@ -742,8 +949,29 @@ export default function TechnicianSchedulePage() {
             )}
 
           <div>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Khoảng xem</label>
-            <select value={viewRange} onChange={(e) => setViewRange(e.target.value as any)} style={{ minWidth: '160px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }}>
+            <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Khoảng xem</label>
+            <select 
+              value={viewRange} 
+              onChange={(e) => setViewRange(e.target.value as any)} 
+              onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+              onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+              onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+              onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+              style={{ 
+                minWidth: '160px', 
+                padding: '10px 14px', 
+                border: 'none', 
+                borderRadius: '8px', 
+                background: 'var(--bg-secondary)', 
+                fontSize: '12px',
+                fontWeight: 300,
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                outline: 'none'
+              }}
+            >
               <option value="day">Theo ngày</option>
               <option value="week">Theo tuần</option>
             </select>
@@ -751,24 +979,90 @@ export default function TechnicianSchedulePage() {
 
           {viewRange === 'day' ? (
             <div>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Ngày</label>
-              <input type="date" value={viewDate} min={new Date().toISOString().slice(0,10)} onChange={(e) => setViewDate(e.target.value)} style={{ minWidth: '180px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }} />
+              <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Ngày</label>
+              <input 
+                type="date" 
+                value={viewDate} 
+                min={new Date().toISOString().slice(0,10)} 
+                onChange={(e) => setViewDate(e.target.value)} 
+                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                style={{ 
+                  minWidth: '180px', 
+                  padding: '10px 14px', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  background: 'var(--bg-secondary)', 
+                  fontSize: '12px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  outline: 'none'
+                }} 
+              />
             </div>
           ) : (
             <>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Từ ngày</label>
-                <input type="date" value={viewStart} min={new Date().toISOString().slice(0,10)} onChange={(e) => setViewStart(e.target.value)} style={{ minWidth: '180px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }} />
+                <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Từ ngày</label>
+                <input 
+                  type="date" 
+                  value={viewStart} 
+                  min={new Date().toISOString().slice(0,10)} 
+                  onChange={(e) => setViewStart(e.target.value)} 
+                  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                  onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                  onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                  onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                  style={{ 
+                    minWidth: '180px', 
+                    padding: '10px 14px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: 'var(--bg-secondary)', 
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-primary)',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    outline: 'none'
+                  }} 
+                />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '6px', color: 'var(--text-primary)' }}>Đến ngày</label>
-                <input type="date" value={viewEnd} min={viewStart || undefined} onChange={(e) => setViewEnd(e.target.value)} style={{ minWidth: '180px', padding: '10px', border: '2px solid var(--border-primary)', borderRadius: '10px', background: 'var(--bg-secondary)' }} />
+                <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Đến ngày</label>
+                <input 
+                  type="date" 
+                  value={viewEnd} 
+                  min={viewStart || undefined} 
+                  onChange={(e) => setViewEnd(e.target.value)} 
+                  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
+                  onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
+                  onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
+                  onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+                  style={{ 
+                    minWidth: '180px', 
+                    padding: '10px 14px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: 'var(--bg-secondary)', 
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-primary)',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    outline: 'none'
+                  }} 
+                />
               </div>
             </>
           )}
 
           <div style={{ alignSelf: 'end' }}>
-            <button type="button" onClick={() => (viewMode === 'center' ? loadCenterSchedule() : loadTechnicianViewSchedule())} style={{ padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))', color: '#fff', fontWeight: 700, border: 'none', opacity: viewLoading ? 0.7 : 1, cursor: viewLoading ? 'wait' : 'pointer' }}>{viewLoading ? 'Đang tải...' : 'Tải lịch'}</button>
+            <button type="button" onClick={() => (viewMode === 'center' ? loadCenterSchedule() : loadTechnicianViewSchedule())} style={{ padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))', color: '#fff', fontWeight: 300, fontSize: '12px', border: 'none', opacity: viewLoading ? 0.7 : 1, cursor: viewLoading ? 'wait' : 'pointer' }}>{viewLoading ? 'Đang tải...' : 'Tải lịch'}</button>
           </div>
         </div>
 
@@ -791,23 +1085,23 @@ export default function TechnicianSchedulePage() {
 
         {viewMode === 'center' ? (
           centerSchedule.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px' }}>Chưa có dữ liệu.</p>
+            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '12px', fontWeight: 300 }}>Chưa có dữ liệu.</p>
           ) : (
-            <div style={{ overflow: 'auto', border: '1px solid var(--border-primary)', borderRadius: '12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-secondary)', textAlign: 'left' }}>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>KTV</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Ngày</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Slot</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Nhãn</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Trạng thái</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Ghi chú</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>KTV</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Ngày</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Slot</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Nhãn</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Trạng thái</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Ghi chú</th>
                   </tr>
                 </thead>
                 <tbody>
                   {centerSchedule.map((s, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid var(--border-primary)' }}>
+                    <tr key={i} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
                       <td style={{ padding: '12px 16px' }}>{s.technicianId}</td>
                       <td style={{ padding: '12px 16px' }}>{new Date(s.workDate).toLocaleDateString('vi-VN')}</td>
                       <td style={{ padding: '12px 16px' }}>{s.slotId}</td>
@@ -822,8 +1116,8 @@ export default function TechnicianSchedulePage() {
           )
         ) : schedule.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-            <p style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>📅 Chưa có lịch làm việc</p>
-            <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+            <p style={{ margin: 0, fontSize: '13px', fontWeight: '300' }}>📅 Chưa có lịch làm việc</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
               Technician này chưa có lịch làm việc cho ngày được chọn.<br/>
               Hãy tạo lịch mới ở form phía trên.
             </p>
@@ -835,27 +1129,25 @@ export default function TechnicianSchedulePage() {
               background: 'var(--bg-secondary)',
               borderRadius: '12px',
               padding: '24px',
-              border: '1px solid var(--border-primary)',
               maxWidth: '400px',
               margin: '0 auto'
             }}>
-              <h3 style={{ margin: '0 0 16px 0', color: '#000000' }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#000000', fontSize: '13px', fontWeight: 300 }}>
                 👨‍🔧 {schedule[0].technicianName}
               </h3>
-              <p style={{ margin: '8px 0', fontSize: '14px', color: '#000000' }}>
-                <strong>Ngày:</strong> {new Date(schedule[0].workDate).toLocaleDateString('vi-VN')} ({schedule[0].dayOfWeek})
+              <p style={{ margin: '8px 0', fontSize: '12px', color: '#000000', fontWeight: 300 }}>
+                <span style={{ fontWeight: 300 }}>Ngày:</span> {new Date(schedule[0].workDate).toLocaleDateString('vi-VN')} ({schedule[0].dayOfWeek})
               </p>
-              <p style={{ margin: '8px 0', fontSize: '14px', color: '#000000' }}>
-                <strong>Trạng thái:</strong> Chưa có lịch làm việc
+              <p style={{ margin: '8px 0', fontSize: '12px', color: '#000000', fontWeight: 300 }}>
+                <span style={{ fontWeight: 300 }}>Trạng thái:</span> Chưa có lịch làm việc
               </p>
               <div style={{
                 marginTop: '16px',
                 padding: '12px',
                 background: 'var(--warning-50)',
-                borderRadius: '8px',
-                border: '1px solid var(--warning-200)'
+                borderRadius: '8px'
               }}>
-                <p style={{ margin: '0', fontSize: '13px', color: 'var(--warning-800)' }}>
+                <p style={{ margin: '0', fontSize: '12px', fontWeight: 300, color: 'var(--warning-800)' }}>
                   💡 Để tạo lịch cho technician này, hãy sử dụng form "Tạo lịch mới" phía trên.
                 </p>
               </div>
@@ -880,8 +1172,8 @@ export default function TechnicianSchedulePage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-secondary)' }}>
-                      <th style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>Khung giờ</th>
-                      <th style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'left' }}>{headerLabel}</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>Khung giờ</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300, textAlign: 'left' }}>{headerLabel}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -892,8 +1184,8 @@ export default function TechnicianSchedulePage() {
                       const available = !booked && Boolean(it?.isAvailable)
                       const note = it?.notes || ''
                       return (
-                        <tr key={slot.id} style={{ borderTop: '1px solid var(--border-primary)' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--bg-card)' }}>{slot.label}</td>
+                        <tr key={slot.id} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                          <td style={{ padding: '12px 16px', fontWeight: 300, fontSize: '12px', position: 'sticky', left: 0, background: 'var(--bg-card)' }}>{slot.label}</td>
                           <td style={{ padding: '8px 10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '12px' }} title={note}>
                               <span style={{
@@ -901,8 +1193,8 @@ export default function TechnicianSchedulePage() {
                                 borderRadius: '12px',
                                 backgroundColor: booked ? '#FF0000' : (available ? '#009900' : 'var(--border-primary)'),
                                 color: '#ffffff',
-                                fontSize: '12px',
-                                fontWeight: 700,
+                                fontSize: '11px',
+                                fontWeight: 300,
                                 whiteSpace: 'nowrap'
                               }}>
                                 {booked ? 'Đã được đặt' : (available ? 'Khả dụng' : 'Không khả dụng')}
@@ -950,16 +1242,16 @@ export default function TechnicianSchedulePage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--bg-secondary)' }}>
-                        <th style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>Khung giờ</th>
+                        <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300, textAlign: 'left', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>Khung giờ</th>
                         {visibleDays.map((d) => (
-                          <th key={d} style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'left' }}>{new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}</th>
+                          <th key={d} style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300, textAlign: 'left' }}>{new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {uniqueSlots.map((slot) => (
-                        <tr key={slot.id} style={{ borderTop: '1px solid var(--border-primary)' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--bg-card)' }}>{slot.label}</td>
+                        <tr key={slot.id} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                          <td style={{ padding: '12px 16px', fontWeight: 300, fontSize: '12px', position: 'sticky', left: 0, background: 'var(--bg-card)' }}>{slot.label}</td>
                           {visibleDays.map((d) => {
                             const key = `${d}#${slot.id}`
                             const it = idx.get(key)
@@ -974,8 +1266,8 @@ export default function TechnicianSchedulePage() {
                                     borderRadius: '12px',
                                     backgroundColor: booked ? '#FF0000' : (available ? '#009900' : 'var(--border-primary)'),
                                     color: '#ffffff',
-                                    fontSize: '12px',
-                                    fontWeight: 700,
+                                    fontSize: '11px',
+                                    fontWeight: 300,
                                     whiteSpace: 'nowrap'
                                   }}>
                                     {booked ? 'Đã được đặt' : (available ? 'Khả dụng' : 'Không khả dụng')}
@@ -993,21 +1285,21 @@ export default function TechnicianSchedulePage() {
             })()
           ) : (
             // Fallback: bảng danh sách (trường hợp không đủ dữ liệu tuần)
-            <div style={{ overflow: 'auto', border: '1px solid var(--border-primary)', borderRadius: '12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-secondary)', textAlign: 'left' }}>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>ID</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Ngày</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Slot</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Nhãn</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Trạng thái</th>
-                    <th style={{ padding: '12px 16px', fontSize: '13px' }}>Ghi chú</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>ID</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Ngày</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Slot</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Nhãn</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Trạng thái</th>
+                    <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 300 }}>Ghi chú</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schedule.map((s, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid var(--border-primary)' }}>
+                    <tr key={i} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
                       <td style={{ padding: '12px 16px' }}>{s.technicianSlotId ?? s.id}</td>
                       <td style={{ padding: '12px 16px' }}>{new Date(s.workDate).toLocaleDateString('vi-VN')}</td>
                       <td style={{ padding: '12px 16px' }}>{s.slotId}</td>

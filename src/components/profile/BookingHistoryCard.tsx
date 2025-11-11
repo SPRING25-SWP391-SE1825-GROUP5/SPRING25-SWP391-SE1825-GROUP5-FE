@@ -4,8 +4,8 @@ import { WorkOrderPartService } from '@/services/workOrderPartService'
 import { PartService } from '@/services/partService'
 import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
-import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { feedbackService } from '@/services/feedbackService'
+import api from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
 import { Star, MessageSquare, QrCode } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -72,6 +72,11 @@ const getStatusBadge = (status: string) => {
       badgeClass += ' status-checked-in'
       text = 'Đã check-in'
       break
+    case 'IN_PROGRESS':
+    case 'INPROGRESS':
+      badgeClass += ' status-in-progress'
+      text = 'Đang thực hiện'
+      break
     default:
       badgeClass += ' status-default'
   }
@@ -97,10 +102,13 @@ export default function BookingHistoryCard({
   const [loadingParts, setLoadingParts] = useState(false)
   const [approvingPartId, setApprovingPartId] = useState<number | null>(null)
   const [rejectingPartId, setRejectingPartId] = useState<number | null>(null)
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [loadingFeedback, setLoadingFeedback] = useState(false)
   const [existingFeedback, setExistingFeedback] = useState<any>(null)
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [bookingDetail, setBookingDetail] = useState<any>(null)
+  const [rating, setRating] = useState<number>(0)
+  const [comment, setComment] = useState<string>('')
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
   const [showQRTooltip, setShowQRTooltip] = useState(false)
   const user = useAppSelector((state) => state.auth.user)
@@ -155,11 +163,13 @@ export default function BookingHistoryCard({
     generateQRCode()
   }, [booking.bookingId, booking.status])
 
-  // Load feedback and booking detail when status is PAID
+  // Load feedback and booking detail when status is PAID or COMPLETED
+  // Tạm thời ẩn - sẽ làm sau
   useEffect(() => {
-    if (isExpanded && booking.bookingId && (booking.status || '').toUpperCase() === 'PAID') {
-      loadFeedbackAndBookingDetail()
-    }
+    // const status = (booking.status || '').toUpperCase()
+    // if (isExpanded && booking.bookingId && (status === 'PAID' || status === 'COMPLETED')) {
+    //   loadFeedbackAndBookingDetail()
+    // }
   }, [isExpanded, booking.bookingId, booking.status])
 
   const loadFeedbackAndBookingDetail = async () => {
@@ -171,13 +181,35 @@ export default function BookingHistoryCard({
         setBookingDetail(detail.data)
       }
 
-      // Load existing feedback
+      // Load existing feedbacks (API trả về array)
       try {
-        const feedback = await feedbackService.getFeedback(String(booking.bookingId))
-        setExistingFeedback(feedback)
-      } catch (err) {
+        const response = await api.get(`/Feedback/bookings/${booking.bookingId}`)
+        const feedbacksList = response.data?.data || []
+        setFeedbacks(feedbacksList)
+        
+        // Lấy feedback đầu tiên (hoặc feedback chính) để hiển thị
+        // Ưu tiên feedback có technicianId hoặc partId
+        const mainFeedback = feedbacksList.find((f: any) => f.technicianId || f.partId) || feedbacksList[0] || null
+        setExistingFeedback(mainFeedback)
+        
+        // Set initial values for editing
+        if (mainFeedback) {
+          setRating(mainFeedback.rating || mainFeedback.technicianRating || 0)
+          setComment(mainFeedback.comment || '')
+        } else {
+          setRating(0)
+          setComment('')
+        }
+      } catch (err: any) {
         // Nếu chưa có feedback thì set null
-        setExistingFeedback(null)
+        if (err.response?.status === 404) {
+          setFeedbacks([])
+          setExistingFeedback(null)
+        } else {
+          console.error('Error loading feedback:', err)
+          setFeedbacks([])
+          setExistingFeedback(null)
+        }
       }
     } catch (error) {
       console.error('Error loading feedback:', error)
@@ -893,8 +925,9 @@ export default function BookingHistoryCard({
         </div>
       )}
 
-      {/* Feedback Section - Hiển thị khi booking status là PAID */}
-      {isExpanded && (booking.status || '').toUpperCase() === 'PAID' && (
+      {/* Feedback Section - Hiển thị khi booking status là PAID hoặc COMPLETED */}
+      {/* Tạm thời ẩn form đánh giá - sẽ làm sau */}
+      {false && isExpanded && ((booking.status || '').toUpperCase() === 'PAID' || (booking.status || '').toUpperCase() === 'COMPLETED') && (
         <div style={{
           marginTop: '16px',
           padding: '16px',
@@ -909,12 +942,12 @@ export default function BookingHistoryCard({
             gap: '8px',
             marginBottom: '12px'
           }}>
-            <MessageSquare size={18} color="#10B981" />
+            <MessageSquare size={18} color="#FBBF24" />
             <p style={{
               fontSize: '14px',
-              color: '#111827',
+              color: '#FBBF24',
               margin: 0,
-              fontWeight: 400
+              fontWeight: 300
             }}>Đánh giá dịch vụ</p>
           </div>
 
@@ -922,122 +955,208 @@ export default function BookingHistoryCard({
             <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
               Đang tải...
             </div>
-          ) : existingFeedback ? (
-            // Hiển thị feedback đã gửi
+          ) : (
             <div style={{
               padding: '16px',
               background: '#ffffff',
               borderRadius: '8px',
               border: '1px solid #e5e7eb'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', gap: '4px' }}>
+              {/* Star Rating */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
+                    <button
                       key={star}
-                      size={16}
-                      fill={star <= (existingFeedback.rating || existingFeedback.technicianRating || 0) ? '#FFD875' : 'none'}
-                      color={star <= (existingFeedback.rating || existingFeedback.technicianRating || 0) ? '#FFD875' : '#d1d5db'}
-                    />
+                      type="button"
+                      onClick={() => setRating(star)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <Star
+                        size={20}
+                        fill={star <= rating ? '#FFD875' : 'none'}
+                        color={star <= rating ? '#FFD875' : '#d1d5db'}
+                      />
+                    </button>
                   ))}
+                  {rating > 0 && (
+                    <span style={{ fontSize: '13px', color: '#6b7280', marginLeft: '8px', fontWeight: 300 }}>
+                      Đã đánh giá
+                    </span>
+                  )}
                 </div>
-                <span style={{ fontSize: '14px', color: '#6b7280' }}>
-                  Đã đánh giá
-                </span>
               </div>
-              {existingFeedback.comment && (
-                <p style={{
-                  fontSize: '14px',
-                  color: '#374151',
-                  margin: 0,
-                  lineHeight: '1.6'
-                }}>
-                  {existingFeedback.comment}
-                </p>
-              )}
-            </div>
-          ) : (
-            // Hiển thị nút để gửi feedback
-            <div>
-              <p style={{
-                fontSize: '13px',
-                color: '#6b7280',
-                margin: '0 0 12px 0'
-              }}>
-                Chia sẻ trải nghiệm của bạn về dịch vụ này
-              </p>
+
+              {/* Comment Input */}
+              <div style={{ marginBottom: '12px' }}>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Chia sẻ trải nghiệm của bạn về dịch vụ này..."
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Submit Button */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowFeedbackModal(true)
+                onClick={async () => {
+                  if (rating === 0) {
+                    toast.error('Vui lòng chọn số sao đánh giá')
+                    return
+                  }
+
+                  try {
+                    setIsSubmittingFeedback(true)
+                    
+                    // Luôn load lại bookingDetail để đảm bảo có dữ liệu mới nhất
+                    let latestBookingDetail = bookingDetail
+                    try {
+                      const detail = await BookingService.getBookingDetail(booking.bookingId)
+                      if (detail?.success && detail?.data) {
+                        latestBookingDetail = detail.data
+                        setBookingDetail(detail.data)
+                        console.log('✅ Loaded bookingDetail:', {
+                          bookingId: booking.bookingId,
+                          technicianId: detail.data.technicianId,
+                          technicianName: (detail.data as any).technicianName,
+                          status: detail.data.status
+                        })
+                      }
+                    } catch (err) {
+                      console.warn('⚠️ Không thể load booking detail:', err)
+                      // Nếu không load được, vẫn tiếp tục với bookingDetail cũ
+                    }
+                    
+                    // Kiểm tra status - backend cho phép PAID hoặc COMPLETED
+                    const currentStatus = (booking.status || '').toUpperCase()
+                    const bookingDetailStatus = latestBookingDetail?.status ? (latestBookingDetail.status as string).toUpperCase() : currentStatus
+                    const finalStatus = bookingDetailStatus || currentStatus
+                    
+                    // Backend cho phép feedback khi status là PAID hoặc COMPLETED
+                    if (finalStatus !== 'PAID' && finalStatus !== 'COMPLETED') {
+                      toast.error('Chỉ được đánh giá sau khi booking đã thanh toán hoặc hoàn thành')
+                      return
+                    }
+                    
+                    // Tìm technicianId từ nhiều nguồn
+                    // BookingDetail có technicianId trực tiếp (theo response JSON)
+                    let technicianId = 0
+                    if (latestBookingDetail) {
+                      // Ưu tiên lấy từ latestBookingDetail.technicianId (theo interface BookingDetail và response JSON)
+                      technicianId = latestBookingDetail.technicianId 
+                        || (latestBookingDetail as any)?.technicianInfo?.technicianId 
+                        || (latestBookingDetail as any)?.technician?.technicianId
+                        || (latestBookingDetail as any)?.technician?.id
+                        || 0
+                      
+                      console.log('🔍 Tìm technicianId:', {
+                        fromTechnicianId: latestBookingDetail.technicianId,
+                        fromTechnicianInfo: (latestBookingDetail as any)?.technicianInfo?.technicianId,
+                        fromTechnician: (latestBookingDetail as any)?.technician?.technicianId,
+                        finalTechnicianId: technicianId,
+                        latestBookingDetail: latestBookingDetail
+                      })
+                    }
+                    
+                    // Nếu vẫn không có, thử lấy từ booking object
+                    if (!technicianId) {
+                      technicianId = (booking as any)?.technicianId || 0
+                      console.log('🔍 Tìm technicianId từ booking object:', technicianId)
+                    }
+                    
+                    // Nếu vẫn không có technicianId, báo lỗi rõ ràng
+                    if (!technicianId) {
+                      console.error('❌ Không tìm thấy technicianId:', {
+                        bookingId: booking.bookingId,
+                        latestBookingDetail,
+                        booking
+                      })
+                      toast.error('Không tìm thấy thông tin kỹ thuật viên. Vui lòng thử lại sau.')
+                      return
+                    }
+
+                    if (existingFeedback && existingFeedback.feedbackId) {
+                      // Update existing feedback - không cần technicianId
+                      await feedbackService.updateFeedback(existingFeedback.feedbackId, {
+                        technicianRating: rating,
+                        partsRating: 0,
+                        comment: comment || '',
+                        tags: []
+                      })
+                      toast.success('Đánh giá đã được cập nhật thành công!')
+                    } else {
+                      // Create new feedback
+                      if (!user) {
+                        toast.error('Vui lòng đăng nhập để đánh giá')
+                        return
+                      }
+                      
+                      // Nếu không có technicianId, không gửi technicianId (để null/undefined)
+                      // Backend sẽ xử lý trường hợp không có technicianId
+                      const feedbackPayload: any = {
+                        customerId: user.id || user.customerId || 0,
+                        rating: rating,
+                        comment: comment || '',
+                        isAnonymous: false
+                      }
+                      
+                      // Chỉ thêm technicianId nếu có giá trị hợp lệ (> 0)
+                      if (technicianId && technicianId > 0) {
+                        feedbackPayload.technicianId = technicianId
+                      } else {
+                        console.warn('⚠️ Không tìm thấy technicianId cho booking:', booking.bookingId, {
+                          latestBookingDetail,
+                          booking
+                        })
+                        // Không thêm technicianId vào payload nếu không có
+                      }
+                      
+                      await feedbackService.submitBookingFeedback(String(booking.bookingId), feedbackPayload)
+                      toast.success('Đánh giá đã được gửi thành công!')
+                    }
+
+                    // Reload feedback
+                    await loadFeedbackAndBookingDetail()
+                  } catch (error: any) {
+                    toast.error(error?.message || 'Không thể gửi đánh giá')
+                  } finally {
+                    setIsSubmittingFeedback(false)
+                  }
                 }}
+                disabled={isSubmittingFeedback || rating === 0}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  background: '#10B981',
-                  border: '1px solid #10B981',
-                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  background: isSubmittingFeedback || rating === 0 ? '#d1d5db' : '#10B981',
                   color: '#fff',
-                  fontSize: '14px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
                   fontWeight: 400,
-                  cursor: 'pointer',
+                  cursor: isSubmittingFeedback || rating === 0 ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#059669'
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#10B981'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
               >
-                <Star size={16} fill="#fff" color="#fff" />
-                Đánh giá dịch vụ
+                {isSubmittingFeedback ? 'Đang gửi...' : (existingFeedback ? 'Cập nhật đánh giá' : 'Gửi đánh giá')}
               </button>
             </div>
           )}
         </div>
-      )}
-
-      {/* Feedback Modal */}
-      {showFeedbackModal && bookingDetail && user && (
-        <FeedbackModal
-          isOpen={showFeedbackModal}
-          onClose={() => setShowFeedbackModal(false)}
-          bookingId={String(booking.bookingId)}
-          serviceName={bookingDetail.serviceInfo?.serviceName || booking.serviceName || 'Dịch vụ'}
-          technician={bookingDetail.technicianInfo?.technicianName || 'Kỹ thuật viên'}
-          partsUsed={parts.map(p => p.partName)}
-          onSubmit={async (feedback) => {
-            try {
-              // Gọi API submit feedback
-              const technicianId = bookingDetail.technicianInfo?.technicianId || 0
-              if (!technicianId) {
-                toast.error('Không tìm thấy thông tin kỹ thuật viên')
-                return
-              }
-
-              await feedbackService.submitBookingFeedback(String(booking.bookingId), {
-                customerId: user.id || user.customerId || 0,
-                rating: feedback.technicianRating,
-                comment: feedback.comment,
-                isAnonymous: false,
-                technicianId: technicianId
-              })
-
-              toast.success('Đánh giá đã được gửi thành công!')
-              setShowFeedbackModal(false)
-              // Reload feedback
-              await loadFeedbackAndBookingDetail()
-            } catch (error: any) {
-              toast.error(error?.message || 'Không thể gửi đánh giá')
-              throw error
-            }
-          }}
-        />
       )}
 
 
@@ -1092,6 +1211,11 @@ export default function BookingHistoryCard({
         .booking-status-badge.status-checked-in {
           background-color: #ccfbf1;
           color: #0f766e;
+        }
+
+        .booking-status-badge.status-in-progress {
+          background-color: #fef3c7;
+          color: #92400e;
         }
 
         .booking-status-badge.status-default {

@@ -4,6 +4,8 @@ import { CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { removeFromCart } from '@/store/cartSlice'
+import { WorkOrderPartService, WorkOrderPartItem } from '@/services/workOrderPartService'
+import { PromotionBookingService, BookingPromotionInfo } from '@/services/promotionBookingService'
 import './PaymentSuccess.scss'
 
 interface PaymentResult {
@@ -28,6 +30,7 @@ interface PaymentResult {
       totalPrice: number
     }>
   }
+  parts?: WorkOrderPartItem[]
 }
 
 export default function PaymentSuccess() {
@@ -38,6 +41,8 @@ export default function PaymentSuccess() {
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [parts, setParts] = useState<WorkOrderPartItem[]>([])
+  const [promotions, setPromotions] = useState<BookingPromotionInfo[]>([])
   
   useEffect(() => {
     const handlePaymentResult = async () => {
@@ -119,11 +124,35 @@ export default function PaymentSuccess() {
         const data = await response.json()
 
         if (data.success) {
+          const bookingIdNum = parseInt(bookingId || orderId || '0')
           setPaymentResult({
-            bookingId: parseInt(bookingId || orderId || '0'),
+            bookingId: bookingIdNum,
             status: status || 'success',
             bookingInfo: data.data
           })
+
+          // Load phụ tùng phát sinh và mã khuyến mãi nếu là booking (không phải order)
+          if (type !== 'order' && bookingIdNum) {
+            try {
+              // Load phụ tùng phát sinh
+              const partsData = await WorkOrderPartService.list(bookingIdNum)
+              // Chỉ lấy phụ tùng đã được approve (CONSUMED) để tính vào tổng tiền
+              const consumedParts = partsData.filter(p => (p.status || '').toUpperCase() === 'CONSUMED')
+              setParts(consumedParts)
+            } catch (partsError) {
+              console.warn('Không thể tải phụ tùng phát sinh:', partsError)
+              setParts([])
+            }
+
+            try {
+              // Load mã khuyến mãi đã áp dụng
+              const promotionsData = await PromotionBookingService.getBookingPromotions(bookingIdNum)
+              setPromotions(promotionsData || [])
+            } catch (promoError) {
+              console.warn('Không thể tải mã khuyến mãi:', promoError)
+              setPromotions([])
+            }
+          }
 
           // Xóa sản phẩm đã thanh toán khỏi giỏ hàng khi thanh toán thành công
           if (type === 'order' && orderId && status === 'success') {
@@ -314,7 +343,18 @@ export default function PaymentSuccess() {
                 <div className="info-item">
                   <label className="label">Tổng tiền</label>
                   <p className="value highlight">
-                    {paymentResult.bookingInfo.totalAmount.toLocaleString('vi-VN')} VNĐ
+                    {(() => {
+                      // Tính tổng tiền từ services
+                      const servicesTotal = (paymentResult.bookingInfo.services || []).reduce((sum, s) => sum + (s.totalPrice || 0), 0)
+                      // Tính tổng tiền từ phụ tùng đã approve (CONSUMED)
+                      const partsTotal = parts.filter(p => (p.status || '').toUpperCase() === 'CONSUMED')
+                        .reduce((sum, p) => sum + (p.unitPrice || 0) * (p.quantity || 0), 0)
+                      // Tính tổng giảm giá từ mã khuyến mãi
+                      const discountTotal = promotions.reduce((sum, promo) => sum + (promo.discountAmount || 0), 0)
+                      // Tổng = services + parts - discount
+                      const total = servicesTotal + partsTotal - discountTotal
+                      return total.toLocaleString('vi-VN')
+                    })()} VNĐ
                   </p>
                 </div>
               </div>
@@ -336,6 +376,92 @@ export default function PaymentSuccess() {
                   ))}
                 </div>
               </div>
+
+              {/* Parts (Phụ tùng phát sinh) */}
+              {parts.length > 0 && (
+                <div className="services-section" style={{ marginTop: 24 }}>
+                  <h3 className="services-title">Phụ tùng phát sinh</h3>
+                  <div className="space-y-2">
+                    {parts.filter(p => (p.status || '').toUpperCase() === 'CONSUMED').map((part, index) => (
+                      <div key={index} className="service-item">
+                        <div className="service-info">
+                          <p className="service-name">{part.partName || `Phụ tùng #${part.partId}`}</p>
+                          <p className="service-quantity">Số lượng: {part.quantity} × {part.unitPrice?.toLocaleString('vi-VN') || 0} VNĐ</p>
+                        </div>
+                        <p className="service-price">
+                          {((part.unitPrice || 0) * (part.quantity || 0)).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Promotion (Mã khuyến mãi) */}
+              {promotions.length > 0 && (
+                <div className="services-section" style={{ marginTop: 24 }}>
+                  <h3 className="services-title">Mã khuyến mãi đã áp dụng</h3>
+                  <div className="space-y-2">
+                    {promotions.map((promo, index) => (
+                      <div key={index} className="service-item" style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, padding: '12px' }}>
+                        <div className="service-info">
+                          <p className="service-name" style={{ fontWeight: 600, color: '#065F46' }}>Mã: {promo.code}</p>
+                          {promo.description && (
+                            <p className="service-quantity" style={{ fontSize: 12, color: '#047857' }}>{promo.description}</p>
+                          )}
+                        </div>
+                        <p className="service-price" style={{ color: '#059669', fontWeight: 600 }}>
+                          -{promo.discountAmount.toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tổng kết chi tiết */}
+              {((parts.length > 0 && parts.filter(p => (p.status || '').toUpperCase() === 'CONSUMED').length > 0) || promotions.length > 0) && (
+                <div className="services-section" style={{ marginTop: 24, padding: '16px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                  <h3 className="services-title" style={{ marginBottom: 12 }}>Chi tiết thanh toán</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span style={{ color: '#6B7280' }}>Tổng dịch vụ:</span>
+                      <span style={{ fontWeight: 500 }}>
+                        {(paymentResult.bookingInfo.services || []).reduce((sum, s) => sum + (s.totalPrice || 0), 0).toLocaleString('vi-VN')} VNĐ
+                      </span>
+                    </div>
+                    {parts.filter(p => (p.status || '').toUpperCase() === 'CONSUMED').length > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                        <span style={{ color: '#6B7280' }}>Tổng phụ tùng:</span>
+                        <span style={{ fontWeight: 500 }}>
+                          {parts.filter(p => (p.status || '').toUpperCase() === 'CONSUMED')
+                            .reduce((sum, p) => sum + (p.unitPrice || 0) * (p.quantity || 0), 0).toLocaleString('vi-VN')} VNĐ
+                        </span>
+                      </div>
+                    )}
+                    {promotions.length > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                        <span style={{ color: '#6B7280' }}>Giảm giá (mã khuyến mãi):</span>
+                        <span style={{ fontWeight: 500, color: '#059669' }}>
+                          -{promotions.reduce((sum, promo) => sum + (promo.discountAmount || 0), 0).toLocaleString('vi-VN')} VNĐ
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 600, marginTop: 8, paddingTop: 8, borderTop: '1px solid #E5E7EB' }}>
+                      <span>Tổng cộng:</span>
+                      <span style={{ color: '#059669' }}>
+                        {(() => {
+                          const servicesTotal = (paymentResult.bookingInfo.services || []).reduce((sum, s) => sum + (s.totalPrice || 0), 0)
+                          const partsTotal = parts.filter(p => (p.status || '').toUpperCase() === 'CONSUMED')
+                            .reduce((sum, p) => sum + (p.unitPrice || 0) * (p.quantity || 0), 0)
+                          const discountTotal = promotions.reduce((sum, promo) => sum + (promo.discountAmount || 0), 0)
+                          return (servicesTotal + partsTotal - discountTotal).toLocaleString('vi-VN')
+                        })()} VNĐ
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -15,6 +15,7 @@ import InventoryPage from '@/components/staff/InventoryPage'
 import AppointmentManagement from '@/components/staff/AppointmentManagement'
 import ServiceOrdersPage from '@/components/staff/ServiceOrdersPage'
 import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
+import CreateBookingPage from '@/components/staff/CreateBookingPage'
 import './staff.scss'
 import PartsApproval from '@/components/booking/PartsApproval'
 import { WorkOrderPartService } from '@/services/workOrderPartService'
@@ -58,6 +59,8 @@ export default function StaffDashboard() {
         return <InventoryPage />
       case 'technician-schedule':
         return <TechnicianSchedulePage />
+      case 'create-booking':
+        return <CreateBookingPage />
       case 'work-queue':
         return <WorkQueue mode="staff" />
       default:
@@ -103,8 +106,8 @@ export default function StaffDashboard() {
             <Menu size={20} />
           </button>
           <h1 style={{
-            fontSize: '20px',
-            fontWeight: '600',
+            fontSize: '14px',
+            fontWeight: '300',
             color: 'var(--text-primary)',
             margin: 0
           }}>
@@ -133,14 +136,14 @@ export default function StaffDashboard() {
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontSize: '14px',
-              fontWeight: '600'
+              fontSize: '12px',
+              fontWeight: '300'
             }}>
               S
             </div>
             <span style={{
-              fontSize: '14px',
-              fontWeight: '500',
+              fontSize: '12px',
+              fontWeight: '300',
               color: 'var(--text-primary)'
             }}>
               Staff User
@@ -187,15 +190,15 @@ export default function StaffDashboard() {
             {!sidebarCollapsed && (
               <div>
                 <h1 style={{
-                  fontSize: '20px',
-                  fontWeight: '700',
+                  fontSize: '14px',
+                  fontWeight: '300',
                   color: 'var(--text-primary)',
                   margin: '0'
                 }}>
                   Staff Panel
                 </h1>
                 <p style={{
-                  fontSize: '12px',
+                  fontSize: '11px',
                   color: 'var(--text-secondary)',
                   margin: '0'
                 }}>
@@ -209,8 +212,8 @@ export default function StaffDashboard() {
           <nav>
             <div style={{ marginBottom: '24px' }}>
               <h3 style={{
-                fontSize: '12px',
-                fontWeight: '600',
+                fontSize: '10px',
+                fontWeight: '300',
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
@@ -229,9 +232,10 @@ export default function StaffDashboard() {
                   cursor: 'pointer',
                   color: activePage === 'work-queue' ? 'var(--primary-500)' : 'var(--text-secondary)',
                   background: activePage === 'work-queue' ? 'var(--primary-50)' : 'transparent',
-                  fontWeight: '500',
+                  fontWeight: '300',
                   marginBottom: '4px',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  fontSize: '12px'
                 }}
                 onMouseEnter={(e) => {
                   if (activePage !== 'work-queue') {
@@ -253,8 +257,8 @@ export default function StaffDashboard() {
 
             <div style={{ marginBottom: '24px' }}>
               <h3 style={{
-                fontSize: '12px',
-                fontWeight: '600',
+                fontSize: '10px',
+                fontWeight: '300',
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
@@ -265,7 +269,8 @@ export default function StaffDashboard() {
               </h3>
               {[
                 { icon: Calendar, label: 'Lịch hẹn', page: 'appointments' },
-                { icon: Package, label: 'Quản lý kho', page: 'inventory' }
+                { icon: Package, label: 'Quản lý kho', page: 'inventory' },
+                { icon: ClipboardList, label: 'Tạo booking', page: 'create-booking' }
               ].map((item, index) => (
                 <div
                   key={index}
@@ -279,7 +284,9 @@ export default function StaffDashboard() {
                     color: activePage === item.page ? 'var(--primary-500)' : 'var(--text-secondary)',
                     background: activePage === item.page ? 'var(--primary-50)' : 'transparent',
                     transition: 'all 0.2s ease',
-                    marginBottom: '4px'
+                    marginBottom: '4px',
+                    fontSize: '12px',
+                    fontWeight: '300'
                   }}
                   onMouseEnter={(e) => {
                     if (activePage !== item.page) {
@@ -311,7 +318,9 @@ export default function StaffDashboard() {
                   color: activePage === 'technician-schedule' ? 'var(--primary-500)' : 'var(--text-secondary)',
                   background: activePage === 'technician-schedule' ? 'var(--primary-50)' : 'transparent',
                   transition: 'all 0.2s ease',
-                  marginBottom: '4px'
+                  marginBottom: '4px',
+                  fontSize: '12px',
+                  fontWeight: '300'
                 }}
                 onMouseEnter={(e) => {
                   if (activePage !== 'technician-schedule') {
@@ -382,7 +391,7 @@ export default function StaffDashboard() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <ClipboardList size={18} />
-              <strong>Phê duyệt phụ tùng nhanh (hỗ trợ khách)</strong>
+              <span style={{ fontSize: '13px', fontWeight: '300' }}>Phê duyệt phụ tùng nhanh (hỗ trợ khách)</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               <input
@@ -453,7 +462,7 @@ export default function StaffDashboard() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <ClipboardList size={18} />
-              <strong>Tạo thanh toán cho khách (nhập Booking ID)</strong>
+              <span style={{ fontSize: '13px', fontWeight: '300' }}>Tạo thanh toán cho khách (nhập Booking ID)</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               <input

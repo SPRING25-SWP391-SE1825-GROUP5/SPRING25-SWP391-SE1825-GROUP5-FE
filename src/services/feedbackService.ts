@@ -113,7 +113,7 @@ class FeedbackService {
     rating: number
     comment: string
     isAnonymous: boolean
-    technicianId: number
+    technicianId?: number  // Optional - chỉ gửi nếu có
     partId?: number
   }): Promise<FeedbackResponse> {
     try {

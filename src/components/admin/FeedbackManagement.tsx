@@ -454,6 +454,7 @@ export default function FeedbackManagement() {
                     <th style={{ width: '60px' }}>ID</th>
                     <th style={{ width: '200px' }}>Khách hàng</th>
                     <th style={{ width: '120px' }}>Đánh giá</th>
+                    <th style={{ width: '120px' }}>Nguồn</th>
                     <th style={{ width: '150px' }}>Phụ tùng</th>
                     <th style={{ width: '150px' }}>Kỹ thuật viên</th>
                     <th>Bình luận</th>
@@ -482,6 +483,51 @@ export default function FeedbackManagement() {
                           {renderStars(feedback.rating)}
                           <span style={{ marginLeft: '4px', fontWeight: 500 }}>{feedback.rating}</span>
                         </div>
+                      </td>
+                      <td>
+                        {feedback.bookingId ? (
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            padding: '4px 8px',
+                            background: '#EFF6FF',
+                            color: '#3B82F6',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 500
+                          }}>
+                            <Calendar size={12} />
+                            Booking #{feedback.bookingId}
+                          </span>
+                        ) : feedback.orderId ? (
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            padding: '4px 8px',
+                            background: '#F0FDF4',
+                            color: '#10B981',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 500
+                          }}>
+                            Order #{feedback.orderId}
+                          </span>
+                        ) : (
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            padding: '4px 8px',
+                            background: '#F9FAFB',
+                            color: '#6B7280',
+                            borderRadius: '6px',
+                            fontSize: '12px'
+                          }}>
+                            Công khai
+                          </span>
+                        )}
                       </td>
                       <td>
                         {feedback.partName ? (
