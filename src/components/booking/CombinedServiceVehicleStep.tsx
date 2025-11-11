@@ -1101,7 +1101,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 </div>
               )}
 
-              <h4 className="csv-subtitle">Gói dịch vụ</h4>
+              {/* Phần gói dịch vụ đã bị ẩn */}
+              {/* <h4 className="csv-subtitle">Gói dịch vụ</h4>
               {packagesLoading && <div>Đang tải gói dịch vụ...</div>}
               {!packagesLoading && packages.length === 0 && (
                 <div style={{ padding: '1rem', color: 'var(--csv-muted)', textAlign: 'center' }}>
@@ -1143,7 +1144,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                     )
                   })}
                 </div>
-              )}
+              )} */}
               <div className="form-group">
                 <label>{selectedCategory?.categoryName?.toLowerCase().includes('sửa chữa') ? 'Tình trạng xe / ghi chú' : 'Ghi chú thêm'}</label>
                 <textarea

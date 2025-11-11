@@ -71,7 +71,8 @@ const ServiceSelectionStep: React.FC<ServiceSelectionStepProps> = ({ data, onUpd
       <h2>Chọn dịch vụ</h2>
       <div className="tabs">
         <button type="button" className={`tab ${tab==='services' ? 'active' : ''}`} onClick={() => setTab('services')}>Dịch vụ</button>
-        <button type="button" className={`tab ${tab==='packages' ? 'active' : ''}`} onClick={() => setTab('packages')}>Gói dịch vụ</button>
+        {/* Tab gói dịch vụ đã bị ẩn */}
+        {/* <button type="button" className={`tab ${tab==='packages' ? 'active' : ''}`} onClick={() => setTab('packages')}>Gói dịch vụ</button> */}
       </div>
       <form onSubmit={handleSubmit}>
         {loading ? (
@@ -93,7 +94,8 @@ const ServiceSelectionStep: React.FC<ServiceSelectionStepProps> = ({ data, onUpd
                 ))}
               </div>
             )}
-            {tab === 'packages' && (
+            {/* Phần hiển thị gói dịch vụ đã bị ẩn */}
+            {/* {tab === 'packages' && (
               <div className="service-list">
                 {packages.map(p => {
                   const priceText = (typeof p.price === 'number' ? p.price : Number(p.price || 0))
@@ -117,7 +119,7 @@ const ServiceSelectionStep: React.FC<ServiceSelectionStepProps> = ({ data, onUpd
                   )
                 })}
               </div>
-            )}
+            )} */}
           </>
         )}
         <div className="form-group">

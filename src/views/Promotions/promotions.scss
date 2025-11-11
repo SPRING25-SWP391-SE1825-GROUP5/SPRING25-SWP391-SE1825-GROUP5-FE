@@ -1,0 +1,785 @@
+// Promotions Page Styles - Modern & Elegant Design
+// Thiết kế hiện đại với màu sắc nhẹ nhàng, không quá chói
+
+.promotions-page {
+  // Background gradient nhẹ nhàng
+  background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 50%, #ffffff 100%);
+  min-height: calc(100vh - 64px);
+  font-family: var(--font-family-primary);
+  margin-top: 64px;
+  padding: 0;
+
+  &__container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
+
+    @media (max-width: 768px) {
+      padding: 24px 16px 40px;
+    }
+  }
+
+  // Breadcrumb
+  &__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+    font-size: 14px;
+    color: #64748b;
+
+    a {
+      color: #64748b;
+      text-decoration: none;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: var(--primary-600);
+      }
+    }
+
+    span {
+      color: #cbd5e1;
+
+      &.active {
+        color: #1e293b;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Header Section
+  &__header {
+    text-align: center;
+    margin-bottom: 32px;
+
+    &-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, rgba(255, 216, 117, 0.15) 0%, rgba(255, 216, 117, 0.25) 100%);
+      border: 1px solid rgba(255, 216, 117, 0.3);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary-600);
+      margin: 0 auto 16px;
+      box-shadow: 0 2px 8px rgba(255, 216, 117, 0.1);
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 4px 12px rgba(255, 216, 117, 0.2);
+      }
+    }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0 0 12px 0;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #1e293b 0%, var(--primary-600) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+
+      @media (max-width: 768px) {
+        font-size: 28px;
+      }
+    }
+
+    p {
+      font-size: 16px;
+      color: #64748b;
+      margin: 0;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+
+      @media (max-width: 768px) {
+        font-size: 14px;
+      }
+    }
+  }
+
+  // Category Info Banner
+  &__category-banner {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 28px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+    &-icon {
+      background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(255, 216, 117, 0.25);
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0 0 6px 0;
+    }
+
+    p {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0;
+    }
+  }
+
+  // Filter Tabs
+  &__filters {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 32px;
+
+    &-container {
+      display: flex;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+      @media (max-width: 640px) {
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 4px;
+      }
+    }
+
+    &-button {
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+
+      @media (max-width: 640px) {
+        padding: 8px 14px;
+        font-size: 12px;
+      }
+
+      // Shimmer effect on hover
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        transition: left 0.5s;
+      }
+
+      &:hover::before {
+        left: 100%;
+      }
+
+      &:hover {
+        background: rgba(255, 216, 117, 0.1);
+        color: var(--primary-700);
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        background: linear-gradient(135deg, rgba(255, 216, 117, 0.2) 0%, rgba(255, 216, 117, 0.3) 100%);
+        color: var(--primary-700);
+        border: 1px solid rgba(255, 216, 117, 0.4);
+        box-shadow: 0 2px 8px rgba(255, 216, 117, 0.2);
+        transform: translateY(-1px);
+      }
+
+      &-badge {
+        background: rgba(255, 216, 117, 0.15);
+        color: var(--primary-700);
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        min-width: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+
+        .active & {
+          background: rgba(184, 134, 11, 0.2);
+          color: var(--primary-800);
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+
+  // Promotions Grid - 5 columns trên màn hình lớn
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 641px) and (max-width: 960px) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    @media (min-width: 961px) and (max-width: 1280px) {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    @media (min-width: 1281px) and (max-width: 1600px) {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+
+    @media (min-width: 1601px) {
+      grid-template-columns: repeat(5, 1fr);
+      gap: 20px;
+    }
+  }
+
+  // Promotion Card
+  &__card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    // Glassmorphism border effect
+    background: linear-gradient(#ffffff, #ffffff) padding-box,
+                linear-gradient(135deg, rgba(255, 216, 117, 0.2), rgba(255, 216, 117, 0.05)) border-box;
+    border: 1px solid transparent;
+
+    // Animated border glow
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 16px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255, 216, 117, 0.4), rgba(255, 216, 117, 0.1), rgba(255, 216, 117, 0.4));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: -1;
+    }
+
+    &:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 12px 32px rgba(255, 216, 117, 0.2), 0 0 0 1px rgba(255, 216, 117, 0.3);
+
+      &::before {
+        opacity: 1;
+        animation: borderGlow 2s ease-in-out infinite;
+      }
+    }
+
+    // Card Header với gradient nhẹ và animated background
+    &-header {
+      width: 100%;
+      height: 90px;
+      background: linear-gradient(135deg, rgba(255, 216, 117, 0.08) 0%, rgba(255, 216, 117, 0.12) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      border-bottom: 1px solid #e2e8f0;
+      overflow: hidden;
+
+      @media (min-width: 1601px) {
+        height: 85px;
+      }
+
+      // Animated background pattern
+      &::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 216, 117, 0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        animation: patternMove 10s linear infinite;
+      }
+
+      .promotions-page__card:hover &::after {
+        opacity: 1;
+      }
+
+      // Icon trong header với pulse animation
+      > div:first-of-type {
+        color: var(--primary-600);
+        opacity: 0.7;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        svg {
+          width: 40px !important;
+          height: 40px !important;
+
+          @media (min-width: 1601px) {
+            width: 36px !important;
+            height: 36px !important;
+          }
+        }
+
+        // Pulse ring effect
+        &::before {
+          content: '';
+          position: absolute;
+          inset: -8px;
+          border-radius: 50%;
+          border: 2px solid rgba(255, 216, 117, 0.3);
+          opacity: 0;
+          transform: scale(0.8);
+          transition: all 0.4s ease;
+        }
+
+        .promotions-page__card:hover & {
+          opacity: 1;
+          transform: scale(1.15) rotate(5deg);
+
+          &::before {
+            opacity: 1;
+            transform: scale(1.4);
+            animation: pulseRing 1.5s ease-out infinite;
+          }
+        }
+      }
+    }
+
+    // Badge trên card với glassmorphism
+    &-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--primary-700);
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid rgba(255, 216, 117, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      z-index: 2;
+
+      // Shine effect
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        transition: left 0.6s;
+      }
+
+      .promotions-page__card:hover & {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+        &::before {
+          left: 100%;
+        }
+      }
+
+      &--percent {
+        border-color: rgba(16, 185, 129, 0.3);
+        color: #059669;
+        background: rgba(255, 255, 255, 0.95);
+      }
+
+      &--fixed {
+        border-color: rgba(59, 130, 246, 0.3);
+        color: #2563eb;
+        background: rgba(255, 255, 255, 0.95);
+      }
+
+      &--shipping {
+        border-color: rgba(139, 92, 246, 0.3);
+        color: #7c3aed;
+        background: rgba(255, 255, 255, 0.95);
+      }
+    }
+
+    // Card Body
+    &-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      @media (min-width: 1601px) {
+        padding: 14px;
+        gap: 8px;
+      }
+    }
+
+    // Card Title
+    &-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      transition: color 0.3s ease;
+
+      @media (min-width: 1601px) {
+        font-size: 15px;
+      }
+
+      .promotions-page__card:hover & {
+        color: var(--primary-700);
+      }
+    }
+
+    // Code Badge
+    &-code {
+      font-size: 13px;
+      color: var(--primary-700);
+      font-family: var(--font-family-mono);
+      margin: 0;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(255, 216, 117, 0.08);
+      border-radius: 8px;
+      transition: all 0.3s ease;
+
+      svg {
+        width: 13px;
+        height: 13px;
+        transition: transform 0.3s ease;
+      }
+
+      .promotions-page__card:hover & {
+        background: rgba(255, 216, 117, 0.15);
+        transform: translateX(2px);
+
+        svg {
+          transform: rotate(10deg);
+        }
+      }
+    }
+
+    // Description
+    &-description {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.6;
+      margin: 0;
+      flex: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    // Info Boxes
+    &-info-row {
+      display: flex;
+      gap: 8px;
+      margin: 0;
+      flex-wrap: wrap;
+    }
+
+    &-info-box {
+      background: rgba(255, 216, 117, 0.08);
+      border: 1px solid rgba(255, 216, 117, 0.2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      transition: all 0.3s ease;
+
+      svg {
+        width: 13px;
+        height: 13px;
+        color: var(--primary-700);
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
+      }
+
+      span {
+        font-size: 11px;
+        color: var(--primary-700);
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .promotions-page__card:hover & {
+        background: rgba(255, 216, 117, 0.12);
+        transform: translateY(-1px);
+
+        svg {
+          transform: scale(1.1);
+        }
+      }
+
+      &--highlight {
+        background: linear-gradient(135deg, rgba(255, 216, 117, 0.15) 0%, rgba(255, 216, 117, 0.25) 100%);
+        border-color: rgba(255, 216, 117, 0.4);
+        box-shadow: 0 2px 6px rgba(255, 216, 117, 0.15);
+        position: relative;
+        overflow: hidden;
+
+        // Animated gradient background
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+          transition: left 0.6s;
+        }
+
+        .promotions-page__card:hover & {
+          box-shadow: 0 4px 10px rgba(255, 216, 117, 0.25);
+
+          &::before {
+            left: 100%;
+          }
+        }
+      }
+    }
+
+    // Date Range Box
+    &-date-box {
+      background: rgba(241, 245, 249, 0.8);
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 0;
+      transition: all 0.3s ease;
+
+      .promotions-page__card:hover & {
+        background: rgba(248, 250, 252, 0.9);
+        border-color: rgba(255, 216, 117, 0.3);
+      }
+
+      &-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+
+        svg {
+          width: 12px;
+          height: 12px;
+          color: #64748b;
+          transition: transform 0.3s ease;
+        }
+
+        span {
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+        }
+
+        .promotions-page__card:hover & svg {
+          transform: rotate(15deg);
+        }
+      }
+
+      &-dates {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      &-date-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: translateX(2px);
+        }
+
+        span:first-child {
+          font-size: 10px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        span:last-child {
+          font-size: 11px;
+          color: #1e293b;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  // Loading State
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    font-size: 18px;
+    color: #64748b;
+  }
+
+  // Error State
+  &__error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    font-size: 18px;
+    color: #ef4444;
+    text-align: center;
+  }
+
+  // Empty State
+  &__empty {
+    text-align: center;
+    padding: 64px 24px;
+    color: #64748b;
+
+    svg {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      opacity: 0.5;
+    }
+
+    h3 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0 0 8px 0;
+    }
+
+    p {
+      font-size: 16px;
+      margin: 0;
+    }
+  }
+}
+
+// Animations
+@keyframes borderGlow {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes patternMove {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(20px, 20px);
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+// Stagger animation for cards on load
+.promotions-page__grid {
+  .promotions-page__card {
+    animation: fadeInUp 0.5s ease-out backwards;
+
+    @for $i from 1 through 12 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{$i * 0.05}s;
+      }
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
