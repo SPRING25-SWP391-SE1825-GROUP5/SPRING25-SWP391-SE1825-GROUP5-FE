@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ServiceManagementService, type Service as BackendService } from '@/services/serviceManagementService'
+import { ServiceManagementService, type Service as BackendService, type Service } from '@/services/serviceManagementService'
 import type { ServicePackage } from '@/services/serviceManagementService'
 import { CustomerService } from '@/services/customerService'
 import { VehicleService, type Vehicle } from '@/services/vehicleService'
@@ -8,6 +8,7 @@ import api from '@/services/api'
 import { ServiceCategoryService, type ServiceCategory } from '@/services/serviceCategoryService'
 import { ServiceChecklistTemplateService, type ServiceChecklistTemplate } from '@/services/serviceChecklistTemplateService'
 import { vehicleModelService, type VehicleModelResponse } from '@/services/vehicleModelManagement'
+import ServiceDetailModal from '@/components/common/ServiceDetailModal'
 // Ảnh dự phòng nếu không có ảnh model trong public/vehicle-models
 import fallbackVehicleImg from '@/assets/images/dich-vu-sua-chua-chung-vinfast_0.webp'
 
@@ -117,6 +118,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [selectedServiceDetail, setSelectedServiceDetail] = useState<ServiceChecklistTemplate | null>(null)
+  // Modal chi tiết dịch vụ (có checklist)
+  const [isServiceDetailOpen, setIsServiceDetailOpen] = useState(false)
+  const [detailService, setDetailService] = useState<Service | null>(null)
+  const [loadingDetailService, setLoadingDetailService] = useState(false)
   // Ràng buộc nhập liệu cho Km gần đây
   const [recentMileageError, setRecentMileageError] = useState<string | null>(null)
   
@@ -746,7 +751,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       onUpdateVehicle({ recentMileage: val })
                     } else {
                       setRecentMileageError(null)
-                      onUpdateVehicle({ recentMileage: val })
+                      onUpdateVehicle({ recentMileage: val, mileage: val })
                     }
                   } else {
                     // Nếu không phải số hợp lệ nhưng vẫn có giá trị (ví dụ: đang nhập)
@@ -763,6 +768,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                   const num = Number(val)
                   if (val && !isNaN(num) && num < base) {
                     setRecentMileageError(`Số Km gần đây không được nhỏ hơn Số Km hiện tại (${base.toLocaleString()} km).`)
+                  } else if (val && !isNaN(num) && num >= base) {
+                    onUpdateVehicle({ mileage: val })
                   }
                 }}
                 min={Number(vehicleData.mileage || 0)}
@@ -976,14 +983,27 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                     </div>
                   ) : (
                     services.map(service => (
-                      <label key={service.id} className="service-item">
-                        <input
-                          type="checkbox"
-                          checked={serviceData.services[0] === String(service.id)}
-                          onChange={() => handleServiceToggle(String(service.id))}
-                        />
-                        <span>{service.name}</span>
-                      </label>
+                      <div key={service.id} className="service-item-wrapper">
+                        <label className="service-item">
+                          <input
+                            type="checkbox"
+                            checked={serviceData.services[0] === String(service.id)}
+                            onChange={() => handleServiceToggle(String(service.id))}
+                          />
+                          <span>{service.name}</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setDetailService(service as Service)
+                            setIsServiceDetailOpen(true)
+                          }}
+                          className="service-detail-btn"
+                          disabled={loadingDetailService}
+                        >
+                          Xem chi tiết
+                        </button>
+                      </div>
                     ))
                   )}
                 </div>
@@ -1044,21 +1064,50 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                                 <div className="recommendation-summary">
                                   {template.minKm && (
                                     <span className="summary-item">
-                                      📏 {template.minKm.toLocaleString()} km
+                                      Số Km tối thiểu: {template.minKm.toLocaleString()} km
                                     </span>
                                   )}
                                   {template.maxDate && (
                                     <span className="summary-item">
-                                      📅 {template.maxDate} ngày
+                                     Ngày tối đa: {template.maxDate} ngày
                                     </span>
                                   )}
                                 </div>
+                              {/* Cảnh báo mềm nếu backend trả về */}
+                              {Array.isArray(template.warnings) && template.warnings.length > 0 && (
+                                <div className="recommendation-warnings">
+                                  {template.warnings.map((warning, warningIndex) => (
+                                    <div key={warningIndex} className="warning-item">
+                                      ⚠️ {warning}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {template.recommendationReason && (
+                                <div className="recommendation-reason">
+                                  {template.recommendationReason}
+                                </div>
+                              )}
                                 
                                 <div className="recommended-service-actions">
                                   <button
                                     type="button"
                                     className="btn-toggle-details"
-                                    onClick={() => setSelectedServiceDetail(template)}
+                                    onClick={async () => {
+                                      const svcId = Number(template.serviceId)
+                                      if (!svcId || isNaN(svcId)) return
+                                      setLoadingDetailService(true)
+                                      try {
+                                        // Ưu tiên lấy từ danh sách services đã load
+                                        const svc = services.find(s => s.id === svcId) || await ServiceManagementService.getServiceById(svcId)
+                                        setDetailService(svc as Service)
+                                        setIsServiceDetailOpen(true)
+                                      } catch {
+                                        setDetailService(null)
+                                      } finally {
+                                        setLoadingDetailService(false)
+                                      }
+                                    }}
                                   >
                                     Xem chi tiết
                                   </button>
@@ -1092,9 +1141,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                     <h4 className="csv-subtitle">💡 Để nhận gợi ý dịch vụ phù hợp</h4>
                     <p>Vui lòng nhập đầy đủ thông tin xe bên dưới:</p>
                     <ul>
-                      <li>✅ Số km đã đi</li>
-                      <li>✅ Trả lời câu hỏi "Bạn đã bảo dưỡng chưa?"</li>
-                      <li>✅ {vehicleData.hasMaintenanceHistory === true ? 'Ngày bảo dưỡng cuối' : vehicleData.hasMaintenanceHistory === false ? 'Ngày mua xe' : 'Ngày bảo dưỡng cuối hoặc ngày mua xe'}</li>
+                      <li>Số km đã đi</li>
+                      <li>Trả lời câu hỏi "Bạn đã bảo dưỡng chưa?"</li>
+                      <li>{vehicleData.hasMaintenanceHistory === true ? 'Ngày bảo dưỡng cuối' : vehicleData.hasMaintenanceHistory === false ? 'Ngày mua xe' : 'Ngày bảo dưỡng cuối hoặc ngày mua xe'}</li>
                     </ul>
                     <p>Sau đó hệ thống sẽ gợi ý các dịch vụ phù hợp nhất với tình trạng xe của bạn.</p>
                   </div>
@@ -1292,6 +1341,16 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         </div>
       )}
 
+      {/* Modal chi tiết dịch vụ (hiển thị checklist) */}
+      <ServiceDetailModal
+        isOpen={isServiceDetailOpen}
+        onClose={() => {
+          setIsServiceDetailOpen(false)
+          setDetailService(null)
+        }}
+        service={detailService}
+      />
+
       <style>{`
         :root {
           --csv-surface: #ffffff;
@@ -1325,7 +1384,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .card:hover { box-shadow: 0 22px 48px rgba(0, 0, 0, 0.18); transform: translateY(-1px); border-color: rgba(255,255,255,0.6); }
         .csv-section-title { margin: 0 0 .75rem 0; font-size: 1.1rem; font-weight: 700; color: var(--csv-text); }
         .csv-subtitle { margin: .5rem 0 .5rem; font-size: .95rem; font-weight: 700; color: var(--csv-muted); }
-        .service-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin-bottom: 1rem; }
+        .service-list { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1rem; }
+        .service-item-wrapper { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+        .service-item-wrapper .service-item { flex: 0 0 auto; }
         .pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: .5rem; }
         .category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
         .category-card { display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-primary); border-radius: 12px; padding: .5rem; background: #fff; }
@@ -1337,6 +1398,28 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .service-item:hover span { box-shadow: 0 2px 6px rgba(0,0,0,.06); }
         .service-item input:checked + span { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
         .service-item input:focus-visible + span { outline: 2px solid var(--progress-current); outline-offset: 2px; }
+        .service-detail-btn {
+          background: #f0f9ff;
+          color: #0ea5e9;
+          border: 1px solid #bae6fd;
+          border-radius: 6px;
+          padding: 0.35rem 0.7rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        .service-detail-btn:hover:not(:disabled) {
+          background: #e0f2fe;
+          border-color: #38bdf8;
+          color: #0284c7;
+          transform: translateY(-1px);
+        }
+        .service-detail-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
         .pkg-card { 
           background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
           border: 1px solid var(--border-primary);
@@ -1385,26 +1468,26 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .instruction-content li { margin: 0.25rem 0; font-size: 0.9rem; }
         
         /* Recommendation Styles */
-        .recommendation-section { margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; }
-        .recommendation-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-        .btn-recommend { background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
-        .btn-recommend:hover:not(:disabled) { background: #0284c7; transform: translateY(-1px); }
-        .btn-recommend:disabled { opacity: 0.6; cursor: not-allowed; }
+        .recommendation-section { margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; }
+        .recommendation-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap; }
+        .btn-recommend { background: var(--progress-current, #1ec774); color: #ffffff; border: none; border-radius: 8px; padding: 0.5rem 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 6px 16px rgba(30, 199, 116, 0.18); }
+        .btn-recommend:hover:not(:disabled) { background: #16a34a; transform: translateY(-1px); box-shadow: 0 10px 24px rgba(22, 163, 74, 0.25); }
+        .btn-recommend:disabled { background: #e7f8ef; color: #047857; cursor: not-allowed; box-shadow: none; opacity: 0.8; }
         .recommendation-results { margin-top: 1rem; }
         .no-recommendations { text-align: center; padding: 1rem; color: var(--csv-muted); }
         .recommended-services { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-        .recommended-service-card { background: white; border: 1px solid #e0f2fe; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.08); transition: all 0.3s ease; }
-        .recommended-service-card.selected-service { border: 2px solid var(--csv-primary); box-shadow: 0 4px 12px rgba(30, 199, 116, 0.2); background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); }
-        .recommendation-badge { position: absolute; top: -6px; right: 8px; background: #0ea5e9; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; }
-        .recommendation-badge.selected-badge { background: var(--csv-primary); box-shadow: 0 2px 8px rgba(30, 199, 116, 0.3); }
+        .recommended-service-card { background: #ffffff; border: 1px solid rgba(16, 185, 129, 0.18); border-radius: 10px; padding: 0.85rem; position: relative; box-shadow: 0 4px 14px rgba(15, 118, 110, 0.1); transition: all 0.3s ease; }
+        .recommended-service-card.selected-service { border: 2px solid var(--progress-current, #1ec774); box-shadow: 0 6px 20px rgba(30, 199, 116, 0.24); background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); }
+        .recommendation-badge { position: absolute; top: -6px; right: 8px; background: rgba(16, 185, 129, 0.85); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px; }
+        .recommendation-badge.selected-badge { background: var(--progress-current, #1ec774); box-shadow: 0 2px 8px rgba(30, 199, 116, 0.35); }
         .recommended-service-content h5 { margin: 0 0 0.25rem 0; color: var(--csv-text); font-size: 0.875rem; font-weight: 700; line-height: 1.2; }
         .template-name { margin: 0 0 0.5rem 0; color: var(--csv-primary); font-weight: 600; font-size: 0.8rem; line-height: 1.2; }
         .recommended-service-header { margin-bottom: 0.5rem; }
         .recommendation-summary { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-        .summary-item { background: #f0f9ff; color: #0369a1; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; }
+        .summary-item { background: #ecfdf5; color: #047857; padding: 0.25rem 0.45rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.2); }
         .recommended-service-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-        .btn-toggle-details { background: #f0f9ff; color: #0ea5e9; border: 1px solid #bae6fd; border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; }
-        .btn-toggle-details:hover { background: #e0f2fe; border-color: #0ea5e9; }
+        .btn-toggle-details { background: #ecfdf5; color: #047857; border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; }
+        .btn-toggle-details:hover { background: #d1fae5; border-color: rgba(16, 185, 129, 0.45); }
         .btn-select-recommended { background: var(--csv-primary); color: white; border: none; border-radius: 6px; padding: 0.4rem 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; font-size: 0.75rem; }
         .btn-select-recommended:hover { background: #16a34a; transform: translateY(-1px); }
         .btn-select-recommended.selected-btn { background: #16a34a; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3); cursor: default; }
@@ -1437,9 +1520,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-modal-primary { background: var(--csv-primary); color: white; border: none; border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
         .btn-modal-primary:hover { background: #16a34a; transform: translateY(-1px); }
         .recommendation-message { margin: 0 0 1rem 0; color: var(--csv-text); font-size: 0.9rem; line-height: 1.4; }
-        .recommendation-warnings { margin: 0.5rem 0; padding: 0.5rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; }
-        .warning-item { margin: 0.2rem 0; font-size: 0.7rem; line-height: 1.3; color: #92400e; }
-        .recommendation-reason { margin: 0.5rem 0; padding: 0.5rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; font-size: 0.7rem; line-height: 1.3; color: #0369a1; }
+        .recommendation-warnings { margin: 0.5rem 0; padding: 0.6rem 0.75rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; }
+        .warning-item { margin: 0.2rem 0; font-size: 0.75rem; line-height: 1.3; color: #92400e; font-weight: 600; }
+        .recommendation-reason { margin: 0.5rem 0; padding: 0.6rem 0.75rem; background: #ecfdf5; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; font-size: 0.75rem; line-height: 1.35; color: #047857; font-weight: 600; }
         
         @media (max-width: 768px) {
           .recommended-services { grid-template-columns: 1fr; }

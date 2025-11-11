@@ -452,8 +452,21 @@ export class ServiceChecklistTemplateService {
             // Lấy items cho từng template (parallel requests)
             const templatesWithItems = await Promise.all(
                 templates.map(async (template) => {
+                    const rawTemplateId =
+                        template.templateId ??
+                        (template as any).templateID ??
+                        (template as any).TemplateID ??
+                        (template as any).TemplateId ??
+                        (template as any).templateID
+                    const templateId = rawTemplateId !== undefined && rawTemplateId !== null ? Number(rawTemplateId) : undefined
+                    if (!templateId || Number.isNaN(templateId)) {
+                        return {
+                            ...template,
+                            items: []
+                        }
+                    }
                     try {
-                        const items = await this.getTemplateItems(template.templateId)
+                        const items = await this.getTemplateItems(templateId)
                         return {
                             ...template,
                             items: items || []
