@@ -24,7 +24,6 @@ type Props = {
 export default function ServicesListTable({ services, sortBy, sortOrder, onSort, onView, onEdit }: Props) {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   useEffect(() => {
-    // reset selection when list changes
     setSelectedIds([])
   }, [services])
   const allSelected = services.length > 0 && selectedIds.length === services.length

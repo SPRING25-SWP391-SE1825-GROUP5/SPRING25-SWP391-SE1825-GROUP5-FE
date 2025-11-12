@@ -446,9 +446,9 @@ export default function PromotionManagement() {
                     <th>
                       <span className="th-inner"><Tag size={16} className="th-icon" /> Mô tả</span>
             </th>
-                    <th className="sortable" onClick={() => handleSort('discountValue')}>
-                      <span className="th-inner sortable">
-                        <DollarSign size={16} className="th-icon" /> Giá trị giảm {getSortIcon('discountValue')}
+                    <th>
+                      <span className="th-inner">
+                        <DollarSign size={16} className="th-icon" /> Giá trị giảm
                       </span>
             </th>
                     <th>
@@ -481,9 +481,6 @@ export default function PromotionManagement() {
                       <td>
                         <div className="promotion-code-cell">
                           <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${p.code}`} checked={selectedPromotionIds.includes(p.promotionId)} onChange={(e)=>handleToggleOne(p.promotionId, e.target.checked)} onClick={(e)=>e.stopPropagation()} />
-                          <div className="promotion-code-cell__avatar users-avatar users-avatar--fallback">
-                            {p.code ? p.code.charAt(0).toUpperCase() : 'P'}
-                  </div>
                           <span
                             className="promotion-code-cell__text"
                             onClick={(e) => {

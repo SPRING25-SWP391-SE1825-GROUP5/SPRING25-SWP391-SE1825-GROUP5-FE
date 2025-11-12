@@ -152,7 +152,6 @@
   }
 }
 
-// Form input fields styles - đổi từ đen sang xám
 .promotion-form-modal__overlay {
   input[type="text"],
   input[type="number"],
@@ -180,7 +179,6 @@
     }
   }
 
-  // Error state styles - override default styles
   &__input--error,
   input.promotion-form-modal__input--error,
   textarea.promotion-form-modal__input--error,

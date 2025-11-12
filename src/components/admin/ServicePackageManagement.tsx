@@ -163,7 +163,6 @@ export default function ServicePackageManagement() {
       const response = await ServiceManagementService.getServices({ pageSize: 1000 })
       setServices(response.services)
     } catch (err: any) {
-      // Error handled by state
     }
   }
 
@@ -171,7 +170,6 @@ export default function ServicePackageManagement() {
     try {
       setLoadingStats(true)
 
-      // Use the new getPackageStats method
       const packageStats = await ServiceManagementService.getPackageStats()
 
       setStats({
@@ -181,7 +179,6 @@ export default function ServicePackageManagement() {
         totalRevenue: packageStats.totalRevenue
       })
     } catch (err: any) {
-      // Fallback to manual calculation
       try {
         const allPackagesResponse = await ServiceManagementService.getServicePackages({ pageNumber: 1, pageSize: 1000 })
         const allPackages = allPackagesResponse?.packages || []
@@ -198,7 +195,6 @@ export default function ServicePackageManagement() {
           totalRevenue
         })
       } catch (fallbackErr: any) {
-        // Fallback calculation failed
       }
     } finally {
       setLoadingStats(false)
@@ -210,23 +206,19 @@ export default function ServicePackageManagement() {
       setLoading(true)
       setError(null)
 
-      // Fetch all packages first (without pagination)
       const params: ServicePackageListParams = { pageNumber: 1, pageSize: 1000 }
       if (searchTerm) params.searchTerm = searchTerm
       if (serviceId) params.serviceId = serviceId
 
-      // Get all packages (both active and inactive)
       const response = await ServiceManagementService.getServicePackages(params)
 
       let allPackages = response?.packages || []
 
-      // Apply status filter
       if (packageStatus !== 'all') {
         const isActive = packageStatus === 'active'
         allPackages = allPackages.filter(pkg => pkg.isActive === isActive)
       }
 
-      // Apply sorting to all packages
       if (allPackages.length > 0) {
         allPackages = allPackages.sort((a, b) => {
           let aValue: any, bValue: any;
@@ -259,12 +251,10 @@ export default function ServicePackageManagement() {
         });
       }
 
-      // Calculate total pages
       const calculatedTotalPages = Math.ceil(allPackages.length / pageSize);
       setTotalPages(calculatedTotalPages);
       setTotalCount(allPackages.length);
 
-      // Apply pagination to sorted results
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedPackages = allPackages.slice(startIndex, endIndex);
@@ -321,7 +311,6 @@ export default function ServicePackageManagement() {
     try {
       setFormSubmitting(true)
       setFormError(null)
-      // Placeholder – real form removed
       setFormOpen(false)
       await fetchPackages()
       await fetchStats()
@@ -340,7 +329,6 @@ export default function ServicePackageManagement() {
     try {
       setDeletingPackageId(packageId)
       await ServiceManagementService.deleteServicePackage(packageId)
-      // Success handled by UI state
       await fetchPackages()
       await fetchStats()
     } catch (err: any) {

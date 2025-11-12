@@ -409,6 +409,12 @@ export const BookingService = {
     return response.data
   },
 
+  // Lấy danh sách booking đã check-in
+  async getCheckedInBookings(): Promise<{ success: boolean; message?: string; data: Array<{ bookingId: number; customerName: string; vehiclePlate: string; serviceName: string; checkedInAt: string; status: string }> }> {
+    const response = await api.get('/Booking/checked-in')
+    return response.data
+  },
+
   // Lấy chi tiết booking
   async getBookingDetail(bookingId: number): Promise<BookingDetailResponse> {
     const response = await api.get(`/Booking/${bookingId}`)

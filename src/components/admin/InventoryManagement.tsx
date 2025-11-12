@@ -31,21 +31,17 @@ export default function InventoryManagement() {
   const [inventories, setInventories] = useState<InventoryListItem[]>([]);
   const [centers, setCenters] = useState<Center[]>([]);
   const [loading, setLoading] = useState(false);
-  // const [loadingCenters, setLoadingCenters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Selection state
   const [selectedInventoryIds, setSelectedInventoryIds] = useState<number[]>([]);
-  // Custom dropdown state
   const [openCenterMenu, setOpenCenterMenu] = useState(false);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
   const centerRef = useRef<HTMLDivElement | null>(null);
   const pageSizeRef = useRef<HTMLDivElement | null>(null);
-  // const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -56,7 +52,6 @@ export default function InventoryManagement() {
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Force page background to white
   useEffect(() => {
     const previousBg = document.body.style.background;
     document.body.style.background = '#fff';
@@ -71,7 +66,6 @@ export default function InventoryManagement() {
     fetchCenters();
   }, []);
 
-  // Keep selections in sync
   useEffect(() => {
     const visibleIds = inventories.map(i => i.inventoryId);
     setSelectedInventoryIds(prev => prev.filter(id => visibleIds.includes(id)));
@@ -84,7 +78,6 @@ export default function InventoryManagement() {
         setCenters(response.centers);
       }
     } catch {
-      // ignore
     }
   };
 
@@ -161,7 +154,6 @@ export default function InventoryManagement() {
 
   const handleManageParts = async (inventory: InventoryListItem) => {
     try {
-      // Fetch full inventory details with parts
       const response = await InventoryService.getInventoryById(inventory.inventoryId);
       if (response.success) {
         setSelectedInventory({
@@ -180,8 +172,6 @@ export default function InventoryManagement() {
     setSelectedInventory(null);
     fetchInventories();
   };
-
-  // removed export and last-updated formatting
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
@@ -215,7 +205,6 @@ export default function InventoryManagement() {
     return pages;
   };
 
-  // Apply client-side sorting
   const sortedInventories = [...inventories].sort((a: InventoryListItem, b: InventoryListItem) => {
     let aValue: number | string;
     let bValue: number | string;
@@ -369,17 +358,16 @@ export default function InventoryManagement() {
                         <Package size={16} className="th-icon" /> ID Kho
                       </span>
                     </th>
-                    <th className="sortable" onClick={() => handleSort('centerName')}>
-                      <span className="th-inner sortable">
-                        <Warehouse size={16} className="th-icon" /> Trung tâm {getSortIcon('centerName')}
+                    <th>
+                      <span className="th-inner">
+                        <Warehouse size={16} className="th-icon" /> Trung tâm
                       </span>
                     </th>
-                    <th className="sortable" onClick={() => handleSort('partsCount')}>
-                      <span className="th-inner sortable">
-                        <Package size={16} className="th-icon" /> Số lượng phụ tùng {getSortIcon('partsCount')}
+                    <th>
+                      <span className="th-inner">
+                        <Package size={16} className="th-icon" /> Số lượng phụ tùng
                       </span>
                     </th>
-                    {/* removed 'Cập nhật lần cuối' column */}
                     <th>
                       <span className="th-inner"><Settings size={16} className="th-icon" /> Thao tác</span>
                     </th>
@@ -402,9 +390,6 @@ export default function InventoryManagement() {
                             onChange={(e) => handleToggleOne(inventory.inventoryId, e.target.checked)}
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <div className="inventory-id-cell__avatar users-avatar users-avatar--fallback">
-                            {inventory.inventoryId}
-                          </div>
                           <span className="inventory-id-cell__text">#{inventory.inventoryId}</span>
                         </div>
                       </td>
@@ -414,7 +399,6 @@ export default function InventoryManagement() {
                       <td className="text-secondary">
                         {inventory.partsCount}
                       </td>
-                      {/* removed lastUpdated cell */}
                       <td>
                         <div className="inventory-actions">
                           <button
