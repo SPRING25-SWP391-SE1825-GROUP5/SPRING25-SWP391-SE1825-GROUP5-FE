@@ -57,9 +57,8 @@ export default function PromotionManagement() {
     inactive: 0,
     expired: 0,
   });
-  // Selection state
   const [selectedPromotionIds, setSelectedPromotionIds] = useState<number[]>([]);
-  // Custom dropdown state
+  
   const [openStatusMenu, setOpenStatusMenu] = useState(false);
   const [openTypeMenu, setOpenTypeMenu] = useState(false);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
@@ -78,7 +77,6 @@ export default function PromotionManagement() {
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Force page background to white
   useEffect(() => {
     const previousBg = document.body.style.background;
     document.body.style.background = '#fff';
@@ -93,7 +91,6 @@ export default function PromotionManagement() {
     fetchStats();
   }, []);
 
-  // Keep selections in sync
   useEffect(() => {
     const visibleIds = promotions.map(p => p.promotionId);
     setSelectedPromotionIds(prev => prev.filter(id => visibleIds.includes(id)));
@@ -124,7 +121,6 @@ export default function PromotionManagement() {
 
       let promotionsList = result.data || [];
 
-      // Client-side sorting
       if (promotionsList.length > 0) {
         promotionsList = promotionsList.sort((a, b) => {
           let aValue: any, bValue: any;
@@ -182,7 +178,6 @@ export default function PromotionManagement() {
         expired: allPromotions.filter((p) => p.status === 'EXPIRED' || p.isExpired).length,
       });
     } catch (err) {
-
     }
   };
 
@@ -275,7 +270,6 @@ export default function PromotionManagement() {
       window.URL.revokeObjectURL(url);
       toast.success('Xuất danh sách khuyến mãi thành công!');
     } catch (err: any) {
-
       const errorMessage = err?.response?.data?.message || err?.message || 'Không thể xuất danh sách khuyến mãi';
       toast.error(errorMessage);
     } finally {
@@ -326,7 +320,6 @@ export default function PromotionManagement() {
 
   return (
     <div className="admin-promotions">
-      {/* Header */}
       <div className="promotion-header">
           <div>
           <h2 className="promotion-header__title">
@@ -338,11 +331,9 @@ export default function PromotionManagement() {
           </div>
         </div>
 
-      {/* Toolbar */}
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            {/* removed view mode buttons */}
             <div className="toolbar-sep" />
             </div>
           <div className="toolbar-right">
@@ -357,7 +348,6 @@ export default function PromotionManagement() {
                 </div>
             </div>
             <div className="toolbar-actions">
-              {/* removed hide/customize buttons */}
               <button
                 type="button"
                 className="accent-button toolbar-adduser"
@@ -409,7 +399,6 @@ export default function PromotionManagement() {
         </div>
         </div>
 
-      {/* Promotions List */}
       <div className="promotion-table-container">
         {loading ? (
           <div className="promotion-loading">
@@ -446,9 +435,9 @@ export default function PromotionManagement() {
                     <th>
                       <span className="th-inner"><Tag size={16} className="th-icon" /> Mô tả</span>
             </th>
-                    <th>
-                      <span className="th-inner">
-                        <DollarSign size={16} className="th-icon" /> Giá trị giảm
+                    <th className="sortable" onClick={() => handleSort('discountValue')}>
+                      <span className="th-inner sortable">
+                        <DollarSign size={16} className="th-icon" /> Giá trị giảm {getSortIcon('discountValue')}
                       </span>
             </th>
                     <th>
@@ -552,7 +541,6 @@ export default function PromotionManagement() {
         )}
           </div>
 
-      {/* Pagination */}
       <div className="promotion-pagination">
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
@@ -631,7 +619,6 @@ export default function PromotionManagement() {
           </div>
         </div>
 
-      {/* View Promotion Modal */}
       {showPromotionModal && selectedPromotion && (
         <div className="promotion-modal">
           <div className="promotion-modal__content">
@@ -736,7 +723,6 @@ export default function PromotionManagement() {
                 </div>
       )}
 
-      {/* Create/Edit Modal */}
       <PromotionFormModal
         open={openCreateModal}
         onClose={() => {

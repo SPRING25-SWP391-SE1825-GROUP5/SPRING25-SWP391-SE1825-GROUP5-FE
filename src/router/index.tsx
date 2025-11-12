@@ -37,8 +37,8 @@ const Profile = lazy(() => import('@/views/Profile'))
 const Users = lazy(() => import('@/views/Users'))
 const MyVehicles = lazy(() => import('@/views/Customer/MyVehicles'))
 const MaintenanceHistory = lazy(() => import('@/views/Customer/MaintenanceHistory'))
-const StaffAppointments = lazy(() => import('@/views/Staff/Appointments'))
 const StaffTechnicianSchedule = lazy(() => import('@/components/staff/TechnicianSchedulePage'))
+const StaffQRCheckIn = lazy(() => import('@/views/Staff/QRCheckIn'))
 const StaffServiceOrders = lazy(() => import('@/views/Staff/ServiceOrders'))
 const TechnicianWorkQueue = lazy(() => import('@/views/Technician/WorkQueue'))
 const TechnicianChecklists = lazy(() => import('@/views/Technician/Checklists'))
@@ -110,7 +110,7 @@ const router = createBrowserRouter([
     element: <StaffLayout />,
     children: [
       { index: true, element: suspense(<StaffDashboard />) },
-      { path: 'appointments', element: suspense(<StaffAppointments />) },
+      { path: 'qr-checkin', element: suspense(<StaffQRCheckIn />) },
       { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
       { path: 'technician-schedule', element: suspense(<StaffTechnicianSchedule />) },
     ],

@@ -21,7 +21,6 @@ import {
   ChevronsRight,
   ToggleLeft,
   ToggleRight,
-  Circle,
   AlertCircle,
 } from 'lucide-react'
 import { ServiceChecklistTemplateService, ServiceChecklistTemplate } from '@/services/serviceChecklistTemplateService'
@@ -37,7 +36,6 @@ export default function ServiceTemplateManagement() {
   const [pageSize, setPageSize] = useState(10)
   const [totalItems, setTotalItems] = useState(0)
 
-  // Dropdown states
   const [openStatusMenu, setOpenStatusMenu] = useState(false)
   const [isPageSizeDropdownOpen, setIsPageSizeDropdownOpen] = useState(false)
   const statusRef = useRef<HTMLDivElement | null>(null)
@@ -68,7 +66,6 @@ export default function ServiceTemplateManagement() {
       const response = await ServiceChecklistTemplateService.getAllTemplates()
       let allTemplates = response.items || []
 
-      // Apply search filter
       if (searchTerm) {
         allTemplates = allTemplates.filter(t =>
           t.templateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,7 +73,6 @@ export default function ServiceTemplateManagement() {
         )
       }
 
-      // Apply status filter
       if (statusFilter !== 'all') {
         const isActive = statusFilter === 'active'
         allTemplates = allTemplates.filter(t => t.isActive === isActive)
@@ -84,7 +80,6 @@ export default function ServiceTemplateManagement() {
 
       setTotalItems(allTemplates.length)
 
-      // Apply pagination
       const startIndex = (currentPage - 1) * pageSize
       const endIndex = startIndex + pageSize
       const paginatedTemplates = allTemplates.slice(startIndex, endIndex)

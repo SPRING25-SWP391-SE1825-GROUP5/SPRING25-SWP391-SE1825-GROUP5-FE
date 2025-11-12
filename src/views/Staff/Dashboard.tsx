@@ -9,10 +9,10 @@ import {
   Menu,
   LogOut,
   BarChart3,
-  Package
+  Package,
+  QrCode
 } from 'lucide-react'
 import InventoryPage from '@/components/staff/InventoryPage'
-import AppointmentManagement from '@/components/staff/AppointmentManagement'
 import ServiceOrdersPage from '@/components/staff/ServiceOrdersPage'
 import TechnicianSchedulePage from '@/components/staff/TechnicianSchedulePage'
 import CreateBookingPage from '@/components/staff/CreateBookingPage'
@@ -25,6 +25,7 @@ import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { feedbackService } from '@/services/feedbackService'
 import logoImage from '@/assets/images/10.webp'
 import WorkQueue from '@/components/technician/WorkQueue'
+import QRCheckIn from './QRCheckIn'
 
 export default function StaffDashboard() {
   const navigate = useNavigate()
@@ -51,8 +52,8 @@ export default function StaffDashboard() {
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
-      case 'appointments':
-        return <AppointmentManagement />
+      case 'qr-checkin':
+        return <QRCheckIn />
       case 'service-orders':
         return <ServiceOrdersPage />
       case 'inventory':
@@ -268,7 +269,7 @@ export default function StaffDashboard() {
                 Quản lý
               </h3>
               {[
-                { icon: Calendar, label: 'Lịch hẹn', page: 'appointments' },
+                { icon: QrCode, label: 'Quét mã Check-in', page: 'qr-checkin' },
                 { icon: Package, label: 'Quản lý kho', page: 'inventory' },
                 { icon: ClipboardList, label: 'Tạo booking', page: 'create-booking' }
               ].map((item, index) => (

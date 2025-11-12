@@ -1,4 +1,3 @@
-// Table styles
 .inventory-table-container {
   background: var(--bg-card);
   padding: 0;
@@ -20,7 +19,6 @@
   box-shadow: none;
   border: 1px solid #e5e7eb;
 
-  // Override global users-table styles from Users.scss - với specificity cao hơn
   &.users-table {
     thead th:first-child,
     tbody td:first-child {
@@ -29,7 +27,6 @@
     }
   }
 
-  // Override global table styles from global.scss với specificity cao hơn
   thead th:first-child {
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
@@ -158,20 +155,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-
-  &__avatar {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    background: #FFD875;
-    color: #111;
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-  }
 
   &__text {
     font-weight: 500;

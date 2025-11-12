@@ -572,30 +572,6 @@ export default function BookingHistoryCard({
           )}
         </div>
 
-        {/* Special Requests */}
-        {booking.specialRequests && booking.specialRequests !== 'string' && !isExpanded && (
-          <div style={{
-            marginTop: '16px',
-            paddingTop: '16px',
-            borderTop: '1px solid #e5e7eb'
-          }}>
-            <p style={{
-              fontSize: '12px',
-              color: '#9ca3af',
-              margin: 0,
-              marginBottom: '4px'
-            }}>
-              Yêu cầu đặc biệt:
-            </p>
-            <p style={{
-              fontSize: '14px',
-              color: '#374151',
-              margin: 0
-            }}>
-              {booking.specialRequests}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Expanded Details */}
@@ -638,32 +614,6 @@ export default function BookingHistoryCard({
 
 
 
-            {/* Special Requests - Expanded */}
-            {booking.specialRequests && booking.specialRequests !== 'string' && (
-              <div>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  margin: 0,
-                  marginBottom: '6px',
-                  fontWeight: '500'
-                }}>
-                  Yêu cầu đặc biệt
-                </p>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#374151',
-                  margin: 0,
-                  lineHeight: '1.6',
-                  padding: '12px',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '6px',
-                  border: '1px solid #e5e7eb'
-                }}>
-                  {booking.specialRequests}
-                </p>
-              </div>
-            )}
 
             {/* Phụ tùng phát sinh */}
             <div style={{ marginTop: '16px' }}>

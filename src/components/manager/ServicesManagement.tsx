@@ -54,36 +54,28 @@ export default function ServicesManagement() {
   const [serviceDetailError, setServiceDetailError] = useState<string | null>(null)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
 
-  // Service form modal
   const [serviceFormOpen, setServiceFormOpen] = useState(false)
   const [editData, setEditData] = useState<Service | null>(null)
-  // Trạng thái form được quản lý trong component riêng
-  // Form state sẽ được quản lý bên trong component ServiceCreateModal
 
-  // Fetch data functions
   const fetchServices = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Fetch all services first (without pagination)
       const params: ServiceListParams = {
         pageNumber: 1,
-        pageSize: 1000, // Get all services
+        pageSize: 1000,
         search: serviceSearch
       }
 
-      // Get all services (both active and inactive)
       const response = await ServiceManagementService.getServices(params)
       let allServices = response.services || []
 
-      // Apply status filter
       if (serviceStatus !== 'all') {
         const isActive = serviceStatus === 'active'
         allServices = allServices.filter(service => service.isActive === isActive)
       }
 
-      // Apply search by name/description (client-side to đảm bảo realtime)
       if (serviceSearch.trim()) {
         const term = serviceSearch.trim().toLowerCase()
         allServices = allServices.filter(s =>
@@ -92,7 +84,6 @@ export default function ServicesManagement() {
         )
       }
 
-      // Apply price filter
       if (priceRange !== 'all') {
         allServices = allServices.filter(s => {
           const p = s.price || 0
@@ -102,7 +93,6 @@ export default function ServicesManagement() {
         })
       }
 
-      // Apply sorting to all services
       if (allServices.length > 0) {
         allServices = allServices.sort((a, b) => {
           let aValue: string | number, bValue: string | number;
@@ -131,12 +121,10 @@ export default function ServicesManagement() {
         });
       }
 
-      // Calculate total pages
       const calculatedTotalPages = Math.ceil(allServices.length / servicePageSize);
       setTotalPages(calculatedTotalPages);
       setTotalCount(allServices.length);
 
-      // Apply pagination to sorted results
       const startIndex = (servicePage - 1) * servicePageSize;
       const endIndex = startIndex + servicePageSize;
       const paginatedServices = allServices.slice(startIndex, endIndex);
@@ -511,7 +499,6 @@ export default function ServicesManagement() {
             {(() => {
               const pages = [];
 
-              // First page + static ellipsis like Users
                 pages.push(
                   <button
                     key={1}
@@ -522,7 +509,6 @@ export default function ServicesManagement() {
                     1
                   </button>
                 );
-              // Always show page 2 if exists
               if (totalPages >= 2) {
                 pages.push(
                   <button
@@ -535,12 +521,10 @@ export default function ServicesManagement() {
                   </button>
                 );
               }
-              // Static ellipsis when more than 3 pages
               if (totalPages > 3) {
                 pages.push(<span key="ellipsis-static" className="pager-ellipsis">…</span>);
               }
 
-              // Always show last page (5 in hình 1)
               if (totalPages >= 3) {
                 pages.push(
                   <button

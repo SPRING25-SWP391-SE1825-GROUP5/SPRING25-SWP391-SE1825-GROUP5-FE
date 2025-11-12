@@ -249,7 +249,6 @@ export default function InventoryManagement() {
 
   return (
     <div className="admin-inventory">
-      {/* Header */}
       <div className="inventory-header">
         <div>
           <h2 className="inventory-header__title">
@@ -261,11 +260,9 @@ export default function InventoryManagement() {
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            {/* removed view mode buttons */}
             <div className="toolbar-sep" />
           </div>
           <div className="toolbar-right">
@@ -283,7 +280,7 @@ export default function InventoryManagement() {
               </div>
             </div>
           </div>
-          <div className="toolbar-actions">{/* removed hide/customize and export */}</div>
+          <div className="toolbar-actions"></div>
         </div>
 
         <div className="toolbar-filters">
@@ -318,7 +315,6 @@ export default function InventoryManagement() {
         </div>
       </div>
 
-      {/* Inventory List */}
       <div className="inventory-table-container">
         {loading ? (
           <div className="inventory-loading">
@@ -428,7 +424,6 @@ export default function InventoryManagement() {
         )}
       </div>
 
-      {/* Pagination */}
       <div className="inventory-pagination">
         <div className="pagination-info">
           <span className="pagination-label">Hàng mỗi trang</span>
@@ -501,7 +496,6 @@ export default function InventoryManagement() {
         </div>
       </div>
 
-      {/* Parts Management Modal */}
       {selectedInventory && (
         <InventoryPartsModal
           isOpen={showPartsModal}

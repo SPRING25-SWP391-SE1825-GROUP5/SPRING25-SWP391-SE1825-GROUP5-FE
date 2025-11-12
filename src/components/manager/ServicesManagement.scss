@@ -359,7 +359,6 @@
     }
   }
 
-  // Table Container
   .table-container {
     background: var(--bg-card);
     padding: 32px;
@@ -700,17 +699,4 @@
     transform: translateY(0);
   }
 
-  .sort-icon {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  // GỠ CÁC ĐỊNH NGHĨA SPACING PILL-SELECT/PILL-TRIGGER ĐÃ KHAI BÁO Ở GLOBAL
-  // .services-management .pill-select { ... }
-  // .services-management .pill-select .pill-trigger { ... }
-  // .services-management .pill-select svg, .services-management .pill-select .icon { ... }
 }
-
-
-

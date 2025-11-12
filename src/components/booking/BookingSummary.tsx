@@ -182,11 +182,12 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
             ) : (
               <div className="summary-empty">Chưa chọn dịch vụ</div>
             )}
-            {serviceInfo?.packageId && (
+            {/* Phần hiển thị gói dịch vụ đã bị ẩn */}
+            {/* {serviceInfo?.packageId && (
               <div className="summary-package">
                 <span className="summary-badge">Gói dịch vụ</span>
               </div>
-            )}
+            )} */}
           </div>
         </div>
 

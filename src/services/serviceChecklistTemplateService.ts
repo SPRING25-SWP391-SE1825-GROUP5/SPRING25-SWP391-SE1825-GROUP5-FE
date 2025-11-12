@@ -116,7 +116,6 @@ export class ServiceChecklistTemplateService {
             const response = await api.get(`/service-templates/recommend?${queryParams.toString()}`)
             return response.data
         } catch (error: any) {
-
             throw new Error(error.response?.data?.message || 'Lỗi khi lấy danh sách dịch vụ phù hợp')
         }
     }
@@ -127,23 +126,19 @@ export class ServiceChecklistTemplateService {
     static async getAllTemplates(): Promise<{ items: ServiceChecklistTemplate[], total: number }> {
         try {
             const response = await api.get('/service-templates/all')
-            // Backend trả về: { success: true, data: templates[] }
             if (response.data && typeof response.data === 'object') {
-                // Xử lý response từ backend: { success: true, data: [...] }
                 if (response.data.success && Array.isArray(response.data.data)) {
                     return {
                         items: response.data.data,
                         total: response.data.data.length
                     }
                 }
-                // Xử lý trường hợp response.data là array trực tiếp
                 if (Array.isArray(response.data)) {
                     return {
                         items: response.data,
                         total: response.data.length
                     }
                 }
-                // Xử lý trường hợp có items property
                 if (Array.isArray(response.data.items)) {
                     return {
                         items: response.data.items,
@@ -153,35 +148,25 @@ export class ServiceChecklistTemplateService {
             }
             return { items: [], total: 0 }
         } catch (error: any) {
-            console.error('Error fetching templates:', error)
             return { items: [], total: 0 }
         }
     }
 
-    /**
-     * Lấy templates theo service ID
-     */
     static async getTemplatesByService(serviceId: number, activeOnly: boolean = true): Promise<ServiceChecklistTemplate[]> {
         try {
-
-            // Thử endpoint 1: /service-templates/templates/{serviceId} (đúng route từ controller)
             try {
                 const response = await api.get(`/service-templates/templates/${serviceId}`, {
                     params: { activeOnly }
                 })
 
-                // Backend trả về: { success: true, data: [...] }
                 if (response.data?.success) {
                     if (Array.isArray(response.data.data)) {
-
                         return response.data.data
                     } else if (response.data.data === null || response.data.data === undefined) {
-
                         return []
                     }
                 }
 
-                // Fallback: kiểm tra các format khác
                 if (Array.isArray(response.data)) {
                     return response.data
                 }
@@ -190,36 +175,26 @@ export class ServiceChecklistTemplateService {
                 }
 
                 return []
+                
             } catch (endpoint1Error: any) {
-
-                // Thử endpoint 2: /service-templates/active?serviceId={serviceId} (alternative endpoint)
                 try {
                     const response = await api.get(`/service-templates/active`, {
                         params: { serviceId, activeOnly }
                     })
 
-                    // Backend trả về: { success: true, data: [...] }
                     if (response.data?.success && Array.isArray(response.data.data)) {
-
                         return response.data.data
                     }
                 } catch (endpoint2Error: any) {
-
-                    throw endpoint1Error // Throw original error
+                    throw endpoint1Error
                 }
             }
 
-            // Fallback: Handle different response formats
             return []
         } catch (error: any) {
-
-            // Nếu là 404 hoặc không tìm thấy, trả về mảng rỗng thay vì throw error
             if (error.response?.status === 404 || error.response?.status === 400) {
-
                 return []
             }
-
-            // Với các lỗi khác, cũng trả về mảng rỗng để không block UI
 
             return []
         }
@@ -397,21 +372,14 @@ export class ServiceChecklistTemplateService {
         }
     }
 
-    /**
-     * Lấy items (parts) của template theo template ID
-     */
     static async getTemplateItems(templateId: number): Promise<ServiceChecklistTemplateItem[]> {
         try {
-
             const response = await api.get(`/service-templates/${templateId}/items`)
 
-            // Backend trả về: { success: true, data: [...] }
             if (response.data?.success && Array.isArray(response.data.data)) {
-
                 return response.data.data
             }
 
-            // Fallback: kiểm tra các format khác
             if (Array.isArray(response.data)) {
                 return response.data
             }
@@ -424,32 +392,22 @@ export class ServiceChecklistTemplateService {
 
             return []
         } catch (error: any) {
-
-            // Nếu là 404, trả về mảng rỗng (template không có items)
             if (error.response?.status === 404) {
-
                 return []
             }
-
-            // Với các lỗi khác, cũng trả về mảng rỗng để không block UI
 
             return []
         }
     }
 
-    /**
-     * Lấy templates theo service ID kèm items (parts) của mỗi template
-     */
     static async getTemplatesByServiceWithItems(serviceId: number, activeOnly: boolean = true): Promise<ServiceChecklistTemplate[]> {
         try {
-            // Lấy templates trước
             const templates = await this.getTemplatesByService(serviceId, activeOnly)
 
             if (templates.length === 0) {
                 return []
             }
 
-            // Lấy items cho từng template (parallel requests)
             const templatesWithItems = await Promise.all(
                 templates.map(async (template) => {
                     const rawTemplateId =
@@ -472,7 +430,6 @@ export class ServiceChecklistTemplateService {
                             items: items || []
                         }
                     } catch (error: any) {
-
                         return {
                             ...template,
                             items: []
@@ -483,8 +440,6 @@ export class ServiceChecklistTemplateService {
 
             return templatesWithItems
         } catch (error: any) {
-
-            // Fallback: trả về templates không có items
             return await this.getTemplatesByService(serviceId, activeOnly)
         }
     }
