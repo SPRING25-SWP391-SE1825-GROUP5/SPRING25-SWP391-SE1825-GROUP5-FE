@@ -1,21 +1,17 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { XCircle, AlertTriangle, RefreshCw, Home, CreditCard } from 'lucide-react'
-import { OrderService, CustomerService } from '@/services'
-import toast from 'react-hot-toast'
+import { XCircle, AlertTriangle, Home, CreditCard } from 'lucide-react'
 
 const PaymentCancel: React.FC = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  // Removed auto-redirect countdown
-  const [isRecreating, setIsRecreating] = useState(false)
-  
+
   const bookingId = searchParams.get('bookingId') || searchParams.get('orderCode')
   const orderId = searchParams.get('orderId') || bookingId
   const reason = searchParams.get('reason') || searchParams.get('cancelReason')
   const amount = searchParams.get('amount')
   const error = searchParams.get('error')
-  
+
   useEffect(() => {
     // No automatic redirects; user controls navigation
     return () => {}
@@ -55,13 +51,13 @@ const PaymentCancel: React.FC = () => {
         <div className="cancel-icon">
           <XCircle size={80} />
         </div>
-        
+
         {/* Cancel Message */}
         <h1 className="cancel-title">Thanh toán bị hủy</h1>
         <p className="cancel-subtitle">
           {getCancelReasonText(reason)}
         </p>
-        
+
         {/* Alert Message */}
         <div className="alert-message">
           <AlertTriangle size={20} />
@@ -74,12 +70,12 @@ const PaymentCancel: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         {/* Booking Details */}
         {orderId && (
           <div className="booking-details">
             <h2>Thông tin đặt lịch</h2>
-            
+
             <div className="detail-card">
               <div className="detail-row">
                 <CreditCard className="detail-icon" />
@@ -88,7 +84,7 @@ const PaymentCancel: React.FC = () => {
                   <span className="detail-value">#{orderId}</span>
                 </div>
               </div>
-              
+
               {amount && (
                 <div className="detail-row">
                   <div className="detail-icon">💰</div>
@@ -98,7 +94,7 @@ const PaymentCancel: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="detail-row">
                 <div className="detail-icon">⚠️</div>
                 <div className="detail-content">
@@ -109,7 +105,7 @@ const PaymentCancel: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {/* What to do next */}
         <div className="next-steps">
           <h3>Bạn có thể làm gì?</h3>
@@ -128,96 +124,10 @@ const PaymentCancel: React.FC = () => {
             </li>
           </ul>
         </div>
-        
-        {/* Support Information */}
-        <div className="support-info">
-          <h3>Hỗ trợ khách hàng</h3>
-          <div className="support-contacts">
-            <div className="contact-item">
-              <span className="contact-label">Hotline:</span>
-              <span className="contact-value">1900 1234</span>
-            </div>
-            <div className="contact-item">
-              <span className="contact-label">Email:</span>
-              <span className="contact-value">support@autoev.com</span>
-            </div>
-            <div className="contact-item">
-              <span className="contact-label">Thời gian:</span>
-              <span className="contact-value">8:00 - 22:00 (T2-CN)</span>
-            </div>
-          </div>
-        </div>
-        
+
         {/* Action Buttons */}
         <div className="action-buttons">
-          <button 
-            className="btn-secondary"
-            onClick={async () => {
-              try {
-                if (!orderId) {
-                  navigate('/cart')
-                  return
-                }
-                const idNum = Number(orderId)
-                if (Number.isNaN(idNum)) {
-                  navigate('/cart')
-                  return
-                }
-                setIsRecreating(true)
-                // Lấy danh sách items từ đơn cũ
-                const itemsResp = await OrderService.getOrderItems(idNum)
-                const rawItems = Array.isArray(itemsResp?.data) ? itemsResp.data : []
-                if (rawItems.length === 0) {
-                  toast.error('Không lấy được danh sách sản phẩm từ đơn hàng cũ')
-                  setIsRecreating(false)
-                  return
-                }
-                const items = rawItems.map((it: any) => ({
-                  partId: Number(it.partId ?? it.PartId),
-                  quantity: Number(it.quantity ?? it.Quantity ?? 1),
-                })).filter((it: any) => Number.isFinite(it.partId) && it.quantity > 0)
-
-                if (items.length === 0) {
-                  toast.error('Danh sách sản phẩm không hợp lệ để tạo đơn mới')
-                  setIsRecreating(false)
-                  return
-                }
-
-                // Lấy customerId hiện tại
-                let customerId: number | null = null
-                try {
-                  const me = await CustomerService.getCurrentCustomer()
-                  customerId = Number(me?.data?.customerId)
-                } catch {}
-                if (!customerId || Number.isNaN(customerId)) {
-                  toast.error('Vui lòng đăng nhập để tiếp tục thanh toán lại')
-                  navigate('/auth/login')
-                  setIsRecreating(false)
-                  return
-                }
-
-                // Tạo đơn hàng mới từ items cũ
-                const createResp = await OrderService.createOrder(customerId, { items })
-                if (createResp?.success) {
-                  const newId = createResp.data?.orderId ?? createResp.data?.OrderId ?? createResp.data?.id
-                  if (newId) {
-                    toast.success('Đã tạo đơn hàng mới')
-                    navigate('/confirm-order', { state: { orderId: Number(newId) }, replace: true })
-                    return
-                  }
-                }
-                toast.error(createResp?.message || 'Không thể tạo đơn hàng mới')
-              } catch (e: any) {
-                toast.error(e?.response?.data?.message || e?.message || 'Có lỗi khi tạo đơn hàng mới')
-              } finally {
-                setIsRecreating(false)
-              }
-            }}
-          >
-            <RefreshCw size={16} />
-            {isRecreating ? 'Đang xử lý...' : 'Thử lại'}
-          </button>
-          <button 
+          <button
             className="btn-primary"
             onClick={() => navigate('/')}
           >
@@ -225,10 +135,10 @@ const PaymentCancel: React.FC = () => {
             Về trang chủ
           </button>
         </div>
-        
+
         {/* Manual navigation only; removed auto-redirect message */}
       </div>
-      
+
       <style>{`
         .payment-cancel-page {
           min-height: 100vh;
@@ -238,7 +148,7 @@ const PaymentCancel: React.FC = () => {
           align-items: center;
           justify-content: center;
         }
-        
+
         .cancel-container {
           max-width: 600px;
           width: 100%;
@@ -249,34 +159,34 @@ const PaymentCancel: React.FC = () => {
           box-shadow: 0 8px 32px rgba(0,0,0,.1);
           border: 1px solid #e5e7eb;
         }
-        
+
         .cancel-icon {
           color: #ef4444;
           margin-bottom: 1.5rem;
           animation: cancelShake 0.6s ease-out;
         }
-        
+
         @keyframes cancelShake {
           0% { transform: translateX(0); }
           25% { transform: translateX(-5px); }
           75% { transform: translateX(5px); }
           100% { transform: translateX(0); }
         }
-        
+
         .cancel-title {
           font-size: 2rem;
           font-weight: 700;
           color: #1f2937;
           margin-bottom: 0.5rem;
         }
-        
+
         .cancel-subtitle {
           font-size: 1.1rem;
           color: #6b7280;
           margin-bottom: 2rem;
           line-height: 1.5;
         }
-        
+
         .alert-message {
           display: flex;
           align-items: flex-start;
@@ -288,26 +198,26 @@ const PaymentCancel: React.FC = () => {
           margin-bottom: 2rem;
           text-align: left;
         }
-        
+
         .alert-message svg {
           color: #ef4444;
           flex-shrink: 0;
           margin-top: 2px;
         }
-        
+
         .alert-content h3 {
           color: #1f2937;
           font-size: 1.1rem;
           font-weight: 600;
           margin: 0 0 0.5rem 0;
         }
-        
+
         .alert-content p {
           color: #6b7280;
           margin: 0;
           line-height: 1.5;
         }
-        
+
         .error-details {
           margin-top: 1rem;
           padding: 1rem;
@@ -315,18 +225,18 @@ const PaymentCancel: React.FC = () => {
           border: 1px solid #fecaca;
           border-radius: 8px;
         }
-        
+
         .error-details p {
           color: #dc2626;
           font-size: 14px;
           margin: 0;
         }
-        
+
         .booking-details {
           margin-bottom: 2rem;
           text-align: left;
         }
-        
+
         .booking-details h2 {
           font-size: 1.3rem;
           font-weight: 600;
@@ -334,14 +244,14 @@ const PaymentCancel: React.FC = () => {
           margin-bottom: 1rem;
           text-align: center;
         }
-        
+
         .detail-card {
           background: #f8fafc;
           border-radius: 12px;
           padding: 1.5rem;
           border: 1px solid #e2e8f0;
         }
-        
+
         .detail-row {
           display: flex;
           align-items: center;
@@ -349,44 +259,44 @@ const PaymentCancel: React.FC = () => {
           padding: 0.75rem 0;
           border-bottom: 1px solid #e2e8f0;
         }
-        
+
         .detail-row:last-child {
           border-bottom: none;
         }
-        
+
         .detail-icon {
           width: 24px;
           height: 24px;
           color: #6b7280;
           flex-shrink: 0;
         }
-        
+
         .detail-content {
           display: flex;
           justify-content: space-between;
           align-items: center;
           flex: 1;
         }
-        
+
         .detail-label {
           font-weight: 600;
           color: #6b7280;
         }
-        
+
         .detail-value {
           font-weight: 700;
           color: #1f2937;
         }
-        
+
         .status-cancelled {
           color: #ef4444;
         }
-        
+
         .next-steps {
           margin-bottom: 2rem;
           text-align: left;
         }
-        
+
         .next-steps h3 {
           font-size: 1.2rem;
           font-weight: 600;
@@ -394,13 +304,13 @@ const PaymentCancel: React.FC = () => {
           margin-bottom: 1rem;
           text-align: center;
         }
-        
+
         .next-steps ul {
           list-style: none;
           padding: 0;
           margin: 0;
         }
-        
+
         .next-steps li {
           padding: 0.75rem 0;
           color: #6b7280;
@@ -408,7 +318,7 @@ const PaymentCancel: React.FC = () => {
           padding-left: 1.5rem;
           line-height: 1.5;
         }
-        
+
         .next-steps li::before {
           content: '•';
           position: absolute;
@@ -417,56 +327,14 @@ const PaymentCancel: React.FC = () => {
           font-weight: bold;
           font-size: 1.2rem;
         }
-        
-        .support-info {
-          margin-bottom: 2rem;
-          text-align: left;
-        }
-        
-        .support-info h3 {
-          font-size: 1.2rem;
-          font-weight: 600;
-          color: #1f2937;
-          margin-bottom: 1rem;
-          text-align: center;
-        }
-        
-        .support-contacts {
-          background: #f0f9ff;
-          border-radius: 12px;
-          padding: 1.5rem;
-          border: 1px solid #bae6fd;
-        }
-        
-        .contact-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem 0;
-          border-bottom: 1px solid #bae6fd;
-        }
-        
-        .contact-item:last-child {
-          border-bottom: none;
-        }
-        
-        .contact-label {
-          font-weight: 600;
-          color: #0369a1;
-        }
-        
-        .contact-value {
-          font-weight: 700;
-          color: #1f2937;
-        }
-        
+
         .action-buttons {
           display: flex;
           gap: 12px;
           justify-content: center;
           margin-bottom: 1.5rem;
         }
-        
+
         .btn-primary, .btn-secondary {
           display: inline-flex;
           align-items: center;
@@ -479,56 +347,56 @@ const PaymentCancel: React.FC = () => {
           transition: all 0.2s ease;
           font-size: 14px;
         }
-        
+
         .btn-primary {
           background-color: #10b981;
           color: white;
         }
-        
+
         .btn-primary:hover {
           background-color: #059669;
           transform: translateY(-1px);
         }
-        
+
         .btn-secondary {
           background-color: white;
           color: #374151;
           border: 1px solid #d1d5db;
         }
-        
+
         .btn-secondary:hover {
           background-color: #f9fafb;
           border-color: #10b981;
         }
-        
+
         .redirect-info {
           padding-top: 1.5rem;
           border-top: 1px solid #e5e7eb;
         }
-        
+
         .redirect-info p {
           color: #6b7280;
           margin: 0;
           font-size: 14px;
         }
-        
+
         @media (max-width: 768px) {
           .cancel-container {
             padding: 2rem 1.5rem;
           }
-          
+
           .cancel-title {
             font-size: 1.5rem;
           }
-          
+
           .cancel-subtitle {
             font-size: 1rem;
           }
-          
+
           .action-buttons {
             flex-direction: column;
           }
-          
+
           .alert-message {
             flex-direction: column;
             text-align: center;

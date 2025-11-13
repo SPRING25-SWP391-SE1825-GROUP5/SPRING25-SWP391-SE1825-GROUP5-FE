@@ -31,6 +31,7 @@ export default function OrderConfirmationPage() {
   const [discount, setDiscount] = useState<number>(0)
   const [centers, setCenters] = useState<Center[]>([])
   const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null)
+  const [orderFulfillmentCenterId, setOrderFulfillmentCenterId] = useState<number | null>(null)
   const [inventoryByCenter, setInventoryByCenter] = useState<Map<number, Map<number, InventoryPart | null>>>(new Map())
   const [loadingCenters, setLoadingCenters] = useState(false)
   const [loadingInventory, setLoadingInventory] = useState(false)
@@ -59,8 +60,15 @@ export default function OrderConfirmationPage() {
           setLoading(false)
           return
         }
-        
+
         const o = detailResp.data as any
+
+        // Lấy FulfillmentCenterId từ order nếu có
+        const fulfillmentCenterId = o.FulfillmentCenterId ?? o.fulfillmentCenterId ?? o.FulfillmentCenterID ?? o.fulfillmentCenterID
+        if (fulfillmentCenterId) {
+          setOrderFulfillmentCenterId(Number(fulfillmentCenterId))
+          setSelectedCenterId(Number(fulfillmentCenterId))
+        }
 
         // Xử lý items: kiểm tra cả success và data structure
         let itemsRaw: any[] = []
@@ -140,19 +148,19 @@ export default function OrderConfirmationPage() {
       try {
         setLoadingInventory(true)
         console.log(`[OrderConfirmation] Loading inventory for ${centers.length} centers and ${order.items.length} parts...`)
-        
+
         // Load inventory for all centers in parallel
         const inventoryMap = new Map<number, Map<number, InventoryPart | null>>()
-        
+
         await Promise.allSettled(
           centers.map(async (center) => {
             try {
               const inventoryId = center.centerId
               const partsResponse = await InventoryService.getInventoryParts(inventoryId)
-              
+
               if (partsResponse.success && partsResponse.data) {
                 let partsArray: InventoryPart[] = []
-                
+
                 if (Array.isArray(partsResponse.data)) {
                   partsArray = partsResponse.data
                 } else if (partsResponse.data && typeof partsResponse.data === 'object') {
@@ -164,10 +172,10 @@ export default function OrderConfirmationPage() {
                     }
                   }
                 }
-                
+
                 // Tạo map cho center này: partId -> InventoryPart
                 const centerPartsMap = new Map<number, InventoryPart | null>()
-                
+
                 // Tìm tất cả parts trong order
                 order.items.forEach(item => {
                   const partId = item.partId
@@ -178,7 +186,7 @@ export default function OrderConfirmationPage() {
                     centerPartsMap.set(partId, partInInventory)
                   }
                 })
-                
+
                 inventoryMap.set(center.centerId, centerPartsMap)
               } else {
                 // Nếu không load được, set empty map
@@ -192,40 +200,40 @@ export default function OrderConfirmationPage() {
         )
 
         setInventoryByCenter(inventoryMap)
-        
+
         // Tính toán center có stock cao nhất và đủ hàng cho tất cả parts
         let bestCenterId: number | null = null
         let maxTotalStock = -1
-        
+
         inventoryMap.forEach((centerPartsMap, centerId) => {
           // Kiểm tra xem center có đủ stock cho TẤT CẢ parts không
           let hasAllParts = true
           let totalStock = 0
-          
+
           for (const item of order.items) {
             const partId = item.partId
             if (!partId) continue
-            
+
             const inventoryPart = centerPartsMap.get(partId)
             const stock = inventoryPart?.currentStock ?? 0
             const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-            
+
             // Kiểm tra xem có đủ stock cho quantity yêu cầu không
             if (isOutOfStock || stock < item.quantity) {
               hasAllParts = false
               break
             }
-            
+
             totalStock += stock
           }
-          
+
           // Chỉ xét center có đủ hàng cho tất cả parts
           if (hasAllParts && totalStock > maxTotalStock) {
             maxTotalStock = totalStock
             bestCenterId = centerId
           }
         })
-        
+
         // Chỉ set mặc định nếu có center đủ hàng
         if (bestCenterId !== null && !selectedCenterId) {
           console.log(`[OrderConfirmation] Setting default center to ${bestCenterId} (total stock: ${maxTotalStock})`)
@@ -249,24 +257,24 @@ export default function OrderConfirmationPage() {
   // Helper function: Kiểm tra center có đủ hàng cho tất cả parts không
   const isCenterAvailable = (centerId: number): boolean => {
     if (!order || order.items.length === 0) return false
-    
+
     const centerPartsMap = inventoryByCenter.get(centerId)
     if (!centerPartsMap) return false
-    
+
     for (const item of order.items) {
       const partId = item.partId
       if (!partId) continue
-      
+
       const inventoryPart = centerPartsMap.get(partId)
       const stock = inventoryPart?.currentStock ?? 0
       const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-      
+
       // Kiểm tra xem có đủ stock cho quantity yêu cầu không
       if (isOutOfStock || stock < item.quantity) {
         return false
       }
     }
-    
+
     return true
   }
 
@@ -274,7 +282,7 @@ export default function OrderConfirmationPage() {
   const getPartStockAtCenter = (centerId: number, partId: number): number => {
     const centerPartsMap = inventoryByCenter.get(centerId)
     if (!centerPartsMap) return 0
-    
+
     const inventoryPart = centerPartsMap.get(partId)
     return inventoryPart?.currentStock ?? 0
   }
@@ -307,7 +315,7 @@ export default function OrderConfirmationPage() {
       // Cập nhật order với fulfillmentCenterId trước khi thanh toán
       console.log(`[OrderConfirmation] Updating order ${id} with fulfillmentCenterId ${selectedCenterId}`)
       const updateResp = await OrderService.updateFulfillmentCenter(Number(id), selectedCenterId)
-      
+
       if (!updateResp?.success) {
         const errorMsg = updateResp?.message || 'Không thể cập nhật chi nhánh cho đơn hàng'
         console.error('OrderConfirmationPage - Failed to update fulfillment center:', { id, selectedCenterId, updateResp })
@@ -327,7 +335,7 @@ export default function OrderConfirmationPage() {
       // Gọi tạo link thanh toán PayOS
       const createResp = await OrderService.checkoutOnline(Number(id))
       console.log('OrderConfirmationPage - checkoutOnline response:', createResp)
-      
+
       let checkoutUrl = createResp?.checkoutUrl
 
       // Nếu BE trả báo đã tồn tại/không có link, thử lấy link hiện có
@@ -400,7 +408,21 @@ export default function OrderConfirmationPage() {
           {/* Center Selection */}
           {order.items && order.items.length > 0 && (
             <div className="section section--spaced">
-              <div className="section-title">Chọn chi nhánh mua hàng</div>
+              <div className="section-title">
+                {orderFulfillmentCenterId ? 'Chi nhánh mua hàng' : 'Chọn chi nhánh mua hàng'}
+              </div>
+              {orderFulfillmentCenterId && (
+                <div style={{
+                  padding: '12px',
+                  backgroundColor: '#e7f3ff',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  fontSize: '14px',
+                  color: '#0369a1'
+                }}>
+                  Chi nhánh đã được chọn ở trang chi tiết sản phẩm và không thể thay đổi.
+                </div>
+              )}
               {loadingCenters || loadingInventory ? (
                 <div style={{ padding: '20px 0', textAlign: 'center' }}>
                   <p>Đang tải thông tin chi nhánh...</p>
@@ -414,6 +436,7 @@ export default function OrderConfirmationPage() {
                     id="center-select-confirm"
                     value={selectedCenterId || ''}
                     onChange={(e) => {
+                      if (orderFulfillmentCenterId) return
                       const value = e.target.value
                       if (value) {
                         const centerId = Number(value)
@@ -427,13 +450,16 @@ export default function OrderConfirmationPage() {
                         setSelectedCenterId(null)
                       }
                     }}
+                    disabled={!!orderFulfillmentCenterId}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
                       border: '1px solid #ddd',
                       borderRadius: '8px',
                       fontSize: '14px',
-                      backgroundColor: '#fff'
+                      backgroundColor: orderFulfillmentCenterId ? '#f5f5f5' : '#fff',
+                      cursor: orderFulfillmentCenterId ? 'not-allowed' : 'pointer',
+                      opacity: orderFulfillmentCenterId ? 0.7 : 1
                     }}
                   >
                     {!selectedCenterId && (
@@ -457,7 +483,7 @@ export default function OrderConfirmationPage() {
                       )
                     })}
                   </select>
-                  
+
                   {/* Hiển thị tồn kho cho từng part */}
                   {selectedCenterId && (
                     <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
@@ -465,21 +491,21 @@ export default function OrderConfirmationPage() {
                       {order.items.map((item, idx) => {
                         const partId = item.partId
                         if (!partId) return null
-                        
+
                         const stock = getPartStockAtCenter(selectedCenterId, partId)
                         const isOutOfStock = stock === 0
                         const hasEnoughStock = stock >= item.quantity
-                        
+
                         return (
-                          <div key={idx} style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                          <div key={idx} style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             padding: '6px 0',
                             borderBottom: idx < order.items.length - 1 ? '1px solid #eee' : 'none'
                           }}>
                             <span style={{ fontSize: '14px' }}>{item.name}:</span>
-                            <span style={{ 
-                              fontSize: '14px', 
+                            <span style={{
+                              fontSize: '14px',
                               fontWeight: 600,
                               color: hasEnoughStock ? '#155724' : isOutOfStock ? '#721c24' : '#856404'
                             }}>
@@ -521,15 +547,15 @@ export default function OrderConfirmationPage() {
           </div>
 
           <div className="actions">
-            <button 
-              className="btn-primary" 
-              onClick={goToPayment} 
+            <button
+              className="btn-primary"
+              onClick={goToPayment}
               disabled={loading || !hasAvailableCenter() || !selectedCenterId || !isCenterAvailable(selectedCenterId)}
             >
-              {!hasAvailableCenter() 
-                ? 'Không có chi nhánh nào còn hàng' 
-                : !selectedCenterId 
-                  ? 'Vui lòng chọn chi nhánh' 
+              {!hasAvailableCenter()
+                ? 'Không có chi nhánh nào còn hàng'
+                : !selectedCenterId
+                  ? 'Vui lòng chọn chi nhánh'
                   : !isCenterAvailable(selectedCenterId)
                     ? 'Chi nhánh đã chọn không còn đủ hàng'
                     : 'Xác nhận và tiếp tục thanh toán'
