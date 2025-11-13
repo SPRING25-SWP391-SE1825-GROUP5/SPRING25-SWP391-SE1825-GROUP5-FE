@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { Calendar as CalendarIcon } from 'lucide-react'
+import { DayPicker } from 'react-day-picker'
+import 'react-day-picker/dist/style.css'
+import { format as formatDate, parseISO, isBefore, isAfter } from 'date-fns'
 import { TechnicianTimeSlotService } from '@/services/technicianTimeSlotService'
 import { TechnicianService, TimeSlotService } from '@/services/technicianService'
 import { CenterService } from '@/services/centerService'
 import { StaffService } from '@/services/staffService'
+import AvailableDatePicker from './AvailableDatePicker'
 
 type FormState = {
   mode: 'ngay' | 'tuan'
@@ -42,11 +47,12 @@ export default function TechnicianSchedulePage() {
   // Viewing options (efficient querying)
   const [viewMode, setViewMode] = useState<'technician' | 'center'>('technician')
   const [viewRange, setViewRange] = useState<'day' | 'week'>('day')
-  const [viewDate, setViewDate] = useState<string>(new Date().toISOString().slice(0,10))
+  const [viewDate, setViewDate] = useState<string>('')
   const [viewStart, setViewStart] = useState<string>('')
   const [viewEnd, setViewEnd] = useState<string>('')
   const [centerSchedule, setCenterSchedule] = useState<any[]>([])
   const [viewLoading, setViewLoading] = useState<boolean>(false)
+  const [availableDates, setAvailableDates] = useState<string[]>([])
 
   // Toggle for local debugging; keep false for production
   const DEBUG = false
@@ -355,6 +361,7 @@ export default function TechnicianSchedulePage() {
           : []
       const items = (raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots)) ? flattenDaily(raw) : raw
       setSchedule(items)
+      loadAvailableDatesForTechnician()
     } catch {
       setSchedule([])
     }
@@ -501,6 +508,33 @@ export default function TechnicianSchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.technicianId, form.mode, form.workDate, form.startDate, form.endDate])
 
+  useEffect(() => {
+    loadAvailableDatesForTechnician()
+  }, [loadAvailableDatesForTechnician])
+
+  useEffect(() => {
+    if (viewMode !== 'technician' || viewRange !== 'day') {
+      return
+    }
+
+    if (availableDates.length === 0) {
+      if (viewDate) {
+        setViewDate('')
+      }
+      return
+    }
+
+    if (!availableDates.includes(viewDate)) {
+      const todayIso = new Date().toLocaleDateString('en-CA')
+      const fallback = availableDates.find((d) => d >= todayIso) ?? availableDates[0]
+      if (fallback && fallback !== viewDate) {
+        setViewDate(fallback)
+        setViewStart(fallback)
+        setViewEnd(fallback)
+      }
+    }
+  }, [availableDates, viewDate, viewMode, viewRange])
+
   // Auto-load viewing schedule with debounce to keep UX smooth
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -577,6 +611,56 @@ export default function TechnicianSchedulePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.mode, form.startDate])
+
+  const loadAvailableDatesForTechnician = useCallback(async () => {
+    if (viewMode !== 'technician') {
+      setAvailableDates([])
+      return
+    }
+
+    if (!form.technicianId) {
+      setAvailableDates([])
+      return
+    }
+
+    const technicianId = Number(form.technicianId)
+    if (!Number.isFinite(technicianId)) {
+      setAvailableDates([])
+      return
+    }
+
+    let resolvedCenterId: number | undefined = currentStaffCenterId ?? undefined
+    const selectedTechnician = technicians.find((t: any) => String(t.technicianId ?? t.id) === String(form.technicianId))
+    if (selectedTechnician?.centerId) {
+      resolvedCenterId = selectedTechnician.centerId
+    }
+
+    if (!resolvedCenterId) {
+      try {
+        const info = await TechnicianTimeSlotService.getTechnicianById(technicianId)
+        if (info?.data?.centerId) {
+          resolvedCenterId = info.data.centerId
+        }
+      } catch {
+        // ignore - fallback to staff center
+      }
+    }
+
+    if (!resolvedCenterId) {
+      setAvailableDates([])
+      return
+    }
+
+    try {
+      const response = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, resolvedCenterId)
+      const raw = Array.isArray(response?.data) ? response.data : []
+      const flattened = raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots) ? flattenDaily(raw) : raw
+      const dates = Array.from(new Set(flattened.map((item: any) => toLocalDateOnly(item.workDate)).filter(Boolean))).sort()
+      setAvailableDates(dates)
+    } catch {
+      setAvailableDates([])
+    }
+  }, [form.technicianId, viewMode, currentStaffCenterId, technicians])
 
   return (
     <div style={{ padding: '24px' }}>
@@ -1033,28 +1117,16 @@ export default function TechnicianSchedulePage() {
           {viewRange === 'day' ? (
             <div>
               <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Ngày</label>
-              <input
-                type="date"
-                value={viewDate}
-                min={new Date().toISOString().slice(0,10)}
-                onChange={(e) => setViewDate(e.target.value)}
-                onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
-                onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
-                onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
-                onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                style={{
-                  minWidth: '180px',
-                  padding: '10px 14px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: 'var(--bg-secondary)',
-                  fontSize: '12px',
-                  fontWeight: 300,
-                  color: 'var(--text-primary)',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  outline: 'none'
+              <AvailableDatePicker
+                selectedDate={viewDate}
+                availableDates={availableDates}
+                onSelect={(value) => {
+                  setViewDate(value)
+                  setViewStart(value)
+                  setViewEnd(value)
                 }}
+                placeholder="Chọn ngày làm việc"
+                disabledMessage={form.technicianId ? 'Chưa có lịch' : 'Chọn kỹ thuật viên'}
               />
             </div>
           ) : (
@@ -1371,4 +1443,140 @@ export default function TechnicianSchedulePage() {
   )
 }
 
+type AvailableDatePickerProps = {
+  selectedDate: string
+  availableDates: string[]
+  onSelect: (value: string) => void
+  placeholder?: string
+  disabledMessage?: string
+}
+
+function AvailableDatePicker({ selectedDate, availableDates, onSelect, placeholder = 'Chọn ngày', disabledMessage = 'Chưa có lịch' }: AvailableDatePickerProps) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  const availableSet = useMemo(() => new Set(availableDates), [availableDates])
+  const sortedDates = useMemo(() => [...availableDates].sort(), [availableDates])
+  const minDate = sortedDates.length ? parseISO(sortedDates[0]) : undefined
+  const maxDate = sortedDates.length ? parseISO(sortedDates[sortedDates.length - 1]) : undefined
+  const selected = selectedDate && availableSet.has(selectedDate) ? parseISO(selectedDate) : undefined
+  const label = selected
+    ? formatDate(selected, 'dd/MM/yyyy')
+    : availableDates.length
+      ? placeholder
+      : disabledMessage
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  const isDisabled = useCallback((day: Date) => {
+    if (minDate && isBefore(day, minDate)) return true
+    if (maxDate && isAfter(day, maxDate)) return true
+    const iso = formatDate(day, 'yyyy-MM-dd')
+    return !availableSet.has(iso)
+  }, [availableSet, minDate, maxDate])
+
+  const handleSelect = useCallback((day: Date) => {
+    if (isDisabled(day)) return
+    const iso = formatDate(day, 'yyyy-MM-dd')
+    onSelect(iso)
+    setOpen(false)
+  }, [isDisabled, onSelect])
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', minWidth: '180px' }}>
+      <button
+        type="button"
+        onClick={() => availableDates.length && setOpen((prev) => !prev)}
+        disabled={!availableDates.length}
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          borderRadius: '8px',
+          border: 'none',
+          background: open ? '#fff8e1' : 'var(--bg-secondary)',
+          fontSize: '12px',
+          fontWeight: 300,
+          color: 'var(--text-primary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          cursor: availableDates.length ? 'pointer' : 'not-allowed',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          if (!availableDates.length) return
+          e.currentTarget.style.background = '#fff8e1'
+        }}
+        onMouseLeave={(e) => {
+          if (!availableDates.length || open) return
+          e.currentTarget.style.background = 'var(--bg-secondary)'
+        }}
+      >
+        <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+        <CalendarIcon size={16} style={{ color: '#f59e0b' }} />
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            zIndex: 1000,
+            background: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 12px 32px rgba(15, 23, 42, 0.15)',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
+            padding: '12px'
+          }}
+        >
+          <DayPicker
+            mode="single"
+            weekStartsOn={1}
+            selected={selected}
+            defaultMonth={selected ?? (minDate ?? new Date())}
+            onDayClick={handleSelect}
+            disabled={isDisabled}
+            captionLayout="dropdown"
+            modifiers={{ available: (day) => availableSet.has(formatDate(day, 'yyyy-MM-dd')) }}
+            modifiersClassNames={{ available: 'rdp-day_available' }}
+          />
+          <style>{`
+            .rdp {
+              --rdp-cell-size: 38px;
+              --rdp-accent-color: #f59e0b;
+              --rdp-outline: 2px solid #f59e0b33;
+              font-size: 12px;
+            }
+            .rdp-day_available {
+              font-weight: 500;
+              color: #111827;
+            }
+            .rdp-day_disabled {
+              color: #d1d5db !important;
+            }
+            .rdp-day_selected:not([disabled]) {
+              background: linear-gradient(135deg, #facc15, #f97316) !important;
+              color: #111827 !important;
+              border-radius: 8px !important;
+            }
+            .rdp-day_today:not(.rdp-day_selected) {
+              border: 1px solid rgba(249, 115, 22, 0.6);
+            }
+          `}</style>
+        </div>
+      )}
+    </div>
+  )
+}
 

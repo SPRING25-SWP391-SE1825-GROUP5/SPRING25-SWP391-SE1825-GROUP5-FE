@@ -28,30 +28,31 @@ type Product = Part & {
   inStock?: boolean
 }
 
-const convertPartToProduct = (part: any): Product => {
-  const unitPrice = part.unitPrice ?? part.UnitPrice ?? part.price ?? part.Price ?? 0
-  const totalStock = part.totalStock ?? part.TotalStock ?? part.stock ?? part.Stock ?? 0
+const convertPartToProduct = (part: Part): Product => {
+    const unitPrice = part.unitPrice ?? 0
+    const totalStock = part.totalStock ?? 0
 
-  return {
-    ...part,
-    id: (part.partId ?? part.PartId ?? part.id ?? '').toString(),
-    name: part.partName ?? part.PartName ?? part.name ?? '',
-    price: unitPrice,
-    unitPrice: unitPrice,
-    brand: part.brand ?? part.Brand ?? '',
-    category: part.brand ?? part.Brand ?? '',
-    rating: part.rating ?? part.Rating ?? 0,
-    inStock: !(part.isOutOfStock ?? part.IsOutOfStock ?? false),
-    totalStock: totalStock,
-    description: `${part.partName ?? part.PartName ?? ''} - ${part.brand ?? part.Brand ?? ''}`,
-    images: part.imageUrl || part.ImageUrl ? [part.imageUrl ?? part.ImageUrl] : [],
-    specifications: {
-      'Thương hiệu': part.brand ?? part.Brand ?? '',
-      'Danh mục': part.brand ?? part.Brand ?? '',
-      'Tình trạng': (part.isOutOfStock ?? part.IsOutOfStock) ? 'Hết hàng' : 'Còn hàng'
+    return {
+      ...part,
+      partId: part.partId,
+      id: String(part.partId),
+      name: part.partName,
+      price: unitPrice,
+      unitPrice,
+      brand: part.brand ?? '',
+      category: part.brand ?? '',
+      rating: part.rating ?? 0,
+      inStock: !(part.isOutOfStock ?? false),
+      totalStock,
+      description: `${part.partName ?? ''} - ${part.brand ?? ''}`,
+      images: part.imageUrl ? [part.imageUrl] : [],
+      specifications: {
+        'Thương hiệu': part.brand ?? '',
+        'Danh mục': part.brand ?? '',
+        'Tình trạng': (part.isOutOfStock ?? false) ? 'Hết hàng' : 'Còn hàng'
+      }
     }
   }
-}
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -72,6 +73,42 @@ export default function ProductDetail() {
   const [loadingInventory, setLoadingInventory] = useState(false)
   const [loadingCenters, setLoadingCenters] = useState(false)
   const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null)
+  const [availableCenters, setAvailableCenters] = useState<Center[]>([])
+
+  const recalcAvailableCenters = (inventoryMap: Map<number, InventoryPart | null>, centersList: Center[]) => {
+    const available = centersList.filter(center => {
+      const part = inventoryMap.get(center.centerId)
+      if (!part) return false
+      const stock = part.currentStock ?? 0
+      const isOutOfStock = part.isOutOfStock === true || stock <= 0
+      return !isOutOfStock
+    })
+
+    setAvailableCenters(available)
+
+    setSelectedCenterId((prevSelected) => {
+      if (available.length === 0) {
+        return null
+      }
+
+      if (prevSelected && available.some(center => center.centerId === prevSelected)) {
+        return prevSelected
+      }
+
+      let bestCenterId: number | null = null
+      let bestStock = -1
+
+      available.forEach(center => {
+        const stock = inventoryMap.get(center.centerId)?.currentStock ?? 0
+        if (stock > bestStock) {
+          bestStock = stock
+          bestCenterId = center.centerId
+        }
+      })
+
+      return bestCenterId ?? available[0].centerId
+    })
+  }
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -145,10 +182,11 @@ export default function ProductDetail() {
                 if (Array.isArray(partsResponse.data)) {
                   partsArray = partsResponse.data
                 } else if (partsResponse.data && typeof partsResponse.data === 'object') {
-                  const dataObj = partsResponse.data as any
+                  const dataObj = partsResponse.data as Record<string, unknown>
                   for (const key in dataObj) {
-                    if (Array.isArray(dataObj[key])) {
-                      partsArray = dataObj[key]
+                    const value = dataObj[key]
+                    if (Array.isArray(value)) {
+                      partsArray = value as InventoryPart[]
                       break
                     }
                   }
@@ -165,33 +203,17 @@ export default function ProductDetail() {
               } else {
                 inventoryMap.set(center.centerId, null)
               }
-            } catch {
+            } catch (error) {
+              console.error('[ProductDetail] Không thể tải tồn kho cho chi nhánh', center.centerId, error)
               inventoryMap.set(center.centerId, null)
             }
           })
         )
 
         setInventoryByCenter(inventoryMap)
-
-        let maxStock = -1
-        let bestCenterId: number | null = null
-
-        inventoryMap.forEach((part, centerId) => {
-          const stock = part?.currentStock ?? 0
-          if (stock > maxStock) {
-            maxStock = stock
-            bestCenterId = centerId
-          }
-        })
-
-        if (bestCenterId === null && centers.length > 0) {
-          bestCenterId = centers[0].centerId
-        }
-
-        if (bestCenterId !== null && !selectedCenterId) {
-          setSelectedCenterId(bestCenterId)
-        }
-      } catch {
+        recalcAvailableCenters(inventoryMap, centers)
+      } catch (error) {
+        console.error('[ProductDetail] Không thể tải tồn kho cho tất cả chi nhánh:', error)
       } finally {
         setLoadingInventory(false)
       }
@@ -200,7 +222,7 @@ export default function ProductDetail() {
     if (product?.partId && centers.length > 0) {
       loadAllInventories()
     }
-  }, [product?.partId, centers.length])
+  }, [product?.partId, centers])
 
   useEffect(() => {
     const loadInventoryForSelectedCenter = async () => {
@@ -223,10 +245,11 @@ export default function ProductDetail() {
           if (Array.isArray(partsResponse.data)) {
             partsArray = partsResponse.data
           } else if (partsResponse.data && typeof partsResponse.data === 'object') {
-            const dataObj = partsResponse.data as any
+            const dataObj = partsResponse.data as Record<string, unknown>
             for (const key in dataObj) {
-              if (Array.isArray(dataObj[key])) {
-                partsArray = dataObj[key]
+              const value = dataObj[key]
+              if (Array.isArray(value)) {
+                partsArray = value as InventoryPart[]
                 break
               }
             }
@@ -242,19 +265,23 @@ export default function ProductDetail() {
           setInventoryByCenter(prev => {
             const newMap = new Map(prev)
             newMap.set(selectedCenterId, partInInventory)
+            recalcAvailableCenters(newMap, centers)
             return newMap
           })
         } else {
           setInventoryByCenter(prev => {
             const newMap = new Map(prev)
             newMap.set(selectedCenterId, null)
+            recalcAvailableCenters(newMap, centers)
             return newMap
           })
         }
-      } catch {
+      } catch (error) {
+        console.error('[ProductDetail] Không thể tải tồn kho cho chi nhánh', selectedCenterId, error)
         setInventoryByCenter(prev => {
           const newMap = new Map(prev)
           newMap.set(selectedCenterId, null)
+          recalcAvailableCenters(newMap, centers)
           return newMap
         })
       } finally {
@@ -268,7 +295,7 @@ export default function ProductDetail() {
         loadInventoryForSelectedCenter()
       }
     }
-  }, [product?.partId, selectedCenterId, centers.length])
+  }, [product?.partId, selectedCenterId, centers, inventoryByCenter])
 
   const getRelatedProducts = (): Product[] => {
     if (!product || allParts.length === 0) return []
@@ -282,6 +309,11 @@ export default function ProductDetail() {
 
   const handleAddToCart = async (silent: boolean = false) => {
     if (!product) return
+
+    if (availableCenters.length === 0) {
+      toast.error('Sản phẩm đã hết hàng tại tất cả chi nhánh')
+      return
+    }
 
     if (selectedCenterId) {
       const inventoryPart = inventoryByCenter.get(selectedCenterId)
@@ -335,18 +367,24 @@ export default function ProductDetail() {
     }
 
     if (!silent) {
-    toast.success(`Đã thêm ${quantity} "${product.partName}" vào giỏ hàng!`)
+      toast.success(`Đã thêm ${quantity} "${product.partName}" vào giỏ hàng!`)
     }
 
     try {
       if (!user?.customerId) return
-      await CartService.addItem(Number(user.customerId), { partId: product.partId, quantity: quantity })
-    } catch {
+      await CartService.addItem(Number(user.customerId), { partId: product.partId, quantity })
+    } catch (error) {
+      console.error('[ProductDetail] Không thể đồng bộ giỏ hàng với máy chủ:', error)
     }
   }
 
   const handleBuyNow = async () => {
     if (!product) return
+
+    if (availableCenters.length === 0) {
+      toast.error('Sản phẩm đã hết hàng tại tất cả chi nhánh')
+      return
+    }
 
     if (!user) {
       toast.error('Vui lòng đăng nhập để tiếp tục')
@@ -384,8 +422,17 @@ export default function ProductDetail() {
             navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
             return
           }
-        } catch (customerError: any) {
-          if (customerError?.response?.status === 401 || customerError?.isAuthError) {
+        } catch (customerError: unknown) {
+          const responseStatus =
+            typeof customerError === 'object' && customerError !== null && 'response' in customerError
+              ? (customerError as { response?: { status?: number }; isAuthError?: boolean }).response?.status
+              : undefined
+          const isAuthError =
+            typeof customerError === 'object' && customerError !== null && 'isAuthError' in customerError
+              ? Boolean((customerError as { isAuthError?: boolean }).isAuthError)
+              : false
+
+          if (responseStatus === 401 || isAuthError) {
             toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
             navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
             return
@@ -413,14 +460,31 @@ export default function ProductDetail() {
       } else {
         toast.error(response.message || 'Không thể tạo đơn hàng')
       }
-    } catch (error: any) {
-      if (error?.response?.status === 401 || error?.isAuthError) {
+    } catch (error: unknown) {
+      const responseStatus =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? (error as { response?: { status?: number }; isAuthError?: boolean }).response?.status
+          : undefined
+      const isAuthError =
+        typeof error === 'object' && error !== null && 'isAuthError' in error
+          ? Boolean((error as { isAuthError?: boolean }).isAuthError)
+          : false
+
+      if (responseStatus === 401 || isAuthError) {
         toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
         navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
         return
       }
 
-      const errorMessage = error?.response?.data?.message || error?.userMessage || error?.message || 'Có lỗi khi tạo đơn hàng'
+      const errorMessage =
+        typeof error === 'object' && error !== null && 'response' in error && (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : typeof error === 'object' && error !== null && 'userMessage' in error
+            ? String((error as { userMessage?: string }).userMessage)
+            : error instanceof Error
+              ? error.message
+              : 'Có lỗi khi tạo đơn hàng'
+
       if (errorMessage.includes('Không đủ hàng') ||
           errorMessage.includes('không đủ stock') ||
           errorMessage.includes('hết hàng')) {
@@ -563,18 +627,22 @@ export default function ProductDetail() {
                 <select
                   id="center-select"
                   className="center-select"
-                  value={selectedCenterId || ''}
+                  value={selectedCenterId ?? ''}
                   onChange={(e) => {
                     const value = e.target.value
                     setSelectedCenterId(value ? Number(value) : null)
                   }}
-                  disabled={loadingCenters}
+                  disabled={loadingCenters || availableCenters.length === 0}
                 >
-                  {centers.map((center) => (
-                    <option key={center.centerId} value={center.centerId}>
-                      {center.centerName}
-                    </option>
-                  ))}
+                  {availableCenters.length === 0 ? (
+                    <option value="">Không có chi nhánh còn hàng</option>
+                  ) : (
+                    availableCenters.map((center) => (
+                      <option key={center.centerId} value={center.centerId}>
+                        {center.centerName}
+                      </option>
+                    ))
+                  )}
                 </select>
                 {loadingCenters && (
                   <span style={{ fontSize: '12px', color: '#666', marginLeft: '8px' }}>
@@ -654,7 +722,11 @@ export default function ProductDetail() {
                 </div>
               ) : (
                 <div className="stock-placeholder">
-                  <p>Vui lòng chọn chi nhánh để xem tồn kho</p>
+                  <p>
+                    {availableCenters.length === 0
+                      ? 'Sản phẩm hiện không còn hàng tại bất kỳ chi nhánh nào.'
+                      : 'Vui lòng chọn chi nhánh để xem tồn kho'}
+                  </p>
                 </div>
               )}
             </div>
@@ -664,14 +736,16 @@ export default function ProductDetail() {
                 <label>Số lượng:</label>
                 <div className="quantity-controls">
                   {(() => {
-                    let isDisabled = false
-                    if (selectedCenterId) {
-                      const inventoryPart = inventoryByCenter.get(selectedCenterId)
-                      const stock = inventoryPart?.currentStock ?? 0
-                      const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-                      isDisabled = isOutOfStock
-                    } else {
-                      isDisabled = !product.inStock
+                    let isDisabled = availableCenters.length === 0
+                    if (!isDisabled) {
+                      if (selectedCenterId) {
+                        const inventoryPart = inventoryByCenter.get(selectedCenterId)
+                        const stock = inventoryPart?.currentStock ?? 0
+                        const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
+                        isDisabled = isOutOfStock
+                      } else {
+                        isDisabled = true
+                      }
                     }
 
                     return (
@@ -697,14 +771,16 @@ export default function ProductDetail() {
 
               <div className="action-buttons">
                 {(() => {
-                  let isDisabled = false
-                  if (selectedCenterId) {
-                    const inventoryPart = inventoryByCenter.get(selectedCenterId)
-                    const stock = inventoryPart?.currentStock ?? 0
-                    const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-                    isDisabled = isOutOfStock
-                  } else {
-                    isDisabled = !product.inStock
+                  let isDisabled = availableCenters.length === 0
+                  if (!isDisabled) {
+                    if (selectedCenterId) {
+                      const inventoryPart = inventoryByCenter.get(selectedCenterId)
+                      const stock = inventoryPart?.currentStock ?? 0
+                      const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
+                      isDisabled = isOutOfStock
+                    } else {
+                      isDisabled = true
+                    }
                   }
 
                   return (

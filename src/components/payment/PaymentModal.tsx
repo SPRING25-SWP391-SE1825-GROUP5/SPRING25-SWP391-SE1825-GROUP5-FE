@@ -168,10 +168,9 @@ export default function PaymentModal({
       const finalAmount = breakdown?.total ?? totalAmount
 
       // Gọi API offline payment
+      // Backend sẽ tự động lấy customer ID từ booking, không cần gửi paidByUserId
       const { data } = await api.post(`/Payment/booking/${bookingId}/payments/offline`, {
-        bookingId,
         amount: Math.round(finalAmount),
-        paidByUserId: 0, // TODO: Lấy từ auth context
         note: 'Thanh toán tại trung tâm'
       })
 

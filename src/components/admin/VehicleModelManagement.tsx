@@ -449,9 +449,6 @@ export default function VehicleModelManagement() {
                             onChange={(e) => handleToggleOne(model.modelId, e.target.checked)}
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <div className="vehicle-model-id-cell__avatar users-avatar users-avatar--fallback">
-                            {model.modelId}
-                          </div>
                           <span className="vehicle-model-id-cell__text">#{model.modelId}</span>
                         </div>
                       </td>
