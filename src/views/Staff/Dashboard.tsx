@@ -382,7 +382,8 @@ export default function StaffDashboard() {
         }}
       >
         {renderPageContent()}
-        {/* Quick Parts Approval Panel */}
+        {/* Quick Parts Approval Panel - Hidden on technician-schedule page */}
+        {activePage !== 'technician-schedule' && (
         <div style={{ marginTop: 24 }}>
           <div style={{
             background: '#fff',
@@ -452,8 +453,10 @@ export default function StaffDashboard() {
             )}
           </div>
         </div>
+        )}
 
-        {/* Quick Payment for Customer Panel */}
+        {/* Quick Payment for Customer Panel - Hidden on technician-schedule page */}
+        {activePage !== 'technician-schedule' && (
         <div style={{ marginTop: 24 }}>
           <div style={{
             background: '#fff',
@@ -515,6 +518,7 @@ export default function StaffDashboard() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Payment Modal for Staff */}
         {showPaymentModal && paymentBookingId && (

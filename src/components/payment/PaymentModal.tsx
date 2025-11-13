@@ -23,7 +23,7 @@ export default function PaymentModal({
   onClose,
   onPaymentSuccess
 }: PaymentModalProps) {
-  const [selectedMethod, setSelectedMethod] = useState<'PAYOS' | 'VNPAY' | 'SEPAY_QR' | 'OFFLINE' | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<'PAYOS' | 'SEPAY_QR' | 'OFFLINE' | null>(null)
   const [processing, setProcessing] = useState(false)
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
   const [breakdown, setBreakdown] = useState<PaymentBreakdownResponse['data'] | null>(null)
@@ -40,18 +40,18 @@ export default function PaymentModal({
         try {
           // 1. Load phụ tùng từ API /Booking/{bookingId}/parts
           let list = await WorkOrderPartService.list(Number(bookingId))
-          
+
           // 2. Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
           list = await Promise.all(list.map(async (p) => {
             try {
               // Luôn gọi API /api/Part/{id} để lấy unitPrice chính xác
               const partDetail = await PartService.getPartById(p.partId)
-              
+
               if (partDetail.success && partDetail.data) {
                 const raw = partDetail.data as any
                 // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
                 const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
-                
+
                 return {
                   ...p,
                   partNumber: partDetail.data.partNumber || p.partNumber,
@@ -64,10 +64,10 @@ export default function PaymentModal({
             } catch (err) {
               console.error(`Lỗi khi load chi tiết phụ tùng ${p.partId}:`, err)
             }
-            
+
             return p
           }))
-          
+
           setWorkParts(list || [])
         } catch { /* ignore */ }
       })()
@@ -111,26 +111,6 @@ export default function PaymentModal({
 
   if (!open) return null
 
-  const handleVNPayPayment = async () => {
-    setProcessing(true)
-    try {
-      const response = await PaymentService.createBookingVNPayLink(bookingId)
-      if (response.success && response.vnp_Url) {
-        // Mở link VNPay trong tab mới
-        window.open(response.vnp_Url, '_blank')
-        toast.success('Đang chuyển đến trang thanh toán VNPay...')
-        // Có thể đóng modal hoặc giữ lại để user quay lại
-        onClose()
-      } else {
-        toast.error(response.message || 'Không thể tạo link thanh toán VNPay')
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Lỗi khi tạo thanh toán VNPay')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
   const handleSepayQRPayment = async () => {
     setProcessing(true)
     try {
@@ -159,7 +139,7 @@ export default function PaymentModal({
     try {
       // Sử dụng giá đã giảm từ breakdown nếu có, nếu không thì dùng totalAmount prop
       const finalAmount = breakdown?.total ?? totalAmount
-      
+
       // BE: POST /api/Payment/booking/{bookingId}/link
       const response = await PayOSService.createPaymentLink(bookingId, finalAmount)
       if (response.success && response.data?.checkoutUrl) {
@@ -186,7 +166,7 @@ export default function PaymentModal({
     try {
       // Sử dụng giá đã giảm từ breakdown nếu có, nếu không thì dùng totalAmount prop
       const finalAmount = breakdown?.total ?? totalAmount
-      
+
       // Gọi API offline payment
       const { data } = await api.post(`/Payment/booking/${bookingId}/payments/offline`, {
         bookingId,
@@ -194,7 +174,7 @@ export default function PaymentModal({
         paidByUserId: 0, // TODO: Lấy từ auth context
         note: 'Thanh toán tại trung tâm'
       })
-      
+
       if (data.success) {
         toast.success('Đã ghi nhận thanh toán offline. Vui lòng thanh toán tại trung tâm.')
         onPaymentSuccess?.()
@@ -218,9 +198,6 @@ export default function PaymentModal({
     switch (selectedMethod) {
       case 'PAYOS':
         handlePayOSPayment()
-        break
-      case 'VNPAY':
-        handleVNPayPayment()
         break
       case 'SEPAY_QR':
         handleSepayQRPayment()
@@ -299,16 +276,16 @@ export default function PaymentModal({
             {/* Parts */}
             {(() => {
               // Xử lý parts: có thể là array hoặc object với fromInventory và fromCustomer
-              const partsArray = Array.isArray(breakdown.parts) 
-                ? breakdown.parts 
+              const partsArray = Array.isArray(breakdown.parts)
+                ? breakdown.parts
                 : (breakdown.parts as any)?.fromInventory || []
-              const customerParts = !Array.isArray(breakdown.parts) 
+              const customerParts = !Array.isArray(breakdown.parts)
                 ? (breakdown.parts as any)?.fromCustomer || []
                 : []
               const allParts = [...partsArray, ...customerParts]
-              
+
               if (allParts.length === 0) return null
-              
+
               return (
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: 14, color: '#374151', fontWeight: 600, marginBottom: 12 }}>
@@ -358,8 +335,8 @@ export default function PaymentModal({
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
                     <span style={{ fontSize: 13, color: '#6B7280' }}>Tổng phụ tùng:</span>
                     <span style={{ fontSize: 14, color: '#111827', fontWeight: 600 }}>
-                      {typeof breakdown.partsAmount === 'number' 
-                        ? breakdown.partsAmount.toLocaleString('vi-VN') 
+                      {typeof breakdown.partsAmount === 'number'
+                        ? breakdown.partsAmount.toLocaleString('vi-VN')
                         : allParts.reduce((sum: number, part: any) => {
                             const matched = workParts.find(p => p.partId === part.partId)
                             const unitPrice = part.unitPrice ?? part.referenceUnitPrice ?? matched?.unitPrice ?? 0
@@ -451,29 +428,6 @@ export default function PaymentModal({
               <div style={{ flex: 1, textAlign: 'left' }}>
                 <div style={{ fontWeight: 600, color: '#111827' }}>PayOS</div>
                 <div style={{ fontSize: 12, color: '#6B7280' }}>Thanh toán qua PayOS</div>
-              </div>
-            </button>
-            {/* VNPay */}
-            <button
-              onClick={() => setSelectedMethod('VNPAY')}
-              disabled={loadingBreakdown || !breakdown}
-              style={{
-                padding: '16px',
-                borderRadius: 8,
-                border: selectedMethod === 'VNPAY' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
-                background: selectedMethod === 'VNPAY' ? '#EFF6FF' : '#fff',
-                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
-                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                transition: 'all 0.2s'
-              }}
-            >
-              <CreditCard size={24} color={selectedMethod === 'VNPAY' ? '#3B82F6' : '#6B7280'} />
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontWeight: 600, color: '#111827' }}>VNPay</div>
-                <div style={{ fontSize: 12, color: '#6B7280' }}>Thanh toán qua cổng VNPay</div>
               </div>
             </button>
             {/* SEPAY QR */}

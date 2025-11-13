@@ -50,7 +50,7 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
       const paymentRequest: PaymentRequest = {
         bookingId: bookingId,
         amount: totalAmount,
-        paymentMethod: 'VNPAY' as PaymentMethod, // Default to VNPay
+        paymentMethod: 'QR_CODE' as PaymentMethod,
         description: `Thanh toán đặt lịch bảo dưỡng xe điện - ${vehicle.licensePlate}`,
         returnUrl: `${window.location.origin}/profile?tab=service-history`,
         cancelUrl: `${window.location.origin}/booking/payment/cancel`
@@ -127,26 +127,26 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
         <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem', color: '#1f2937' }}>
           Thông tin đặt lịch
         </h2>
-        
+
         <div style={{ display: 'grid', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Car size={20} color="#10b981" />
             <span style={{ fontWeight: '500' }}>Xe:</span>
             <span>{vehicle.licensePlate}</span>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <MapPin size={20} color="#10b981" />
             <span style={{ fontWeight: '500' }}>Trung tâm:</span>
             <span>{center.centerName}</span>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Calendar size={20} color="#10b981" />
             <span style={{ fontWeight: '500' }}>Ngày:</span>
             <span>{formatDate(appointmentDate)}</span>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Clock size={20} color="#10b981" />
             <span style={{ fontWeight: '500' }}>Giờ:</span>
@@ -183,7 +183,7 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
             </div>
           ))}
         </div>
-        
+
         <div style={{
           marginTop: '1rem',
           padding: '1rem',
@@ -233,7 +233,7 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
         >
           Về trang chủ
         </button>
-        
+
         <button
           onClick={handlePayment}
           disabled={isProcessingPayment}
@@ -284,7 +284,7 @@ const BookingSuccess: React.FC<BookingSuccessProps> = ({
           Hướng dẫn thanh toán:
         </h4>
         <ul style={{ color: '#0369a1', margin: 0, paddingLeft: '1.5rem' }}>
-          <li>Nhấn "Thanh toán ngay" để chuyển đến cổng thanh toán VNPay</li>
+          <li>Nhấn "Thanh toán ngay" để chuyển đến cổng thanh toán trực tuyến</li>
           <li>Chọn phương thức thanh toán phù hợp</li>
           <li>Hoàn tất thanh toán để xác nhận đặt lịch</li>
           <li>Bạn sẽ nhận được email xác nhận sau khi thanh toán thành công</li>

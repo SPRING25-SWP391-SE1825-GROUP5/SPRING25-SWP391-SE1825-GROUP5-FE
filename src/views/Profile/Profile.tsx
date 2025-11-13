@@ -6,7 +6,7 @@ import { AuthService, BookingService } from '@/services'
 import { PromotionBookingService } from '@/services/promotionBookingService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { PhotoIcon, CameraIcon } from '@heroicons/react/24/outline'
-import { ProfileNav, ProfileOverview, ProfileInfo, ProfileVehicles, ProfileReminders, ProfilePromotions, ProfileSettings, ProfileHistory, ProfileActivity, ProfileReviews, ProfilePackages, ProfileNotifications, ProfileTabKey } from '@/components/profile'
+import { ProfileNav, ProfileOverview, ProfileInfo, ProfileVehicles, ProfileReminders, ProfilePromotions, ProfileSettings, ProfileHistory, ProfileActivity, ProfileReviews, ProfileNotifications, ProfileTabKey } from '@/components/profile'
 import './profile.scss'
 import {
   validateFullName,
@@ -895,7 +895,6 @@ export default function Profile() {
           {activeTab === 'history' && <ProfileActivity />}
           {activeTab === 'reviews' && <ProfileReviews />}
           {activeTab === 'promotions' && <ProfilePromotions />}
-          {activeTab === 'packages' && <ProfilePackages />}
           {activeTab === 'notifications' && <ProfileNotifications />}
                     </div>
                 </div>

@@ -5,7 +5,6 @@ import {
   IdentificationIcon,
   TruckIcon,
   ClockIcon,
-  GiftTopIcon,
   TagIcon,
   ChatBubbleLeftRightIcon,
   BellIcon,
@@ -13,7 +12,6 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
 import { ReminderService } from '@/services/reminderService'
-import { CustomerService } from '@/services/customerService'
 import { useAppSelector } from '@/store/hooks'
 
 export type ProfileTabKey =
@@ -45,27 +43,39 @@ interface ProfileNavProps {
 export default function ProfileNav({ active, onChange }: ProfileNavProps) {
   const auth = useAppSelector(state => state.auth)
   const [reminderBadge, setReminderBadge] = useState<number>(0)
+  const [isLoadingBadge, setIsLoadingBadge] = useState(false)
 
   useEffect(() => {
     const loadReminderBadge = async () => {
+      // Sử dụng customerId từ Redux store nếu có, tránh gọi API không cần thiết
+      const customerId = auth.user?.customerId
+
+      if (!customerId || isLoadingBadge) {
+        return
+      }
+
+      setIsLoadingBadge(true)
       try {
-        const response = await CustomerService.getCurrentCustomer()
-        if (response.success && response.data?.customerId) {
-          const reminders = await ReminderService.getUpcoming(response.data.customerId)
-          // Chỉ đếm DUE và OVERDUE
-          const urgentCount = reminders.filter(r => r.status === 'DUE' || r.status === 'OVERDUE').length
-          setReminderBadge(urgentCount)
-        }
+        const reminders = await ReminderService.getUpcoming(customerId)
+        // Chỉ đếm DUE và OVERDUE
+        const urgentCount = reminders.filter(r => r.status === 'DUE' || r.status === 'OVERDUE').length
+        setReminderBadge(urgentCount)
       } catch (error) {
         // Silently fail - badge is optional
         console.error('Error loading reminder badge:', error)
+      } finally {
+        setIsLoadingBadge(false)
       }
     }
 
-    if (auth.user?.id) {
+    if (auth.user?.customerId) {
       loadReminderBadge()
+    } else {
+      // Reset badge nếu không có customerId
+      setReminderBadge(0)
     }
-  }, [auth.user?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.user?.customerId])
 
   const items: NavItem[] = [
     { key: 'info', label: 'Thông tin', icon: <IdentificationIcon width={16} height={16} /> },
@@ -77,7 +87,6 @@ export default function ProfileNav({ active, onChange }: ProfileNavProps) {
       badge: reminderBadge > 0 ? reminderBadge : undefined
     },
     { key: 'history', label: 'Lịch sử hoạt động', icon: <ClockIcon width={16} height={16} /> },
-    { key: 'packages', label: 'Gói dịch vụ', icon: <GiftTopIcon width={16} height={16} /> },
     { key: 'promotions', label: 'Mã khuyến mãi đã lưu', icon: <TagIcon width={16} height={16} /> },
     { key: 'reviews', label: 'Đánh giá của tôi', icon: <ChatBubbleLeftRightIcon width={16} height={16} /> },
     { key: 'notifications', label: 'Thông báo', icon: <BellIcon width={16} height={16} /> },

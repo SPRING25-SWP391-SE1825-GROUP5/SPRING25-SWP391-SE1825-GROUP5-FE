@@ -41,16 +41,11 @@ export default function Products() {
   const [selectedBrand, setSelectedBrand] = useState('Tất cả thương hiệu')
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [showMoreBrands, setShowMoreBrands] = useState(false)
-  const [priceRange, setPriceRange] = useState([0, 30000000])
   const [sortBy, setSortBy] = useState('newest')
   const [showFilters, setShowFilters] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 9
   const [buyingId, setBuyingId] = useState<number | null>(null)
-  const [minPrice, setMinPrice] = useState(0)
-  const [maxPrice, setMaxPrice] = useState(30000000)
-  const [minPriceInput, setMinPriceInput] = useState('0')
-  const [maxPriceInput, setMaxPriceInput] = useState('30.000.000')
 
   // State cho inventory
   const [centers, setCenters] = useState<Center[]>([])
@@ -66,7 +61,7 @@ export default function Products() {
   // Load parts khi filters thay đổi
   useEffect(() => {
     loadPartsData()
-  }, [searchTerm, selectedCategory, selectedBrand, priceRange])
+  }, [searchTerm, selectedCategory, selectedBrand])
 
   // Load categories và brands khi parts data thay đổi
   useEffect(() => {
@@ -189,8 +184,6 @@ export default function Products() {
         searchTerm: searchTerm || undefined,
         // khi chọn nhiều brand sẽ lọc client-side, không gửi brand lên API
         brand: selectedBrands.length === 1 ? selectedBrands[0] : (selectedBrand !== 'Tất cả thương hiệu' && selectedBrands.length === 0 ? selectedBrand : undefined),
-        minPrice: minPrice > 0 ? minPrice : undefined,
-        maxPrice: maxPrice < 30000000 ? maxPrice : undefined,
         inStock: true, // Chỉ hiển thị phụ tùng có sẵn
         pageSize: 100 // Load nhiều để có thể filter local
       }
@@ -210,17 +203,6 @@ export default function Products() {
     } finally {
       setLoading(false)
     }
-  }
-  // Keep input string in sync when slider changes
-  useEffect(() => {
-    const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
-    setMinPriceInput(fmt(minPrice))
-    setMaxPriceInput(fmt(maxPrice))
-  }, [minPrice, maxPrice])
-
-  const parseNumber = (s: string): number => {
-    const digits = s.replace(/[^0-9]/g, '')
-    return digits ? Number(digits) : 0
   }
 
   const loadCategoriesAndBrands = () => {
@@ -437,12 +419,7 @@ export default function Products() {
       (selectedBrands.length === 0 && (selectedBrand === 'Tất cả thương hiệu' || part.brand === selectedBrand)) ||
       (selectedBrands.length > 0 && selectedBrands.includes(part.brand))
 
-    // Lọc theo giá
-    const low = Number.isFinite(minPrice) ? minPrice : 0
-    const high = Number.isFinite(maxPrice) ? maxPrice : Number.MAX_SAFE_INTEGER
-    const matchesPrice = part.unitPrice >= low && part.unitPrice <= high
-
-    return matchesSearch && matchesBrand && matchesPrice
+    return matchesSearch && matchesBrand
   })
 
   const sortedParts = [...filteredParts].sort((a, b) => {
@@ -479,7 +456,7 @@ export default function Products() {
   // Reset về trang 1 khi filters thay đổi
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchTerm, selectedCategory, selectedBrand, minPrice, maxPrice, sortBy])
+  }, [debouncedSearchTerm, selectedCategory, selectedBrand, sortBy])
 
   return (
     <div className="products-page">
@@ -487,73 +464,6 @@ export default function Products() {
         <div className="products-container">
         {/* Sidebar */}
         <aside className="products-sidebar">
-          <div className="sidebar-section">
-            <div className="sidebar-title">Giá</div>
-            <div className="price-slider">
-              <div className="slider-track">
-                <input
-                  type="range"
-                  min={0}
-                  max={30000000}
-                  step={50000}
-                  value={minPrice}
-                  onChange={(e) => {
-                    const v = Math.min(Number(e.target.value), maxPrice)
-                    setMinPrice(v)
-                  }}
-                />
-                <input
-                  type="range"
-                  min={0}
-                  max={30000000}
-                  step={50000}
-                  value={maxPrice}
-                  onChange={(e) => {
-                    const v = Math.max(Number(e.target.value), minPrice)
-                    setMaxPrice(v)
-                  }}
-                />
-              </div>
-            </div>
-            {/* Manual price inputs */}
-            <div className="price-row" style={{ marginTop: 8 }}>
-              <input
-                type="text"
-                className="price-input"
-                min={0}
-                value={minPriceInput}
-                onChange={(e) => {
-                  setMinPriceInput(e.target.value)
-                  const num = parseNumber(e.target.value)
-                  if (!Number.isNaN(num)) setMinPrice(Math.min(num, maxPrice))
-                }}
-                onBlur={() => {
-                  if (minPrice > maxPrice) setMinPrice(maxPrice)
-                  setMinPriceInput(new Intl.NumberFormat('vi-VN').format(minPrice))
-                }}
-                placeholder="Từ"
-              />
-              <span className="price-sep">-</span>
-              <input
-                type="text"
-                className="price-input"
-                min={0}
-                value={maxPriceInput}
-                onChange={(e) => {
-                  setMaxPriceInput(e.target.value)
-                  const num = parseNumber(e.target.value)
-                  if (!Number.isNaN(num)) setMaxPrice(Math.max(num, minPrice))
-                }}
-                onBlur={() => {
-                  if (maxPrice < minPrice) setMaxPrice(minPrice)
-                  setMaxPriceInput(new Intl.NumberFormat('vi-VN').format(maxPrice))
-                }}
-                placeholder="Đến"
-              />
-            </div>
-            <button className="btn-apply" onClick={loadPartsData}>Áp dụng</button>
-          </div>
-
           <div className="sidebar-section">
             <div className="sidebar-title">Thương hiệu</div>
             <div className="brand-list">
@@ -660,7 +570,6 @@ export default function Products() {
                     onClick={() => {
                       setSearchTerm('')
                       setSelectedBrand('Tất cả thương hiệu')
-                      setPriceRange([0, 30000000])
                     }}
                   >
                     Xóa bộ lọc

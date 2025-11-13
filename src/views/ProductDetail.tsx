@@ -335,7 +335,7 @@ export default function ProductDetail() {
     }
 
     if (!silent) {
-      toast.success(`Đã thêm ${quantity} "${product.partName}" vào giỏ hàng!`)
+    toast.success(`Đã thêm ${quantity} "${product.partName}" vào giỏ hàng!`)
     }
 
     try {
@@ -348,7 +348,7 @@ export default function ProductDetail() {
   const handleBuyNow = async () => {
     if (!product) return
 
-    if (!user || !user.customerId) {
+    if (!user) {
       toast.error('Vui lòng đăng nhập để tiếp tục')
       navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
       return

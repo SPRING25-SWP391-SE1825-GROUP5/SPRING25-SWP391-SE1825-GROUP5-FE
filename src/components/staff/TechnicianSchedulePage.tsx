@@ -72,12 +72,37 @@ export default function TechnicianSchedulePage() {
       if (!form.startDate) e.startDate = 'Vui lòng chọn ngày bắt đầu'
       if (!form.endDate) e.endDate = 'Vui lòng chọn ngày kết thúc'
       if (form.startDate && form.endDate && form.startDate > form.endDate) e.endDate = 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu'
-      // enforce 7 days range
+      // Kiểm tra khoảng thời gian và ngày trong tuần
       if (form.startDate && form.endDate) {
         const s = new Date(form.startDate)
         const ed = new Date(form.endDate)
         const diff = Math.round((ed.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
-        if (diff !== 6) e.endDate = 'Khoảng tuần phải là 7 ngày (bắt đầu đến kết thúc = 7 ngày)'
+
+        // Kiểm tra ngày bắt đầu phải là thứ 2 (dayOfWeek = 1)
+        const startDayOfWeek = s.getDay() // 0 = Chủ nhật, 1 = Thứ 2, ..., 6 = Thứ 7
+        if (startDayOfWeek !== 1) {
+          e.startDate = 'Ngày bắt đầu phải là thứ 2'
+        }
+
+        // Kiểm tra ngày kết thúc phải là thứ 6 (dayOfWeek = 5)
+        const endDayOfWeek = ed.getDay()
+        if (endDayOfWeek !== 5) {
+          e.endDate = 'Ngày kết thúc phải là thứ 6'
+        }
+
+        // Kiểm tra khoảng thời gian phải là 4 ngày (từ thứ 2 đến thứ 6 = 5 ngày làm việc)
+        if (diff !== 4) {
+          e.endDate = 'Khoảng thời gian phải là 5 ngày làm việc (từ thứ 2 đến thứ 6)'
+        }
+
+        // Kiểm tra không có ngày nào trong khoảng là thứ 7 hoặc chủ nhật
+        for (let d = new Date(s); d <= ed; d.setDate(d.getDate() + 1)) {
+          const dayOfWeek = d.getDay()
+          if (dayOfWeek === 0 || dayOfWeek === 6) {
+            e.endDate = 'Khoảng thời gian không được bao gồm thứ 7 hoặc chủ nhật. Hệ thống chỉ hoạt động từ thứ 2 đến thứ 6.'
+            break
+          }
+        }
       }
     }
     // Không cho phép chọn ngày trong quá khứ
@@ -86,6 +111,13 @@ export default function TechnicianSchedulePage() {
     if (form.mode === 'ngay' && form.workDate) {
       const wd = new Date(form.workDate)
       if (wd < today) e.workDate = 'Ngày làm việc không được ở quá khứ'
+      // Kiểm tra không được chọn thứ 7 hoặc chủ nhật
+      const dayOfWeek = wd.getDay()
+      if (dayOfWeek === 0) {
+        e.workDate = 'Không thể tạo lịch vào Chủ nhật. Hệ thống chỉ hoạt động từ thứ 2 đến thứ 6.'
+      } else if (dayOfWeek === 6) {
+        e.workDate = 'Không thể tạo lịch vào thứ 7. Hệ thống chỉ hoạt động từ thứ 2 đến thứ 6.'
+      }
     }
     if (form.mode === 'tuan' && form.startDate) {
       const sd = new Date(form.startDate)
@@ -146,7 +178,24 @@ export default function TechnicianSchedulePage() {
         }
 
         const result = await TechnicianTimeSlotService.createFullWeekAllSlots(techId, payload as any)
-        setSuccessMsg('Tạo lịch tuần thành công cho tất cả khung giờ')
+
+        // Hiển thị thông báo chi tiết về kết quả tạo lịch
+        let successMessage = result?.message || 'Tạo lịch tuần thành công'
+
+        // Thêm thông tin về slot bị skip nếu có
+        if (result?.totalSlotsSkipped && result.totalSlotsSkipped > 0) {
+          const duplicateInfo = result.duplicateSlotsInfo || []
+          if (duplicateInfo.length > 0) {
+            // Hiển thị tối đa 10 slot đầu tiên để tránh message quá dài
+            const displayInfo = duplicateInfo.slice(0, 10)
+            const moreCount = duplicateInfo.length > 10 ? ` và ${duplicateInfo.length - 10} slot khác` : ''
+            successMessage += `. Đã bỏ qua ${result.totalSlotsSkipped} lịch trình đã tồn tại: ${displayInfo.join(', ')}${moreCount}`
+          } else {
+            successMessage += `. Đã bỏ qua ${result.totalSlotsSkipped} lịch trình đã tồn tại`
+          }
+        }
+
+        setSuccessMsg(successMessage)
       } else {
         // Chế độ ngày: sử dụng logic cũ với tất cả slots
         let activeSlots = slots
@@ -509,15 +558,19 @@ export default function TechnicianSchedulePage() {
     }
   }, [viewRange])
 
-  // Auto-fill 7 ngày cho chế độ tuần: endDate = startDate + 6
+  // Auto-fill 5 ngày làm việc cho chế độ tuần: endDate = startDate + 4 (từ thứ 2 đến thứ 6)
   useEffect(() => {
     if (form.mode === 'tuan' && form.startDate) {
       try {
         const d = new Date(form.startDate)
-        const end = new Date(d)
-        end.setDate(d.getDate() + 6)
-        const iso = end.toISOString().slice(0, 10)
-        if (iso !== form.endDate) setForm((s) => ({ ...s, endDate: iso }))
+        const dayOfWeek = d.getDay()
+        // Chỉ auto-fill nếu ngày bắt đầu là thứ 2
+        if (dayOfWeek === 1) {
+          const end = new Date(d)
+          end.setDate(d.getDate() + 4) // Thứ 2 + 4 ngày = Thứ 6
+          const iso = end.toISOString().slice(0, 10)
+          if (iso !== form.endDate) setForm((s) => ({ ...s, endDate: iso }))
+        }
       } catch {
         // ignore
       }
@@ -609,20 +662,20 @@ export default function TechnicianSchedulePage() {
               <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Chế độ</label>
             </div>
             <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
-              <select 
-                value={form.mode} 
-                onChange={(e) => setField('mode', e.target.value as any)} 
+              <select
+                value={form.mode}
+                onChange={(e) => setField('mode', e.target.value as any)}
                 onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                 onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                 onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                 onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                 style={{
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  background: 'var(--bg-secondary)', 
-                  boxSizing: 'border-box', 
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'var(--bg-secondary)',
+                  boxSizing: 'border-box',
                   fontSize: '12px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -643,20 +696,20 @@ export default function TechnicianSchedulePage() {
               <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
             </div>
             <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
-              <select 
-                value={form.technicianId} 
-                onChange={(e) => setField('technicianId', e.target.value)} 
+              <select
+                value={form.technicianId}
+                onChange={(e) => setField('technicianId', e.target.value)}
                 onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                 onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                 onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                 onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                 style={{
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  background: 'var(--bg-secondary)', 
-                  boxSizing: 'border-box', 
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'var(--bg-secondary)',
+                  boxSizing: 'border-box',
                   fontSize: '12px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -692,29 +745,29 @@ export default function TechnicianSchedulePage() {
                 <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ngày làm việc</label>
               </div>
               <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
-                <input 
-                  type="date" 
-                  value={form.workDate} 
-                  min={new Date().toISOString().slice(0,10)} 
-                  onChange={(e) => setField('workDate', e.target.value)} 
+                <input
+                  type="date"
+                  value={form.workDate}
+                  min={new Date().toISOString().slice(0,10)}
+                  onChange={(e) => setField('workDate', e.target.value)}
                   onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                   onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                   onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                   onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                   style={{
-                    width: '100%', 
-                    padding: '12px 16px', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-secondary)', 
-                    boxSizing: 'border-box', 
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'var(--bg-secondary)',
+                    boxSizing: 'border-box',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-primary)',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                     outline: 'none'
-                  }} 
+                  }}
                 />
                 {errors.workDate && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.workDate}</div>}
               </div>
@@ -726,29 +779,29 @@ export default function TechnicianSchedulePage() {
                   <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ngày bắt đầu</label>
                 </div>
                 <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
-                  <input 
-                    type="date" 
-                    value={form.startDate} 
-                    min={new Date().toISOString().slice(0,10)} 
-                    onChange={(e) => setField('startDate', e.target.value)} 
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    min={new Date().toISOString().slice(0,10)}
+                    onChange={(e) => setField('startDate', e.target.value)}
                     onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                     onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                     onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                     onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                     style={{
-                      width: '100%', 
-                      padding: '12px 16px', 
-                      border: 'none', 
-                      borderRadius: '8px', 
-                      background: 'var(--bg-secondary)', 
-                      boxSizing: 'border-box', 
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      background: 'var(--bg-secondary)',
+                      boxSizing: 'border-box',
                       fontSize: '12px',
                       fontWeight: 300,
                       color: 'var(--text-primary)',
                       transition: 'all 0.2s ease',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                       outline: 'none'
-                    }} 
+                    }}
                   />
                   {errors.startDate && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.startDate}</div>}
                 </div>
@@ -758,29 +811,29 @@ export default function TechnicianSchedulePage() {
                   <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ngày kết thúc</label>
                 </div>
                 <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
-                  <input 
-                    type="date" 
-                    value={form.endDate} 
-                    min={form.startDate || undefined} 
-                    onChange={(e) => setField('endDate', e.target.value)} 
+                  <input
+                    type="date"
+                    value={form.endDate}
+                    min={form.startDate || undefined}
+                    onChange={(e) => setField('endDate', e.target.value)}
                     onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                     onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                     onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                     onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                     style={{
-                      width: '100%', 
-                      padding: '12px 16px', 
-                      border: 'none', 
-                      borderRadius: '8px', 
-                      background: 'var(--bg-secondary)', 
-                      boxSizing: 'border-box', 
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      background: 'var(--bg-secondary)',
+                      boxSizing: 'border-box',
                       fontSize: '12px',
                       fontWeight: 300,
                       color: 'var(--text-primary)',
                       transition: 'all 0.2s ease',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                       outline: 'none'
-                    }} 
+                    }}
                   />
                   {errors.endDate && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.endDate}</div>}
                 </div>
@@ -793,28 +846,28 @@ export default function TechnicianSchedulePage() {
               <label style={{ display: 'block', fontWeight: 300, fontSize: '12px', marginBottom: '0', color: 'var(--text-primary)' }}>Ghi chú</label>
             </div>
             <div style={{ display: 'table-cell', paddingRight: '16px', verticalAlign: 'middle' }}>
-              <input 
-                value={form.notes} 
-                onChange={(e) => setField('notes', e.target.value)} 
-                placeholder="Tối đa 255 ký tự" 
+              <input
+                value={form.notes}
+                onChange={(e) => setField('notes', e.target.value)}
+                placeholder="Tối đa 255 ký tự"
                 onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                 onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                 onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                 onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                 style={{
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  background: 'var(--bg-secondary)', 
-                  boxSizing: 'border-box', 
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'var(--bg-secondary)',
+                  boxSizing: 'border-box',
                   fontSize: '12px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                   outline: 'none'
-                }} 
+                }}
               />
               {errors.notes && <div style={{ color: 'var(--error-600)', fontSize: '11px', marginTop: '4px' }}>{errors.notes}</div>}
             </div>
@@ -834,7 +887,7 @@ export default function TechnicianSchedulePage() {
           </div>
         </form>
         <div style={{ marginTop: '12px', paddingLeft: '166px', color: 'var(--text-tertiary)', fontSize: '12px' }}>
-          {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ cho 7 ngày liên tiếp sử dụng API tối ưu.'}
+          {form.mode === 'tuan' && 'Lưu ý: Tạo lịch tuần sẽ tự động tạo tất cả khung giờ cho 5 ngày làm việc (từ thứ 2 đến thứ 6) sử dụng API tối ưu. Hệ thống chỉ hoạt động từ thứ 2 đến thứ 6.'}
         </div>
         </div>
       </div>
@@ -851,19 +904,19 @@ export default function TechnicianSchedulePage() {
           {centers.length > 0 && (
             <div>
               <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Xem theo</label>
-              <select 
-                value={viewMode} 
-                onChange={(e) => setViewMode(e.target.value as any)} 
+              <select
+                value={viewMode}
+                onChange={(e) => setViewMode(e.target.value as any)}
                 onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                 onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                 onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                 onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px 14px', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  background: 'var(--bg-secondary)', 
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'var(--bg-secondary)',
                   fontSize: '12px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -883,19 +936,19 @@ export default function TechnicianSchedulePage() {
             ? (
               <div>
                 <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Trung tâm</label>
-                <select 
-                  value={form.centerId} 
-                  onChange={(e) => setForm((s) => ({ ...s, centerId: e.target.value }))} 
+                <select
+                  value={form.centerId}
+                  onChange={(e) => setForm((s) => ({ ...s, centerId: e.target.value }))}
                   onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                   onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                   onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                   onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                  style={{ 
-                    minWidth: '260px', 
-                    padding: '10px 14px', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-secondary)', 
+                  style={{
+                    minWidth: '260px',
+                    padding: '10px 14px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'var(--bg-secondary)',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-primary)',
@@ -914,19 +967,19 @@ export default function TechnicianSchedulePage() {
             ) : (
               <div>
                 <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Kỹ thuật viên</label>
-                <select 
-                  value={form.technicianId} 
-                  onChange={(e) => setField('technicianId', e.target.value)} 
+                <select
+                  value={form.technicianId}
+                  onChange={(e) => setField('technicianId', e.target.value)}
                   onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                   onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                   onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                   onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                  style={{ 
-                    minWidth: '260px', 
-                    padding: '10px 14px', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-secondary)', 
+                  style={{
+                    minWidth: '260px',
+                    padding: '10px 14px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'var(--bg-secondary)',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-primary)',
@@ -950,19 +1003,19 @@ export default function TechnicianSchedulePage() {
 
           <div>
             <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Khoảng xem</label>
-            <select 
-              value={viewRange} 
-              onChange={(e) => setViewRange(e.target.value as any)} 
+            <select
+              value={viewRange}
+              onChange={(e) => setViewRange(e.target.value as any)}
               onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
               onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
               onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
               onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-              style={{ 
-                minWidth: '160px', 
-                padding: '10px 14px', 
-                border: 'none', 
-                borderRadius: '8px', 
-                background: 'var(--bg-secondary)', 
+              style={{
+                minWidth: '160px',
+                padding: '10px 14px',
+                border: 'none',
+                borderRadius: '8px',
+                background: 'var(--bg-secondary)',
                 fontSize: '12px',
                 fontWeight: 300,
                 color: 'var(--text-primary)',
@@ -980,82 +1033,82 @@ export default function TechnicianSchedulePage() {
           {viewRange === 'day' ? (
             <div>
               <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Ngày</label>
-              <input 
-                type="date" 
-                value={viewDate} 
-                min={new Date().toISOString().slice(0,10)} 
-                onChange={(e) => setViewDate(e.target.value)} 
+              <input
+                type="date"
+                value={viewDate}
+                min={new Date().toISOString().slice(0,10)}
+                onChange={(e) => setViewDate(e.target.value)}
                 onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                 onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                 onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                 onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                style={{ 
-                  minWidth: '180px', 
-                  padding: '10px 14px', 
-                  border: 'none', 
-                  borderRadius: '8px', 
-                  background: 'var(--bg-secondary)', 
+                style={{
+                  minWidth: '180px',
+                  padding: '10px 14px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'var(--bg-secondary)',
                   fontSize: '12px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                   outline: 'none'
-                }} 
+                }}
               />
             </div>
           ) : (
             <>
               <div>
                 <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Từ ngày</label>
-                <input 
-                  type="date" 
-                  value={viewStart} 
-                  min={new Date().toISOString().slice(0,10)} 
-                  onChange={(e) => setViewStart(e.target.value)} 
+                <input
+                  type="date"
+                  value={viewStart}
+                  min={new Date().toISOString().slice(0,10)}
+                  onChange={(e) => setViewStart(e.target.value)}
                   onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                   onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                   onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                   onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                  style={{ 
-                    minWidth: '180px', 
-                    padding: '10px 14px', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-secondary)', 
+                  style={{
+                    minWidth: '180px',
+                    padding: '10px 14px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'var(--bg-secondary)',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-primary)',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                     outline: 'none'
-                  }} 
+                  }}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontWeight: 300, fontSize: '11px', marginBottom: '6px', color: 'var(--text-primary)' }}>Đến ngày</label>
-                <input 
-                  type="date" 
-                  value={viewEnd} 
-                  min={viewStart || undefined} 
-                  onChange={(e) => setViewEnd(e.target.value)} 
+                <input
+                  type="date"
+                  value={viewEnd}
+                  min={viewStart || undefined}
+                  onChange={(e) => setViewEnd(e.target.value)}
                   onFocus={(e) => { e.target.style.boxShadow = '0 0 0 3px rgba(255, 216, 117, 0.2)'; e.target.style.background = '#fff'; }}
                   onBlur={(e) => { e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-secondary)'; }}
                   onMouseEnter={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = '#f8f9fa'; }}
                   onMouseLeave={(e) => { if (document.activeElement !== e.target) (e.target as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-                  style={{ 
-                    minWidth: '180px', 
-                    padding: '10px 14px', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    background: 'var(--bg-secondary)', 
+                  style={{
+                    minWidth: '180px',
+                    padding: '10px 14px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'var(--bg-secondary)',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-primary)',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                     outline: 'none'
-                  }} 
+                  }}
                 />
               </div>
             </>

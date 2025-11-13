@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { CreditCard, Smartphone, Wallet, AlertCircle } from 'lucide-react'
-import { PaymentService, PaymentRequest, PaymentMethod, VNPayPaymentRequest } from '@/services/paymentService'
+import { CreditCard, Smartphone, AlertCircle } from 'lucide-react'
+import { PaymentService, PaymentRequest, PaymentMethod } from '@/services/paymentService'
 
 interface PaymentMethodSelectorProps {
   bookingId: number
@@ -30,13 +30,6 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       color: '#10b981'
     },
     {
-      id: 'VNPAY' as PaymentMethod,
-      name: 'VNPay',
-      description: 'Thanh toán qua cổng VNPay',
-      icon: <Wallet size={24} />,
-      color: '#3b82f6'
-    },
-    {
       id: 'CREDIT_CARD' as PaymentMethod,
       name: 'Thẻ tín dụng',
       description: 'Thanh toán bằng thẻ Visa/Mastercard',
@@ -59,36 +52,13 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         cancelUrl: `${window.location.origin}/booking/payment/cancel`
       }
 
-
-      if (method === 'VNPAY') {
-        // Handle VNPay payment
-        const vnpayRequest: VNPayPaymentRequest = {
-          bookingId,
-          amount,
-          description,
-          returnUrl: paymentRequest.returnUrl!,
-          cancelUrl: paymentRequest.cancelUrl!
-        }
-
-        const vnpayResponse = await PaymentService.createVNPayPayment(vnpayRequest)
-        
-        // Redirect to VNPay
-        window.location.href = vnpayResponse.paymentUrl
-        
-      } else if (method === 'QR_CODE') {
+      if (method === 'QR_CODE') {
         // Handle QR payment
-        const paymentResponse = await PaymentService.createPayment(paymentRequest)
-        
-        // This would typically show QR code modal
-        // For now, we'll just show success
+        await PaymentService.createPayment(paymentRequest)
         onPaymentSuccess()
-        
       } else if (method === 'CREDIT_CARD') {
         // Handle credit card payment
-        const paymentResponse = await PaymentService.createPayment(paymentRequest)
-        
-        // This would typically redirect to payment gateway
-        // For now, we'll just show success
+        await PaymentService.createPayment(paymentRequest)
         onPaymentSuccess()
       }
 

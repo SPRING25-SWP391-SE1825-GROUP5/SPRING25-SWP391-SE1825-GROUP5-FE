@@ -13,7 +13,6 @@ import {
   ChevronRight,
   BarChart3,
   Wrench,
-  Bell,
   Menu,
   LogOut,
   Globe,
@@ -36,8 +35,7 @@ import {
   Save,
   UserCheck,
   DollarSign,
-  Activity,
-  Brain
+  Activity
 } from 'lucide-react'
 import {
   AreaChart,
@@ -67,7 +65,6 @@ import { useAppSelector } from '@/store/hooks'
 import TimeSlotManagement from './TimeSlotManagement'
 import SystemSettings from './SystemSettings'
 import ServiceTemplateManagement from './ServiceTemplateManagement'
-import RagIngest from './RagIngest'
 import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
 import ReminderManagement from '../../components/admin/ReminderManagement'
@@ -160,8 +157,7 @@ export default function AdminDashboard() {
       '/admin/maintenance-checklist': 'maintenance-checklist',
       '/admin/promotions': 'promotions',
       '/admin/reports': 'reports',
-      '/admin/settings': 'settings',
-      '/admin/rag-ingest': 'rag-ingest'
+      '/admin/settings': 'settings'
     }
 
     if (routeMap[pathname]) {
@@ -189,8 +185,7 @@ export default function AdminDashboard() {
           'maintenance-checklist': 'maintenance-checklist',
           'promotions': 'promotions',
           'reports': 'reports',
-          'settings': 'settings',
-          'rag-ingest': 'rag-ingest'
+          'settings': 'settings'
         }
         if (routeToPage[routeName]) {
           setActivePage(routeToPage[routeName])
@@ -880,8 +875,6 @@ export default function AdminDashboard() {
         return <SystemSettings />
       case 'maintenance-checklist':
         return <ServiceTemplateManagement />
-      case 'rag-ingest':
-        return <RagIngest />
       case 'dashboard':
         return renderDashboardContent()
       default:
@@ -1762,18 +1755,6 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ position: 'relative' }}>
-            <Bell size={20} style={{ color: 'var(--text-tertiary)' }} />
-            <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              width: '8px',
-              height: '8px',
-              background: 'var(--error-500)',
-              borderRadius: '50%'
-            }} />
-          </div>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1882,7 +1863,6 @@ export default function AdminDashboard() {
                 // Quản lý đơn hàng & lịch hẹn
                 { icon: ShoppingCart, label: 'Đơn hàng', page: 'orders', route: '/admin/orders' },
                 { icon: CalendarCheck, label: 'Đặt lịch', page: 'bookings', route: '/admin/bookings' },
-                { icon: Bell, label: 'Nhắc nhở', page: 'reminders', route: '/admin/reminders' },
                 { icon: MessageSquare, label: 'Phản hồi', page: 'feedback', route: '/admin/feedback' },
                 // Quản lý người dùng
                 { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
@@ -1900,8 +1880,6 @@ export default function AdminDashboard() {
                 // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                // AI & RAG
-                { icon: Brain, label: 'RAG Ingest', page: 'rag-ingest', route: '/admin/rag-ingest' },
                 // Cài đặt
                 { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (
