@@ -11,6 +11,10 @@ export interface WorkOrderPartItem {
   quantity: number
   notes?: string
   status?: string // DRAFT, CONSUMED, etc.
+  // Hints
+  sourceType?: 'CUSTOMER' | 'INVENTORY' | string
+  isCustomerSupplied?: boolean
+  orderItemId?: number // nếu đến từ đơn đã mua
 }
 
 export const WorkOrderPartService = {
@@ -28,7 +32,10 @@ export const WorkOrderPartService = {
       totalStock: r.totalStock ?? r.stock,
       quantity: r.quantity ?? r.quantityUsed ?? 1, // Map quantityUsed thành quantity
       notes: r.notes,
-      status: r.status // DRAFT, CONSUMED, etc.
+      status: r.status, // DRAFT, CONSUMED, etc.
+      sourceType: r.sourceType ?? r.SourceType,
+      isCustomerSupplied: r.isCustomerSupplied ?? r.customerSupplied ?? r.SourceType === 'CUSTOMER',
+      orderItemId: r.orderItemId ?? r.OrderItemId
     })) : []
   },
 
@@ -57,17 +64,8 @@ export const WorkOrderPartService = {
     await api.delete(`/Booking/${bookingId}/parts/${id}`)
   },
 
-  async confirm(bookingId: number): Promise<{ success: boolean; message?: string }> {
-    const { data } = await api.post(`/Booking/${bookingId}/parts/confirm`)
-    return data
-  }
-  ,
-  async customerApprove(bookingId: number, workOrderPartId: number, approve: boolean, note?: string, idempotencyKey?: string): Promise<{ success: boolean; message?: string }> {
-    const headers: Record<string, string> = {}
-    if (idempotencyKey) {
-      headers['Idempotency-Key'] = idempotencyKey
-    }
-    const { data } = await api.post(`/Booking/${bookingId}/parts/${workOrderPartId}/customer-approve`, { approve, note }, { headers })
+  async customerApprove(bookingId: number, workOrderPartId: number): Promise<{ success: boolean; message?: string }> {
+    const { data } = await api.put(`/Booking/${bookingId}/parts/${workOrderPartId}/customer-approve`)
     return data
   }
   ,
@@ -85,6 +83,32 @@ export const WorkOrderPartService = {
   async customerReject(bookingId: number, workOrderPartId: number): Promise<{ success: boolean; message?: string; data?: any }> {
     // BE endpoint: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-reject
     const { data } = await api.put(`/Booking/${bookingId}/parts/${workOrderPartId}/customer-reject`)
+    return data
+  },
+
+  async consumeCustomerPart(bookingId: number, workOrderPartId: number, orderItemId: number, quantity: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    // BE endpoint: POST /api/Booking/{bookingId}/parts/{workOrderPartId}/consume-customer-part
+    const { data } = await api.post(`/Booking/${bookingId}/parts/${workOrderPartId}/consume-customer-part`, {
+      orderItemId,
+      quantity
+    })
+    return data
+  },
+
+  async validateOrderParts(request: {
+    centerId: number
+    orderItemUsages: Array<{ orderItemId: number; quantity: number }>
+  }): Promise<{ success: boolean; message?: string; data?: any[] }> {
+    // BE endpoint: POST /api/Booking/validate-order-parts
+    const { data } = await api.post(`/Booking/validate-order-parts`, request)
+    return data
+  },
+
+  async updateBookingCustomerParts(bookingId: number, request: {
+    orderItemUsages?: Array<{ orderItemId: number; quantity: number }>
+  }): Promise<{ success: boolean; message?: string; data?: any }> {
+    // BE endpoint: PUT /api/Booking/{bookingId}/customer-parts
+    const { data } = await api.put(`/Booking/${bookingId}/customer-parts`, request)
     return data
   }
 }

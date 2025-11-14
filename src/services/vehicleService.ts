@@ -40,15 +40,22 @@ export interface VehicleListResponse {
   success: boolean
   message: string
   data: {
-    vehicles: Vehicle[]
+    vehicles?: Vehicle[]  // camelCase
+    Vehicles?: Vehicle[]   // PascalCase (from backend)
     total?: number
     totalCount?: number
+    TotalCount?: number    // PascalCase
     page?: number
     pageNumber?: number
-    pageSize: number
-    totalPages: number
+    PageNumber?: number    // PascalCase
+    pageSize?: number
+    PageSize?: number      // PascalCase
+    totalPages?: number
+    TotalPages?: number    // PascalCase
     hasPreviousPage?: boolean
+    HasPreviousPage?: boolean  // PascalCase
     hasNextPage?: boolean
+    HasNextPage?: boolean  // PascalCase
   }
 }
 
@@ -75,7 +82,7 @@ export interface NextServiceDueResponse {
 /**
  * Vehicle Service
  * Handles vehicle management operations
- * 
+ *
  * @class VehicleService
  * @description Service responsible for vehicle CRUD operations,
  * mileage updates, and service scheduling
@@ -83,7 +90,7 @@ export interface NextServiceDueResponse {
 export const VehicleService = {
   /**
    * Get paginated list of vehicles with optional filtering
-   * 
+   *
    * @param params - Query parameters for filtering and pagination
    * @returns Promise with vehicle list and pagination info
    * @throws {Error} When request fails
@@ -101,7 +108,7 @@ export const VehicleService = {
 
   /**
    * Get vehicle by ID
-   * 
+   *
    * @param id - Vehicle ID
    * @returns Promise with vehicle data
    * @throws {Error} When vehicle not found or request fails
@@ -113,7 +120,7 @@ export const VehicleService = {
 
   /**
    * Create new vehicle
-   * 
+   *
    * @param vehicleData - Vehicle creation data
    * @returns Promise with created vehicle
    * @throws {Error} When creation fails
@@ -126,7 +133,7 @@ export const VehicleService = {
 
   /**
    * Update vehicle by ID
-   * 
+   *
    * @param id - Vehicle ID
    * @param vehicleData - Vehicle data to update
    * @returns Promise with updated vehicle
@@ -139,7 +146,7 @@ export const VehicleService = {
 
   /**
    * Get customer information by vehicle ID
-   * 
+   *
    * @param id - Vehicle ID
    * @returns Promise with customer data
    * @throws {Error} When request fails
@@ -151,7 +158,7 @@ export const VehicleService = {
 
   /**
    * Search vehicle by VIN or license plate
-   * 
+   *
    * @param vinOrLicensePlate - VIN or license plate to search
    * @returns Promise with vehicle data
    * @throws {Error} When vehicle not found or request fails
@@ -163,7 +170,7 @@ export const VehicleService = {
 
   /**
    * Update vehicle mileage
-   * 
+   *
    * @param vehicleId - Vehicle ID
    * @param mileageData - Mileage data
    * @returns Promise with updated vehicle
@@ -176,7 +183,7 @@ export const VehicleService = {
 
   /**
    * Get next service due date for vehicle
-   * 
+   *
    * @param vehicleId - Vehicle ID
    * @param serviceId - Optional service ID
    * @returns Promise with next service due information
@@ -190,7 +197,7 @@ export const VehicleService = {
 
   /**
    * Get vehicles for current customer
-   * 
+   *
    * @param customerId - Customer ID (required)
    * @returns Promise with customer's vehicles
    * @throws {Error} When request fails
@@ -202,7 +209,7 @@ export const VehicleService = {
 
   /**
    * Get vehicle by ID for current customer
-   * 
+   *
    * @param vehicleId - Vehicle ID
    * @returns Promise with vehicle data for current customer
    * @throws {Error} When request fails
@@ -214,7 +221,7 @@ export const VehicleService = {
 
   /**
    * Delete vehicle by ID
-   * 
+   *
    * @param vehicleId - Vehicle ID
    * @returns Promise with deletion result
    * @throws {Error} When deletion fails

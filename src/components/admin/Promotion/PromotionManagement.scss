@@ -1,0 +1,65 @@
+@use './Promotion/_promotion-base' as *;
+@use './Promotion/_promotion-animations' as *;
+@use './Promotion/_promotion-header' as *;
+@use './Promotion/_promotion-toolbar' as *;
+@use './Promotion/_promotion-empty' as *;
+@use './Promotion/_promotion-table' as *;
+@use './Promotion/_promotion-modal' as *;
+@use './Promotion/_promotion-pagination' as *;
+@use './Promotion/_promotion-form-modal' as *;
+
+.admin-promotions {
+  .toolbar-search .icon {
+    position: absolute !important;
+    left: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--text-tertiary) !important;
+    z-index: 2 !important;
+    pointer-events: none !important;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .promotion-table.users-table {
+    thead tr th:first-child,
+    tbody tr td:first-child {
+      border-left: 1px solid #e5e7eb !important;
+      border-right: 1px solid #e5e7eb !important;
+    }
+
+    thead tr th:nth-child(2),
+    tbody tr td:nth-child(2) {
+      max-width: 160px !important;
+      width: 160px !important;
+      min-width: 160px !important;
+    }
+
+    thead tr th:nth-child(4),
+    tbody tr td:nth-child(4) {
+      min-width: 120px !important;
+      width: 120px !important;
+      max-width: 120px !important;
+    }
+
+    thead tr th:nth-child(8),
+    tbody tr td:nth-child(8) {
+      max-width: 120px !important;
+      width: 120px !important;
+      min-width: 100px !important;
+    }
+  }
+
+  .users-table th:first-child,
+  .users-table td:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+
+  table.promotion-table.users-table th:first-child,
+  table.promotion-table.users-table td:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+}

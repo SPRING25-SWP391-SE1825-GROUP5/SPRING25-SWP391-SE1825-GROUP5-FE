@@ -3,7 +3,6 @@ import {
   Search,
   Eye,
   Edit,
-  Trash2,
   Plus,
   Car,
   ChevronUp,
@@ -290,8 +289,7 @@ export default function VehicleModelManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
-            <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+            {/* removed view mode buttons */}
             <div className="toolbar-sep" />
           </div>
           <div className="toolbar-right">
@@ -307,13 +305,25 @@ export default function VehicleModelManagement() {
             </div>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
-            <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn" onClick={handleCreateModel}>
-              <Plus size={14} /> Thêm mẫu xe
-            </button>
-            <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
-              <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
+            <button
+              type="button"
+              onClick={handleCreateModel}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '8px',
+                backgroundColor: '#FFD875',
+                color: '#111827',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Plus size={16} />
+              Tạo mẫu xe mới
             </button>
           </div>
         </div>
@@ -407,19 +417,14 @@ export default function VehicleModelManagement() {
                         <Car size={16} className="th-icon" /> ID
                       </span>
                     </th>
-                    <th className="sortable" onClick={() => handleSort('modelName')}>
-                      <span className="th-inner sortable">
-                        <Car size={16} className="th-icon" /> Tên mẫu {getSortIcon('modelName')}
+                    <th>
+                      <span className="th-inner">
+                        <Car size={16} className="th-icon" /> Tên mẫu
                       </span>
                     </th>
-                    <th className="sortable" onClick={() => handleSort('brand')}>
-                      <span className="th-inner sortable">
-                        <Car size={16} className="th-icon" /> Hãng xe {getSortIcon('brand')}
-                      </span>
-                    </th>
-                    <th className="sortable" onClick={() => handleSort('createdAt')}>
-                      <span className="th-inner sortable">
-                        <CheckCircle size={16} className="th-icon" /> Trạng thái {getSortIcon('createdAt')}
+                    <th>
+                      <span className="th-inner">
+                        <CheckCircle size={16} className="th-icon" /> Trạng thái
                       </span>
                     </th>
                     <th>
@@ -444,17 +449,11 @@ export default function VehicleModelManagement() {
                             onChange={(e) => handleToggleOne(model.modelId, e.target.checked)}
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <div className="vehicle-model-id-cell__avatar users-avatar users-avatar--fallback">
-                            {model.modelId}
-                          </div>
                           <span className="vehicle-model-id-cell__text">#{model.modelId}</span>
                         </div>
                       </td>
                       <td className="text-primary-bold">
-                        {model.modelName}
-                      </td>
-                      <td className="text-secondary">
-                        {model.brand}
+                        {model.modelName || '-'}
                       </td>
                       <td>
                         <span className={getStatusBadgeClass(model.isActive)}>
@@ -479,14 +478,6 @@ export default function VehicleModelManagement() {
                             title="Sửa"
                           >
                             <Edit size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            className="vehicle-model-action-btn vehicle-model-action-btn--danger"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteModel(model); }}
-                            title="Xóa"
-                          >
-                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>

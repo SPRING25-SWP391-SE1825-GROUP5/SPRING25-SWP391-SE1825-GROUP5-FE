@@ -11,9 +11,7 @@ export default function PartsHeader({ onAddPart, onExportExcel }: PartsHeaderPro
     <div className="users-toolbar">
       <div className="toolbar-top">
         <div className="toolbar-left">
-          <button type="button" className="toolbar-chip">Bảng</button>
-          <button type="button" className="toolbar-chip is-active">Bảng điều khiển</button>
-          <button type="button" className="toolbar-chip">Danh sách</button>
+          {/* removed dashboard chip */}
           <div className="toolbar-sep"/>
         </div>
         <div className="toolbar-right" style={{flex:1}}>
@@ -24,9 +22,7 @@ export default function PartsHeader({ onAddPart, onExportExcel }: PartsHeaderPro
             </div>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="toolbar-chip">Ẩn</button>
-            <button type="button" className="toolbar-chip">Tùy chỉnh</button>
-            <button type="button" className="toolbar-btn" onClick={onExportExcel}>Xuất</button>
+            {/* removed export button */}
           </div>
         </div>
       </div>

@@ -34,7 +34,7 @@ const TimeSlotManagement = () => {
   const [pageSize, setPageSize] = useState(10);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);
   const pageSizeRef = useRef<HTMLDivElement>(null);
-  
+
   const pagedData = (data || []).slice((page - 1) * pageSize, page * pageSize);
   useEffect(() => {
     function handleClick(e: any) {
@@ -119,9 +119,7 @@ const TimeSlotManagement = () => {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button className="toolbar-chip"><List size={16} style={{marginRight:6}}/>Bảng</button>
-            <button className="toolbar-chip is-active"><LayoutDashboard size={16} style={{marginRight:6}}/>Bảng điều khiển</button>
-            <button className="toolbar-chip"><Menu size={16} style={{marginRight:6}}/>Danh sách</button>
+            {/* removed dashboard chip */}
             <div className="toolbar-sep"></div>
           </div>
           <div className="toolbar-search">
@@ -136,9 +134,6 @@ const TimeSlotManagement = () => {
             <span className="search-underline"></span>
           </div>
           <div className="toolbar-actions">
-            <button className="toolbar-chip"><Eye size={16} style={{marginRight:6}}/>Ẩn</button>
-            <button className="toolbar-chip"><Edit size={16} style={{marginRight:6}}/>Tùy chỉnh</button>
-            <button className="toolbar-chip"><Download size={16} style={{marginRight:6}}/>Xuất</button>
             <button className="accent-button" onClick={openCreate}><PlusSquare size={18} style={{marginRight:6}}/>Thêm khung giờ</button>
           </div>
         </div>

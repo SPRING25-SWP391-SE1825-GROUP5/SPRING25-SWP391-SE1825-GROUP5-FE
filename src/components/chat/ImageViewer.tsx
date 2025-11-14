@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import type { ChatAttachment } from '@/types/chat'
 import './ImageViewer.scss'
 
@@ -84,6 +84,20 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
       <div className="image-viewer__overlay" />
 
       <div className="image-viewer__container" onClick={(e) => e.stopPropagation()}>
+        {/* Close Button */}
+        <button
+          type="button"
+          className="image-viewer__close"
+          onClick={(e) => {
+            e.stopPropagation()
+            onClose()
+          }}
+          aria-label="Đóng"
+          title="Đóng (ESC)"
+        >
+          <X size={24} />
+        </button>
+
         {/* Image Container */}
         <div className="image-viewer__image-container">
           {isLoading && (

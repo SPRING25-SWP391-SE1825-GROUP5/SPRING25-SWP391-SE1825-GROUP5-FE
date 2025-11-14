@@ -172,5 +172,54 @@ export const CustomerService = {
     const defaultParams = { pageNumber: 1, pageSize: 10, ...params }
     const { data } = await api.get<CustomerBookingsResponse>(`/Customer/${customerId}/bookings`, { params: defaultParams })
     return data
+  },
+
+  /**
+   * Get customer service credits
+   *
+   * @param customerId - Customer ID
+   * @returns Promise with customer's service credits
+   * @throws {Error} When request fails
+   */
+  async getCustomerCredits(customerId: number): Promise<CustomerServicePackagesResponse> {
+    const { data } = await api.get<CustomerServicePackagesResponse>(`/Customer/${customerId}/credits`)
+    return data
+  },
+
+  /**
+   * Find customer by email or phone
+   *
+   * @param email - Email to search (optional)
+   * @param phone - Phone to search (optional)
+   * @returns Promise with user/customer data
+   * @throws {Error} When request fails
+   */
+  async findByEmailOrPhone(params: { email?: string; phone?: string }): Promise<{
+    success: boolean
+    data: {
+      userId: number
+      fullName: string
+      email: string
+      phoneNumber: string
+      role: string
+      isActive: boolean
+      emailVerified: boolean
+      customerId?: number | null
+    }
+  }> {
+    const { data } = await api.get<{
+      success: boolean
+      data: {
+        userId: number
+        fullName: string
+        email: string
+        phoneNumber: string
+        role: string
+        isActive: boolean
+        emailVerified: boolean
+        customerId?: number | null
+      }
+    }>('/User/find-by-email-or-phone', { params })
+    return data
   }
 }

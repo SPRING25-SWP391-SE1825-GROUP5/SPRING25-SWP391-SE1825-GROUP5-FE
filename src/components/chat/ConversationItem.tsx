@@ -3,6 +3,7 @@ import { Pin, MoreVertical } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { pinConversation, archiveConversation, removeConversation } from '@/store/chatSlice'
 import ConversationItemActions from './ConversationItemActions'
+import ConfirmModal from './ConfirmModal'
 import { formatConversationTime } from '@/utils/timeFormatter'
 import { ChatService } from '@/services/chatService'
 import toast from 'react-hot-toast'
@@ -24,6 +25,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
   const currentUser = useAppSelector((state) => state.auth.user)
   const currentUserId = currentUser?.id?.toString() || localStorage.getItem('userId') || 'guest'
   const [showActions, setShowActions] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const otherParticipant = conversation.participants.find(p => p.id !== currentUserId) || conversation.participants[0]
   const displayName = otherParticipant?.name || 'Người dùng'
@@ -43,19 +45,20 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     setShowActions(false)
   }
 
-  const handleDelete = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa cuộc trò chuyện này? Hành động này không thể hoàn tác.')) {
-      return
-    }
+  const handleDelete = () => {
+    setShowDeleteModal(true)
+    setShowActions(false)
+  }
 
+  const confirmDelete = async () => {
     try {
       await ChatService.deleteConversation(conversation.id)
       dispatch(removeConversation(conversation.id))
       toast.success('Đã xóa cuộc trò chuyện thành công')
-      setShowActions(false)
+      setShowDeleteModal(false)
     } catch (error: any) {
       toast.error(error?.message || 'Không thể xóa cuộc trò chuyện')
-    setShowActions(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -105,6 +108,16 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
           isPinned={conversation.isPinned}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        message="Bạn có chắc chắn muốn xóa cuộc trò chuyện này? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+        type="delete"
+      />
     </div>
   )
 }

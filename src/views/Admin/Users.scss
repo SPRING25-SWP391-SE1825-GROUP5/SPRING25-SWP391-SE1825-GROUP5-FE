@@ -5,7 +5,7 @@
   .toolbar-left, .toolbar-right { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
   .toolbar-right { flex: 1; justify-content:flex-start; gap:6px; align-items:center; }
   .toolbar-filters { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .toolbar-sep { width:1px; height:24px; background:var(--border-primary); margin:0 8px; }
+  .toolbar-sep { display: none; }
   .toolbar-chip { padding:8px 10px; border:none; background:#fff; color:var(--text-primary); border-radius:8px; font-size:13px; font-weight:400; cursor:pointer; display:flex; align-items:center; gap:6px; }
   .toolbar-chip:hover { background:#f6f7f9; }
   .toolbar-btn { padding:8px 10px; border:1px solid var(--border-primary); background:#fff; color:var(--text-primary); border-radius:8px; font-size:13px; font-weight:400; cursor:pointer; display:flex; align-items:center; gap:6px; }
@@ -17,8 +17,8 @@
   @media (max-width: 768px) { .toolbar-search { flex: 1 1 100%; max-width: 100%; } }
   .toolbar-search .search-wrap { position:relative; width:100%; display:block; }
   .toolbar-search input { width:100% !important; padding:10px 12px 10px 34px; border:none; border-bottom:1px solid transparent; border-radius:0; background:#fff !important; color:var(--text-primary); font-size:13px; outline:none; box-shadow:none; position:relative; z-index:1; }
-  .toolbar-search .search-wrap::after { content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; width:auto; background:#FFD875; transform:scaleX(0); transform-origin:left; transition:transform .25s ease; z-index:0; }
-  .toolbar-search .search-wrap:focus-within::after { transform:scaleX(1); }
+  .toolbar-search .search-wrap::after { display: none; }
+  .toolbar-search .search-wrap:focus-within::after { display: none; }
   .toolbar-search .icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-tertiary); z-index:2; pointer-events:none; }
   .toolbar-actions { display:flex; align-items:center; gap:8px; margin-left:auto; position:relative; z-index:2; flex:0 0 auto; }
 
@@ -208,17 +208,17 @@
     color: var(--text-secondary);
     font-size: 13px;
   }
-  
+
   .pagination-label {
     font-weight: 500;
     color: var(--text-primary);
   }
-  
+
   .pagination-range {
     color: var(--text-secondary);
     font-size: 13px;
   }
-  
+
   /* Pill dropdown menu styles */
   .pill-menu {
     position: absolute;
@@ -238,7 +238,7 @@
     pointer-events: none;
     margin-top: 4px;
   }
-  
+
   /* Special styling for page size dropdown - opens upward */
   .pagination-info .pill-menu {
     top: auto;
@@ -247,18 +247,18 @@
     margin-bottom: 4px;
     transform: translateY(8px);
   }
-  
+
   .pill-menu.show {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
     pointer-events: auto;
   }
-  
+
   .pagination-info .pill-menu.show {
     transform: translateY(0);
   }
-  
+
   .pill-item {
     padding: 8px 12px;
     color: #374151;
@@ -269,12 +269,12 @@
     border-radius: 4px;
     margin: 2px 4px;
   }
-  
+
   .pill-item:hover {
     background: var(--primary-50);
     color: var(--primary-700);
   }
-  
+
   .pill-item.active {
     background: var(--primary-50);
     color: var(--primary-700);
@@ -299,17 +299,17 @@
     line-height: 1.4;
     height: 44px;
   }
-  
+
   .form-input:focus {
     border-bottom-color: var(--primary-500);
     box-shadow: 0 2px 0 0 var(--primary-500);
   }
-  
+
   .form-input::placeholder {
     color: var(--text-tertiary);
     font-weight: 400;
   }
-  
+
   .form-input-icon {
     position: absolute;
     left: 12px;
@@ -324,20 +324,20 @@
     pointer-events: none;
     line-height: 1;
   }
-  
+
   /* Special positioning for textarea icons */
   .form-input-wrapper:has(.form-textarea) .form-input-icon {
     top: calc(12px + 0.7em);
     transform: none;
     margin-top: 0; /* Không cần margin cho textarea */
   }
-  
+
   .form-input-wrapper {
     position: relative;
     margin-bottom: 20px;
     width: 100%;
   }
-  
+
   .form-textarea {
     width: 100%;
     padding: 12px 12px 12px 40px;
@@ -356,17 +356,17 @@
     line-height: 1.4;
     font-family: inherit;
   }
-  
+
   .form-textarea:focus {
     border-bottom-color: var(--primary-500);
     box-shadow: 0 2px 0 0 var(--primary-500);
   }
-  
+
   .form-textarea::placeholder {
     color: var(--text-tertiary);
     font-weight: 400;
   }
-  
+
   .form-select {
     width: 100%;
     padding: 12px 40px 12px 12px;
@@ -387,18 +387,18 @@
     line-height: 1.4;
     height: 44px;
   }
-  
+
   .form-select:focus {
     border-bottom-color: var(--primary-500);
     box-shadow: 0 2px 0 0 var(--primary-500);
   }
-  
+
   .form-select-wrapper {
     position: relative;
     margin-bottom: 20px;
     width: 100%;
   }
-  
+
   .form-select-wrapper::after {
     content: '';
     position: absolute;
@@ -420,14 +420,14 @@
     gap: 20px;
     width: 100%;
   }
-  
+
   .form-grid-full {
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
     width: 100%;
   }
-  
+
   .form-label {
     display: block;
     font-size: 14px;
@@ -440,7 +440,7 @@
   .admin-users ::-webkit-scrollbar {
     display: none;
   }
-  
+
   .admin-users {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
@@ -612,16 +612,16 @@
   }
 
   .pagination-info .pill-select {
-    width: 52px !important;
+    width: 70px !important;
     min-width: 0 !important;
   }
   .pagination-info .pill-select .pill-trigger {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 52px !important;
+    width: 70px !important;
     min-width: 0 !important;
-    max-width: 60px !important;
+    max-width: 80px !important;
     height: 28px !important;
     padding: 0 4px !important;
     font-size: 14px !important;

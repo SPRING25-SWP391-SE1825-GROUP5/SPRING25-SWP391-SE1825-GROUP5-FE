@@ -4,10 +4,13 @@ import { WorkOrderPartService } from '@/services/workOrderPartService'
 import { PartService } from '@/services/partService'
 import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
-import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { feedbackService } from '@/services/feedbackService'
+import api from '@/services/api'
 import { useAppSelector } from '@/store/hooks'
-import { Star, MessageSquare } from 'lucide-react'
+import { Star, MessageSquare, QrCode } from 'lucide-react'
+import QRCode from 'qrcode'
+import BookingQRCode from '@/components/booking/BookingQRCode'
+import UsePurchasedPartsPanel from '@/components/booking/UsePurchasedPartsPanel'
 
 interface BookingHistoryCardProps {
   booking: CustomerBooking
@@ -32,10 +35,10 @@ interface BookingPart {
 const formatDate = (dateString: string) => {
   if (dateString === 'N/A') return 'N/A'
   const date = new Date(dateString)
-  return date.toLocaleDateString('vi-VN', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric' 
+  return date.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   })
 }
 
@@ -65,6 +68,15 @@ const getStatusBadge = (status: string) => {
       badgeClass += ' status-confirmed'
       text = 'Đã xác nhận'
       break
+    case 'CHECKED_IN':
+      badgeClass += ' status-checked-in'
+      text = 'Đã check-in'
+      break
+    case 'IN_PROGRESS':
+    case 'INPROGRESS':
+      badgeClass += ' status-in-progress'
+      text = 'Đang thực hiện'
+      break
     default:
       badgeClass += ' status-default'
   }
@@ -76,8 +88,8 @@ const getStatusBadge = (status: string) => {
   )
 }
 
-export default function BookingHistoryCard({ 
-  booking, 
+export default function BookingHistoryCard({
+  booking,
   isExpanded = false,
   isNewest = false,
   onToggle,
@@ -90,12 +102,17 @@ export default function BookingHistoryCard({
   const [loadingParts, setLoadingParts] = useState(false)
   const [approvingPartId, setApprovingPartId] = useState<number | null>(null)
   const [rejectingPartId, setRejectingPartId] = useState<number | null>(null)
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [loadingFeedback, setLoadingFeedback] = useState(false)
   const [existingFeedback, setExistingFeedback] = useState<any>(null)
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [bookingDetail, setBookingDetail] = useState<any>(null)
+  const [rating, setRating] = useState<number>(0)
+  const [comment, setComment] = useState<string>('')
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
+  const [showQRTooltip, setShowQRTooltip] = useState(false)
   const user = useAppSelector((state) => state.auth.user)
-  
+
   // Tính tổng tiền phụ tùng - chỉ tính những phụ tùng đã được approve (status = CONSUMED)
   const totalPartsCost = useMemo(() => {
     return parts
@@ -110,11 +127,49 @@ export default function BookingHistoryCard({
     }
   }, [isExpanded, booking.bookingId])
 
-  // Load feedback and booking detail when status is PAID
+  // Generate QR code only for CONFIRMED bookings
   useEffect(() => {
-    if (isExpanded && booking.bookingId && (booking.status || '').toUpperCase() === 'PAID') {
-      loadFeedbackAndBookingDetail()
+    const generateQRCode = async () => {
+      const status = (booking.status || '').toUpperCase()
+      if (status === 'CONFIRMED') {
+        try {
+          const qrData = JSON.stringify({
+            bookingId: booking.bookingId,
+            timestamp: new Date().toISOString(),
+            type: 'CHECK_IN',
+            expiry: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          })
+
+          const dataUrl = await QRCode.toDataURL(qrData, {
+            width: 80,
+            margin: 1,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            },
+            errorCorrectionLevel: 'M'
+          })
+
+          setQrCodeDataUrl(dataUrl)
+        } catch (error) {
+          console.error('Error generating QR code:', error)
+        }
+      } else {
+        // Clear QR code if status is not CONFIRMED
+        setQrCodeDataUrl('')
+      }
     }
+
+    generateQRCode()
+  }, [booking.bookingId, booking.status])
+
+  // Load feedback and booking detail when status is PAID or COMPLETED
+  // Tạm thời ẩn - sẽ làm sau
+  useEffect(() => {
+    // const status = (booking.status || '').toUpperCase()
+    // if (isExpanded && booking.bookingId && (status === 'PAID' || status === 'COMPLETED')) {
+    //   loadFeedbackAndBookingDetail()
+    // }
   }, [isExpanded, booking.bookingId, booking.status])
 
   const loadFeedbackAndBookingDetail = async () => {
@@ -125,14 +180,36 @@ export default function BookingHistoryCard({
       if (detail?.success && detail?.data) {
         setBookingDetail(detail.data)
       }
-      
-      // Load existing feedback
+
+      // Load existing feedbacks (API trả về array)
       try {
-        const feedback = await feedbackService.getFeedback(String(booking.bookingId))
-        setExistingFeedback(feedback)
-      } catch (err) {
+        const response = await api.get(`/Feedback/bookings/${booking.bookingId}`)
+        const feedbacksList = response.data?.data || []
+        setFeedbacks(feedbacksList)
+        
+        // Lấy feedback đầu tiên (hoặc feedback chính) để hiển thị
+        // Ưu tiên feedback có technicianId hoặc partId
+        const mainFeedback = feedbacksList.find((f: any) => f.technicianId || f.partId) || feedbacksList[0] || null
+        setExistingFeedback(mainFeedback)
+        
+        // Set initial values for editing
+        if (mainFeedback) {
+          setRating(mainFeedback.rating || mainFeedback.technicianRating || 0)
+          setComment(mainFeedback.comment || '')
+        } else {
+          setRating(0)
+          setComment('')
+        }
+      } catch (err: any) {
         // Nếu chưa có feedback thì set null
-        setExistingFeedback(null)
+        if (err.response?.status === 404) {
+          setFeedbacks([])
+          setExistingFeedback(null)
+        } else {
+          console.error('Error loading feedback:', err)
+          setFeedbacks([])
+          setExistingFeedback(null)
+        }
       }
     } catch (error) {
       console.error('Error loading feedback:', error)
@@ -146,18 +223,18 @@ export default function BookingHistoryCard({
       setLoadingParts(true)
       // 1. Load phụ tùng từ API /Booking/{bookingId}/parts (giống như kỹ thuật viên)
       let list = await WorkOrderPartService.list(Number(booking.bookingId))
-      
+
       // 2. Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
       list = await Promise.all(list.map(async (p) => {
         try {
           // Luôn gọi API /api/Part/{id} để lấy unitPrice chính xác
           const partDetail = await PartService.getPartById(p.partId)
-          
+
           if (partDetail.success && partDetail.data) {
             const raw = partDetail.data as any
             // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
             const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
-            
+
             return {
               ...p,
               partNumber: partDetail.data.partNumber || p.partNumber,
@@ -170,10 +247,10 @@ export default function BookingHistoryCard({
         } catch (err) {
           console.error(`Lỗi khi load chi tiết phụ tùng ${p.partId}:`, err)
         }
-        
+
         return p
       }))
-      
+
       // 3. Map sang BookingPart format
       setParts(list.map(it => ({
         workOrderPartId: it.id,
@@ -205,16 +282,16 @@ export default function BookingHistoryCard({
       setApprovingPartId(workOrderPartId)
       // Gọi API với workOrderPartId (KHÔNG phải partId)
       // API: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-approve
-      console.log('🔵 Starting approve part:', { 
-        bookingId: booking.bookingId, 
+      console.log('🔵 Starting approve part:', {
+        bookingId: booking.bookingId,
         workOrderPartId,
         part: parts.find(p => p.workOrderPartId === workOrderPartId)
       })
-      
+
       const response = await BookingService.approveBookingPart(booking.bookingId, workOrderPartId)
-      
+
       console.log('🔵 Approve response:', response)
-      
+
       if (response.success) {
         toast.success('Đã đồng ý phụ tùng thành công')
         // Reload parts
@@ -238,16 +315,16 @@ export default function BookingHistoryCard({
       setRejectingPartId(workOrderPartId)
       // Gọi API với workOrderPartId
       // API: PUT /api/Booking/{bookingId}/parts/{workOrderPartId}/customer-reject
-      console.log('🔴 Starting reject part:', { 
-        bookingId: booking.bookingId, 
+      console.log('🔴 Starting reject part:', {
+        bookingId: booking.bookingId,
         workOrderPartId,
         part: parts.find(p => p.workOrderPartId === workOrderPartId)
       })
-      
+
       const response = await WorkOrderPartService.customerReject(booking.bookingId, workOrderPartId)
-      
+
       console.log('🔴 Reject response:', response)
-      
+
       if (response.success) {
         toast.success('Đã từ chối phụ tùng thành công')
         // Reload parts
@@ -267,9 +344,9 @@ export default function BookingHistoryCard({
   }
   return (
     <>
-      <div 
+      <div
         className="profile-v2__card"
-        style={{ 
+        style={{
           padding: '20px',
           border: '1px solid #e5e7eb',
           borderRadius: '8px',
@@ -287,71 +364,72 @@ export default function BookingHistoryCard({
           e.currentTarget.style.boxShadow = 'none'
         }}
       >
-        {/* Newest Badge */}
-        {isNewest && (
-          <div style={{
-            position: 'absolute',
-            top: '16px',
-            left: '16px',
-            padding: '4px 10px',
-            borderRadius: '12px',
-            backgroundColor: '#FFD875',
-            color: '#111827',
-            fontSize: '12px',
-            fontWeight: '600',
-            zIndex: 1
-          }}>
-            Mới nhất
-          </div>
-        )}
-
         {/* Status Badge */}
         <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
           {getStatusBadge(booking.status)}
         </div>
 
         {/* Service Name */}
-        <div style={{ marginBottom: '16px', paddingRight: '120px', paddingLeft: isNewest ? '100px' : '0' }}>
-          <h3 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
+        <div style={{ marginBottom: '16px', paddingRight: '120px' }}>
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '400',
             margin: 0,
-            marginBottom: '4px',
-            color: '#111827'
+            marginBottom: '8px',
+            color: '#111827',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
           }}>
-            {booking.serviceName}
+            <span>{booking.serviceName}</span>
+            {isNewest && (
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: '12px',
+                backgroundColor: '#FFD875',
+                color: '#111827',
+                fontSize: '12px',
+                fontWeight: '400',
+                whiteSpace: 'nowrap'
+              }}>
+                Mới nhất
+              </span>
+            )}
           </h3>
-          <p style={{ 
-            fontSize: '14px', 
-            color: '#6b7280', 
-            margin: 0 
+          <div style={{
+            fontSize: '14px',
+            color: '#6b7280',
+            fontWeight: '400'
           }}>
             Mã đặt lịch: #{booking.bookingId}
-          </p>
+          </div>
         </div>
 
         {/* Booking Details */}
-        <div style={{ 
+        <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '12px',
-          marginTop: '12px'
+          marginTop: '12px',
+          position: 'relative'
         }}>
           {/* Date */}
           <div>
-            <p style={{ 
-              fontSize: '12px', 
-              color: '#9ca3af', 
+            <p style={{
+              fontSize: '12px',
+              color: '#9ca3af',
               margin: 0,
-              marginBottom: '2px'
+              marginBottom: '2px',
+              lineHeight: '1.2'
             }}>
               Ngày
             </p>
-            <p style={{ 
-              fontSize: '14px', 
-              color: '#374151', 
+            <p style={{
+              fontSize: '14px',
+              color: '#374151',
               margin: 0,
-              fontWeight: '500'
+              fontWeight: '500',
+              lineHeight: '1.4'
             }}>
               {formatDate(booking.date)}
             </p>
@@ -360,19 +438,21 @@ export default function BookingHistoryCard({
           {/* Time Slot */}
           {booking.slotTime !== 'N/A' && (
             <div>
-              <p style={{ 
-                fontSize: '12px', 
-                color: '#9ca3af', 
+              <p style={{
+                fontSize: '12px',
+                color: '#9ca3af',
                 margin: 0,
-                marginBottom: '2px'
+                marginBottom: '2px',
+                lineHeight: '1.2'
               }}>
                 Giờ
               </p>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#374151', 
+              <p style={{
+                fontSize: '14px',
+                color: '#374151',
                 margin: 0,
-                fontWeight: '500'
+                fontWeight: '500',
+                lineHeight: '1.4'
               }}>
                 {booking.slotTime} ({booking.slotLabel})
               </p>
@@ -381,19 +461,21 @@ export default function BookingHistoryCard({
 
           {/* Center */}
           <div>
-            <p style={{ 
-              fontSize: '12px', 
-              color: '#9ca3af', 
+            <p style={{
+              fontSize: '12px',
+              color: '#9ca3af',
               margin: 0,
-              marginBottom: '2px'
+              marginBottom: '2px',
+              lineHeight: '1.2'
             }}>
               Trung tâm
             </p>
-            <p style={{ 
-              fontSize: '14px', 
-              color: '#374151', 
+            <p style={{
+              fontSize: '14px',
+              color: '#374151',
               margin: 0,
-              fontWeight: '500'
+              fontWeight: '500',
+              lineHeight: '1.4'
             }}>
               {booking.centerName}
             </p>
@@ -401,49 +483,95 @@ export default function BookingHistoryCard({
 
           {/* Vehicle */}
           <div>
-            <p style={{ 
-              fontSize: '12px', 
-              color: '#9ca3af', 
+            <p style={{
+              fontSize: '12px',
+              color: '#9ca3af',
               margin: 0,
-              marginBottom: '2px'
+              marginBottom: '2px',
+              lineHeight: '1.2'
             }}>
               Xe
             </p>
-            <p style={{ 
-              fontSize: '14px', 
-              color: '#374151', 
+            <p style={{
+              fontSize: '14px',
+              color: '#374151',
               margin: 0,
-              fontWeight: '500'
+              fontWeight: '500',
+              lineHeight: '1.4'
             }}>
               {booking.vehiclePlate}
             </p>
           </div>
+
+          {/* QR Code - Positioned at bottom right corner - Only show for CONFIRMED status */}
+          {qrCodeDataUrl && (booking.status || '').toUpperCase() === 'CONFIRMED' && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onMouseEnter={() => setShowQRTooltip(true)}
+              onMouseLeave={() => setShowQRTooltip(false)}
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: '60px',
+                height: '60px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 5
+              }}
+            >
+              <img
+                src={qrCodeDataUrl}
+                alt="QR Code Check-in"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain'
+                }}
+              />
+
+              {/* Tooltip */}
+              {showQRTooltip && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '70px',
+                    right: 0,
+                    padding: '12px 16px',
+                    backgroundColor: 'rgba(255, 216, 117, 0.9)',
+                    color: '#111827',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    lineHeight: '1.5',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    zIndex: 1000,
+                    pointerEvents: 'none',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Mã QR có hiệu lực trong 24 giờ
+
+                  {/* Arrow pointing down */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '-6px',
+                      right: '20px',
+                      width: 0,
+                      height: 0,
+                      borderLeft: '6px solid transparent',
+                      borderRight: '6px solid transparent',
+                      borderTop: '6px solid rgba(255, 216, 117, 0.9)'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Special Requests */}
-        {booking.specialRequests && booking.specialRequests !== 'string' && !isExpanded && (
-          <div style={{ 
-            marginTop: '16px', 
-            paddingTop: '16px',
-            borderTop: '1px solid #e5e7eb'
-          }}>
-            <p style={{ 
-              fontSize: '12px', 
-              color: '#9ca3af', 
-              margin: 0,
-              marginBottom: '4px'
-            }}>
-              Yêu cầu đặc biệt:
-            </p>
-            <p style={{ 
-              fontSize: '14px', 
-              color: '#374151', 
-              margin: 0
-            }}>
-              {booking.specialRequests}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Expanded Details */}
@@ -467,184 +595,31 @@ export default function BookingHistoryCard({
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '20px'
           }}>
-            {/* Booking ID */}
-            <div>
-              <p style={{ 
-                fontSize: '12px', 
-                color: '#9ca3af', 
-                margin: 0,
-                marginBottom: '6px',
-                fontWeight: '500'
-              }}>
-                Mã đặt lịch
-              </p>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#374151', 
-                margin: 0,
-                fontWeight: '600',
-                fontFamily: 'monospace'
-              }}>
-                #{booking.bookingId}
-              </p>
-            </div>
 
-            {/* Status */}
-            <div>
-              <p style={{ 
-                fontSize: '12px', 
-                color: '#9ca3af', 
-                margin: 0,
-                marginBottom: '6px',
-                fontWeight: '500'
-              }}>
-                Trạng thái
-              </p>
-              <div>
-                {getStatusBadge(booking.status)}
-              </div>
-            </div>
 
-            {/* Action Buttons - Only show for PENDING status in expanded section */}
-            {booking.status === 'PENDING' && (
-              <div style={{ 
-                gridColumn: '1 / -1', 
-                display: 'flex', 
-                gap: '12px',
-                marginTop: '12px',
-                paddingTop: '16px',
-                borderTop: '1px solid #e5e7eb'
-              }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onPayment?.(booking.bookingId)
-                  }}
-                  disabled={isProcessingPayment}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: isProcessingPayment ? '#f3f4f6' : '#FFD875',
-                    color: '#111827',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isProcessingPayment) {
-                      e.currentTarget.style.background = '#FFE082'
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(255, 216, 117, 0.3)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isProcessingPayment) {
-                      e.currentTarget.style.background = '#FFD875'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }
-                  }}
-                >
-                  {isProcessingPayment ? 'Đang xử lý...' : 'Thanh toán'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCancel?.(booking.bookingId)
-                  }}
-                  disabled={isCancelling}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: isCancelling ? '#f3f4f6' : '#fee2e2',
-                    color: isCancelling ? '#9ca3af' : '#991b1b',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: isCancelling ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isCancelling) {
-                      e.currentTarget.style.background = '#fecaca'
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.2)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isCancelling) {
-                      e.currentTarget.style.background = '#fee2e2'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }
-                  }}
-                >
-                  {isCancelling ? 'Đang hủy...' : 'Hủy đặt lịch'}
-                </button>
-              </div>
-            )}
-
-            {/* Date Created */}
-            {booking.createdAt && (
-              <div>
-                <p style={{ 
-                  fontSize: '12px', 
-                  color: '#9ca3af', 
-                  margin: 0,
-                  marginBottom: '6px',
-                  fontWeight: '500'
-                }}>
-                  Ngày tạo đặt lịch
-                </p>
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: '#374151', 
-                  margin: 0,
-                  fontWeight: '500'
-                }}>
-                  {new Date(booking.createdAt).toLocaleDateString('vi-VN', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              </div>
-            )}
-
-            {/* Special Requests - Expanded */}
-            {booking.specialRequests && booking.specialRequests !== 'string' && (
+            {/* Sử dụng phụ tùng đã mua (panel) - chỉ cho PENDING/CONFIRMED */}
+            {(((booking.status || '').toUpperCase() === 'PENDING') || ((booking.status || '').toUpperCase() === 'CONFIRMED')) && (
               <div style={{ gridColumn: '1 / -1' }}>
-                <p style={{ 
-                  fontSize: '12px', 
-                  color: '#9ca3af', 
-                  margin: 0,
-                  marginBottom: '6px',
-                  fontWeight: '500'
-                }}>
-                  Yêu cầu đặc biệt
-                </p>
-                <p style={{ 
-                  fontSize: '14px', 
-                  color: '#374151', 
-                  margin: 0,
-                  lineHeight: '1.6',
-                  padding: '12px',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '6px',
-                  border: '1px solid #e5e7eb'
-                }}>
-                  {booking.specialRequests}
-                </p>
+                <UsePurchasedPartsPanel
+                  bookingId={booking.bookingId}
+                  // centerId có thể có trong bookingDetail nếu đã load; fallback undefined
+                  centerId={(bookingDetail as any)?.centerId ?? (booking as any)?.centerId}
+                  onSuccess={() => {
+                    // reload parts list (nếu đang có), hoặc đơn giản là thông báo
+                    try { (async () => { await WorkOrderPartService.list(booking.bookingId) })() } catch {}
+                  }}
+                />
               </div>
             )}
+
+
+
 
             {/* Phụ tùng phát sinh */}
-            <div style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#374151', 
+            <div style={{ marginTop: '16px' }}>
+              <p style={{
+                fontSize: '14px',
+                color: '#374151',
                 margin: 0,
                 marginBottom: '12px',
                 fontWeight: '600'
@@ -660,7 +635,7 @@ export default function BookingHistoryCard({
                   Không có phụ tùng phát sinh
                 </div>
               ) : (
-                <div style={{ 
+                <div style={{
                   border: '1px solid #e5e7eb',
                   borderRadius: '8px',
                   overflow: 'hidden'
@@ -682,14 +657,14 @@ export default function BookingHistoryCard({
                           <td style={{ padding: '12px', fontSize: '14px', color: '#374151' }}>{part.partName}</td>
                           <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#374151' }}>{part.quantityUsed}</td>
                           <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#374151' }}>{part.unitPrice !== undefined ? `${Number(part.unitPrice || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#111827', fontWeight: 600 }}>{part.unitPrice !== undefined ? `${Number((part.unitPrice || 0) * (part.quantityUsed || 0)).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#111827', fontWeight: 400 }}>{part.unitPrice !== undefined ? `${Number((part.unitPrice || 0) * (part.quantityUsed || 0)).toLocaleString('vi-VN')} VNĐ` : '-'}</td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
                             {(() => {
                               // Xác định text và style dựa trên status
                               let statusText = 'Nháp'
                               let bgColor = '#f3f4f6'
                               let textColor = '#374151'
-                              
+
                               if (part.status === 'PENDING_CUSTOMER_APPROVAL') {
                                 statusText = 'Chờ xác nhận'
                                 bgColor = '#fef3c7'
@@ -707,7 +682,7 @@ export default function BookingHistoryCard({
                                 bgColor = '#f3f4f6'
                                 textColor = '#374151'
                               }
-                              
+
                               return (
                                 <span style={{
                                   display: 'inline-block',
@@ -728,11 +703,11 @@ export default function BookingHistoryCard({
                               const canApprove = part.status === 'PENDING_CUSTOMER_APPROVAL'
                               const canReject = part.status === 'PENDING_CUSTOMER_APPROVAL' || part.status === 'DRAFT'
                               const isProcessing = approvingPartId === part.workOrderPartId || rejectingPartId === part.workOrderPartId
-                              
+
                               if (!canApprove && !canReject) {
                                 return null
                               }
-                              
+
                               return (
                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
                                   {canApprove && (
@@ -749,7 +724,7 @@ export default function BookingHistoryCard({
                                         background: isProcessing ? '#f3f4f6' : '#FFD875',
                                         color: '#111827',
                                         fontSize: '13px',
-                                        fontWeight: '600',
+                                        fontWeight: '400',
                                         cursor: isProcessing ? 'not-allowed' : 'pointer',
                                         transition: 'all 0.2s ease'
                                       }}
@@ -783,7 +758,7 @@ export default function BookingHistoryCard({
                                         background: isProcessing ? '#f3f4f6' : '#FFFFFF',
                                         color: isProcessing ? '#9ca3af' : '#EF4444',
                                         fontSize: '13px',
-                                        fontWeight: '600',
+                                        fontWeight: '400',
                                         cursor: isProcessing ? 'not-allowed' : 'pointer',
                                         transition: 'all 0.2s ease'
                                       }}
@@ -813,8 +788,8 @@ export default function BookingHistoryCard({
                     {parts.length > 0 && totalPartsCost > 0 && (
                       <tfoot>
                         <tr style={{ background: '#f9fafb', borderTop: '2px solid #e5e7eb' }}>
-                          <td colSpan={3} style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: 600, color: '#111827' }}>Tổng phụ tùng:</td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: 700, color: '#111827' }}>{totalPartsCost.toLocaleString('vi-VN')} VNĐ</td>
+                          <td colSpan={3} style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: 400, color: '#111827' }}>Tổng phụ tùng:</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: 400, color: '#111827' }}>{totalPartsCost.toLocaleString('vi-VN')} VNĐ</td>
                           <td colSpan={2}></td>
                         </tr>
                       </tfoot>
@@ -848,7 +823,7 @@ export default function BookingHistoryCard({
                 fontSize: '14px',
                 color: '#111827',
                 margin: 0,
-                fontWeight: 700
+                fontWeight: 400
               }}>Thanh toán</p>
               <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
                 { // ưu tiên totalAmount nếu có, fallback actual/estimated
@@ -876,7 +851,7 @@ export default function BookingHistoryCard({
               gap: '8px',
               padding: '10px 16px',
               fontSize: '14px',
-              fontWeight: 600,
+              fontWeight: 400,
               borderRadius: '8px',
               color: '#fff',
               cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
@@ -900,8 +875,9 @@ export default function BookingHistoryCard({
         </div>
       )}
 
-      {/* Feedback Section - Hiển thị khi booking status là PAID */}
-      {isExpanded && (booking.status || '').toUpperCase() === 'PAID' && (
+      {/* Feedback Section - Hiển thị khi booking status là PAID hoặc COMPLETED */}
+      {/* Tạm thời ẩn form đánh giá - sẽ làm sau */}
+      {false && isExpanded && ((booking.status || '').toUpperCase() === 'PAID' || (booking.status || '').toUpperCase() === 'COMPLETED') && (
         <div style={{
           marginTop: '16px',
           padding: '16px',
@@ -916,12 +892,12 @@ export default function BookingHistoryCard({
             gap: '8px',
             marginBottom: '12px'
           }}>
-            <MessageSquare size={18} color="#10B981" />
+            <MessageSquare size={18} color="#FBBF24" />
             <p style={{
               fontSize: '14px',
-              color: '#111827',
+              color: '#FBBF24',
               margin: 0,
-              fontWeight: 700
+              fontWeight: 300
             }}>Đánh giá dịch vụ</p>
           </div>
 
@@ -929,123 +905,210 @@ export default function BookingHistoryCard({
             <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
               Đang tải...
             </div>
-          ) : existingFeedback ? (
-            // Hiển thị feedback đã gửi
+          ) : (
             <div style={{
               padding: '16px',
               background: '#ffffff',
               borderRadius: '8px',
               border: '1px solid #e5e7eb'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', gap: '4px' }}>
+              {/* Star Rating */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
+                    <button
                       key={star}
-                      size={16}
-                      fill={star <= (existingFeedback.rating || existingFeedback.technicianRating || 0) ? '#FFD875' : 'none'}
-                      color={star <= (existingFeedback.rating || existingFeedback.technicianRating || 0) ? '#FFD875' : '#d1d5db'}
-                    />
+                      type="button"
+                      onClick={() => setRating(star)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <Star
+                        size={20}
+                        fill={star <= rating ? '#FFD875' : 'none'}
+                        color={star <= rating ? '#FFD875' : '#d1d5db'}
+                      />
+                    </button>
                   ))}
+                  {rating > 0 && (
+                    <span style={{ fontSize: '13px', color: '#6b7280', marginLeft: '8px', fontWeight: 300 }}>
+                      Đã đánh giá
+                    </span>
+                  )}
                 </div>
-                <span style={{ fontSize: '14px', color: '#6b7280' }}>
-                  Đã đánh giá
-                </span>
               </div>
-              {existingFeedback.comment && (
-                <p style={{
-                  fontSize: '14px',
-                  color: '#374151',
-                  margin: 0,
-                  lineHeight: '1.6'
-                }}>
-                  {existingFeedback.comment}
-                </p>
-              )}
-            </div>
-          ) : (
-            // Hiển thị nút để gửi feedback
-            <div>
-              <p style={{
-                fontSize: '13px',
-                color: '#6b7280',
-                margin: '0 0 12px 0'
-              }}>
-                Chia sẻ trải nghiệm của bạn về dịch vụ này
-              </p>
+
+              {/* Comment Input */}
+              <div style={{ marginBottom: '12px' }}>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Chia sẻ trải nghiệm của bạn về dịch vụ này..."
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Submit Button */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowFeedbackModal(true)
+                onClick={async () => {
+                  if (rating === 0) {
+                    toast.error('Vui lòng chọn số sao đánh giá')
+                    return
+                  }
+
+                  try {
+                    setIsSubmittingFeedback(true)
+                    
+                    // Luôn load lại bookingDetail để đảm bảo có dữ liệu mới nhất
+                    let latestBookingDetail = bookingDetail
+                    try {
+                      const detail = await BookingService.getBookingDetail(booking.bookingId)
+                      if (detail?.success && detail?.data) {
+                        latestBookingDetail = detail.data
+                        setBookingDetail(detail.data)
+                        console.log('✅ Loaded bookingDetail:', {
+                          bookingId: booking.bookingId,
+                          technicianId: detail.data.technicianId,
+                          technicianName: (detail.data as any).technicianName,
+                          status: detail.data.status
+                        })
+                      }
+                    } catch (err) {
+                      console.warn('⚠️ Không thể load booking detail:', err)
+                      // Nếu không load được, vẫn tiếp tục với bookingDetail cũ
+                    }
+                    
+                    // Kiểm tra status - backend cho phép PAID hoặc COMPLETED
+                    const currentStatus = (booking.status || '').toUpperCase()
+                    const bookingDetailStatus = latestBookingDetail?.status ? (latestBookingDetail.status as string).toUpperCase() : currentStatus
+                    const finalStatus = bookingDetailStatus || currentStatus
+                    
+                    // Backend cho phép feedback khi status là PAID hoặc COMPLETED
+                    if (finalStatus !== 'PAID' && finalStatus !== 'COMPLETED') {
+                      toast.error('Chỉ được đánh giá sau khi booking đã thanh toán hoặc hoàn thành')
+                      return
+                    }
+                    
+                    // Tìm technicianId từ nhiều nguồn
+                    // BookingDetail có technicianId trực tiếp (theo response JSON)
+                    let technicianId = 0
+                    if (latestBookingDetail) {
+                      // Ưu tiên lấy từ latestBookingDetail.technicianId (theo interface BookingDetail và response JSON)
+                      technicianId = latestBookingDetail.technicianId 
+                        || (latestBookingDetail as any)?.technicianInfo?.technicianId 
+                        || (latestBookingDetail as any)?.technician?.technicianId
+                        || (latestBookingDetail as any)?.technician?.id
+                        || 0
+                      
+                      console.log('🔍 Tìm technicianId:', {
+                        fromTechnicianId: latestBookingDetail.technicianId,
+                        fromTechnicianInfo: (latestBookingDetail as any)?.technicianInfo?.technicianId,
+                        fromTechnician: (latestBookingDetail as any)?.technician?.technicianId,
+                        finalTechnicianId: technicianId,
+                        latestBookingDetail: latestBookingDetail
+                      })
+                    }
+                    
+                    // Nếu vẫn không có, thử lấy từ booking object
+                    if (!technicianId) {
+                      technicianId = (booking as any)?.technicianId || 0
+                      console.log('🔍 Tìm technicianId từ booking object:', technicianId)
+                    }
+                    
+                    // Nếu vẫn không có technicianId, báo lỗi rõ ràng
+                    if (!technicianId) {
+                      console.error('❌ Không tìm thấy technicianId:', {
+                        bookingId: booking.bookingId,
+                        latestBookingDetail,
+                        booking
+                      })
+                      toast.error('Không tìm thấy thông tin kỹ thuật viên. Vui lòng thử lại sau.')
+                      return
+                    }
+
+                    if (existingFeedback && existingFeedback.feedbackId) {
+                      // Update existing feedback - không cần technicianId
+                      await feedbackService.updateFeedback(existingFeedback.feedbackId, {
+                        technicianRating: rating,
+                        partsRating: 0,
+                        comment: comment || '',
+                        tags: []
+                      })
+                      toast.success('Đánh giá đã được cập nhật thành công!')
+                    } else {
+                      // Create new feedback
+                      if (!user) {
+                        toast.error('Vui lòng đăng nhập để đánh giá')
+                        return
+                      }
+                      
+                      // Nếu không có technicianId, không gửi technicianId (để null/undefined)
+                      // Backend sẽ xử lý trường hợp không có technicianId
+                      const feedbackPayload: any = {
+                        customerId: user.id || user.customerId || 0,
+                        rating: rating,
+                        comment: comment || '',
+                        isAnonymous: false
+                      }
+                      
+                      // Chỉ thêm technicianId nếu có giá trị hợp lệ (> 0)
+                      if (technicianId && technicianId > 0) {
+                        feedbackPayload.technicianId = technicianId
+                      } else {
+                        console.warn('⚠️ Không tìm thấy technicianId cho booking:', booking.bookingId, {
+                          latestBookingDetail,
+                          booking
+                        })
+                        // Không thêm technicianId vào payload nếu không có
+                      }
+                      
+                      await feedbackService.submitBookingFeedback(String(booking.bookingId), feedbackPayload)
+                      toast.success('Đánh giá đã được gửi thành công!')
+                    }
+
+                    // Reload feedback
+                    await loadFeedbackAndBookingDetail()
+                  } catch (error: any) {
+                    toast.error(error?.message || 'Không thể gửi đánh giá')
+                  } finally {
+                    setIsSubmittingFeedback(false)
+                  }
                 }}
+                disabled={isSubmittingFeedback || rating === 0}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  background: '#10B981',
-                  border: '1px solid #10B981',
-                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  background: isSubmittingFeedback || rating === 0 ? '#d1d5db' : '#10B981',
                   color: '#fff',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 400,
+                  cursor: isSubmittingFeedback || rating === 0 ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#059669'
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#10B981'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
               >
-                <Star size={16} fill="#fff" color="#fff" />
-                Đánh giá dịch vụ
+                {isSubmittingFeedback ? 'Đang gửi...' : (existingFeedback ? 'Cập nhật đánh giá' : 'Gửi đánh giá')}
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Feedback Modal */}
-      {showFeedbackModal && bookingDetail && user && (
-        <FeedbackModal
-          isOpen={showFeedbackModal}
-          onClose={() => setShowFeedbackModal(false)}
-          bookingId={String(booking.bookingId)}
-          serviceName={bookingDetail.serviceInfo?.serviceName || booking.serviceName || 'Dịch vụ'}
-          technician={bookingDetail.technicianInfo?.technicianName || 'Kỹ thuật viên'}
-          partsUsed={parts.map(p => p.partName)}
-          onSubmit={async (feedback) => {
-            try {
-              // Gọi API submit feedback
-              const technicianId = bookingDetail.technicianInfo?.technicianId || 0
-              if (!technicianId) {
-                toast.error('Không tìm thấy thông tin kỹ thuật viên')
-                return
-              }
-
-              await feedbackService.submitBookingFeedback(String(booking.bookingId), {
-                customerId: user.id || user.customerId || 0,
-                rating: feedback.technicianRating,
-                comment: feedback.comment,
-                isAnonymous: false,
-                technicianId: technicianId
-              })
-
-              toast.success('Đánh giá đã được gửi thành công!')
-              setShowFeedbackModal(false)
-              // Reload feedback
-              await loadFeedbackAndBookingDetail()
-            } catch (error: any) {
-              toast.error(error?.message || 'Không thể gửi đánh giá')
-              throw error
-            }
-          }}
-        />
-      )}
 
       <style>{`
         @keyframes slideDown {
@@ -1070,32 +1133,41 @@ export default function BookingHistoryCard({
           font-size: 12px;
           font-weight: 500;
         }
-        
+
         .booking-status-badge.status-paid {
           background-color: #dcfce7;
           color: #166534;
         }
-        
+
         .booking-status-badge.status-completed {
           background-color: #dbeafe;
           color: #1e40af;
         }
-        
+
         .booking-status-badge.status-cancelled {
           background-color: #fee2e2;
           color: #991b1b;
         }
-        
+
         .booking-status-badge.status-pending {
           background-color: #fef3c7;
           color: #92400e;
         }
-        
+
         .booking-status-badge.status-confirmed {
           background-color: #dcfce7;
           color: #166534;
         }
-        
+        .booking-status-badge.status-checked-in {
+          background-color: #ccfbf1;
+          color: #0f766e;
+        }
+
+        .booking-status-badge.status-in-progress {
+          background-color: #fef3c7;
+          color: #92400e;
+        }
+
         .booking-status-badge.status-default {
           background-color: #f3f4f6;
           color: #374151;
@@ -1104,4 +1176,5 @@ export default function BookingHistoryCard({
     </>
   )
 }
+
 

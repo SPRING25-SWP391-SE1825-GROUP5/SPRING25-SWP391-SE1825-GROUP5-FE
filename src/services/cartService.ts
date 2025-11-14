@@ -17,19 +17,38 @@ export const CartService = {
     return data
   },
 
-  async getCartItems(cartId: number): Promise<ApiResponse<Array<any>>> {
-    const { data } = await api.get<ApiResponse<Array<any>>>(`/Cart/${cartId}/items`)
+  async getCartItems(customerId: number): Promise<ApiResponse<Array<any>>> {
+    const { data } = await api.get<ApiResponse<Array<any>>>(`/Cart/customer/${customerId}/items`)
     return data
   },
 
-  async addItem(cartId: number, payload: AddCartItemRequest): Promise<ApiResponse> {
-    const { data } = await api.post<ApiResponse>(`/Cart/${cartId}/items`, payload)
+  async addItem(customerId: number, payload: AddCartItemRequest): Promise<ApiResponse> {
+    const { data } = await api.post<ApiResponse>(`/Cart/customer/${customerId}/items`, payload)
     return data
   },
 
-  // Optional helper in case backend supports it; unused if not available
-  async getMyCart(): Promise<ApiResponse<{ cartId: number }>> {
-    const { data } = await api.get<ApiResponse<{ cartId: number }>>('/Cart/me')
+  async updateItem(customerId: number, partId: number, payload: { quantity: number }): Promise<ApiResponse> {
+    const { data } = await api.put<ApiResponse>(`/Cart/customer/${customerId}/items/${partId}`, payload)
+    return data
+  },
+
+  async removeItem(customerId: number, partId: number): Promise<ApiResponse> {
+    const { data } = await api.delete<ApiResponse>(`/Cart/customer/${customerId}/items/${partId}`)
+    return data
+  },
+
+  async clearItems(customerId: number): Promise<ApiResponse> {
+    const { data } = await api.delete<ApiResponse>(`/Cart/customer/${customerId}/items`)
+    return data
+  },
+
+  async updateFulfillmentCenter(customerId: number, fulfillmentCenterId: number): Promise<ApiResponse> {
+    const { data } = await api.put<ApiResponse>(`/Cart/customer/${customerId}/fulfillment-center`, { fulfillmentCenterId })
+    return data
+  },
+
+  async checkout(customerId: number): Promise<ApiResponse<{ orderId: number; checkoutUrl?: string }>> {
+    const { data } = await api.post<ApiResponse<{ orderId: number; checkoutUrl?: string }>>(`/Cart/customer/${customerId}/checkout`)
     return data
   }
 }

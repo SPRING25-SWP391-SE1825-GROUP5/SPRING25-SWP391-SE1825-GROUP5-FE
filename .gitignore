@@ -69,6 +69,7 @@ tmp/
 # Project specific files
 api-worker-windows.exe
 .vscode
+docs/
 
 # Playwright test results
 test-results/
@@ -110,7 +111,7 @@ screenshots/
 *.swo
 *~
 tests/
-scripts/ 
+scripts/
 
 # Temporary and cache files
 .cache/

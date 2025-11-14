@@ -9,12 +9,14 @@ export interface QuickOrderRequest {
   items: QuickOrderItemRequest[]
   notes?: string
   shippingAddress?: string
+  fulfillmentCenterId?: number  // Center được chọn từ FE để fulfill order
 }
 
 export interface CreateOrderRequest {
   items: QuickOrderItemRequest[]
   notes?: string
   shippingAddress?: string
+  fulfillmentCenterId?: number  // Center được chọn từ FE để fulfill order
 }
 
 export interface CreateOrderResponse {
@@ -69,7 +71,93 @@ export const OrderService = {
     const { data } = await api.get(`/Order/${orderId}/payment/link`)
     return data
   },
-  // Ghi chú: Endpoint apply-coupon không tồn tại trong BE hiện tại. Chờ BE bổ sung.
+
+  // Admin methods
+  async getAllOrders(params?: {
+    page?: number
+    pageSize?: number
+    status?: string
+    searchTerm?: string
+    fromDate?: string
+    toDate?: string
+  }): Promise<{
+    success: boolean
+    data?: any[] | {
+      items?: any[]
+      Items?: any[]
+      totalCount?: number
+      TotalCount?: number
+      totalPages?: number
+      TotalPages?: number
+      [key: string]: any
+    }
+    total?: number
+    message?: string
+  }> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString())
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.searchTerm) queryParams.append('searchTerm', params.searchTerm)
+    if (params?.fromDate) queryParams.append('fromDate', params.fromDate)
+    if (params?.toDate) queryParams.append('toDate', params.toDate)
+
+    const { data } = await api.get(`/Order/admin?${queryParams.toString()}`)
+    return data
+  },
+
+  async updateOrderStatus(orderId: number, status: string): Promise<{ success: boolean; data?: any; message?: string }> {
+    const { data } = await api.put(`/Order/${orderId}/status`, { status })
+    return data
+  },
+
+  async deleteOrder(orderId: number): Promise<{ success: boolean; message?: string }> {
+    const { data } = await api.delete(`/Order/${orderId}`)
+    return data
+  },
+
+  async exportOrders(): Promise<Blob> {
+    const response = await api.get('/Order/export', {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  async updateFulfillmentCenter(orderId: number, fulfillmentCenterId: number): Promise<{ success: boolean; message?: string; data?: any }> {
+    const { data } = await api.put(`/Order/${orderId}/fulfillment-center`, { fulfillmentCenterId })
+    return data
+  },
+
+  async getAvailableParts(orderId: number, centerId?: number): Promise<{ success: boolean; message?: string; data?: any[] }> {
+    const params = centerId ? `?centerId=${centerId}` : ''
+    const { data } = await api.get(`/Order/${orderId}/available-parts${params}`)
+    return data
+  },
+
+  /**
+   * Lấy danh sách đơn hàng đã thanh toán có phụ tùng có thể dùng cho booking tại chi nhánh
+   * Tối ưu: chỉ trả về những đơn hàng có ít nhất 1 phụ tùng có thể dùng, kèm thông tin phụ tùng
+   */
+  async getAvailableOrdersForBooking(customerId: number, centerId: number): Promise<{ success: boolean; message?: string; data?: Array<{
+    orderId: number
+    orderNumber?: string
+    totalAmount?: number
+    createdAt?: string
+    fulfillmentCenterId?: number
+    fulfillmentCenterName?: string
+    availableParts?: Array<{
+      orderItemId: number
+      partId: number
+      partName: string
+      availableQty: number
+      unitPrice?: number
+      canUse: boolean
+      warning?: string | null
+    }>
+  }> }> {
+    const { data } = await api.get(`/Order/customer/${customerId}/available-for-booking?centerId=${centerId}`)
+    return data
+  }
 }
 
 

@@ -6,7 +6,7 @@ import { AuthService, BookingService } from '@/services'
 import { PromotionBookingService } from '@/services/promotionBookingService'
 import { BaseButton, BaseCard, BaseInput } from '@/components/common'
 import { PhotoIcon, CameraIcon } from '@heroicons/react/24/outline'
-import { ProfileNav, ProfileOverview, ProfileInfo, ProfileVehicles, ProfilePromotions, ProfileSettings, ProfileHistory, ProfileActivity, ProfileReviews, ProfilePackages, ProfileNotifications, ProfileTabKey } from '@/components/profile'
+import { ProfileNav, ProfileOverview, ProfileInfo, ProfileVehicles, ProfileReminders, ProfilePromotions, ProfileSettings, ProfileHistory, ProfileActivity, ProfileReviews, ProfileNotifications, ProfileTabKey } from '@/components/profile'
 import './profile.scss'
 import {
   validateFullName,
@@ -156,6 +156,8 @@ export default function Profile() {
       setActiveTab('service-history')
     } else if (tab === 'history') {
       setActiveTab('history')
+    } else if (tab === 'reminders') {
+      setActiveTab('reminders')
     }
   }, [searchParams])
 
@@ -886,14 +888,14 @@ export default function Profile() {
           {activeTab === 'overview' && <ProfileOverview />}
           {activeTab === 'info' && <ProfileInfo />}
           {activeTab === 'vehicles' && <ProfileVehicles />}
+          {activeTab === 'reminders' && <ProfileReminders customerId={customerId || undefined} />}
           {activeTab === 'history' && <ProfileActivity />}
           {activeTab === 'reviews' && <ProfileReviews />}
           {activeTab === 'promotions' && <ProfilePromotions />}
-          {activeTab === 'packages' && <ProfilePackages />}
           {activeTab === 'notifications' && <ProfileNotifications />}
-                    </div>
-                </div>
-              </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

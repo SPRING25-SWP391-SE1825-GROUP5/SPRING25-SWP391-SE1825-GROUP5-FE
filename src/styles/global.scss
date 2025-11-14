@@ -311,6 +311,12 @@ table thead tr:first-child th {
 
 /* Removed: table th:first-child:not(.cm-th) rule to allow border-right on first column */
 
+/* Global overrides for admin/technician toolbars */
+.toolbar-sep { display: none !important; }
+.toolbar-left { gap: 0 !important; }
+.toolbar-search .search-wrap::after, .search-wrap::after { display: none !important; content: none !important; }
+.toolbar-search .search-wrap:focus-within::after { display: none !important; }
+
 .pill-select {
   display: inline-flex;
   align-items: center;
@@ -353,15 +359,15 @@ table thead tr:first-child th {
 }
 /* Pagination pill giữ lớn như hiện tại */
 .pagination-info .pill-select {
-  width: 38px !important;
+  width: 70px !important;
   min-width: 0 !important;
-  max-width: 42px !important;
+  max-width: 80px !important;
 }
 .pagination-info .pill-select .pill-trigger {
   min-width: 0 !important;
-  width: 38px !important;
-  max-width: 42px !important;
-  padding: 0 2px !important;
+  width: 70px !important;
+  max-width: 80px !important;
+  padding: 0 4px !important;
   font-size: 13px !important;
   height: 26px !important;
   text-align:center !important;

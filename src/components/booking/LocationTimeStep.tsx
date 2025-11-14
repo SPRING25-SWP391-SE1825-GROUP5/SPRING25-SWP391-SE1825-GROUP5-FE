@@ -29,13 +29,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const today = new Date()
   const [month, setMonth] = useState<number>(today.getMonth())
   const [year, setYear] = useState<number>(today.getFullYear())
-  
+
   const [centers, setCenters] = useState<Array<{ id: string; name: string; lat?: number; lng?: number; query: string; distance?: number }>>([])
-  const [slots, setSlots] = useState<Array<{ 
-    slotId: number; 
-    slotTime: string; 
+  const [slots, setSlots] = useState<Array<{
+    slotId: number;
+    slotTime: string;
     slotLabel: string;
-    isAvailable: boolean; 
+    isAvailable: boolean;
     isRealtimeAvailable: boolean;
     technicianId?: number;
     technicianName?: string;
@@ -47,7 +47,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [technicians, setTechnicians] = useState<TechnicianListItem[]>([])
   const [loadingTechs, setLoadingTechs] = useState(false)
-  
+
   // States for location features
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -55,7 +55,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const [locationError, setLocationError] = useState<string | null>(null)
   const [locationInfo, setLocationInfo] = useState<string | null>(null)
   const [searchResult, setSearchResult] = useState<LocationSearchResult | null>(null)
-  
+
   // States for timeslot validation
   const [allTechnicianSlots, setAllTechnicianSlots] = useState<any[]>([])
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set())
@@ -109,7 +109,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
     setLoadingLocation(true)
     setLocationError(null)
     setLocationInfo(null)
-    
+
     try {
       // Lấy vị trí hiện tại từ browser
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -117,7 +117,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           reject(new Error('Trình duyệt không hỗ trợ định vị'))
           return
         }
-        
+
         navigator.geolocation.getCurrentPosition(
           resolve,
           (error) => {
@@ -142,10 +142,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           }
         )
       })
-      
+
       const lat = position.coords.latitude
       const lng = position.coords.longitude
-      
+
       // Gọi API tìm trung tâm gần nhất
       const nearbyCenters = await CenterService.getNearbyCenters({
         lat: lat,
@@ -154,7 +154,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         limit: 10, // Tối đa 10 trung tâm
         serviceId: serviceId // Nếu có serviceId
       })
-      
+
       // Handle different response formats
       let centersData: any[] = []
       if (Array.isArray(nearbyCenters)) {
@@ -164,7 +164,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       } else if (nearbyCenters && (nearbyCenters as any).centers && Array.isArray((nearbyCenters as any).centers)) {
         centersData = (nearbyCenters as any).centers
       }
-      
+
       if (centersData && centersData.length > 0) {
         // Cập nhật danh sách trung tâm với khoảng cách
         const centersWithDistance = centersData.map((center: any) => ({
@@ -173,22 +173,22 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           query: center.address,
           distance: center.distance || 0
         }))
-        
+
         setCenters(centersWithDistance)
-        
+
         // Tự động chọn trung tâm gần nhất
         if (centersWithDistance.length > 0) {
           const nearestCenter = centersWithDistance[0]
           onUpdate({ centerId: nearestCenter.id, centerName: nearestCenter.name })
         }
-        
+
         // Lấy địa chỉ từ tọa độ (reverse geocoding)
         try {
           const geocodingResponse = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=vi`
           )
           const geocodingData = await geocodingResponse.json()
-          
+
           if (geocodingData && geocodingData.display_name) {
             const address = geocodingData.display_name
             onUpdate({ address: address })
@@ -197,12 +197,12 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           // Fallback: sử dụng tọa độ làm địa chỉ
           onUpdate({ address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` })
         }
-        
+
       } else {
         // Fallback: Load all centers if no nearby centers found
         try {
           const allCentersResponse = await CenterService.getActiveCenters()
-          
+
           if (allCentersResponse.centers && allCentersResponse.centers.length > 0) {
             // Calculate distance for each center (approximate)
             const fallbackCenters = allCentersResponse.centers.map((center: any) => {
@@ -215,20 +215,20 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 distance: distance
               }
             })
-            
+
             // Sort by distance (closest first)
             fallbackCenters.sort((a, b) => a.distance - b.distance)
-            
+
             setCenters(fallbackCenters)
-            
+
             // Auto-select the first (closest) center
             if (fallbackCenters.length > 0) {
-              onUpdate({ 
+              onUpdate({
                 centerId: fallbackCenters[0].id,
                 centerName: fallbackCenters[0].name
               })
             }
-            
+
             setLocationError(null) // Clear error since we have centers to show
             setLocationInfo('Hiển thị tất cả trung tâm (khoảng cách ước tính)')
           } else {
@@ -238,7 +238,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           setLocationError('Không thể tải danh sách trung tâm')
         }
       }
-      
+
     } catch (error: unknown) {
       const err = error as { message?: string }
       setLocationError(err.message || 'Không thể lấy vị trí hiện tại')
@@ -268,10 +268,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const selectAddress = async (suggestion: AddressSuggestion) => {
     setShowSuggestions(false)
     onUpdate({ address: suggestion.formattedAddress })
-    
+
     try {
       const result = await LocationService.findNearbyCentersByAddress(suggestion.formattedAddress)
-      
+
       if (result) {
         const centersWithDistance = result.nearbyCenters.map(center => ({
           id: String(center.centerId),
@@ -279,13 +279,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           query: center.address,
           distance: center.distance
         }))
-        
+
         setCenters(centersWithDistance)
         setSearchResult(result)
-        
+
         // Tự động chọn chi nhánh gần nhất
         if (result.selectedCenter) {
-              onUpdate({ 
+              onUpdate({
                 centerId: String(result.selectedCenter.centerId),
                 centerName: result.selectedCenter.centerName
               })
@@ -299,7 +299,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   // Load all timeslots when center, date, or technician are selected
   useEffect(() => {
     const loadAllTimeslots = () => {
-      if (!data.centerId || !data.date) { 
+      if (!data.centerId || !data.date) {
         setAllTechnicianSlots([])
         setAvailableDates(new Set())
         setSlots([])
@@ -315,14 +315,14 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           centerId: data.centerId,
           date: data.date
         }
-        
+
         // Nếu đã chọn kỹ thuật viên cụ thể, truyền technicianId
         if (data.technicianId && data.technicianId !== '') {
           params.technicianId = data.technicianId
         }
-        
+
         let response
-        
+
         // Nếu đã chọn kỹ thuật viên cụ thể, sử dụng API TechnicianTimeSlot
         if (data.technicianId && data.technicianId !== '') {
           response = await api.get(`/TechnicianTimeSlot/technician/${data.technicianId}/center/${data.centerId}`)
@@ -332,10 +332,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             signal: controller.signal as any
           })
         }
-        
+
         if (response.data && response.data.success) {
           let responseData
-          
+
           // Xử lý response từ API TechnicianTimeSlot (cấu trúc khác)
           if (data.technicianId && data.technicianId !== '') {
             // API TechnicianTimeSlot trả về trực tiếp array of TechnicianTimeSlot
@@ -351,10 +351,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             // API Booking available-times
             responseData = response.data.data
           }
-          
+
           // Tìm timeslots trong response data
           let allSlots = []
-          
+
           if (data.technicianId && data.technicianId !== '') {
             // API TechnicianTimeSlot trả về array trực tiếp
             allSlots = responseData.availableTimeSlots || []
@@ -375,7 +375,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             }
           }
           setAllTechnicianSlots(allSlots)
-          
+
           // Tính toán các ngày có timeslots available
           const dates = new Set<string>()
           allSlots.forEach((slot: any) => {
@@ -403,9 +403,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               dates.add(slotDate)
             }
           })
-          
+
           setAvailableDates(dates)
-          
+
           // Filter timeslots cho ngày đã chọn
           const slotsForDate = allSlots
             .filter((slot: any) => {
@@ -436,22 +436,22 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               // Check if timeslot is in the past for today
               const isToday = data.date === today.toISOString().split('T')[0]
               let isPastSlot = false
-              
+
               if (isToday && slot.slotTime) {
                 const now = new Date()
                 const currentTime = now.getHours() * 60 + now.getMinutes() // minutes since midnight
-                
+
                 // Parse slot time (assuming format like "08:00" or "08:00:00")
                 const timeMatch = slot.slotTime.match(/(\d{1,2}):(\d{2})/)
                 if (timeMatch) {
                   const slotHour = parseInt(timeMatch[1])
                   const slotMinute = parseInt(timeMatch[2])
                   const slotTime = slotHour * 60 + slotMinute
-                  
+
                   isPastSlot = slotTime <= currentTime
                 }
               }
-        
+
         // Xử lý khác nhau cho TechnicianTimeSlot vs Booking available-times
         if (data.technicianId && data.technicianId !== '') {
           // TechnicianTimeSlot API - slot có cấu trúc khác
@@ -486,7 +486,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           }
         }
             })
-          
+
           setSlots(slotsForDate)
           // Cập nhật nhãn đề xuất theo số slot trống (không auto chọn)
           if (slotsForDate.length > 0) {
@@ -524,7 +524,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
       }, 200)
       return () => { clearTimeout(debounceId); controller.abort() }
     }
-    
+
     const cleanup = loadAllTimeslots()
     return () => { if (typeof cleanup === 'function') cleanup() }
   }, [data.centerId, data.date, data.technicianId, refreshTick])
@@ -645,22 +645,22 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         // Check if timeslot is in the past for today
         const isToday = data.date === today.toISOString().split('T')[0]
         let isPastSlot = false
-        
+
         if (isToday && slot.slotTime) {
           const now = new Date()
           const currentTime = now.getHours() * 60 + now.getMinutes() // minutes since midnight
-          
+
           // Parse slot time (assuming format like "08:00" or "08:00:00")
           const timeMatch = slot.slotTime.match(/(\d{1,2}):(\d{2})/)
           if (timeMatch) {
             const slotHour = parseInt(timeMatch[1])
             const slotMinute = parseInt(timeMatch[2])
             const slotTime = slotHour * 60 + slotMinute
-            
+
             isPastSlot = slotTime <= currentTime
           }
         }
-        
+
       return {
           slotId: slot.slotId,
           slotTime: slot.slotTime,
@@ -675,7 +675,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         displayTime: formatDisplayTime(slot.slotTime)
         }
       })
-      
+
       setSlots(slotsForDate)
     } else if (!data.date) {
       setSlots([])
@@ -685,13 +685,13 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   // Load technicians by center and date
   useEffect(() => {
     const loadTechs = async () => {
-      if (!data.centerId || !data.date) { 
+      if (!data.centerId || !data.date) {
         setTechnicians([])
         // Reset technician selection when center or date changes
         if (data.technicianId) {
           onUpdate({ technicianId: '', time: '', technicianSlotId: undefined })
         }
-        return 
+        return
       }
       setLoadingTechs(true)
       try {
@@ -746,32 +746,35 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
   const days = useMemo(() => {
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
-    const leading = (firstDay.getDay() + 6) % 7 // convert Sunday=0 to Monday=0
-    const total = leading + lastDay.getDate()
-    const rows = Math.ceil(total / 7)
-    const grid: Array<{ date: Date | null, disabled: boolean }[]> = []
-    let day = 1
-    for (let r = 0; r < rows; r++) {
-      const row: { date: Date | null, disabled: boolean }[] = []
-      for (let c = 0; c < 7; c++) {
-        const index = r * 7 + c
-        if (index < leading || day > lastDay.getDate()) {
-          row.push({ date: null, disabled: true })
-        } else {
-          const d = new Date(year, month, day)
-          const dateString = formatISO(d)
-          const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate())
-          // Khi chưa load xong dữ liệu tháng, không disable theo availability để user vẫn chọn ngày
-          const hasAvailableSlots = monthlyLoaded ? availableDatesMonth.has(dateString) : true
-          const isDisabled = isPast || !hasAvailableSlots
-          
-          row.push({ date: d, disabled: isDisabled })
-          day++
-        }
+    // Chỉ tính toán cho 5 ngày trong tuần (T2-T6), bỏ qua T7 và CN
+    // firstDay.getDay() trả về: 0=CN, 1=T2, 2=T3, ..., 6=T7
+    // Chuyển đổi để T2=0, T3=1, T4=2, T5=3, T6=4
+    const firstDayOfWeek = firstDay.getDay() // 0=CN, 1=T2, ..., 6=T7
+    let leading = 0
+    if (firstDayOfWeek === 0) leading = 0 // CN -> không có leading days
+    else if (firstDayOfWeek === 6) leading = 0 // T7 -> không có leading days
+    else leading = firstDayOfWeek - 1 // T2=0, T3=1, T4=2, T5=3, T6=4
+
+    const grid: Array<{ date: Date | null, disabled: boolean }> = []
+    // Duyệt qua tất cả các ngày trong tháng, chỉ thêm T2-T6 vào grid
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const d = new Date(year, month, day)
+      const dayOfWeek = d.getDay() // 0=CN, 1=T2, ..., 6=T7
+      // Chỉ thêm T2-T6 (dayOfWeek từ 1-5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        const dateString = formatISO(d)
+        const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+        const hasAvailableSlots = monthlyLoaded ? availableDatesMonth.has(dateString) : true
+        const isDisabled = isPast || !hasAvailableSlots
+        grid.push({ date: d, disabled: isDisabled })
       }
-      grid.push(row)
     }
-    return grid
+    // Thêm leading empty cells nếu cần
+    const leadingCells: Array<{ date: Date | null, disabled: boolean }> = []
+    for (let i = 0; i < leading; i++) {
+      leadingCells.push({ date: null, disabled: true })
+    }
+    return [...leadingCells, ...grid]
   }, [month, year, availableDatesMonth, monthlyLoaded])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -793,7 +796,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             value={data.centerId}
             onChange={(e) => {
               const selectedCenter = centers.find(c => c.id === e.target.value)
-              onUpdate({ 
+              onUpdate({
                 centerId: e.target.value,
                 centerName: selectedCenter?.name
               })
@@ -826,10 +829,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
             placeholder="Nhập số nhà, đường, phường/xã..."
               style={{ width: '100%' }}
             />
-            <button 
-              type="button" 
-              className="btn-location-address" 
-              onClick={useMyLocation} 
+            <button
+              type="button"
+              className="btn-location-address"
+              onClick={useMyLocation}
               disabled={loadingLocation}
               style={{
                 position: 'absolute',
@@ -860,7 +863,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               {loadingLocation ? 'Đang lấy vị trí...' : 'Dùng vị trí của tôi'}
             </button>
             {showSuggestions && addressSuggestions.length > 0 && (
-              <div 
+              <div
                 className="address-suggestions"
                 style={{
                   position: 'absolute',
@@ -958,10 +961,10 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               <button type="button" className="cal-nav" onClick={() => setMonth(m => m === 11 ? (setYear(y => y + 1), 0) : m + 1)}>&gt;</button>
             </div>
             <div className="calendar-grid">
-              {['T2','T3','T4','T5','T6','T7','CN'].map(d => (
+              {['T2','T3','T4','T5','T6'].map(d => (
                 <div key={d} className="cal-weekday">{d}</div>
               ))}
-                {days.flat().map((cell, idx) => {
+                {days.map((cell, idx) => {
                   const isPast = cell.date ? cell.date < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false
                   const disabled = !cell.date || isPast || cell.disabled
                   return (
@@ -972,7 +975,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                   onClick={() => cell.date && !disabled && onUpdate({ date: formatISO(cell.date) })}
                   disabled={disabled}
                       title={cell.date ? (
-                        disabled ? (isPast ? 'Ngày đã qua' : 'Trung tâm đã kín lịch ngày này') : 
+                        disabled ? (isPast ? 'Ngày đã qua' : 'Trung tâm đã kín lịch ngày này') :
                         'Chọn ngày này'
                       ) : ''}
                 >
@@ -1002,7 +1005,7 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 key={t.technicianId}
                 type="button"
                 className={`tech-item ${data.technicianId === String(t.technicianId) ? 'selected' : ''}`}
-                onClick={() => onUpdate({ 
+                onClick={() => onUpdate({
                   technicianId: String(t.technicianId),
                   technicianName: t.userFullName
                 })}
@@ -1066,19 +1069,6 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                     </div>
                   </div>
                 </div>
-                {recommendedTechnician && recommendedTechnician.id === t.technicianId && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '6px',
-                    right: '8px',
-                    padding: '2px 6px',
-                    fontSize: '0.7rem',
-                    color: '#065f46',
-                    backgroundColor: '#d1fae5',
-                    border: '1px solid #a7f3d0',
-                    borderRadius: '9999px'
-                  }}>Đề xuất</span>
-                )}
               </button>
             ))}
             {/* Nút "Để hệ thống tự chọn kỹ thuật viên" đã được gỡ bỏ theo yêu cầu */}
@@ -1096,18 +1086,18 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
               marginTop: 'var(--spacing-sm)'
             }}>
               {!data.centerId && (
-                <div style={{ 
-                  color: 'var(--text-tertiary)', 
-                  padding: 'var(--spacing-md)', 
+                <div style={{
+                  color: 'var(--text-tertiary)',
+                  padding: 'var(--spacing-md)',
                   textAlign: 'center',
                   fontSize: 'var(--font-size-sm)',
                   gridColumn: '1 / -1'
                 }}>Vui lòng chọn trung tâm trước</div>
               )}
               {data.centerId && !data.date && (
-                <div style={{ 
-                  color: 'var(--text-tertiary)', 
-                  padding: 'var(--spacing-md)', 
+                <div style={{
+                  color: 'var(--text-tertiary)',
+                  padding: 'var(--spacing-md)',
                   textAlign: 'center',
                   fontSize: 'var(--font-size-sm)',
                   gridColumn: '1 / -1'
@@ -1123,9 +1113,9 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                 }}>Đang tải khung giờ...</div>
               )}
               {data.centerId && data.date && !loadingSlots && slots.length === 0 && (
-                <div style={{ 
-                  color: 'var(--error-500)', 
-                  padding: 'var(--spacing-md)', 
+                <div style={{
+                  color: 'var(--error-500)',
+                  padding: 'var(--spacing-md)',
                   textAlign: 'center',
                   fontSize: 'var(--font-size-sm)',
                   gridColumn: '1 / -1'
@@ -1142,11 +1132,11 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
                     className={`time-slot ${isSelected ? 'selected' : ''} ${!s.isAvailable ? 'disabled' : ''}`}
                     onClick={() => {
                       if (s.isAvailable) {
-                        onUpdate({ 
+                        onUpdate({
                           time: s.slotTime,
-                          technicianName: s.technicianName || data.technicianName, 
+                          technicianName: s.technicianName || data.technicianName,
                           technicianSlotId: s.technicianSlotId,
-                          technicianId: s.technicianId ? String(s.technicianId) : data.technicianId 
+                          technicianId: s.technicianId ? String(s.technicianId) : data.technicianId
                         })
                       }
                     }}
@@ -1211,8 +1201,8 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
           <button type="button" onClick={onPrev} className="btn-secondary">
             Quay lại
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="btn-primary text-white"
             disabled={!data.centerId || !data.date || !data.time || !data.technicianSlotId}
           >
@@ -1221,80 +1211,80 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         </div>
       </form>
       <style>{`
-        .location-time-step { 
-          background: var(--bg-card); 
-          border: 1px solid var(--border-primary); 
-          border-radius: 12px; 
-          padding: 1.25rem; 
+        .location-time-step {
+          background: var(--bg-card);
+          border: 1px solid var(--border-primary);
+          border-radius: 12px;
+          padding: 1.25rem;
           box-shadow: 0 2px 8px rgba(0,0,0,.04);
         }
-        .location-time-step h2 { 
-          font-size: 1.5rem; 
-          font-weight: 700; 
-          color: var(--text-primary); 
-          margin: 0 0 1rem 0; 
+        .location-time-step h2 {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0 0 1rem 0;
         }
         /* 2-cột: trái là form, phải là map (sticky) */
-        .lt-grid { 
-          display: grid; 
-          grid-template-columns: 1fr 520px; 
-          gap: 1.25rem; 
+        .lt-grid {
+          display: grid;
+          grid-template-columns: 1fr 520px;
+          gap: 1.25rem;
           align-items: start;
         }
-        .form-group { 
-          display: flex; 
-          flex-direction: column; 
-          gap: .5rem; 
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: .5rem;
         }
-        .form-group label { 
-          color: var(--text-primary); 
-          font-weight: 600; 
-          font-size: .95rem; 
+        .form-group label {
+          color: var(--text-primary);
+          font-weight: 600;
+          font-size: .95rem;
         }
         .form-group input[type="text"],
-        .form-group select { 
-          width: 100%; 
-          box-sizing: border-box; 
-          background: #fff; 
-          border: 1px solid var(--border-primary); 
-          color: var(--text-primary); 
-          border-radius: 8px; 
-          padding: .6rem .75rem; 
+        .form-group select {
+          width: 100%;
+          box-sizing: border-box;
+          background: #fff;
+          border: 1px solid var(--border-primary);
+          color: var(--text-primary);
+          border-radius: 8px;
+          padding: .6rem .75rem;
         }
         /* Map không dùng cột phải nữa, đặt bên dưới phần chi nhánh/địa chỉ */
         .lt-address-map { display: block; }
-        .map-container { 
-          grid-column: 1 / -1; 
-          border: 1px solid var(--border-primary); 
-          border-radius: 8px; 
-          overflow: hidden; 
-          background: #fff; 
-          height: 320px; 
-          position: static; 
+        .map-container {
+          grid-column: 1 / -1;
+          border: 1px solid var(--border-primary);
+          border-radius: 8px;
+          overflow: hidden;
+          background: #fff;
+          height: 320px;
+          position: static;
           margin-top: .5rem;
         }
-        .map-container iframe { 
-          border: 0; 
-          width: 100%; 
-          height: 100%; 
+        .map-container iframe {
+          border: 0;
+          width: 100%;
+          height: 100%;
         }
         .btn-secondary.small { padding: .5rem .75rem; align-self: flex-start; }
         .tech-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .5rem; }
-        .tech-item { 
-          display: flex; 
-          align-items: center; 
-          gap: .5rem; 
-          padding: .6rem .75rem; 
-          background: #fff; 
-          border: 1px solid var(--border-primary); 
-          border-radius: 8px; 
-          cursor: pointer; 
-          transition: box-shadow .15s ease, border-color .15s ease; 
+        .tech-item {
+          display: flex;
+          align-items: center;
+          gap: .5rem;
+          padding: .6rem .75rem;
+          background: #fff;
+          border: 1px solid var(--border-primary);
+          border-radius: 8px;
+          cursor: pointer;
+          transition: box-shadow .15s ease, border-color .15s ease;
         }
         .tech-item:hover { box-shadow: 0 2px 6px rgba(0,0,0,.06); }
-        .tech-item.selected { 
-          border-color: var(--progress-current); 
-          background: var(--primary-50); 
+        .tech-item.selected {
+          border-color: var(--progress-current);
+          background: var(--primary-50);
         }
         .tech-name { font-weight: 600; color: var(--text-primary); }
         .calendar { border: 1px solid var(--border-primary); border-radius: 8px; overflow: hidden; background: #fff; }
@@ -1328,18 +1318,18 @@ const LocationTimeStep: React.FC<LocationTimeStepProps> = ({ data, onUpdate, onN
         .time-slot.selected { background: var(--progress-current); color: #fff; border-color: var(--progress-current); }
         .time-slot.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: .65; }
         /* Thanh hành động ở cuối, căn phải giống ảnh */
-        .form-actions { 
-          display: flex; 
-          justify-content: flex-end; 
-          gap: .75rem; 
-          margin-top: 1rem; 
-          padding-top: 1rem; 
+        .form-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: .75rem;
+          margin-top: 1rem;
+          padding-top: 1rem;
           border-top: 1px solid var(--border-primary);
         }
         .btn-primary { background: var(--progress-current); color: #fff; border: 1px solid var(--progress-current); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
         .btn-secondary { background: #fff; color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: 8px; padding: .6rem 1rem; cursor: pointer; }
         @media (max-width: 1180px) { .lt-grid { grid-template-columns: 1fr 440px; } .map-container { height: 300px; } }
-        @media (max-width: 1024px) { 
+        @media (max-width: 1024px) {
           .lt-grid { grid-template-columns: 1fr; }
           .lt-address-map { display: block; }
           .map-container { position: static; height: 260px; grid-column: 1 / -1; grid-row: auto; margin-top: .5rem; }

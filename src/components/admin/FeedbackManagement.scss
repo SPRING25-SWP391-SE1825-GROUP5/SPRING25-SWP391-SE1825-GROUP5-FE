@@ -1,0 +1,372 @@
+// Import Booking styles as base
+@use './Booking/_booking-base' as *;
+@use './Booking/_booking-animations' as *;
+@use './Booking/_booking-header' as *;
+@use './Booking/_booking-empty' as *;
+@use './Booking/_booking-table' as *;
+@use './Booking/_booking-pagination' as *;
+
+// Override for feedback table to ensure borders
+.admin-feedback .feedback-table.users-table,
+.admin-feedbacks .feedback-table.users-table {
+  thead th:first-child,
+  tbody td:first-child {
+    border-left: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+}
+
+// Override từ Users.scss
+.admin-feedbacks .users-table th:first-child,
+.admin-feedbacks .users-table td:first-child {
+  border-left: 1px solid #e5e7eb !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+// Override từ global.scss
+.admin-feedbacks table.feedback-table.users-table th:first-child,
+.admin-feedbacks table.feedback-table.users-table td:first-child {
+  border-left: 1px solid #e5e7eb !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+// Fix alignment for toolbar filters and pill-select buttons
+.admin-feedback,
+.admin-feedbacks {
+  // Search input with icon
+  .toolbar-search {
+    flex: 1 1 auto;
+    max-width: none;
+    display: flex;
+    align-items: center;
+    margin: 0 16px 0 0;
+    position: relative;
+    z-index: 1;
+    min-width: 240px;
+
+    .search-wrap {
+      position: relative;
+      width: 100%;
+      display: block;
+
+      input {
+        width: 100% !important;
+        padding: 10px 12px 10px 34px !important;
+        border: none;
+        border-bottom: 1px solid transparent;
+        border-radius: 0;
+        background: #fff !important;
+        color: var(--text-primary);
+        font-size: 13px;
+        outline: none;
+        box-shadow: none;
+      }
+
+      .icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-tertiary);
+        z-index: 2;
+        pointer-events: none;
+        display: block;
+        width: 14px;
+        height: 14px;
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: #FFD875;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform .25s ease;
+      }
+
+      &:focus-within::after {
+        transform: scaleX(1);
+      }
+    }
+  }
+
+  .users-toolbar {
+    padding-right: 0;
+    margin-right: 0;
+  }
+
+  .toolbar-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+// Stats Grid
+.feedback-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .stat-content {
+      flex: 1;
+      min-width: 0;
+
+      .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+
+      .stat-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.2;
+      }
+    }
+  }
+}
+
+// Table Container
+.feedback-table-container {
+  background: #fff;
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.feedback-total-count {
+  padding: 16px 20px;
+  background: #F9FAFB;
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 14px;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+}
+
+.feedback-table-wrapper {
+  overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.feedback-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #F9FAFB;
+
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--border-primary);
+      white-space: nowrap;
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid var(--border-primary);
+      transition: background 0.15s ease;
+
+      &:hover {
+        background: #F9FAFB;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      td {
+        padding: 12px 16px;
+        color: var(--text-primary);
+        vertical-align: middle;
+      }
+    }
+  }
+}
+
+// Pagination
+.feedback-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  .pagination-btn {
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: #F9FAFB;
+      border-color: #D1D5DB;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Empty State
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+
+  svg {
+    margin: 0 auto 16px;
+    display: block;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+// Header
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+// Dropdown Menu
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #fff;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  min-width: 160px;
+  overflow: hidden;
+
+  button {
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: #F9FAFB;
+    }
+
+    &.active {
+      background: #EFF6FF;
+      color: #3B82F6;
+      font-weight: 500;
+    }
+
+    &:first-child {
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+
+    &:last-child {
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+  }
+}
+
+// Pill Select Button
+.pill-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+  }
+}
+
+// Animations
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+

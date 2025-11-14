@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { getCurrentUser, type User } from '@/store/authSlice'
 import { User as UserIcon, Car, Wrench, MapPin, UserPlus, CheckCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 import StepsProgressIndicator from './StepsProgressIndicator'
 import CustomerInfoStep from './CustomerInfoStep'
 import CombinedServiceVehicleStep from './CombinedServiceVehicleStep'
@@ -565,18 +566,38 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         bookingId: bookingId
       }))
 
-      // Apply promotion on server BEFORE creating PayOS link so BE has APPLIED record
+      // Apply promotion on server và lấy giá thật từ backend
+      let finalPayableAmount = payableAmount // Default: giá tính từ frontend
+      let actualDiscountAmount = bookingData.promotionInfo?.discountAmount || 0
+      
       try {
         const promoCode = bookingData.promotionInfo?.promotionCode?.trim()
         if (promoCode) {
-
+          console.log('ServiceBookingForm - Applying promotion:', { bookingId, promoCode })
           const applyRes = await PromotionBookingService.applyPromotionToBooking({ bookingId: Number(bookingId), code: promoCode })
-
+          
+          // Sử dụng giá thật từ backend response
+          if (applyRes.success && applyRes.data) {
+            finalPayableAmount = applyRes.data.finalAmount || payableAmount
+            actualDiscountAmount = applyRes.data.discountAmount || actualDiscountAmount
+            console.log('ServiceBookingForm - Promotion applied successfully:', {
+              finalPayableAmount,
+              actualDiscountAmount,
+              originalAmount: payableAmount
+            })
+          } else {
+            console.warn('ServiceBookingForm - Promotion apply failed:', applyRes.message)
+            toast.error(applyRes.message || 'Không thể áp dụng mã khuyến mãi')
+          }
         } else {
-
+          console.log('ServiceBookingForm - No promotion code to apply')
         }
-      } catch (applyErr) {
-        // Error applying promotion
+      } catch (applyErr: any) {
+        // Nếu apply promotion thất bại, log error và hiển thị thông báo cho user
+        console.error('ServiceBookingForm - Error applying promotion:', applyErr)
+        const errorMessage = applyErr?.response?.data?.message || applyErr?.message || 'Không thể áp dụng mã khuyến mãi'
+        toast.error(errorMessage)
+        // Không block booking process, tiếp tục với giá gốc
       }
 
       // Bỏ thanh toán: điều hướng tới trang thành công và thông báo đặt lịch xong (status PENDING)
@@ -585,8 +606,8 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
         setCompletedSteps(prev => [...prev.filter(step => step !== finalStep), finalStep])
       } catch {}
 
-      // Điều hướng trang thành công, truyền bookingId và số tiền để hiển thị nếu cần
-      window.location.href = `/booking-success?bookingId=${encodeURIComponent(bookingId)}&amount=${encodeURIComponent(payableAmount)}`
+      // Điều hướng trang thành công, truyền bookingId và số tiền THẬT từ backend
+      window.location.href = `/booking-success?bookingId=${encodeURIComponent(bookingId)}&amount=${encodeURIComponent(finalPayableAmount)}&originalAmount=${encodeURIComponent(finalTotalPrice)}&discountAmount=${encodeURIComponent(actualDiscountAmount)}`
       return
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string }
@@ -645,10 +666,12 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
               onPromotionChange={(info) => {
+                // Lưu promotion info vào bookingData để dùng khi submit booking
                 setBookingData(prev => ({
                   ...prev,
-                  promotionInfo: info ? { promotionCode: info.promotionCode, discountAmount: info.discountAmount } : { promotionCode: undefined, discountAmount: 0 }
+                  promotionInfo: info || undefined
                 }))
+                console.log('ServiceBookingForm - Promotion changed (guest):', info)
               }}
             />
           )
@@ -689,6 +712,14 @@ const ServiceBookingForm: React.FC<ServiceBookingFormProps> = ({ forceGuestMode 
               onSubmit={handleSubmit}
               onPrev={handlePrev}
               isSubmitting={isSubmitting}
+              onPromotionChange={(info) => {
+                // Lưu promotion info vào bookingData để dùng khi submit booking
+                setBookingData(prev => ({
+                  ...prev,
+                  promotionInfo: info || undefined
+                }))
+                console.log('ServiceBookingForm - Promotion changed:', info)
+              }}
             />
           )
         default:

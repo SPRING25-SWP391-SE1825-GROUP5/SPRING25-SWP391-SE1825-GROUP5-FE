@@ -1,4 +1,3 @@
-// Toolbar styles
 .users-toolbar {
   display: flex;
   flex-direction: column;
@@ -156,7 +155,6 @@
   flex: 0 0 auto;
 }
 
-// Pill select - cho toolbar filters
 .toolbar-filters {
   .pill-select {
     position: relative;
@@ -311,7 +309,6 @@
   }
 }
 
-// Pagination styles (from existing)
 .pagination-info {
   display: flex;
   align-items: center;
@@ -329,7 +326,6 @@
     font-size: 13px;
   }
 
-  // Fix pagination info pill-select - giống trang kho hàng và booking
   .pill-select {
     position: relative;
     width: 52px !important;
@@ -430,8 +426,6 @@
   }
 }
 
-
-// Checkbox and avatar (shared with table)
 .users-checkbox {
   width: 16px;
   height: 16px;
@@ -479,7 +473,6 @@
   }
 }
 
-// Status badge
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -514,7 +507,6 @@
   }
 }
 
-// Role badge
 .role-badge {
   display: inline-flex;
   align-items: center;

@@ -18,20 +18,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const getConversationTitle = () => {
     if (!conversation) return 'Chọn cuộc trò chuyện'
-    
+
     if (conversation.participants.length === 2) {
-      // Direct message - show other participant's name
       const otherParticipant = conversation.participants.find(p => p.id !== 'current-user')
       return otherParticipant?.name || 'Cuộc trò chuyện'
     } else {
-      // Group chat - show group name or participant count
       return `Nhóm ${conversation.participants.length} người`
     }
   }
 
   const getConversationSubtitle = () => {
     if (!conversation) return ''
-    
+
     const onlineCount = conversation.participants.filter(p => p.isOnline).length
     if (onlineCount > 0) {
       return `${onlineCount} người đang hoạt động`
@@ -41,13 +39,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const getConversationAvatar = () => {
     if (!conversation) return null
-    
+
     if (conversation.participants.length === 2) {
-      // Direct message - show other participant's avatar
       const otherParticipant = conversation.participants.find(p => p.id !== 'current-user')
       return otherParticipant?.avatar
     } else {
-      // Group chat - show first participant's avatar or default
       return conversation.participants[0]?.avatar
     }
   }
@@ -67,9 +63,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="chat-header__info">
           <div className="chat-header__avatar">
             {getConversationAvatar() ? (
-              <img 
-                src={getConversationAvatar()} 
-                alt="Avatar" 
+              <img
+                src={getConversationAvatar()}
+                alt="Avatar"
                 className="chat-header__avatar-img"
               />
             ) : (
@@ -108,7 +104,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             </button>
           </>
         )}
-        
+
         <button
           className="chat-header__action-btn"
           onClick={onNewConversation}

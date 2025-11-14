@@ -1,0 +1,139 @@
+.manager-fulfillment-page {
+  padding: 24px;
+
+  .page-header {
+    margin-bottom: 16px;
+
+    h1 {
+      font-size: 24px;
+      margin: 0 0 4px;
+    }
+
+    p {
+      margin: 0;
+      color: #6b7280;
+    }
+  }
+
+  .card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+
+    &.loading-card {
+      text-align: center;
+      padding: 40px 0;
+      color: #6b7280;
+    }
+  }
+
+  .fulfillment-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+      text-align: left;
+      font-weight: 600;
+      padding: 12px;
+      border-bottom: 1px solid #f1f5f9;
+      background: #f8fafc;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+
+    .cell-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .cell-sub {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .center-select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+
+      button {
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+        font-size: 13px;
+
+        &:disabled {
+          background: #cbd5f5;
+          cursor: not-allowed;
+        }
+
+        &.secondary {
+          background: #f3f4f6;
+          color: #111827;
+        }
+      }
+    }
+
+    .parts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow: auto;
+
+      .part-row {
+        padding: 6px 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 12px;
+
+        &.part-warning {
+          border-color: #f87171;
+          background: #fef2f2;
+          color: #b91c1c;
+        }
+
+        .part-warning-text {
+          color: #b91c1c;
+          margin-top: 4px;
+        }
+      }
+    }
+
+    .loading-inline {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .muted {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .row-warning {
+      background: #fff7ed;
+    }
+  }
+}
+
+

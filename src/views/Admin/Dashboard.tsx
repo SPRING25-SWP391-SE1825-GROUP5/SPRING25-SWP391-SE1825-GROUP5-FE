@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/authSlice'
@@ -13,7 +13,6 @@ import {
   ChevronRight,
   BarChart3,
   Wrench,
-  Bell,
   Menu,
   LogOut,
   Globe,
@@ -54,13 +53,11 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import './admin.scss'
-import UsersComponent from './Users'
 import ServicesManagement from '../../components/manager/ServicesManagement'
 import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
 import CenterManagement from '../../components/admin/CenterManagement'
 import StaffManagement from '../../components/admin/StaffManagement'
 import PromotionManagement from '../../components/admin/PromotionManagement'
-import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import PartManagement from '../../components/admin/PartManagement'
 import { useAppSelector } from '@/store/hooks'
 import TimeSlotManagement from './TimeSlotManagement'
@@ -68,6 +65,8 @@ import SystemSettings from './SystemSettings'
 import ServiceTemplateManagement from './ServiceTemplateManagement'
 import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
+import FeedbackManagement from '../../components/admin/FeedbackManagement'
+import OrdersManagement from '../../components/admin/OrdersManagement'
 import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
 import { CenterService, type Center } from '../../services/centerService'
 import { ReportsService } from '../../services/reportsService'
@@ -116,22 +115,6 @@ export default function AdminDashboard() {
       color: '#6366f1'
     },
     {
-      title: 'Báo cáo',
-      description: 'Xem báo cáo doanh thu, thống kê',
-      icon: BarChart3,
-      page: 'reports',
-      route: '/admin/reports',
-      color: 'var(--info-500)'
-    },
-    {
-      title: 'Quản lý người dùng',
-      description: 'Quản lý tài khoản khách hàng',
-      icon: Users,
-      page: 'users',
-      route: '/admin/users',
-      color: 'var(--warning-500)'
-    },
-    {
       title: 'Mẫu Checklist bảo trì',
       description: 'Quản lý mẫu checklist bảo trì',
       icon: FileText,
@@ -150,10 +133,8 @@ export default function AdminDashboard() {
       '/admin/orders': 'orders',
       '/admin/bookings': 'bookings',
       '/admin/feedback': 'feedback',
-      '/admin/users': 'users',
       '/admin/staff': 'staff',
       '/admin/services': 'services',
-      '/admin/service-packages': 'service-packages',
       '/admin/parts-management': 'parts',
       '/admin/inventory': 'inventory',
       '/admin/service-centers': 'service-centers',
@@ -177,10 +158,8 @@ export default function AdminDashboard() {
           'orders': 'orders',
           'bookings': 'bookings',
           'feedback': 'feedback',
-          'users': 'users',
           'staff': 'staff',
           'services': 'services',
-          'service-packages': 'service-packages',
           'parts-management': 'parts',
           'inventory': 'inventory',
           'service-centers': 'service-centers',
@@ -220,6 +199,8 @@ export default function AdminDashboard() {
     serviceRevenue: number
     partsRevenue: number
   } | null>(null)
+  const [loadingSummary, setLoadingSummary] = useState(false)
+  const summaryLoadingRef = useRef<string | null>(null) // Track đang load với params nào
   const [revenueByStore, setRevenueByStore] = useState<{
     stores: Array<{
       storeId: number
@@ -256,7 +237,7 @@ export default function AdminDashboard() {
   const centersLoadedRef = useRef(false)
 
   // Handler for quick period selection
-  
+
   const [loading, setLoading] = useState(false)
   const [loadingStoreRevenue, setLoadingStoreRevenue] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -283,31 +264,81 @@ export default function AdminDashboard() {
 
   // Load dashboard summary
   const loadDashboardSummary = async () => {
-    try {
-      const params: { centerId?: number; fromDate?: string; toDate?: string } = {}
-      
-      if (selectedCenterId !== 'all') {
-        params.centerId = selectedCenterId
-      }
-      // Use the same time range as the revenue chart filters
-      params.fromDate = revenueDateRange.fromDate
-      params.toDate = revenueDateRange.toDate
+    const params: { centerId?: number; fromDate?: string; toDate?: string } = {}
 
+    if (selectedCenterId !== 'all') {
+      params.centerId = selectedCenterId
+    }
+    // Use the same time range as the revenue chart filters
+    params.fromDate = revenueDateRange.fromDate
+    params.toDate = revenueDateRange.toDate
+
+    // Tạo key để track request, tránh gọi duplicate
+    const requestKey = `${params.centerId || 'all'}_${params.fromDate}_${params.toDate}`
+
+    // Nếu đang load với cùng params, skip
+    if (summaryLoadingRef.current === requestKey) {
+      return
+    }
+
+    summaryLoadingRef.current = requestKey
+    setLoadingSummary(true)
+
+    try {
       const response = await ReportsService.getDashboardSummary(params)
-      if (response?.success && response.data?.summary) {
-        const s: any = response.data.summary
-        const mapped = {
-          totalRevenue: Number(s.totalRevenue ?? s.TotalRevenue ?? 0),
-          totalEmployees: Number(s.totalEmployees ?? s.TotalEmployees ?? 0),
-          totalCompletedBookings: Number(s.totalCompletedBookings ?? s.TotalCompletedBookings ?? 0),
-          serviceRevenue: Number(s.serviceRevenue ?? s.ServiceRevenue ?? 0),
-          partsRevenue: Number(s.partsRevenue ?? s.PartsRevenue ?? 0),
+
+      if (response?.success && response.data) {
+        const data: any = response.data
+        // Thử lấy từ summary trước
+        if (data.summary) {
+          const s: any = data.summary
+          const mapped = {
+            totalRevenue: Number(s.totalRevenue ?? s.TotalRevenue ?? 0),
+            totalEmployees: Number(s.totalEmployees ?? s.TotalEmployees ?? 0),
+            totalCompletedBookings: Number(s.totalCompletedBookings ?? s.TotalCompletedBookings ?? 0),
+            serviceRevenue: Number(s.serviceRevenue ?? s.ServiceRevenue ?? 0),
+            partsRevenue: Number(s.partsRevenue ?? s.PartsRevenue ?? 0),
+          }
+          setDashboardSummary(mapped)
+        } else {
+          // Nếu không có summary, thử lấy trực tiếp từ data (fallback)
+          const mapped = {
+            totalRevenue: Number(data.totalRevenue ?? data.TotalRevenue ?? 0),
+            totalEmployees: Number(data.totalEmployees ?? data.TotalEmployees ?? 0),
+            totalCompletedBookings: Number(data.totalCompletedBookings ?? data.TotalCompletedBookings ?? 0),
+            serviceRevenue: Number(data.serviceRevenue ?? data.ServiceRevenue ?? 0),
+            partsRevenue: Number(data.partsRevenue ?? data.PartsRevenue ?? 0),
+          }
+          setDashboardSummary(mapped)
         }
-        setDashboardSummary(mapped)
+      } else {
+        // Set default values nếu API không trả về dữ liệu
+        setDashboardSummary({
+          totalRevenue: 0,
+          totalEmployees: 0,
+          totalCompletedBookings: 0,
+          serviceRevenue: 0,
+          partsRevenue: 0,
+        })
       }
     } catch (err: any) {
       console.error('Failed to load dashboard summary:', err)
-      // Don't show error toast for summary, just log it
+      // Set default values khi API fail
+      setDashboardSummary({
+        totalRevenue: 0,
+        totalEmployees: 0,
+        totalCompletedBookings: 0,
+        serviceRevenue: 0,
+        partsRevenue: 0,
+      })
+    } finally {
+      setLoadingSummary(false)
+      // Clear ref sau 100ms để cho phép reload nếu cần
+      setTimeout(() => {
+        if (summaryLoadingRef.current === requestKey) {
+          summaryLoadingRef.current = null
+        }
+      }, 100)
     }
   }
 
@@ -319,7 +350,7 @@ export default function AdminDashboard() {
         fromDate: revenueDateRange.fromDate,
         toDate: revenueDateRange.toDate
       })
-      
+
       if (response.success && response.data?.stores) {
         setRevenueByStore({
           stores: response.data.stores,
@@ -356,14 +387,37 @@ export default function AdminDashboard() {
   }
 
   // Load booking status (per center or all centers aggregated)
+  // Tối ưu: Nếu centers chưa load xong, đợi một chút hoặc skip
   const loadBookingStatus = async () => {
     try {
+      // Nếu centers chưa load, đợi một chút (tối đa 2 giây)
+      if (centers.length === 0) {
+        let retries = 0
+        const maxRetries = 4 // 4 lần x 500ms = 2 giây
+        while (centers.length === 0 && retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          retries++
+        }
+        if (centers.length === 0) {
+          // Không log warning nữa vì đây là behavior bình thường khi component mount
+          return
+        }
+      }
+
       const from = revenueDateRange.fromDate
       const to = revenueDateRange.toDate
       if (bookingStatusCenterId === 'all') {
         const activeCenters = centers && centers.length > 0 ? centers.filter(c => c.isActive) : []
+
+        // Giới hạn số lượng centers để tránh quá nhiều API calls
+        // Nếu có quá nhiều centers, có thể cần tối ưu backend để có API aggregate
+        if (activeCenters.length > 10) {
+          console.warn(`Quá nhiều centers (${activeCenters.length}), chỉ load 10 centers đầu tiên`)
+        }
+        const centersToLoad = activeCenters.slice(0, 10)
+
         const results = await Promise.allSettled(
-          activeCenters.map(c => ReportsService.getBookingStatusCounts(c.centerId, { from, to }))
+          centersToLoad.map(c => ReportsService.getBookingStatusCounts(c.centerId, { from, to }))
         )
         const itemsMap = new Map<string, number>()
         let total = 0
@@ -391,6 +445,7 @@ export default function AdminDashboard() {
         })
       }
     } catch (err) {
+      console.error('Failed to load booking status:', err)
       setBookingStatus(null)
     }
   }
@@ -508,13 +563,19 @@ export default function AdminDashboard() {
   }
 
   // Load all dashboard pieces in parallel to speed up perceived load and avoid duplicate calls
+  // Tách loadDashboardSummary ra để không block các API khác (API này có thể chậm)
   const loadAllDashboardData = async () => {
+    // Load các API nhanh trước (không chờ summary)
     await Promise.allSettled([
       (async () => { await loadDashboardData() })(),
       (async () => { await loadServicesStats() })(),
-      (async () => { await loadDashboardSummary() })(),
       (async () => { await loadRevenueByStore() })(),
     ])
+
+    // Load summary riêng (có thể chậm, không block UI)
+    loadDashboardSummary().catch(err => {
+      console.error('Dashboard summary failed (non-blocking):', err)
+    })
   }
 
   // Aggregate revenue data from multiple centers
@@ -617,14 +678,10 @@ export default function AdminDashboard() {
     }
   }
 
-  
 
-  // Load dashboard data when center selection or user clicks Apply on revenue filters
-  useEffect(() => {
-    loadAllDashboardData()
-    loadBookingStatus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCenterId, revenueFilterApplyKey])
+
+  // Ref để tránh gọi API nhiều lần khi component mount
+  const initialLoadRef = useRef(false)
 
   // Ensure first visit shows last-7-days stats by triggering an initial apply
   useEffect(() => {
@@ -632,66 +689,131 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Also fetch once immediately on mount to avoid any race before apply key updates
+  // Load dashboard data when center selection or user clicks Apply on revenue filters
+  // Chỉ gọi một lần khi mount, sau đó chỉ gọi khi filter thay đổi
   useEffect(() => {
-    loadAllDashboardData()
-    loadBookingStatus()
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true
+      // Load lần đầu tiên - đợi centers load xong trước
+      const loadData = async () => {
+        // Đợi centers load (nếu chưa có)
+        if (centers.length === 0) {
+          let retries = 0
+          while (centers.length === 0 && retries < 4) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            retries++
+          }
+        }
+        await loadAllDashboardData()
+        // Chỉ load booking status nếu đã có centers
+        if (centers.length > 0) {
+          loadBookingStatus()
+        }
+      }
+      loadData()
+    } else {
+      // Chỉ reload khi filter thay đổi (không phải lần đầu)
+      loadAllDashboardData()
+      // Chỉ load booking status nếu đã có centers
+      if (centers.length > 0) {
+        loadBookingStatus()
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedCenterId, revenueFilterApplyKey])
 
-  // Reload booking status when user switches the dropdown center
+  // Reload booking status khi centers đã load xong hoặc khi user switches the dropdown center
   useEffect(() => {
-    loadBookingStatus()
+    // Chỉ load khi đã có centers
+    if (centers.length > 0 && initialLoadRef.current) {
+      loadBookingStatus()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingStatusCenterId])
+  }, [bookingStatusCenterId, centers.length])
 
-  // (kept) separate calls handled above
+  // Prepare stats data for dashboard (moved outside renderDashboardContent to fix hooks error)
+  const summaryData = useMemo(() => {
+    // Nếu đang loading, giữ giá trị cũ (nếu có) hoặc null để hiển thị loading state
+    if (loadingSummary && dashboardSummary) {
+      return dashboardSummary
+    }
+    // Nếu có data, dùng data
+    if (dashboardSummary) {
+      return dashboardSummary
+    }
+    // Nếu không có data và không loading, trả về null để hiển thị placeholder
+    return null
+  }, [dashboardSummary, loadingSummary])
 
-  // Load revenue by store when clicking Apply
-  useEffect(() => {
-    loadRevenueByStore()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revenueFilterApplyKey])
+  const totalRevenue = summaryData?.totalRevenue || 0
+  const completedBookings = summaryData?.totalCompletedBookings || 0
+
+  const stats = useMemo(() => {
+    const isLoading = loadingSummary && !summaryData
+
+    return [
+      {
+        title: 'Tổng doanh thu',
+        value: isLoading ? '...' : totalRevenue.toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: summaryData ? '' : '+12.5%', // Hide change percentage if using API data
+        changeType: 'positive' as const,
+        icon: DollarSign,
+        color: 'var(--primary-500)',
+        isLoading
+      },
+      {
+        title: 'Tổng nhân viên',
+        value: isLoading ? '...' : (summaryData?.totalEmployees || 0).toString(),
+        unit: 'người',
+        change: summaryData ? '' : '+8.2%',
+        changeType: 'positive' as const,
+        icon: UserCheck,
+        color: 'var(--success-500)',
+        isLoading
+      },
+      {
+        title: 'Đơn hoàn thành',
+        value: isLoading ? '...' : completedBookings.toString(),
+        unit: 'đơn',
+        change: summaryData ? '' : '+5.1%',
+        changeType: 'positive' as const,
+        icon: Users,
+        color: 'var(--info-500)',
+        isLoading
+      },
+      {
+        title: 'Doanh thu từ dịch vụ',
+        value: isLoading ? '...' : (summaryData?.serviceRevenue || 0).toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: summaryData ? '' : '',
+        changeType: 'positive' as const,
+        icon: Wrench,
+        color: 'var(--warning-500)',
+        isLoading
+      },
+      {
+        title: 'Doanh thu từ phụ tùng',
+        value: isLoading ? '...' : (summaryData?.partsRevenue || 0).toLocaleString('vi-VN'),
+        unit: 'VND',
+        change: summaryData ? '' : '',
+        changeType: 'positive' as const,
+        icon: Package,
+        color: 'var(--info-500)',
+        isLoading
+      }
+    ]
+  }, [summaryData, loadingSummary, totalRevenue, completedBookings])
 
   // Page components
   const renderPageContent = () => {
     switch (activePage) {
       case 'orders':
-        return (
-      <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Đơn hàng
-            </h2>
-      <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-              borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Quản lý đơn hàng sẽ được hiển thị ở đây...</p>
-      </div>
-    </div>
-  )
+        return <OrdersManagement />
       case 'bookings':
         return <BookingManagement />
       case 'feedback':
-        return (
-        <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '24px' }}>
-              Phản hồi
-            </h2>
-            <div style={{
-              background: 'var(--bg-card)',
-              padding: '24px',
-            borderRadius: '12px',
-              border: '1px solid var(--border-primary)'
-            }}>
-              <p style={{ color: 'var(--text-secondary)' }}>Quản lý phản hồi sẽ được hiển thị ở đây...</p>
-      </div>
-    </div>
-  )
-      case 'users':
-        return <UsersComponent />
+        return <FeedbackManagement />
       case 'staff':
         return <StaffManagement />
       case 'parts':
@@ -708,8 +830,6 @@ export default function AdminDashboard() {
         return <CenterManagement />
       case 'promotions':
         return <PromotionManagement />
-      case 'service-packages':
-        return <ServicePackageManagement />
       case 'reports':
         return (
           <div>
@@ -846,18 +966,8 @@ export default function AdminDashboard() {
         })
       : []
 
-    // Prepare stats strictly from dashboard summary API (already filtered by global time range)
-    const summaryData = dashboardSummary || {
-      totalRevenue: 0,
-      totalEmployees: 0,
-      totalCompletedBookings: 0,
-      serviceRevenue: 0,
-      partsRevenue: 0
-    }
-
-    const totalRevenue = summaryData.totalRevenue
+    // Use pre-computed values from top-level hooks
     const totalBookings = summary?.totalBookings || summary?.TotalBookings || 0
-    const completedBookings = summaryData.totalCompletedBookings
     const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : '0'
 
     const quickActions: Array<{ title: string; description: string; icon: any; page: string; route?: string; color: string }> = [
@@ -893,68 +1003,6 @@ export default function AdminDashboard() {
         route: '/admin/settings',
         color: '#6366f1'
       },
-      {
-        title: 'Báo cáo',
-        description: 'Xem báo cáo doanh thu, thống kê',
-        icon: BarChart3,
-        page: 'reports',
-        color: 'var(--info-500)'
-      },
-      {
-        title: 'Quản lý người dùng',
-        description: 'Quản lý tài khoản khách hàng',
-        icon: Users,
-        page: 'users',
-        color: 'var(--warning-500)'
-      }
-    ]
-
-    const stats = [
-      {
-        title: 'Tổng doanh thu',
-        value: totalRevenue.toLocaleString('vi-VN'),
-        unit: 'VND',
-        change: dashboardSummary ? '' : '+12.5%', // Hide change percentage if using API data
-        changeType: 'positive' as const,
-        icon: DollarSign,
-        color: 'var(--primary-500)'
-      },
-      {
-        title: 'Tổng nhân viên',
-        value: summaryData.totalEmployees.toString(),
-        unit: 'người',
-        change: dashboardSummary ? '' : '+8.2%',
-        changeType: 'positive' as const,
-        icon: UserCheck,
-        color: 'var(--success-500)'
-      },
-      {
-        title: 'Đơn hoàn thành',
-        value: completedBookings.toString(),
-        unit: 'đơn',
-        change: dashboardSummary ? '' : '+5.1%',
-        changeType: 'positive' as const,
-        icon: Users,
-        color: 'var(--info-500)'
-      },
-      {
-        title: 'Doanh thu từ dịch vụ',
-        value: summaryData.serviceRevenue.toLocaleString('vi-VN'),
-        unit: 'VND',
-        change: dashboardSummary ? '' : '',
-        changeType: 'positive' as const,
-        icon: Wrench,
-        color: 'var(--warning-500)'
-      },
-      {
-        title: 'Doanh thu từ phụ tùng',
-        value: summaryData.partsRevenue.toLocaleString('vi-VN'),
-        unit: 'VND',
-        change: dashboardSummary ? '' : '',
-        changeType: 'positive' as const,
-        icon: Package,
-        color: 'var(--info-500)'
-      }
     ]
 
     return (
@@ -1346,10 +1394,10 @@ export default function AdminDashboard() {
                   }}
                   formatter={(value, _name, item: any) => {
                     const p = item && item.payload
-                    if (p && (p.revenue !== undefined || p.bookingCount !== undefined)) {
-                      const revenueText = `${Number(p.revenue || 0).toLocaleString('vi-VN')} VND`
-                      const bookingText = `${p.bookingCount || 0} lượt`
-                      return [`${revenueText} | ${bookingText}`, p.name]
+                    if (p) {
+                      // Hiển thị tỉ lệ phần trăm các loại dịch vụ được sử dụng
+                      const percentage = typeof value === 'number' ? value : Number(value || 0)
+                      return [`${percentage.toFixed(1)}%`, p.name || 'Dịch vụ']
                     }
                     return [`${value}%`, 'Tỷ lệ']
                   }}
@@ -1426,9 +1474,9 @@ export default function AdminDashboard() {
                   }}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="revenue" 
-                  fill="var(--primary-500)" 
+                <Bar
+                  dataKey="revenue"
+                  fill="var(--primary-500)"
                   name="Doanh thu (VND)"
                   radius={[8, 8, 0, 0]}
                 />
@@ -1677,18 +1725,6 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ position: 'relative' }}>
-            <Bell size={20} style={{ color: 'var(--text-tertiary)' }} />
-            <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              width: '8px',
-              height: '8px',
-              background: 'var(--error-500)',
-              borderRadius: '50%'
-            }} />
-          </div>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1757,7 +1793,7 @@ export default function AdminDashboard() {
             marginBottom: '32px',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start'
           }}>
-            <img src="/email/10.webp" alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: sidebarCollapsed ? '0' : '12px', boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)' }} />
+            <img src="/src/assets/images/10.webp" alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '8px', marginRight: sidebarCollapsed ? '0' : '12px', boxShadow: '0 0 12px rgba(255, 216, 117, 0.6)' }} />
             {!sidebarCollapsed && (
               <div>
                 <h1 style={{
@@ -1791,50 +1827,6 @@ export default function AdminDashboard() {
                 margin: '0 0 12px 0',
                 display: sidebarCollapsed ? 'none' : 'block'
               }}>
-                Tổng quan
-              </h3>
-              <div
-                onClick={() => setActivePage('dashboard')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  color: activePage === 'dashboard' ? 'var(--primary-500)' : 'var(--text-secondary)',
-                  background: activePage === 'dashboard' ? 'var(--primary-50)' : 'transparent',
-                  fontWeight: '500',
-                  marginBottom: '4px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  if (activePage !== 'dashboard') {
-                    e.currentTarget.style.background = 'var(--primary-50)'
-                    e.currentTarget.style.color = 'var(--primary-500)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activePage !== 'dashboard') {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = 'var(--text-secondary)'
-                  }
-                }}
-              >
-                <BarChart3 size={20} style={{ marginRight: sidebarCollapsed ? '0' : '12px' }} />
-                {!sidebarCollapsed && 'Báo cáo'}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{
-                fontSize: '12px',
-                fontWeight: '600',
-                color: 'var(--text-tertiary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                margin: '0 0 12px 0',
-                display: sidebarCollapsed ? 'none' : 'block'
-              }}>
                 Quản lý
               </h3>
               {[
@@ -1842,12 +1834,9 @@ export default function AdminDashboard() {
                 { icon: ShoppingCart, label: 'Đơn hàng', page: 'orders', route: '/admin/orders' },
                 { icon: CalendarCheck, label: 'Đặt lịch', page: 'bookings', route: '/admin/bookings' },
                 { icon: MessageSquare, label: 'Phản hồi', page: 'feedback', route: '/admin/feedback' },
-                // Quản lý người dùng
-                { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff' },
                 // Quản lý dịch vụ
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
-                { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
                 // Quản lý sản phẩm & kho
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Warehouse, label: 'Kho hàng', page: 'inventory', route: '/admin/inventory' },
@@ -1858,8 +1847,7 @@ export default function AdminDashboard() {
                 // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                // Báo cáo & Cài đặt
-                { icon: FileText, label: 'Báo cáo', page: 'reports', route: '/admin/reports' },
+                // Cài đặt
                 { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (
                 <div

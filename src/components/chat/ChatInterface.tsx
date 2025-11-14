@@ -1,12 +1,4 @@
-/**
- * ChatInterface - Trang nhắn tin đầy đủ với giao diện 3 cột
- *
- * Tính năng:
- * - Giao diện 3 cột: danh sách cuộc trò chuyện, khu vực chat, thông tin đối phương
- * - Quản lý nhiều cuộc trò chuyện
- * - Tìm kiếm cuộc trò chuyện
- * - Thông tin chi tiết về người dùng
- */
+
 import React, { useState, useEffect, useMemo } from 'react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { setConversations, setActiveConversation, addConversation, setMessages } from '@/store/chatSlice'
@@ -36,7 +28,7 @@ const ChatInterface: React.FC = () => {
         isOnline: true
       }
     }
-    // Guest user: sử dụng guestSessionId từ localStorage
+
     const guestSessionId = typeof localStorage !== 'undefined'
       ? localStorage.getItem('guestSessionId') || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       : `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -80,10 +72,8 @@ const ChatInterface: React.FC = () => {
 
   const handleCreateNewChat = async () => {
     try {
-      // Get available staff
       const availableStaff = await ChatService.getAvailableStaff()
       if (availableStaff.length > 0) {
-        // Create conversation with first available staff
         const conversation = await ChatService.createConversation(availableStaff[0].id)
         dispatch(addConversation(conversation))
         dispatch(setActiveConversation(conversation.id))
@@ -112,7 +102,6 @@ const ChatInterface: React.FC = () => {
   return (
     <div className="chat-interface">
       <div className="chat-interface__container">
-        {/* Chat List - Left Sidebar */}
         <div className="chat-interface__sidebar">
           <ChatList
             selectedConversationId={activeConversationId}
@@ -121,7 +110,6 @@ const ChatInterface: React.FC = () => {
           />
         </div>
 
-        {/* Chat Area - Main Content */}
         <div className="chat-interface__main">
           <ChatArea
             conversation={selectedConversation}

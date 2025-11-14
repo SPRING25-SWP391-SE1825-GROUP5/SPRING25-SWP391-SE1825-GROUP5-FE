@@ -34,7 +34,7 @@
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
   }
-  
+
   tbody td:first-child {
     border-left: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
@@ -159,20 +159,6 @@
   align-items: center;
   gap: 8px;
 
-  &__avatar {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    background: #FFD875;
-    color: #111;
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-  }
-
   &__text {
     font-weight: 500;
   }
@@ -253,7 +239,7 @@
     background: #F0FDF4;
     color: #22C55E;
     border: 1px solid #22C55E;
-    
+
     .dot {
       background: #22C55E;
     }
@@ -263,7 +249,7 @@
     background: #FEF2F2;
     color: #EF4444;
     border: 1px solid #EF4444;
-    
+
     .dot {
       background: #EF4444;
     }

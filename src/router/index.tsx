@@ -37,9 +37,8 @@ const Profile = lazy(() => import('@/views/Profile'))
 const Users = lazy(() => import('@/views/Users'))
 const MyVehicles = lazy(() => import('@/views/Customer/MyVehicles'))
 const MaintenanceHistory = lazy(() => import('@/views/Customer/MaintenanceHistory'))
-const StaffCustomers = lazy(() => import('@/views/Staff/Customers'))
-const StaffAppointments = lazy(() => import('@/views/Staff/Appointments'))
 const StaffTechnicianSchedule = lazy(() => import('@/components/staff/TechnicianSchedulePage'))
+const StaffQRCheckIn = lazy(() => import('@/views/Staff/QRCheckIn'))
 const StaffServiceOrders = lazy(() => import('@/views/Staff/ServiceOrders'))
 const TechnicianWorkQueue = lazy(() => import('@/views/Technician/WorkQueue'))
 const TechnicianChecklists = lazy(() => import('@/views/Technician/Checklists'))
@@ -49,8 +48,8 @@ const AdminReports = lazy(() => import('@/views/Admin/Reports'))
 const TechnicianDashboard = lazy(() => import('@/views/Technician/Dashboard'))
 const StaffDashboard = lazy(() => import('@/views/Staff/Dashboard'))
 const ManagerDashboard = lazy(() => import('@/views/Manager/Dashboard'))
+const FulfillmentOrchestration = lazy(() => import('@/views/Manager/FulfillmentOrchestration'))
 const ChatDemo = lazy(() => import('@/views/ChatDemo'))
-const StaffChat = lazy(() => import('@/views/Staff/StaffChat'))
 const AvatarIconDemo = lazy(() => import('@/views/AvatarIconDemo'))
 const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
@@ -89,7 +88,6 @@ const router = createBrowserRouter([
       { path: 'payment/success', element: suspense(<PaymentSuccess />) },
       { path: 'payment/error', element: suspense(<PaymentSuccess />) },
       { path: 'payment/failed', element: suspense(<PaymentSuccess />) },
-      { path: 'payment/cancelled', element: suspense(<PaymentSuccess />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
       { path: 'map-demo', element: suspense(<MapDemo />) },
@@ -110,11 +108,9 @@ const router = createBrowserRouter([
     element: <StaffLayout />,
     children: [
       { index: true, element: suspense(<StaffDashboard />) },
-      { path: 'customers', element: suspense(<StaffCustomers />) },
-      { path: 'appointments', element: suspense(<StaffAppointments />) },
+      { path: 'qr-checkin', element: suspense(<StaffQRCheckIn />) },
       { path: 'service-orders', element: suspense(<StaffServiceOrders />) },
       { path: 'technician-schedule', element: suspense(<StaffTechnicianSchedule />) },
-      { path: 'chat', element: suspense(<StaffChat />) },
     ],
   },
   // Manager routes with manager layout (no global header)
@@ -123,6 +119,7 @@ const router = createBrowserRouter([
     element: <ManagerLayout />,
     children: [
       { index: true, element: suspense(<ManagerDashboard />) },
+      { path: 'fulfillment', element: suspense(<FulfillmentOrchestration />) },
     ],
   },
   // Technician routes with technician layout (no global header)
@@ -144,11 +141,10 @@ const router = createBrowserRouter([
       { index: true, element: suspense(<AdminDashboard />) },
       { path: 'orders', element: suspense(<AdminDashboard />) },
       { path: 'bookings', element: suspense(<AdminDashboard />) },
+      { path: 'reminders', element: suspense(<AdminDashboard />) },
       { path: 'feedback', element: suspense(<AdminDashboard />) },
-      { path: 'users', element: suspense(<AdminDashboard />) },
       { path: 'staff', element: suspense(<AdminDashboard />) },
       { path: 'services', element: suspense(<AdminDashboard />) },
-      { path: 'service-packages', element: suspense(<AdminDashboard />) },
       { path: 'parts-management', element: suspense(<AdminDashboard />) },
       { path: 'inventory', element: suspense(<AdminDashboard />) },
       { path: 'service-centers', element: suspense(<AdminDashboard />) },
@@ -171,6 +167,11 @@ const router = createBrowserRouter([
       { path: 'forgot-password', element: suspense(<ForgotPasswordRequest />) },
       { path: 'forgot-password/confirm', element: suspense(<ForgotPasswordConfirm />) },
     ],
+  },
+  // Catch-all route for 404
+  {
+    path: '*',
+    element: suspense(<NotFound />),
   },
 ])
 

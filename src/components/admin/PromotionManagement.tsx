@@ -342,9 +342,7 @@ export default function PromotionManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng</button>
-            <button type="button" className="toolbar-chip"><LayoutGrid size={14} /> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><ListIcon size={14} /> Danh sách</button>
+            {/* removed view mode buttons */}
             <div className="toolbar-sep" />
             </div>
           <div className="toolbar-right">
@@ -359,11 +357,7 @@ export default function PromotionManagement() {
                 </div>
             </div>
             <div className="toolbar-actions">
-              <button type="button" className="toolbar-chip"><EyeOff size={14} /> Ẩn</button>
-              <button type="button" className="toolbar-chip"><SlidersHorizontal size={14} /> Tùy chỉnh</button>
-              <button type="button" className="toolbar-btn" onClick={handleExport} disabled={exporting}>
-                <Download size={14} /> {exporting ? 'Đang xuất...' : 'Xuất'}
-              </button>
+              {/* removed hide/customize buttons */}
               <button
                 type="button"
                 className="accent-button toolbar-adduser"
@@ -443,7 +437,7 @@ export default function PromotionManagement() {
               <table className="promotion-table users-table" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr className="table-header-yellow">
-                    <th style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                    <th>
                       <span className="th-inner">
                         <input type="checkbox" className="users-checkbox" aria-label="Chọn tất cả" checked={isAllSelected} onChange={(e)=>handleToggleAll(e.target.checked)} />
                         <Gift size={16} className="th-icon" /> Mã khuyến mãi
@@ -452,9 +446,9 @@ export default function PromotionManagement() {
                     <th>
                       <span className="th-inner"><Tag size={16} className="th-icon" /> Mô tả</span>
             </th>
-                    <th className="sortable" onClick={() => handleSort('discountValue')}>
-                      <span className="th-inner sortable">
-                        <DollarSign size={16} className="th-icon" /> Giá trị giảm {getSortIcon('discountValue')}
+                    <th>
+                      <span className="th-inner">
+                        <DollarSign size={16} className="th-icon" /> Giá trị giảm
                       </span>
             </th>
                     <th>
@@ -484,12 +478,9 @@ export default function PromotionManagement() {
                       onClick={() => handleViewPromotion(p)}
                       style={{ animation: `slideInFromTop ${0.1 * (i + 1)}s ease-out forwards` }}
                     >
-                      <td style={{ borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+                      <td>
                         <div className="promotion-code-cell">
                           <input type="checkbox" className="users-checkbox" aria-label={`Chọn ${p.code}`} checked={selectedPromotionIds.includes(p.promotionId)} onChange={(e)=>handleToggleOne(p.promotionId, e.target.checked)} onClick={(e)=>e.stopPropagation()} />
-                          <div className="promotion-code-cell__avatar users-avatar users-avatar--fallback">
-                            {p.code ? p.code.charAt(0).toUpperCase() : 'P'}
-                  </div>
                           <span
                             className="promotion-code-cell__text"
                             onClick={(e) => {

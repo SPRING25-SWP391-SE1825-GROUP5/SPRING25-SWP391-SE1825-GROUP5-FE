@@ -3,6 +3,7 @@ import { Edit, Trash2, Reply, Check, CheckCheck } from 'lucide-react'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { updateMessage, removeMessage } from '@/store/chatSlice'
 import { ChatService } from '@/services/chatService'
+import ConfirmModal from './ConfirmModal'
 import MessageContent from './MessageContent'
 import MessageImage from './MessageImage'
 import MessageTimestamp from './MessageTimestamp'
@@ -35,6 +36,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [showActions, setShowActions] = useState(false)
   const [imageViewerOpen, setImageViewerOpen] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const handleEdit = async () => {
     if (isEditing) {
@@ -57,8 +59,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   }
 
-  const handleDelete = async () => {
-    if (window.confirm('Bạn có chắc muốn xóa tin nhắn này?')) {
+  const handleDelete = () => {
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
       try {
         await ChatService.deleteMessage(message.id)
         dispatch(removeMessage({
@@ -68,9 +73,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         if (onDelete) {
           onDelete(message.id)
         }
+      setShowDeleteModal(false)
       } catch (error) {
-
-      }
+      // Error handling
+      setShowDeleteModal(false)
     }
   }
 
@@ -254,6 +260,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           onClose={() => setImageViewerOpen(false)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        message="Bạn có chắc muốn xóa tin nhắn này?"
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+        type="delete"
+      />
     </div>
   )
 }

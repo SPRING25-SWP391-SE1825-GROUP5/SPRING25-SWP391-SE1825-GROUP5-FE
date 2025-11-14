@@ -25,7 +25,6 @@ export default function OrderConfirmationPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<OrderDetail | null>(null)
-  const [discount, setDiscount] = useState<number>(0)
 
   useEffect(() => {
     const load = async () => {
@@ -51,7 +50,7 @@ export default function OrderConfirmationPage() {
           setLoading(false)
           return
         }
-        
+
         const o = detailResp.data as any
 
         // Xử lý items: kiểm tra cả success và data structure
@@ -93,7 +92,6 @@ export default function OrderConfirmationPage() {
         }
 
         setOrder(mapped)
-        setDiscount(Number(o.DiscountAmount ?? o.discountAmount ?? 0))
       } catch (e: any) {
         toast.error(e?.userMessage || e?.message || 'Lỗi tải chi tiết đơn hàng')
       } finally {
@@ -111,6 +109,7 @@ export default function OrderConfirmationPage() {
     }
 
     try {
+
       // Ưu tiên dùng checkoutUrl đã cache trong session để đi nhanh
       const cached = sessionStorage.getItem(`checkoutUrl_${id}`)
       if (cached) {
@@ -121,7 +120,7 @@ export default function OrderConfirmationPage() {
       // Gọi tạo link thanh toán PayOS
       const createResp = await OrderService.checkoutOnline(Number(id))
       console.log('OrderConfirmationPage - checkoutOnline response:', createResp)
-      
+
       let checkoutUrl = createResp?.checkoutUrl
 
       // Nếu BE trả báo đã tồn tại/không có link, thử lấy link hiện có
@@ -191,15 +190,12 @@ export default function OrderConfirmationPage() {
 
           </div>
 
+
           <div className="section section--spaced">
             <div className="section-title">Tổng kết</div>
             <div className="summary-row">
               <span>Tạm tính</span>
               <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.subtotal)}</span>
-            </div>
-            <div className="summary-row" style={{ minHeight: '28px' }}>
-              <span>Giảm giá</span>
-              <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.discount ?? discount ?? 0)}</span>
             </div>
             <div className="summary-row summary-total">
               <span>Thành tiền</span>
@@ -208,7 +204,11 @@ export default function OrderConfirmationPage() {
           </div>
 
           <div className="actions">
-            <button className="btn-primary" onClick={goToPayment} disabled={loading}>
+            <button
+              className="btn-primary"
+              onClick={goToPayment}
+              disabled={loading}
+            >
               Xác nhận và tiếp tục thanh toán
             </button>
           </div>

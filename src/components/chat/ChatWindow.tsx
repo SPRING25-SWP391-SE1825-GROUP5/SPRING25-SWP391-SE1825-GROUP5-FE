@@ -168,9 +168,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ className = '' }) => {
           </div>
 
           {activeConversationId && (
-            <MessageInput
+          <MessageInput
               conversationId={activeConversationId}
-            />
+          />
           )}
         </>
       )}

@@ -20,6 +20,7 @@ export default function OrderHistory() {
   const pageSize = 5
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
   const [orderItemsById, setOrderItemsById] = useState<Record<number, any[]>>({})
+  const [orderDetailsById, setOrderDetailsById] = useState<Record<number, any>>({})
   const [loadingDetailsId, setLoadingDetailsId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -103,12 +104,18 @@ export default function OrderHistory() {
       return
     }
     setExpandedOrderId(orderId)
-    if (!orderItemsById[orderId]) {
+    if (!orderItemsById[orderId] || !orderDetailsById[orderId]) {
       try {
         setLoadingDetailsId(orderId)
-        const resp = await OrderService.getOrderItems(orderId)
-        const arr = Array.isArray(resp?.data) ? resp.data : []
-        setOrderItemsById(prev => ({ ...prev, [orderId]: arr }))
+        // Lấy cả order detail (để có fulfillmentCenter) và order items
+        const [orderDetailResp, orderItemsResp] = await Promise.all([
+          OrderService.getOrderById(orderId),
+          OrderService.getOrderItems(orderId)
+        ])
+        const orderDetail = orderDetailResp?.data
+        const items = Array.isArray(orderItemsResp?.data) ? orderItemsResp.data : []
+        setOrderDetailsById(prev => ({ ...prev, [orderId]: orderDetail }))
+        setOrderItemsById(prev => ({ ...prev, [orderId]: items }))
       } finally {
         setLoadingDetailsId(null)
       }
@@ -181,21 +188,45 @@ export default function OrderHistory() {
                 <div style={{ padding: 16, background: '#fff' }}>
                   {loadingDetailsId === o.orderId ? (
                     <div style={{ textAlign: 'center', color: '#6B7280' }}>Đang tải chi tiết...</div>
-                  ) : detailItems.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#6B7280' }}>Không có chi tiết đơn hàng</div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} id={`order-details-${o.orderId}`}>
-                      {detailItems.map((it: any, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #eef2f7', padding: '8px 0' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 400 }}>{it.partName || it.serviceName || `Sản phẩm #${it.partId || ''}`}</span>
-                            {it.quantity != null && (
-                              <span style={{ fontSize: 12, color: '#6B7280' }}>Số lượng: {it.quantity}</span>
-                            )}
-                          </div>
-                          <div style={{ fontWeight: 500 }}>{(it.totalPrice || it.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} id={`order-details-${o.orderId}`}>
+                      {/* Chi nhánh mua hàng */}
+                      {(() => {
+                        const orderDetail = orderDetailsById[o.orderId]
+                        const fulfillmentCenterName = orderDetail?.fulfillmentCenterName || orderDetail?.FulfillmentCenterName
+                        const fulfillmentCenterId = orderDetail?.fulfillmentCenterId || orderDetail?.FulfillmentCenterId
+                        if (fulfillmentCenterName || fulfillmentCenterId) {
+                          return (
+                            <div style={{ padding: '12px 16px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>CHI NHÁNH MUA HÀNG</div>
+                              <div style={{ fontWeight: 500, color: '#111827' }}>
+                                {fulfillmentCenterName || `Chi nhánh #${fulfillmentCenterId}`}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Danh sách sản phẩm */}
+                      {detailItems.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: '#6B7280' }}>Không có chi tiết đơn hàng</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>SẢN PHẨM</div>
+                          {detailItems.map((it: any, idx: number) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #eef2f7', padding: '8px 0' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 400 }}>{it.partName || it.serviceName || `Sản phẩm #${it.partId || ''}`}</span>
+                                {it.quantity != null && (
+                                  <span style={{ fontSize: 12, color: '#6B7280' }}>Số lượng: {it.quantity}</span>
+                                )}
+                              </div>
+                              <div style={{ fontWeight: 500 }}>{(it.totalPrice || it.unitPrice || 0).toLocaleString('vi-VN')} VNĐ</div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>

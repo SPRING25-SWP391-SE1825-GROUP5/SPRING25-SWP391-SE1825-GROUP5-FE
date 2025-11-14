@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { removeFromCart, updateQuantity, clearCart, setCartItems, setCartId } from '@/store/cartSlice'
-import { CartService, CustomerService, OrderService } from '@/services'
+import { CartService, CustomerService, OrderService, CenterService } from '@/services'
+import type { Center } from '@/services/centerService'
 import toast from 'react-hot-toast'
 import {
   ArrowLeftIcon,
   ShoppingBagIcon,
   TruckIcon,
-  TrashIcon
+  TrashIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline'
 import './cart.scss'
 
@@ -83,6 +85,27 @@ export default function Cart() {
   }
 
   const [isCreatingOrder, setIsCreatingOrder] = useState(false)
+  const [centers, setCenters] = useState<Center[]>([])
+
+  // Load centers để hiển thị tên center
+  useEffect(() => {
+    const loadCenters = async () => {
+      try {
+        const centersResponse = await CenterService.getActiveCenters({ pageSize: 100 })
+        setCenters(centersResponse.centers || [])
+      } catch (error) {
+        console.error('Error loading centers:', error)
+      }
+    }
+    loadCenters()
+  }, [])
+
+  // Helper function để lấy tên center
+  const getCenterName = (centerId?: number): string => {
+    if (!centerId) return 'Chưa chọn chi nhánh'
+    const center = centers.find(c => c.centerId === centerId)
+    return center?.centerName || `Chi nhánh #${centerId}`
+  }
 
   const handleConfirm = async () => {
     if (selectedItems.length === 0) {
@@ -125,13 +148,14 @@ export default function Cart() {
         }
       }
 
+      // Không yêu cầu fulfillmentCenterId khi tạo order - sẽ chọn sau ở confirm order
       // Map selected items to API format
       const orderItems = selectedItems.map(item => ({
         partId: Number(item.id),
         quantity: item.quantity
       }))
 
-      // Call API to create order
+      // Call API to create order (không cần fulfillmentCenterId - sẽ cập nhật sau)
       const response = await OrderService.createOrder(Number(customerId), {
         items: orderItems
       })
@@ -142,7 +166,7 @@ export default function Cart() {
           // Lưu selectedIds vào sessionStorage để xóa khỏi cart sau khi thanh toán thành công
           const orderIdStr = String(orderId)
           sessionStorage.setItem(`orderSelectedIds_${orderIdStr}`, JSON.stringify(Array.from(selectedIds)))
-          
+
           toast.success('Tạo đơn hàng thành công')
           // Navigate to order confirmation page (ẩn orderId trong URL)
           navigate('/confirm-order', { state: { orderId: Number(orderId) }, replace: true })
@@ -154,16 +178,24 @@ export default function Cart() {
       }
     } catch (error: any) {
       console.error('Error creating order:', error)
-      
+
       // Xử lý lỗi authentication
       if (error?.response?.status === 401 || error?.isAuthError) {
         toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
         navigate('/auth/login', { state: { redirect: '/cart' } })
         return
       }
-      
-      // Xử lý các lỗi khác
+
+      // Xử lý lỗi stock không đủ
       const errorMessage = error?.response?.data?.message || error?.userMessage || error?.message || 'Có lỗi khi tạo đơn hàng'
+      if (errorMessage.includes('Không đủ hàng') ||
+          errorMessage.includes('không đủ stock') ||
+          errorMessage.includes('hết hàng')) {
+        toast.error('Một số sản phẩm đã hết hàng tại chi nhánh đã chọn. Vui lòng chọn chi nhánh khác hoặc xóa sản phẩm khỏi giỏ hàng.')
+        return
+      }
+
+      // Xử lý các lỗi khác
       toast.error(errorMessage)
     } finally {
       setIsCreatingOrder(false)
@@ -195,8 +227,8 @@ export default function Cart() {
           }
         }
 
-        if (cartId) {
-          const itemsResp = await CartService.getCartItems(cartId)
+        if (user?.customerId) {
+          const itemsResp = await CartService.getCartItems(Number(user.customerId))
           const mapped = (itemsResp?.data || []).map((it: any) => ({
             id: String(it.partId ?? it.id ?? it.part?.partId),
             name: it.partName ?? it.name ?? it.part?.partName ?? 'Sản phẩm',
@@ -206,6 +238,7 @@ export default function Cart() {
             quantity: it.quantity ?? 1,
             category: it.category ?? '',
             inStock: true,
+            fulfillmentCenterId: it.fulfillmentCenterId ?? undefined,  // Lưu fulfillmentCenterId nếu có
           }))
           if (Array.isArray(mapped) && mapped.length > 0) {
             dispatch(setCartItems({ items: mapped, userId: user?.id ?? null }))
@@ -227,7 +260,7 @@ export default function Cart() {
               <ShoppingBagIcon className="w-24 h-24" />
             </div>
             <h1>Giỏ hàng của bạn hiện đang trống</h1>
-            <button 
+            <button
               className="continue-shopping-btn"
               onClick={() => navigate('/products')}
             >
@@ -250,7 +283,7 @@ export default function Cart() {
           <div className="cart-items">
             <div className="cart-header">
               <h2>Giỏ hàng của bạn</h2>
-              <button 
+              <button
                 className="clear-cart-btn"
                 onClick={handleClearCart}
               >
@@ -280,8 +313,8 @@ export default function Cart() {
               {cart.items.map(item => (
                 <div key={item.id} className="cart-card">
                   <div className="item-image">
-                    <img 
-                      src={item.image} 
+                    <img
+                      src={item.image}
                       alt={item.name}
                       onError={(e) => {
                         e.currentTarget.src = 'https://via.placeholder.com/120x120/f5f5f5/666?text=Product'
@@ -294,6 +327,20 @@ export default function Cart() {
                       <h3 className="item-name">{item.name}</h3>
                       <div className="item-brand">{item.brand}</div>
                       <div className="item-category">{item.category}</div>
+                      {/* Hiển thị center đã chọn (nếu có) - không bắt buộc */}
+                      {item.fulfillmentCenterId && (
+                        <div className="item-center" style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          marginTop: '4px',
+                          fontSize: '0.875rem',
+                          color: '#666'
+                        }}>
+                          <MapPinIcon className="w-4 h-4" />
+                          <span>{getCenterName(item.fulfillmentCenterId)}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="item-price">
@@ -304,14 +351,14 @@ export default function Cart() {
                     </div>
 
                     <div className="quantity-controls">
-                      <button 
+                      <button
                         className="quantity-btn"
                         onClick={() => handleQuantityChange(String(item.id), item.quantity - 1)}
                       >
                         -
                       </button>
                       <span className="quantity">{item.quantity}</span>
-                      <button 
+                      <button
                         className="quantity-btn"
                         onClick={() => handleQuantityChange(String(item.id), item.quantity + 1)}
                       >
@@ -337,7 +384,7 @@ export default function Cart() {
                         }}
                         aria-label={`Chọn ${item.name}`}
                       />
-                      <button 
+                      <button
                         className="remove-btn"
                         onClick={() => handleRemoveItem(String(item.id))}
                         title="Xóa sản phẩm"
@@ -348,7 +395,7 @@ export default function Cart() {
                   </div>
 
                   {/* Inline select at far right with trash icon */}
-                  
+
                 </div>
               ))}
             </div>
@@ -358,12 +405,12 @@ export default function Cart() {
           <div className="cart-summary">
             <div className="summary-card">
               <h3>Tóm tắt đơn hàng</h3>
-              
+
               <div className="summary-row">
                 <span>Tạm tính (đã chọn {selectedCount} sản phẩm)</span>
                 <span>{formatPrice(selectedTotal)}</span>
               </div>
-              
+
               {/* Bỏ mục phí vận chuyển theo yêu cầu */}
 
               <div className="summary-divider"></div>
@@ -375,14 +422,14 @@ export default function Cart() {
 
 
               <div className="checkout-actions">
-                <button 
+                <button
                   className="checkout-btn"
                   onClick={handleConfirm}
                   disabled={selectedItems.length === 0 || isCreatingOrder}
                 >
                   {isCreatingOrder ? 'Đang tạo đơn hàng...' : 'Xác nhận'}
                 </button>
-                <button 
+                <button
                   className="continue-shopping-btn"
                   onClick={() => navigate('/products')}
                 >

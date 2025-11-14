@@ -7,6 +7,7 @@ import NewMessageNotification from '@/components/chat/NewMessageNotification'
 import MessageList from '@/components/chat/MessageList'
 import MessageInput, { MessageInputRef } from '@/components/chat/MessageInput'
 import { ChatService } from '@/services/chatService'
+import { CenterService, type Center } from '@/services/centerService'
 import signalRService from '@/services/signalRService'
 import type { ChatMessage, ChatConversation, ChatUser } from '@/types/chat'
 import { normalizeImageUrl } from '@/utils/imageUrl'
@@ -19,6 +20,11 @@ const ProtectedContact: React.FC = () => {
   const authUser = useAppSelector((state) => state.auth.user)
   const [isMinimized, setIsMinimized] = useState(false)
   const [isWidgetHidden, setIsWidgetHidden] = useState(false)
+  const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null)
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null)
+  const [availableStaff, setAvailableStaff] = useState<any[]>([])
+  const [centers, setCenters] = useState<Center[]>([])
+  const [loadingStaff, setLoadingStaff] = useState(false)
 
   const selectedConversation = useMemo(() => {
     return conversations.find(conv => conv.id === activeConversationId) || null
@@ -46,11 +52,47 @@ const ProtectedContact: React.FC = () => {
   const conversationMessages = selectedConversation ? (messages[selectedConversation.id] || []) : []
   const messageInputRef = useRef<MessageInputRef | null>(null)
 
+  // Load centers when component mounts
+  useEffect(() => {
+    const loadCenters = async () => {
+      try {
+        const response = await CenterService.getActiveCenters()
+        setCenters(response.centers || [])
+      } catch {
+        // Error handled silently
+      }
+    }
+    loadCenters()
+  }, [])
+
+  // Load staff when center is selected
+  useEffect(() => {
+    if (selectedCenterId) {
+      const loadStaff = async () => {
+        setLoadingStaff(true)
+        try {
+          const response = await ChatService.getStaffByCenter(selectedCenterId)
+          if (response.success && response.data) {
+            setAvailableStaff(response.data)
+          }
+        } catch {
+          setAvailableStaff([])
+        } finally {
+          setLoadingStaff(false)
+        }
+      }
+      loadStaff()
+    } else {
+      setAvailableStaff([])
+      setSelectedStaffId(null)
+    }
+  }, [selectedCenterId])
+
   useEffect(() => {
     loadConversations()
     setupSignalR()
 
-    // Auto-create or load conversation when starting
+    // Auto-load conversation when starting (don't auto-create)
     const initializeConversation = async () => {
       try {
         const convs = await ChatService.getConversations()
@@ -58,93 +100,9 @@ const ProtectedContact: React.FC = () => {
           // If conversation exists, set it as active
           dispatch(setConversations(convs))
           dispatch(setActiveConversation(convs[0].id))
-        } else {
-          // If no conversation exists, create a new one
-          // Set userId if user is logged in
-          if (authUser?.id) {
-            localStorage.setItem('userId', String(authUser.id))
-          } else {
-            // Create guest session if not exists
-            const guestSessionId = localStorage.getItem('guestSessionId') || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-            localStorage.setItem('guestSessionId', guestSessionId)
-          }
-
-          // Try to get user location (optional)
-          let customerLat: number | undefined
-          let customerLng: number | undefined
-          try {
-            const location = await ChatService.getUserLocation()
-            if (location) {
-              customerLat = location.lat
-              customerLng = location.lng
-            }
-          } catch (locationError) {
-            // Location not available, continue without it
-          }
-
-          // Create new conversation
-          const response = await ChatService.createNewSupportConversation(customerLat, customerLng)
-
-          if (response.success && response.data) {
-            const data = response.data
-            const conversationId = String(data.conversationId || data.id || data.conversationID || '')
-
-            // Create conversation object from response
-            const newConversation: ChatConversation = {
-              id: conversationId,
-              participants: data.members?.map((m: any) => ({
-                id: String(m.userId || m.guestSessionId || ''),
-                name: m.userName || m.userFullName || 'Nhân viên hỗ trợ',
-                avatar: m.avatar || undefined,
-                role: (m.roleInConversation === 'STAFF' ? 'staff' : 'customer') as 'customer' | 'staff',
-                isOnline: true
-              })) || [
-                {
-                  id: String(authUser?.id || 'guest'),
-                  name: authUser?.fullName || 'Bạn',
-                  avatar: authUser?.avatar,
-                  role: 'customer' as const,
-                  isOnline: true
-                },
-                {
-                  id: 'staff',
-                  name: 'Nhân viên hỗ trợ',
-                  role: 'staff' as const,
-                  isOnline: true
-                }
-              ],
-              lastMessage: data.lastMessage ? {
-                id: String(data.lastMessage.messageId || data.lastMessage.id || ''),
-                conversationId: conversationId,
-                senderId: String(data.lastMessage.senderUserId || ''),
-                senderName: data.lastMessage.senderName || 'Nhân viên hỗ trợ',
-                content: data.lastMessage.content || '',
-                timestamp: data.lastMessage.createdAt || new Date().toISOString(),
-                type: 'text' as const,
-                isRead: false
-              } : undefined,
-              unreadCount: 0,
-              isPinned: false,
-              isArchived: false,
-              createdAt: data.createdAt || new Date().toISOString(),
-              updatedAt: data.updatedAt || data.lastMessageAt || new Date().toISOString()
-            }
-
-            // Add conversation to Redux state immediately
-            dispatch(addConversation(newConversation))
-
-            // Set active conversation
-            dispatch(setActiveConversation(conversationId))
-
-            // Join SignalR conversation group
-            try {
-              await signalRService.joinConversation(conversationId)
-            } catch (signalRError) {
-              // Error joining SignalR conversation
-            }
-          }
         }
-      } catch (error) {
+        // If no conversation exists, don't auto-create - let user choose center and staff first
+      } catch {
         // Error handled silently
       }
     }
@@ -152,8 +110,15 @@ const ProtectedContact: React.FC = () => {
     initializeConversation()
 
     return () => {
-      // Cleanup SignalR on unmount
-      signalRService.disconnect()
+      // Don't disconnect SignalR on unmount - let it stay connected for other components
+      // Only cleanup handlers to prevent memory leaks
+      signalRService.setOnMessageReceived(undefined)
+      signalRService.setOnTypingStarted(undefined)
+      signalRService.setOnTypingStopped(undefined)
+      signalRService.setOnNewConversation(undefined)
+      signalRService.setOnCenterReassigned(undefined)
+      signalRService.setOnMessageRead(undefined)
+      signalRService.setOnConnectionStatusChanged(undefined)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -162,6 +127,8 @@ const ProtectedContact: React.FC = () => {
     if (activeConversationId) {
       loadMessages(activeConversationId)
       joinConversation(activeConversationId)
+      // Re-setup SignalR handlers to ensure they're not overridden by other components
+      setupSignalR()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId])
@@ -504,6 +471,15 @@ const ProtectedContact: React.FC = () => {
 
   const handleCreateNewChat = async () => {
     try {
+      // Validate selectedStaffId: Ensure it's from availableStaff list (which only contains STAFF role)
+      if (selectedStaffId) {
+        const isValidStaff = availableStaff.some(staff => staff.staffId === selectedStaffId)
+        if (!isValidStaff) {
+          alert('Nhân viên được chọn không hợp lệ. Vui lòng chọn lại.')
+          return
+        }
+      }
+
       // Set userId if user is logged in
       if (authUser?.id) {
         localStorage.setItem('userId', String(authUser.id))
@@ -527,7 +503,14 @@ const ProtectedContact: React.FC = () => {
       }
 
       // Always create new conversation (never get existing)
-      const response = await ChatService.createNewSupportConversation(customerLat, customerLng)
+      // Backend will validate that preferredStaffId has STAFF role (not MANAGER)
+      // If invalid, backend will auto-assign a STAFF member
+      const response = await ChatService.createNewSupportConversation(
+        customerLat,
+        customerLng,
+        selectedCenterId || undefined,
+        selectedStaffId || undefined
+      )
 
       if (response.success && response.data) {
         const data = response.data
@@ -637,8 +620,66 @@ const ProtectedContact: React.FC = () => {
     return null
   }
 
+  const hasConversation = conversations.length > 0 && activeConversationId
+
   return (
     <div className="contact-page contact-page--fullscreen">
+      {!hasConversation && (
+        <div className="contact-page__staff-selection">
+          <div className="staff-selection">
+            <h3 className="staff-selection__title">Chọn chi nhánh và nhân viên</h3>
+            <div className="staff-selection__center">
+              <label className="staff-selection__label">Chi nhánh:</label>
+              <select
+                className="staff-selection__select"
+                value={selectedCenterId || ''}
+                onChange={(e) => setSelectedCenterId(Number(e.target.value) || null)}
+              >
+                <option value="">-- Chọn chi nhánh --</option>
+                {centers.map(center => (
+                  <option key={center.centerId} value={center.centerId}>
+                    {center.centerName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedCenterId && (
+              <div className="staff-selection__staff">
+                <label className="staff-selection__label">Nhân viên (tùy chọn):</label>
+                {loadingStaff ? (
+                  <div className="staff-selection__loading">Đang tải...</div>
+                ) : (
+                  <select
+                    className="staff-selection__select"
+                    value={selectedStaffId || ''}
+                    onChange={(e) => setSelectedStaffId(Number(e.target.value) || null)}
+                  >
+                    <option value="">-- Chọn nhân viên (tùy chọn) --</option>
+                    {availableStaff.map(staff => (
+                      <option key={staff.staffId} value={staff.staffId}>
+                        {staff.fullName} {staff.phoneNumber ? `(${staff.phoneNumber})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!loadingStaff && availableStaff.length === 0 && (
+                  <div className="staff-selection__empty">Không có nhân viên nào tại chi nhánh này</div>
+                )}
+              </div>
+            )}
+
+            <button
+              className="staff-selection__button"
+              onClick={handleCreateNewChat}
+              disabled={!selectedCenterId}
+            >
+              Bắt đầu chat
+            </button>
+          </div>
+        </div>
+      )}
+
       <ConversationLayout onCreateNewChat={handleCreateNewChat} onMinimize={handleMinimize} />
       <NewMessageNotification />
     </div>

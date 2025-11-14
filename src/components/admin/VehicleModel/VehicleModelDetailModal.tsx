@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { X, Edit, Trash2, Car, Calendar, CheckCircle, XCircle } from 'lucide-react'
+import { X, Edit, Car, Calendar, CheckCircle, XCircle } from 'lucide-react'
 import { VehicleModelResponse } from '@/services/vehicleModelManagement'
 import './_vehicle-model-modal.scss'
 
@@ -30,8 +30,8 @@ const VehicleModelDetailModal: React.FC<VehicleModelDetailModalProps> = ({
   }
 
   const getStatusBadgeClass = (isActive: boolean) => {
-    return isActive 
-      ? 'status-badge status-badge--active' 
+    return isActive
+      ? 'status-badge status-badge--active'
       : 'status-badge status-badge--inactive'
   }
 
@@ -122,14 +122,6 @@ const VehicleModelDetailModal: React.FC<VehicleModelDetailModalProps> = ({
             </button>
             <button className="btn-warning" onClick={onEdit}>
               <Edit size={16} /> Sửa
-            </button>
-            <button className="btn-danger" onClick={() => {
-              if (window.confirm(`Bạn có chắc chắn muốn xóa mẫu xe "${model.modelName}"?`)) {
-                onDelete(model)
-                onClose()
-              }
-            }}>
-              <Trash2 size={16} /> Xóa
             </button>
           </div>
         </div>

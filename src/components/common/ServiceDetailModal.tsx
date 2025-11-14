@@ -94,12 +94,6 @@ export default function ServiceDetailModal({ isOpen, onClose, service, onBookSer
 
         {/* Content */}
         <div className="service-detail-modal__content">
-          {/* Service Description */}
-          <div className="service-detail-modal__section">
-            <h3 className="service-detail-modal__section-title">Mục đích dịch vụ</h3>
-            <p className="service-detail-modal__description">{service.description}</p>
-          </div>
-
           {/* Service Info */}
           <div className="service-detail-modal__info-grid">
             <div className="service-detail-modal__info-item">
@@ -109,15 +103,6 @@ export default function ServiceDetailModal({ isOpen, onClose, service, onBookSer
                 <span className="service-detail-modal__info-value">{formatPrice(service.price)}</span>
               </div>
             </div>
-            {service.notes && (
-              <div className="service-detail-modal__info-item">
-                <Clock className="service-detail-modal__info-icon" />
-                <div className="service-detail-modal__info-content">
-                  <span className="service-detail-modal__info-label">Ghi chú</span>
-                  <span className="service-detail-modal__info-value">{service.notes}</span>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Checklist Templates Section */}
@@ -138,78 +123,70 @@ export default function ServiceDetailModal({ isOpen, onClose, service, onBookSer
               </div>
             ) : (
               <div className="service-detail-modal__checklist-list">
-                {checklistTemplates.map((template, index) => (
-                  <div key={template.templateId} className="service-detail-modal__checklist-item">
-                    <div className="service-detail-modal__checklist-header">
-                      <CheckCircle2 className="service-detail-modal__checklist-icon" />
-                      <h4 className="service-detail-modal__checklist-title">
-                        {template.templateName || `Quy trình ${index + 1}`}
-                      </h4>
+                {checklistTemplates.map((template, index) => {
+                  const templateId =
+                    template.templateId ??
+                    (template as any).templateID ??
+                    (template as any).TemplateID ??
+                    (template as any).TemplateId ??
+                    index
+                  const parts = template.items || []
+
+                  return (
+                    <div key={templateId ?? index} className="service-detail-modal__checklist-item">
+                      <div className="service-detail-modal__checklist-header">
+                        <CheckCircle2 className="service-detail-modal__checklist-icon" />
+                        <h4 className="service-detail-modal__checklist-title">
+                          {template.templateName || `Quy trình ${index + 1}`}
+                        </h4>
+                      </div>
+                      {parts.length > 0 ? (
+                        <div className="service-detail-modal__parts">
+                          <div className="service-detail-modal__parts-table-wrapper">
+                            <table className="service-detail-modal__parts-table">
+                              <thead>
+                                <tr>
+                                  <th>#</th>
+                                  <th>Danh mục kiểm tra</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {parts.map((item, idx) => (
+                                  <tr key={item.itemId ?? idx}>
+                                    <td>{idx + 1}</td>
+                                    <td>{(item as any).partName || (item as any).categoryName || (item as any)?.category?.categoryName || '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="service-detail-modal__empty" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                          Không có danh mục kiểm tra
+                        </div>
+                      )}
+
+                      {/* Metadata áp dụng (nếu có) */}
+                      {(template.minKm || template.intervalKm || template.intervalDays || template.maxDate) && (
+                        <div className="service-detail-modal__checklist-meta">
+                          {template.minKm && (
+                            <span>Áp dụng cho xe từ {template.minKm.toLocaleString('vi-VN')} km trở lên</span>
+                          )}
+                          {template.intervalKm && (
+                            <span>Bảo dưỡng định kỳ mỗi {template.intervalKm.toLocaleString('vi-VN')} km</span>
+                          )}
+                          {template.intervalDays && (
+                            <span>Bảo dưỡng định kỳ mỗi {template.intervalDays} ngày</span>
+                          )}
+                          {template.maxDate && (
+                            <span>Hiệu lực tối đa: {template.maxDate} ngày</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {template.description && (
-                      <p className="service-detail-modal__checklist-description">{template.description}</p>
-                    )}
-                    
-                    {/* Hiển thị danh sách Parts nếu có */}
-                    {template.items && template.items.length > 0 && (
-                      <div className="service-detail-modal__checklist-parts">
-                        <h5 className="service-detail-modal__checklist-parts-title">Danh sách phụ tùng/linh kiện:</h5>
-                        <ul className="service-detail-modal__checklist-parts-list">
-                          {template.items.map((item, itemIndex) => (
-                            <li key={item.itemId || itemIndex} className="service-detail-modal__checklist-part-item">
-                              <div className="service-detail-modal__checklist-part-info">
-                                <span className="service-detail-modal__checklist-part-name">
-                                  {item.partName || `Phụ tùng ${itemIndex + 1}`}
-                                </span>
-                                {item.partNumber && (
-                                  <span className="service-detail-modal__checklist-part-number">
-                                    (Mã: {item.partNumber})
-                                  </span>
-                                )}
-                                {item.partBrand && (
-                                  <span className="service-detail-modal__checklist-part-brand">
-                                    - {item.partBrand}
-                                  </span>
-                                )}
-                                {item.partPrice && (
-                                  <span className="service-detail-modal__checklist-part-price">
-                                    - {formatPrice(item.partPrice)}
-                                  </span>
-                                )}
-                              </div>
-                              {item.description && (
-                                <p className="service-detail-modal__checklist-part-description">
-                                  {item.description}
-                                </p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {template.minKm && (
-                      <div className="service-detail-modal__checklist-meta">
-                        <span>Áp dụng cho xe từ {template.minKm.toLocaleString('vi-VN')} km trở lên</span>
-                      </div>
-                    )}
-                    {template.intervalKm && (
-                      <div className="service-detail-modal__checklist-meta">
-                        <span>Bảo dưỡng định kỳ mỗi {template.intervalKm.toLocaleString('vi-VN')} km</span>
-                      </div>
-                    )}
-                    {template.intervalDays && (
-                      <div className="service-detail-modal__checklist-meta">
-                        <span>Bảo dưỡng định kỳ mỗi {template.intervalDays} ngày</span>
-                      </div>
-                    )}
-                    {template.maxDate && (
-                      <div className="service-detail-modal__checklist-meta">
-                        <span>Hiệu lực tối đa: {template.maxDate} ngày</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -231,4 +208,3 @@ export default function ServiceDetailModal({ isOpen, onClose, service, onBookSer
     </div>
   )
 }
-

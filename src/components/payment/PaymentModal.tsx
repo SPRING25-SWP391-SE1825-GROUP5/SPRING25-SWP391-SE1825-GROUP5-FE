@@ -4,6 +4,7 @@ import { PaymentService, type PaymentBreakdownResponse } from '@/services/paymen
 import { WorkOrderPartService, type WorkOrderPartItem } from '@/services/workOrderPartService'
 import { PartService } from '@/services/partService'
 import { PayOSService } from '@/services/payOSService'
+import { PromotionBookingService, type BookingPromotionInfo } from '@/services/promotionBookingService'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -22,33 +23,35 @@ export default function PaymentModal({
   onClose,
   onPaymentSuccess
 }: PaymentModalProps) {
-  const [selectedMethod, setSelectedMethod] = useState<'PAYOS' | 'VNPAY' | 'SEPAY_QR' | 'OFFLINE' | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<'PAYOS' | 'SEPAY_QR' | 'OFFLINE' | null>(null)
   const [processing, setProcessing] = useState(false)
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
   const [breakdown, setBreakdown] = useState<PaymentBreakdownResponse['data'] | null>(null)
   const [workParts, setWorkParts] = useState<WorkOrderPartItem[]>([])
+  const [appliedPromotions, setAppliedPromotions] = useState<BookingPromotionInfo[]>([])
 
   // Load breakdown khi modal mở
   useEffect(() => {
     if (open && bookingId) {
       loadBreakdown()
+      loadAppliedPromotions()
       // Load thêm work order parts để có đơn giá làm fallback (giống như kỹ thuật viên)
       ;(async () => {
         try {
           // 1. Load phụ tùng từ API /Booking/{bookingId}/parts
           let list = await WorkOrderPartService.list(Number(bookingId))
-          
+
           // 2. Load chi tiết từ API /api/Part/{id} để lấy đơn giá và thông tin đầy đủ
           list = await Promise.all(list.map(async (p) => {
             try {
               // Luôn gọi API /api/Part/{id} để lấy unitPrice chính xác
               const partDetail = await PartService.getPartById(p.partId)
-              
+
               if (partDetail.success && partDetail.data) {
                 const raw = partDetail.data as any
                 // Map từ nhiều field name có thể: unitPrice, price, Price, UnitPrice
                 const unitPrice = raw.unitPrice ?? raw.UnitPrice ?? raw.price ?? raw.Price ?? p.unitPrice ?? 0
-                
+
                 return {
                   ...p,
                   partNumber: partDetail.data.partNumber || p.partNumber,
@@ -61,10 +64,10 @@ export default function PaymentModal({
             } catch (err) {
               console.error(`Lỗi khi load chi tiết phụ tùng ${p.partId}:`, err)
             }
-            
+
             return p
           }))
-          
+
           setWorkParts(list || [])
         } catch { /* ignore */ }
       })()
@@ -77,37 +80,36 @@ export default function PaymentModal({
       const response = await PaymentService.getBookingBreakdown(bookingId)
       if (response.success && response.data) {
         setBreakdown(response.data)
+        // Log để debug promotion
+        console.log('PaymentModal - Breakdown loaded:', {
+          bookingId,
+          total: response.data.total,
+          subtotal: response.data.subtotal,
+          promotion: response.data.promotion,
+          partsAmount: response.data.partsAmount
+        })
       } else {
         toast.error(response.message || 'Không thể tải thông tin hóa đơn')
       }
     } catch (error: any) {
+      console.error('PaymentModal - Error loading breakdown:', error)
       toast.error(error?.message || 'Lỗi khi tải thông tin hóa đơn')
     } finally {
       setLoadingBreakdown(false)
     }
   }
 
-  if (!open) return null
-
-  const handleVNPayPayment = async () => {
-    setProcessing(true)
+  const loadAppliedPromotions = async () => {
     try {
-      const response = await PaymentService.createBookingVNPayLink(bookingId)
-      if (response.success && response.vnp_Url) {
-        // Mở link VNPay trong tab mới
-        window.open(response.vnp_Url, '_blank')
-        toast.success('Đang chuyển đến trang thanh toán VNPay...')
-        // Có thể đóng modal hoặc giữ lại để user quay lại
-        onClose()
-      } else {
-        toast.error(response.message || 'Không thể tạo link thanh toán VNPay')
-      }
+      const promotions = await PromotionBookingService.getBookingPromotions(bookingId)
+      setAppliedPromotions(promotions || [])
     } catch (error: any) {
-      toast.error(error?.message || 'Lỗi khi tạo thanh toán VNPay')
-    } finally {
-      setProcessing(false)
+      // Không hiển thị lỗi nếu không có promotion hoặc lỗi nhỏ
+      setAppliedPromotions([])
     }
   }
+
+  if (!open) return null
 
   const handleSepayQRPayment = async () => {
     setProcessing(true)
@@ -135,8 +137,11 @@ export default function PaymentModal({
   const handlePayOSPayment = async () => {
     setProcessing(true)
     try {
+      // Sử dụng giá đã giảm từ breakdown nếu có, nếu không thì dùng totalAmount prop
+      const finalAmount = breakdown?.total ?? totalAmount
+
       // BE: POST /api/Payment/booking/{bookingId}/link
-      const response = await PayOSService.createPaymentLink(bookingId, totalAmount)
+      const response = await PayOSService.createPaymentLink(bookingId, finalAmount)
       if (response.success && response.data?.checkoutUrl) {
         window.open(response.data.checkoutUrl, '_blank')
         toast.success('Đang chuyển đến trang thanh toán PayOS...')
@@ -159,13 +164,16 @@ export default function PaymentModal({
   const handleOfflinePayment = async () => {
     setProcessing(true)
     try {
+      // Sử dụng giá đã giảm từ breakdown nếu có, nếu không thì dùng totalAmount prop
+      const finalAmount = breakdown?.total ?? totalAmount
+
       // Gọi API offline payment
+      // Backend sẽ tự động lấy customer ID từ booking, không cần gửi paidByUserId
       const { data } = await api.post(`/Payment/booking/${bookingId}/payments/offline`, {
-        bookingId,
-        amount: totalAmount,
-        paymentMethod: 'CASH'
+        amount: Math.round(finalAmount),
+        note: 'Thanh toán tại trung tâm'
       })
-      
+
       if (data.success) {
         toast.success('Đã ghi nhận thanh toán offline. Vui lòng thanh toán tại trung tâm.')
         onPaymentSuccess?.()
@@ -189,9 +197,6 @@ export default function PaymentModal({
     switch (selectedMethod) {
       case 'PAYOS':
         handlePayOSPayment()
-        break
-      case 'VNPAY':
-        handleVNPayPayment()
         break
       case 'SEPAY_QR':
         handleSepayQRPayment()
@@ -270,16 +275,16 @@ export default function PaymentModal({
             {/* Parts */}
             {(() => {
               // Xử lý parts: có thể là array hoặc object với fromInventory và fromCustomer
-              const partsArray = Array.isArray(breakdown.parts) 
-                ? breakdown.parts 
+              const partsArray = Array.isArray(breakdown.parts)
+                ? breakdown.parts
                 : (breakdown.parts as any)?.fromInventory || []
-              const customerParts = !Array.isArray(breakdown.parts) 
+              const customerParts = !Array.isArray(breakdown.parts)
                 ? (breakdown.parts as any)?.fromCustomer || []
                 : []
               const allParts = [...partsArray, ...customerParts]
-              
+
               if (allParts.length === 0) return null
-              
+
               return (
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: 14, color: '#374151', fontWeight: 600, marginBottom: 12 }}>
@@ -329,8 +334,8 @@ export default function PaymentModal({
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
                     <span style={{ fontSize: 13, color: '#6B7280' }}>Tổng phụ tùng:</span>
                     <span style={{ fontSize: 14, color: '#111827', fontWeight: 600 }}>
-                      {typeof breakdown.partsAmount === 'number' 
-                        ? breakdown.partsAmount.toLocaleString('vi-VN') 
+                      {typeof breakdown.partsAmount === 'number'
+                        ? breakdown.partsAmount.toLocaleString('vi-VN')
                         : allParts.reduce((sum: number, part: any) => {
                             const matched = workParts.find(p => p.partId === part.partId)
                             const unitPrice = part.unitPrice ?? part.referenceUnitPrice ?? matched?.unitPrice ?? 0
@@ -348,12 +353,24 @@ export default function PaymentModal({
             {breakdown.promotion.applied && (
               <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, color: '#374151', fontWeight: 600 }}>
-                    Khuyến mãi:
-                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400, marginLeft: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 14, color: '#374151', fontWeight: 600 }}>
+                      Khuyến mãi:
+                      {appliedPromotions.length > 0 && (
+                        <span style={{ fontSize: 13, color: '#059669', fontWeight: 600, marginLeft: 8 }}>
+                          {appliedPromotions[0].code}
+                        </span>
+                      )}
+                    </span>
+                    {appliedPromotions.length > 0 && appliedPromotions[0].description && (
+                      <span style={{ fontSize: 12, color: '#6B7280', fontStyle: 'italic' }}>
+                        {appliedPromotions[0].description}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400 }}>
                       (Chỉ áp dụng cho dịch vụ/gói)
                     </span>
-                  </span>
+                  </div>
                   <span style={{ fontSize: 14, color: '#059669', fontWeight: 600 }}>-{breakdown.promotion.discountAmount.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
               </div>
@@ -392,12 +409,14 @@ export default function PaymentModal({
             {/* PayOS */}
             <button
               onClick={() => setSelectedMethod('PAYOS')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'PAYOS' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'PAYOS' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -410,36 +429,17 @@ export default function PaymentModal({
                 <div style={{ fontSize: 12, color: '#6B7280' }}>Thanh toán qua PayOS</div>
               </div>
             </button>
-            {/* VNPay */}
-            <button
-              onClick={() => setSelectedMethod('VNPAY')}
-              style={{
-                padding: '16px',
-                borderRadius: 8,
-                border: selectedMethod === 'VNPAY' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
-                background: selectedMethod === 'VNPAY' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                transition: 'all 0.2s'
-              }}
-            >
-              <CreditCard size={24} color={selectedMethod === 'VNPAY' ? '#3B82F6' : '#6B7280'} />
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div style={{ fontWeight: 600, color: '#111827' }}>VNPay</div>
-                <div style={{ fontSize: 12, color: '#6B7280' }}>Thanh toán qua cổng VNPay</div>
-              </div>
-            </button>
             {/* SEPAY QR */}
             <button
               onClick={() => setSelectedMethod('SEPAY_QR')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'SEPAY_QR' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'SEPAY_QR' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -455,12 +455,14 @@ export default function PaymentModal({
             {/* Offline */}
             <button
               onClick={() => setSelectedMethod('OFFLINE')}
+              disabled={loadingBreakdown || !breakdown}
               style={{
                 padding: '16px',
                 borderRadius: 8,
                 border: selectedMethod === 'OFFLINE' ? '2px solid #3B82F6' : '1px solid #E5E7EB',
                 background: selectedMethod === 'OFFLINE' ? '#EFF6FF' : '#fff',
-                cursor: 'pointer',
+                cursor: (loadingBreakdown || !breakdown) ? 'not-allowed' : 'pointer',
+                opacity: (loadingBreakdown || !breakdown) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { 
-  FileText, 
-  Edit, 
-  X, 
-  Plus, 
-  CheckCircle, 
+import {
+  FileText,
+  Edit,
+  X,
+  Plus,
+  CheckCircle,
   Search,
   Eye,
   Settings,
@@ -21,7 +21,6 @@ import {
   ChevronsRight,
   ToggleLeft,
   ToggleRight,
-  Circle,
   AlertCircle,
 } from 'lucide-react'
 import { ServiceChecklistTemplateService, ServiceChecklistTemplate } from '@/services/serviceChecklistTemplateService'
@@ -36,8 +35,7 @@ export default function ServiceTemplateManagement() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalItems, setTotalItems] = useState(0)
-  
-  // Dropdown states
+
   const [openStatusMenu, setOpenStatusMenu] = useState(false)
   const [isPageSizeDropdownOpen, setIsPageSizeDropdownOpen] = useState(false)
   const statusRef = useRef<HTMLDivElement | null>(null)
@@ -64,31 +62,28 @@ export default function ServiceTemplateManagement() {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await ServiceChecklistTemplateService.getAllTemplates()
       let allTemplates = response.items || []
 
-      // Apply search filter
       if (searchTerm) {
-        allTemplates = allTemplates.filter(t => 
+        allTemplates = allTemplates.filter(t =>
           t.templateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           t.description?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       }
 
-      // Apply status filter
       if (statusFilter !== 'all') {
         const isActive = statusFilter === 'active'
         allTemplates = allTemplates.filter(t => t.isActive === isActive)
       }
 
       setTotalItems(allTemplates.length)
-      
-      // Apply pagination
+
       const startIndex = (currentPage - 1) * pageSize
       const endIndex = startIndex + pageSize
       const paginatedTemplates = allTemplates.slice(startIndex, endIndex)
-      
+
       setTemplates(paginatedTemplates)
     } catch (err: any) {
       setError('Không thể tải danh sách mẫu checklist: ' + (err.message || 'Unknown error'))
@@ -118,7 +113,7 @@ export default function ServiceTemplateManagement() {
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = []
-    
+
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i)
@@ -146,7 +141,7 @@ export default function ServiceTemplateManagement() {
         pages.push(totalPages)
       }
     }
-    
+
     return pages
   }
 
@@ -164,7 +159,7 @@ export default function ServiceTemplateManagement() {
         <div className="toolbar-top">
           <div className="toolbar-left">
             <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
+            {/* removed dashboard chip */}
             <button type="button" className="toolbar-chip"><FileText size={14}/> Danh sách</button>
             <div className="toolbar-sep"></div>
           </div>
@@ -181,9 +176,7 @@ export default function ServiceTemplateManagement() {
               <span className="search-underline"></span>
             </div>
             <div className="toolbar-actions" style={{marginLeft:'auto'}}>
-              <button type="button" className="toolbar-btn"><EyeOff size={14}/> Ẩn</button>
-              <button type="button" className="toolbar-btn"><SlidersHorizontal size={14}/> Tuỳ chỉnh</button>
-              <button type="button" className="toolbar-btn"><Download size={14}/> Xuất</button>
+              {/* removed hide/customize/export buttons */}
               <button type="button" className="accent-button"><Plus size={16}/> Thêm mẫu checklist</button>
             </div>
           </div>
@@ -192,9 +185,9 @@ export default function ServiceTemplateManagement() {
         <div className="toolbar-filters">
           {/* Trạng thái */}
           <div className="pill-select" ref={statusRef}>
-            <button 
-              type="button" 
-              className="pill-trigger" 
+            <button
+              type="button"
+              className="pill-trigger"
               onClick={() => { setOpenStatusMenu(!openStatusMenu) }}
             >
               <CheckCircle size={14} style={{marginRight:6}}/>
@@ -205,9 +198,9 @@ export default function ServiceTemplateManagement() {
             </button>
             <ul className={`pill-menu ${openStatusMenu ? 'show' : ''}`}>
               {statusOptions.map(opt => (
-                <li 
-                  key={opt.value} 
-                  className={`pill-item ${statusFilter === opt.value ? 'active' : ''}`} 
+                <li
+                  key={opt.value}
+                  className={`pill-item ${statusFilter === opt.value ? 'active' : ''}`}
                   onClick={() => { setStatusFilter(opt.value); setCurrentPage(1); setOpenStatusMenu(false); }}
                 >
                   {opt.label}
@@ -353,16 +346,16 @@ export default function ServiceTemplateManagement() {
             </span>
           </div>
           <div className="pagination-right-controls">
-            <button 
-              className={`pager-btn ${currentPage===1?'is-disabled':''}`} 
-              disabled={currentPage===1} 
+            <button
+              className={`pager-btn ${currentPage===1?'is-disabled':''}`}
+              disabled={currentPage===1}
               onClick={()=>handlePageChange(1)}
             >
               <ChevronsLeft size={16}/>
             </button>
-            <button 
-              className={`pager-btn ${currentPage===1?'is-disabled':''}`} 
-              disabled={currentPage===1} 
+            <button
+              className={`pager-btn ${currentPage===1?'is-disabled':''}`}
+              disabled={currentPage===1}
               onClick={()=>handlePageChange(currentPage-1)}
             >
               <ChevronLeft size={16}/>
@@ -376,7 +369,7 @@ export default function ServiceTemplateManagement() {
                 }
                 const pageNum = page as number
                 return (
-                  <button 
+                  <button
                     key={pageNum}
                     className={`pager-btn ${currentPage === pageNum ? 'is-active' : ''}`}
                     onClick={() => handlePageChange(pageNum)}
@@ -386,16 +379,16 @@ export default function ServiceTemplateManagement() {
                 )
               })}
             </div>
-            <button 
-              className={`pager-btn ${currentPage===totalPages?'is-disabled':''}`} 
-              disabled={currentPage===totalPages} 
+            <button
+              className={`pager-btn ${currentPage===totalPages?'is-disabled':''}`}
+              disabled={currentPage===totalPages}
               onClick={()=>handlePageChange(currentPage+1)}
             >
               <ChevronRight size={16}/>
             </button>
-            <button 
-              className={`pager-btn ${currentPage===totalPages?'is-disabled':''}`} 
-              disabled={currentPage===totalPages} 
+            <button
+              className={`pager-btn ${currentPage===totalPages?'is-disabled':''}`}
+              disabled={currentPage===totalPages}
               onClick={()=>handlePageChange(totalPages)}
             >
               <ChevronsRight size={16}/>

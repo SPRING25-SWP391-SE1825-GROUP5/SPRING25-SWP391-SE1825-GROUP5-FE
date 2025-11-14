@@ -45,7 +45,7 @@ export default function WorkScheduleCalendarNew({
   // Fetch booking detail
   const fetchBookingDetail = async (bookingId: number) => {
     if (!technicianId) return
-    
+
     setLoadingDetail(true)
     try {
       const response = await TechnicianService.getBookingDetail(technicianId, bookingId)
@@ -74,7 +74,7 @@ export default function WorkScheduleCalendarNew({
   const loadWorkSchedule = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       if (!user?.id) {
         setError('Vui lòng đăng nhập để xem lịch làm việc')
@@ -85,16 +85,16 @@ export default function WorkScheduleCalendarNew({
       const technicianInfo = await TechnicianService.getTechnicianIdByUserId(user.id)
       const technicianId = technicianInfo.data?.technicianId
       const centerId = technicianInfo.data?.centerId
-      
+
       setTechnicianId(technicianId)
       setCenterId(centerId)
-      
+
       // Load work schedule
       const scheduleResponse = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, centerId)
-      
+
       if (scheduleResponse.success && scheduleResponse.data && scheduleResponse.data.length > 0) {
         const workDaysSet = new Set<string>()
-        
+
         scheduleResponse.data.forEach((slot: TechnicianTimeSlotData) => {
           const workDate = new Date(slot.workDate)
           const normalizedDate = format(workDate, 'yyyy-MM-dd')
@@ -109,19 +109,19 @@ export default function WorkScheduleCalendarNew({
 
       // Load bookings
       const bookingsResponse = await TechnicianService.getTechnicianBookings(technicianId)
-      
+
       if (bookingsResponse.success && bookingsResponse.data) {
         // Check if data is array or has nested array
-        const bookingsArray = Array.isArray(bookingsResponse.data) 
-          ? bookingsResponse.data 
+        const bookingsArray = Array.isArray(bookingsResponse.data)
+          ? bookingsResponse.data
           : bookingsResponse.data.bookings || bookingsResponse.data.data || []
-        
-        
+
+
         const bookingsData = bookingsArray.map((booking: any) => {
           // Use slotLabel directly if available, otherwise parse slotTime
           let startTime = '08:00'
           let endTime = '09:00'
-          
+
           if (booking.slotLabel) {
             // Use slotLabel directly (e.g., "08:00-08:30" -> "08:00" and "08:30")
             const [start, end] = booking.slotLabel.split('-')
@@ -134,7 +134,7 @@ export default function WorkScheduleCalendarNew({
             const isPM = booking.slotTime.includes('CH')
             const hour24 = isPM ? (parseInt(hour) + 12) : parseInt(hour)
             startTime = `${String(hour24).padStart(2, '0')}:${minute}`
-            
+
             // Calculate end time (add 1 hour)
             const endHour = hour24 + 1
             endTime = `${String(endHour).padStart(2, '0')}:${minute}`
@@ -144,12 +144,14 @@ export default function WorkScheduleCalendarNew({
           const statusMap: Record<string, string> = {
             PENDING: 'pending',
             CONFIRMED: 'confirmed',
+            CHECKED_IN: 'checked_in',
             IN_PROGRESS: 'in_progress',
             COMPLETED: 'completed',
             PAID: 'paid',
             CANCELLED: 'cancelled',
             pending: 'pending',
             confirmed: 'confirmed',
+            checked_in: 'checked_in',
             in_progress: 'in_progress',
             processing: 'in_progress',
             completed: 'completed',
@@ -169,7 +171,7 @@ export default function WorkScheduleCalendarNew({
             date: booking.date || format(selectedDate, 'yyyy-MM-dd') // Use API date or fallback to selected date
           }
         })
-        
+
         setBookings(bookingsData)
       } else {
         setBookings([])
@@ -232,6 +234,14 @@ export default function WorkScheduleCalendarNew({
           textColor: '#C2410C',
           icon: CheckCircle,
           label: 'Đã xác nhận'
+        }
+      case 'checked_in':
+        return {
+          borderColor: '#10B981',
+          bgColor: 'rgba(16, 185, 129, 0.1)',
+          textColor: '#065F46',
+          icon: CheckCircle,
+          label: 'Đã check-in'
         }
       case 'in_progress':
         return {
@@ -304,7 +314,7 @@ export default function WorkScheduleCalendarNew({
       {/* Compact Header */}
       <div className="work-schedule-calendar-new__header">
         <div className="work-schedule-calendar-new__view-toggle">
-          <button 
+          <button
             className="work-schedule-calendar-new__view-btn work-schedule-calendar-new__view-btn--today"
             onClick={goToToday}
             disabled={isSameDay(selectedDate, today)}
@@ -316,7 +326,7 @@ export default function WorkScheduleCalendarNew({
         </div>
 
         <div className="work-schedule-calendar-new__date-nav">
-          <button 
+          <button
             className="work-schedule-calendar-new__nav-btn"
             onClick={goToPreviousWeek}
           >
@@ -325,7 +335,7 @@ export default function WorkScheduleCalendarNew({
           <span className="work-schedule-calendar-new__current-date">
             {format(selectedDate, 'dd/MM/yyyy')}
           </span>
-          <button 
+          <button
             className="work-schedule-calendar-new__nav-btn"
             onClick={goToNextWeek}
           >
@@ -334,7 +344,7 @@ export default function WorkScheduleCalendarNew({
         </div>
 
         <div className="work-schedule-calendar-new__actions" style={{ position: 'relative' }}>
-          <button 
+          <button
             className="work-schedule-calendar-new__action-btn"
             onClick={() => setShowFilterMenu(v => !v)}
             title="Lọc theo trạng thái"
@@ -342,7 +352,7 @@ export default function WorkScheduleCalendarNew({
             <Filter size={16} />
           </button>
           {showFilterMenu && (
-            <div 
+            <div
               className="work-schedule-calendar-new__filter-menu"
               style={{
                 position: 'absolute',
@@ -361,6 +371,7 @@ export default function WorkScheduleCalendarNew({
                 { value: 'all', label: 'Tất cả' },
                 { value: 'pending', label: 'Chờ xác nhận' },
                 { value: 'confirmed', label: 'Đã xác nhận' },
+                { value: 'checked_in', label: 'Đã check-in' },
                 { value: 'in_progress', label: 'Đang làm việc' },
                 { value: 'completed', label: 'Hoàn thành' },
                 { value: 'paid', label: 'Đã thanh toán' },
@@ -437,27 +448,27 @@ export default function WorkScheduleCalendarNew({
               const now = new Date()
               const currentHour = now.getHours()
               const currentMinute = now.getMinutes()
-              
+
               // Calculate position: start from 8 AM, each slot is 8rem (128px)
               const slotHeight = 128 // 8rem in pixels
               const timezoneHeight = 64 // 4rem in pixels (timezone header height)
-              
+
               // Calculate which slot we're in (0-based from 8 AM)
               const slotIndex = (currentHour - 8) * 2 + Math.floor(currentMinute / 30)
-              
+
               // Calculate exact position within the slot
               const minutesInSlot = currentMinute % 30
               const positionInSlot = (minutesInSlot / 30) * slotHeight
-              
+
               // Total position = timezone height + (slot index * slot height) + position within slot
               const totalPosition = timezoneHeight + (slotIndex * slotHeight) + positionInSlot
-              
-              
+
+
               return (
-                <div 
+                <div
                   className="work-schedule-calendar-new__current-time-line"
-                  style={{ 
-                    top: `${totalPosition}px` 
+                  style={{
+                    top: `${totalPosition}px`
                   }}
                   data-time={currentTime}
                 />
@@ -470,7 +481,7 @@ export default function WorkScheduleCalendarNew({
                 const isCurrentDay = isSameDay(day, today)
                 const dayNames = ['T2', 'T3', 'T4', 'T5', 'T6']
                 return (
-                  <div 
+                  <div
                     key={index}
                     className={`work-schedule-calendar-new__day-header ${isCurrentDay ? 'active' : ''}`}
                     style={{
@@ -491,10 +502,10 @@ export default function WorkScheduleCalendarNew({
               {weekDays.map((day, dayIndex) => {
                 const dayAppointments = getAppointmentsForDay(day)
                 const isCurrentDay = isSameDay(day, today)
-                
+
                 return (
-                  <div 
-                    key={dayIndex} 
+                  <div
+                    key={dayIndex}
                     className="work-schedule-calendar-new__day-column"
                     style={{
                       animationDelay: `${dayIndex * 0.2}s`
@@ -504,7 +515,7 @@ export default function WorkScheduleCalendarNew({
                       const hour = Math.floor(i / 2) + 8
                       const minute = (i % 2) * 30
                       const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-                      
+
                       const slotAppointments = dayAppointments.filter(app => {
                         const appStartTime = app.startTime
                         const matches = appStartTime === timeString
@@ -512,15 +523,15 @@ export default function WorkScheduleCalendarNew({
                         }
                         return matches
                       })
-                      
+
                       return (
                         <div key={i} className="work-schedule-calendar-new__hour-slot">
                           {slotAppointments.map((appointment, index) => {
                             const statusStyle = getStatusStyle(appointment.status)
                             const StatusIcon = statusStyle.icon
-                            
+
                             return (
-                              <div 
+                              <div
                                 key={index}
                                 className="work-schedule-calendar-new__appointment"
                                 style={{
@@ -540,7 +551,7 @@ export default function WorkScheduleCalendarNew({
                                   <div className="work-schedule-calendar-new__appointment-service">
                                     {appointment.serviceName}
                                   </div>
-                                  <div 
+                                  <div
                                     className="work-schedule-calendar-new__appointment-status"
                                     style={{
                                       backgroundColor: statusStyle.bgColor,
@@ -571,14 +582,14 @@ export default function WorkScheduleCalendarNew({
           <div className="work-schedule-calendar-new__modal" onClick={(e) => e.stopPropagation()}>
             <div className="work-schedule-calendar-new__modal-header">
               <h3>Thông tin chi tiết booking</h3>
-              <button 
+              <button
                 className="work-schedule-calendar-new__modal-close"
                 onClick={closeModal}
               >
                 <XCircle size={20} />
               </button>
             </div>
-            
+
             <div className="work-schedule-calendar-new__modal-content">
               {loadingDetail ? (
                 <div className="work-schedule-calendar-new__modal-loading">
@@ -616,7 +627,7 @@ export default function WorkScheduleCalendarNew({
                       </div>
                     </div>
                   </div>
-                  
+
                   {bookingDetail.vehiclePlate && (
                     <div className="work-schedule-calendar-new__detail-section">
                       <h4>Thông tin xe</h4>
@@ -634,7 +645,7 @@ export default function WorkScheduleCalendarNew({
                       </div>
                     </div>
                   )}
-                  
+
                   {bookingDetail.customerPhone && (
                     <div className="work-schedule-calendar-new__detail-section">
                       <h4>Liên hệ</h4>

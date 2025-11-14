@@ -1,630 +1,182 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Plus,
-  Clock,
-  Wrench,
-  Package,
-  CheckCircle,
-  Eye,
-  Edit,
   Play,
-  Pause,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
   RefreshCw,
-  Search,
-  Check,
   Flag,
   Loader2,
-  ArrowLeft,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  LayoutGrid,
-  List,
-  EyeOff,
-  Sliders,
-  Calendar,
-  Filter,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Clock,
+  CheckCircle2,
+  Wrench,
+  CheckCircle,
+  Package,
+  XCircle,
+  CreditCard
 } from 'lucide-react'
-import { TechnicianService } from '@/services/technicianService'
-import { WorkOrderPartService } from '@/services/workOrderPartService'
-import { BookingService } from '@/services/bookingService'
 import { useAppSelector } from '@/store/hooks'
-import api from '@/services/api'
+import { TechnicianService } from '@/services/technicianService'
 import toast from 'react-hot-toast'
 import WorkQueueRowExpansion from './WorkQueueRowExpansion'
 import './WorkQueue.scss'
 import './DatePicker.scss'
-import bookingRealtimeService from '@/services/bookingRealtimeService'
 import WorkQueueSlotHeader from './WorkQueueSlotHeader'
+import WorkQueueStats from '@/components/technician/WorkQueueStats'
+import WorkQueueToolbar from '@/components/technician/WorkQueueToolbar'
+import WorkQueuePagination from '@/components/technician/WorkQueuePagination'
+import WorkQueueHeader from '@/components/technician/WorkQueueHeader'
+import type { ChecklistRow as ChecklistRowType } from '@/components/technician/WorkQueueChecklist'
+import type { WorkQueueProps } from './workQueueTypes'
+import { useWorkQueueData } from './useWorkQueueData'
+import {
+  getCurrentDateString,
+  getStatusText,
+  getStatusColor
+} from './workQueueHelpers'
+import { useWorkQueueIds } from './useWorkQueueIds'
+import { useWorkQueueActions } from './useWorkQueueActions'
+import { useWorkQueueFilters } from './useWorkQueueFilters'
+import { useWorkQueueDataFetch } from './useWorkQueueDataFetch'
+import { useWorkQueueStats } from './useWorkQueueStats'
+import { useWorkQueueRealtime } from './useWorkQueueRealtime'
+import { useWorkQueuePagination } from './useWorkQueuePagination'
+import PaymentModal from '@/components/payment/PaymentModal'
+import { BookingService } from '@/services/bookingService'
 
-// API Response Interfaces
-interface TechnicianBookingResponse {
-  success: boolean
-  message: string
-  data: {
-    technicianId: number
-    date: string
-    bookings: TechnicianBooking[]
-  }
-  bookings?: TechnicianBooking[] // Support direct bookings property
-}
-
-interface TechnicianBooking {
-  bookingId: number
-  status: string
-  serviceId: number
-  serviceName: string
-  centerId: number
-  centerName: string
-  slotId: number
-  technicianSlotId: number
-  slotTime: string
-  slotLabel?: string
-  date?: string
-  customerName: string
-  customerPhone: string
-  vehiclePlate: string
-  workStartTime: string | null
-  workEndTime: string | null
-  createdAt?: string
-  createdDate?: string
-  created_at?: string
-  bookingDate?: string
-  updatedAt?: string
-}
-
-interface WorkOrder {
-  id: number
-  bookingId?: number
-  title: string
-  customer: string
-  customerPhone: string
-  customerEmail?: string
-  licensePlate: string
-  bikeBrand?: string
-  bikeModel?: string
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled'
-  priority: 'high' | 'medium' | 'low'
-  estimatedTime: string
-  description: string
-  scheduledDate: string
-  scheduledTime: string
-  createdAt: string
-  serviceType: string
-  assignedTechnician?: string
-  parts: string[]
-  workDate?: string
-  startTime?: string
-  endTime?: string
-  serviceName?: string
-  vehicleId?: number
-  centerId?: number
-}
-
-interface WorkQueueProps {
-  onViewDetails?: (work: WorkOrder) => void
-  onViewBookingDetail?: (bookingId: number) => void
-}
-
-export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQueueProps) {
-  // Removed old search state - using searchTerm instead
+export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   const [statusFilter, setStatusFilter] = useState('all')
-
-  // Initialize with current date in local timezone
-  const getCurrentDateString = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
-  const [dateFilterType, setDateFilterType] = useState<'custom' | 'today' | 'thisWeek' | 'all'>('all')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set())
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10) // Hàng mỗi trang
-
-  // Virtualization state (windowed rows)
-  const ROW_HEIGHT = 64 // px, ước lượng chiều cao mỗi hàng (bao gồm border)
-  const VIEWPORT_HEIGHT = 520 // px
-  const BUFFER_ROWS = 6
-  const [virtStart, setVirtStart] = useState(0)
-  const [virtEnd, setVirtEnd] = useState(20)
-  const virtContainerRef = React.useRef<HTMLDivElement | null>(null)
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
   // Additional filters
   const [serviceTypeFilter, setServiceTypeFilter] = useState('all')
-  const [showRoleMenu, setShowRoleMenu] = useState(false)
-  const [showStatusMenu, setShowStatusMenu] = useState(false)
-  const [showAddFilterMenu, setShowAddFilterMenu] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  // Show only key statuses by default (set true to show all by default)
-  const [showAllStatusesToggle, setShowAllStatusesToggle] = useState(true)
+  const [timeSlotFilter, setTimeSlotFilter] = useState('all')
+  const { selectedIds, sortBy, setSortBy, sortOrder, setSortOrder, toggleRowSelected, toggleAllSelected } = useWorkQueueData()
 
-  const getServiceTypeLabel = (val: string) => {
-    if (val === 'maintenance') return 'Bảo dưỡng'
-    if (val === 'repair') return 'Sửa chữa'
-    if (val === 'inspection') return 'Kiểm tra'
-    return 'Tất cả vai trò'
-  }
-  const getStatusLabel = (val: string) => {
-    if (val === 'PENDING') return 'Chờ xác nhận'
-    if (val === 'CONFIRMED') return 'Đã xác nhận'
-    if (val === 'IN_PROGRESS') return 'Đang làm việc'
-    if (val === 'COMPLETED') return 'Hoàn thành'
-    if (val === 'PAID') return 'Đã thanh toán'
-    if (val === 'CANCELLED') return 'Đã hủy'
-    return 'Tất cả trạng thái'
-  }
-
-  const toggleAllSelected = (checked: boolean) => {
-    if (checked) {
-      const allIds = new Set(paginatedWork.map(w => w.id))
-      setSelectedIds(allIds)
-    } else {
-      setSelectedIds(new Set())
-    }
-  }
-
-  const toggleRowSelected = (id: number, checked: boolean) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (checked) next.add(id); else next.delete(id)
-      return next
-    })
-  }
-
-  // Sort state - Default: bookingId desc (mới nhất)
-  const [sortBy, setSortBy] = useState<'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate'>('bookingId')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  // Expandable checklist & rating
-  const [expandedRowId, setExpandedRowId] = useState<number | null>(null)
-  const [workIdToChecklist, setWorkIdToChecklist] = useState<Record<number, { resultId: number; partId: number; partName?: string; description?: string; result?: string; notes?: string }[]>>({})
-  const [workIdToRating, setWorkIdToRating] = useState<Record<number, number>>({})
+  // Show only key statuses by default
+  const [showAllStatusesToggle, setShowAllStatusesToggle] = useState(false)
 
   // Lấy thông tin user từ store và resolve đúng technicianId
   const user = useAppSelector((state) => state.auth.user)
-  const [technicianId, setTechnicianId] = useState<number | null>(null)
+  const { technicianId, centerId, idsResolved } = useWorkQueueIds(user, mode)
 
-  // Resolve technicianId bằng cách gọi API để lấy technicianId chính xác từ userId
+  const [expandedRowId, setExpandedRowId] = useState<number | null>(null)
+  const [workIdToChecklist, setWorkIdToChecklist] = useState<Record<number, ChecklistRowType[]>>({})
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null)
+  const [paymentTotalAmount, setPaymentTotalAmount] = useState<number>(0)
+  const [loadingPayment, setLoadingPayment] = useState(false)
+
+  const itemsPerPage = 10
+
+  // Use data fetch hook
+  const {
+    loading,
+    workQueue,
+    apiPagination,
+    fetchTechnicianBookings
+  } = useWorkQueueDataFetch({
+    mode,
+    technicianId,
+    centerId,
+    itemsPerPage,
+    statusFilter,
+    sortBy,
+    sortOrder
+  })
+
+
+  // Use filter hook
+  const filteredWork = useWorkQueueFilters(
+    workQueue,
+    searchTerm,
+    statusFilter,
+    serviceTypeFilter,
+    timeSlotFilter,
+    showAllStatusesToggle,
+    sortBy,
+    sortOrder
+  )
+
+  // Use pagination hook
+  const paginationResult = useWorkQueuePagination({
+    mode,
+    filteredWork,
+    itemsPerPage,
+    apiPagination,
+    statusFilter,
+    serviceTypeFilter,
+    fetchTechnicianBookings
+  })
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    paginatedWork,
+    groupedSlots,
+    totalRows,
+    displayRows,
+    useGrouping,
+    useVirtualization,
+    virtStart,
+    virtEnd,
+    virtContainerRef,
+    handleVirtScroll,
+    handlePageChange,
+    ROW_HEIGHT
+  } = paginationResult
+
+  // Load data khi component mount và khi filter thay đổi
   useEffect(() => {
-    const resolveTechnicianId = async () => {
-      // Reset technicianId khi user thay đổi
-      setTechnicianId(null)
-      setWorkQueue([])
-      setCurrentPage(1)
-
-      // 1) Thử lấy từ localStorage trước (đã lưu trước đó) - cache theo userId
-      const userId = user?.id
-      if (userId) {
-        try {
-          const cacheKey = `technicianId_${userId}`
-          const cached = localStorage.getItem(cacheKey)
-          if (cached) {
-            const parsed = Number(cached)
-            if (Number.isFinite(parsed) && parsed > 0) {
-              setTechnicianId(parsed)
-              return
-            }
-          }
-        } catch {}
-
-        // 2) Gọi API để lấy technicianId chính xác từ userId
-        if (Number.isFinite(Number(userId))) {
-          try {
-            const result = await TechnicianService.getTechnicianIdByUserId(Number(userId))
-
-            if (result?.success && result?.data?.technicianId) {
-              setTechnicianId(result.data.technicianId)
-              // Cache lại để lần sau nhanh hơn - cache theo userId
-              try {
-                const cacheKey = `technicianId_${userId}`
-                localStorage.setItem(cacheKey, String(result.data.technicianId))
-              } catch {}
-              return
-            }
-          } catch (e) {
-            setTechnicianId(null)
-            return
-          }
-        }
-      }
-
-      // 3) Fallback: null nếu không resolve được
-      setTechnicianId(null)
-    }
-
-    resolveTechnicianId()
-  }, [user?.id]) // Thay đổi dependency từ [user] thành [user?.id] để chỉ trigger khi userId thay đổi
-
-  const [workQueue, setWorkQueue] = useState<WorkOrder[]>([])
-
-  // Function để fetch bookings từ API
-  const fetchTechnicianBookings = useCallback(async (date?: string, preservePage: boolean = false) => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Clear work queue trước khi fetch data mới
-      setWorkQueue([])
-
-      if (!technicianId) {
-        setWorkQueue([])
-        return
-      }
-
-      const response: TechnicianBookingResponse = await TechnicianService.getTechnicianBookings(technicianId, date)
-
-      // Lấy bookings từ response - xử lý nhiều format khác nhau
-      let bookingsData: TechnicianBooking[] = []
-
-      if (response?.success && response?.data?.bookings) {
-        // Format: {success: true, data: {bookings: [...]}}
-        bookingsData = response.data.bookings
-      } else if (response?.data && Array.isArray(response.data)) {
-        // Format: {success: true, data: [...]}
-        bookingsData = response.data
-      } else if (Array.isArray(response)) {
-        // Format: [...] (direct array)
-        bookingsData = response
-      } else if (response?.bookings && Array.isArray(response.bookings)) {
-        // Format: {bookings: [...]}
-        bookingsData = response.bookings
-      }
-
-      // Helper: chuẩn hóa giờ phút từ slot
-      const normalizeTime = (raw?: string): string => {
-        if (!raw) return '00:00'
-        let s = String(raw).trim()
-        // Lấy phần đầu nếu là khoảng "hh:mm-hh:mm"
-        if (s.includes('-')) s = s.split('-')[0].trim()
-        // Loại bỏ ký hiệu SA/CH (vi) hoặc AM/PM
-        s = s.replace(/\bSA\b|\bCH\b|am|pm|AM|PM/gi, '').trim()
-        // Lấy nhóm giờ:phút
-        const match = s.match(/(\d{1,2}):(\d{2})/)
-        if (!match) return '00:00'
-        let hour = Number(match[1])
-        const minute = match[2]
-        // Nếu > 23 thì đưa về 00
-        if (!Number.isFinite(hour) || hour < 0 || hour > 23) hour = 0
-        return `${String(hour).padStart(2, '0')}:${minute}`
-      }
-
-      const buildCreatedAt = (b: TechnicianBooking, fallbackDate?: string): string => {
-        const raw = b.createdAt || b.createdDate || b.created_at || b.bookingDate
-        // Nếu backend trả 0001-01-01... thì coi như invalid
-        if (raw && !raw.startsWith('0001-01-01')) return raw
-        const datePart = (b.date && !b.date.startsWith('0001-01-01')) ? b.date : (fallbackDate || getCurrentDateString())
-        const timePart = normalizeTime(b.slotLabel || b.slotTime)
-        try {
-          const iso = new Date(`${datePart}T${timePart}:00`).toISOString()
-          return iso
-        } catch {
-          return new Date().toISOString()
-        }
-      }
-
-      // Kiểm tra nếu bookingsData là array và có length > 0
-      if (Array.isArray(bookingsData) && bookingsData.length > 0) {
-        // Transform API data to WorkOrder format
-        const transformedData: WorkOrder[] = bookingsData.map((booking: TechnicianBooking) => {
-          // Ưu tiên createdAt hợp lệ; nếu không, dựng từ date + slot
-          const createdAt = buildCreatedAt(booking, date)
-
-          return {
-            id: booking.bookingId,
-            bookingId: booking.bookingId,
-            title: booking.serviceName,
-            customer: booking.customerName,
-            customerPhone: booking.customerPhone,
-            licensePlate: booking.vehiclePlate,
-            bikeBrand: '', // Không có trong API
-            bikeModel: '', // Không có trong API
-            status: mapBookingStatus(booking.status) as 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'paid' | 'cancelled',
-            priority: 'medium' as 'low' | 'medium' | 'high', // Default priority
-            estimatedTime: '1 giờ', // Default time
-            description: `Dịch vụ: ${booking.serviceName}`, // Tạo description từ serviceName
-            scheduledDate: date || new Date().toISOString().split('T')[0],
-            scheduledTime: booking.slotTime.replace(' SA', '').replace(' CH', ''),
-            createdAt: createdAt, // Thời gian tạo booking
-            serviceType: 'maintenance', // Default service type
-            assignedTechnician: '', // Không có trong API
-            parts: [], // Không có trong API
-            workDate: date || new Date().toISOString().split('T')[0],
-            startTime: booking.workStartTime || '',
-            endTime: booking.workEndTime || '',
-            serviceName: booking.serviceName,
-            vehicleId: undefined, // Không có trong API
-            centerId: booking.centerId
-          }
-        })
-
-        setWorkQueue(transformedData)
-      } else {
-        setWorkQueue([])
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Không thể tải dữ liệu')
-      toast.error(err?.message || 'Không thể tải danh sách công việc')
-      setWorkQueue([])
-    } finally {
-      setLoading(false)
-    }
-  }, [technicianId])
-
-  // Helper functions để map data
-  const mapBookingStatus = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      // Uppercase status từ dropdown
-      'PENDING': 'pending',
-      'CONFIRMED': 'confirmed',
-      'IN_PROGRESS': 'in_progress',
-      'COMPLETED': 'completed',
-      'PAID': 'paid',
-      'CANCELLED': 'cancelled',
-      // Lowercase status từ API
-      'pending': 'pending',
-      'confirmed': 'confirmed',
-      'in_progress': 'in_progress',
-      'processing': 'in_progress',
-      'completed': 'completed',
-      'done': 'completed',
-      'paid': 'paid',
-      'cancelled': 'cancelled'
-    }
-    return statusMap[status] || statusMap[status?.toLowerCase()] || 'pending'
-  }
-
-  const mapPriority = (priority: string) => {
-    const priorityMap: { [key: string]: string } = {
-      'urgent': 'high',
-      'high': 'high',
-      'medium': 'medium',
-      'normal': 'medium',
-      'low': 'low'
-    }
-    return priorityMap[priority?.toLowerCase()] || 'medium'
-  }
-
-  // Load data khi component mount và khi date filter thay đổi
-  useEffect(() => {
-    // Khi dateFilterType là 'today', 'custom' thì fetch data theo ngày cụ thể
-    // Còn 'thisWeek', 'all' thì chỉ filter ở client-side (data đã có)
-    if (dateFilterType === 'today') {
-      const today = getCurrentDateString()
-      fetchTechnicianBookings(today, true)
-    } else if (dateFilterType === 'custom') {
-      fetchTechnicianBookings(selectedDate, true)
-    }
-    // 'thisWeek', 'all' không fetch, chỉ filter client-side với data đã có
-  }, [fetchTechnicianBookings, dateFilterType, selectedDate])
-
-  // Initial load: when technicianId is resolved, fetch without date to get all
-  useEffect(() => {
-    if (technicianId && workQueue.length === 0) {
-      fetchTechnicianBookings(undefined, true)
-    }
-  }, [technicianId])
-
-  // Realtime: join center-date group and refresh on booking.updated
-  useEffect(() => {
-    (async () => {
-      try {
-        const today = getCurrentDateString()
-        const firstCenterId = workQueue[0]?.centerId
-        if (firstCenterId) await bookingRealtimeService.joinCenterDate(firstCenterId, today)
-      } catch {}
-    })()
-    bookingRealtimeService.setOnBookingUpdated(() => {
-      // lightweight refresh
-      fetchTechnicianBookings(selectedDate, true)
-    })
-    return () => { /* no-op cleanup */ }
-  }, [workQueue.length, selectedDate])
-
-  // Helper function để lấy date range từ dateFilterType
-  const getDateRange = (filterType: typeof dateFilterType): { startDate?: string; endDate?: string } | null => {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-    switch (filterType) {
-      case 'today':
-        const todayStr = getCurrentDateString()
-        return { startDate: todayStr, endDate: todayStr }
-      case 'thisWeek':
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay()) // Chủ nhật đầu tuần
-        const weekEnd = new Date(today)
-        weekEnd.setDate(weekStart.getDate() + 6) // Thứ bảy cuối tuần
-        return {
-          startDate: `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`,
-          endDate: `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`
-        }
-      case 'all':
-        return null // Không filter theo ngày
-      case 'custom':
-        return { startDate: selectedDate, endDate: selectedDate }
-      default:
-        return null
-    }
-  }
-
-  const filteredWork = workQueue
-    .filter(work => {
-      // Search filter
-      const matchesSearch = work.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           work.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           work.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           work.customerPhone.includes(searchTerm) ||
-                           (work.serviceName || '').toLowerCase().includes(searchTerm.toLowerCase())
-
-      // Status filter
-      let matchesStatus = true
-      if (statusFilter && statusFilter !== '' && statusFilter !== 'all') {
-        const mappedStatus = mapBookingStatus(statusFilter)
-        matchesStatus = work.status === mappedStatus
-      }
-      // Toggle to hide less-important statuses by default
-      if (!showAllStatusesToggle) {
-        const keep = work.status === 'in_progress' || work.status === 'confirmed'
-        matchesStatus = matchesStatus && keep
-      }
-
-      // Service type filter
-      let matchesServiceType = true
-      if (serviceTypeFilter && serviceTypeFilter !== 'all') {
-        matchesServiceType = work.serviceType === serviceTypeFilter
-      }
-
-      // Date filter - filter theo createdAt (thời gian tạo booking)
-      let matchesDate = true
-      if (dateFilterType !== 'all') {
-        const dateRange = getDateRange(dateFilterType)
-
-        // Extract date từ createdAt (format: YYYY-MM-DD)
-        const getDateFromCreatedAt = (createdAt: string): string | null => {
-          if (!createdAt) return null
-          try {
-            const date = new Date(createdAt)
-            if (isNaN(date.getTime())) return null
-            const year = date.getFullYear()
-            const month = String(date.getMonth() + 1).padStart(2, '0')
-            const day = String(date.getDate()).padStart(2, '0')
-            return `${year}-${month}-${day}`
-          } catch {
-            return null
-          }
-        }
-
-        const workCreatedDate = work.createdAt ? getDateFromCreatedAt(work.createdAt) : null
-
-        if (dateRange && workCreatedDate) {
-          if (dateRange.startDate && dateRange.endDate) {
-            // Range filter (tuần này)
-            matchesDate = workCreatedDate >= dateRange.startDate && workCreatedDate <= dateRange.endDate
-          } else if (dateRange.startDate) {
-            // Single date filter (hôm nay)
-            matchesDate = workCreatedDate === dateRange.startDate
-          }
-        } else if (dateFilterType === 'custom' && workCreatedDate) {
-          // Custom date filter
-          matchesDate = workCreatedDate === selectedDate
-        } else if (!workCreatedDate) {
-          // Nếu không có createdAt, không match (trừ khi là 'all')
-          matchesDate = false
-        }
-      }
-
-      return matchesSearch && matchesStatus && matchesServiceType && matchesDate
-    })
-    .sort((a, b) => {
-      // Quick sort functionality
-      let aValue: any
-      let bValue: any
-
-      switch (sortBy) {
-        case 'bookingId':
-          aValue = a.bookingId || 0
-          bValue = b.bookingId || 0
-          break
-        case 'customer':
-          aValue = (a.customer || '').toLowerCase()
-          bValue = (b.customer || '').toLowerCase()
-          break
-        case 'serviceName':
-          aValue = (a.serviceName || a.title || '').toLowerCase()
-          bValue = (b.serviceName || b.title || '').toLowerCase()
-          break
-        case 'status':
-          aValue = (a.status || '').toLowerCase()
-          bValue = (b.status || '').toLowerCase()
-          break
-        case 'createdAt':
-          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0
-          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0
-          break
-        case 'scheduledDate':
-          aValue = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0
-          bValue = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0
-          break
-        default:
-          aValue = a.bookingId || 0
-          bValue = b.bookingId || 0
-      }
-
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
-      }
-    })
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredWork.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedWork = filteredWork.slice(startIndex, endIndex)
-
-  // Determine virtualization usage
-  // Disable virtualization when grouping by slot for simpler UX
-  const useGrouping = true
-  const useVirtualization = !useGrouping && filteredWork.length > 50
-  const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + BUFFER_ROWS
-  const totalRows = useVirtualization ? filteredWork.length : paginatedWork.length
-  const displayRows = useVirtualization ? filteredWork.slice(virtStart, Math.min(virtEnd, filteredWork.length)) : paginatedWork
-
-  // Handle scroll to compute virtual window
-  const handleVirtScroll = useCallback(() => {
-    if (!virtContainerRef.current) return
-    const scrollTop = virtContainerRef.current.scrollTop
-    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - Math.floor(BUFFER_ROWS / 2))
-    const end = start + visibleCount
-    setVirtStart(start)
-    setVirtEnd(end)
-  }, [])
-
-  // Initialize virtual window when data changes
-  useEffect(() => {
-    if (useVirtualization) {
-      setVirtStart(0)
-      setVirtEnd(visibleCount)
-    }
-  }, [useVirtualization, filteredWork.length])
-
-  // Group by slot key for UI grouping
-  const groupedSlots = useMemo(() => {
-    const groups = new Map<string, WorkOrder[]>()
-    filteredWork.forEach(w => {
-      const key = (w.scheduledTime || '').trim()
-      const k = key || '—'
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k)!.push(w)
-    })
-    return Array.from(groups.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([slotKey, items]) => ({ slotKey, items }))
-  }, [filteredWork])
-
-
-  // Reset to first page when filters change
-  useEffect(() => {
+    // Reset về trang 1 khi filter thay đổi
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, serviceTypeFilter, dateFilterType, selectedDate, sortBy, sortOrder])
+    // Fetch data: nếu "Quan trọng" thì fetch ngày hiện tại, nếu "Tất cả" thì fetch tất cả
+    if (!showAllStatusesToggle) {
+      // "Quan trọng": fetch booking ngày hiện tại
+      const today = getCurrentDateString()
+      fetchTechnicianBookings(today, 1)
+    } else {
+      // "Tất cả": fetch tất cả booking
+      fetchTechnicianBookings(undefined, 1)
+    }
+  }, [fetchTechnicianBookings, showAllStatusesToggle, statusFilter, sortBy, sortOrder, setCurrentPage])
+
+  // Initial load: when technicianId/centerId is resolved, fetch today's data
+  useEffect(() => {
+    if (!idsResolved) return // Wait for IDs to be resolved
+
+    // Always fetch today's data on initial load (vì mặc định là "Quan trọng" = ngày hiện tại)
+    const today = getCurrentDateString()
+    setCurrentPage(1)
+
+    // For technician mode: only fetch when technicianId is available
+    if (mode === 'technician') {
+      if (technicianId) {
+        fetchTechnicianBookings(today, 1)
+      }
+    } else {
+      // For staff mode: only fetch when centerId is available
+      if (centerId) {
+      fetchTechnicianBookings(today, 1)
+      } else {
+        // Error is handled by useWorkQueueDataFetch hook
+      }
+    }
+  }, [idsResolved, technicianId, centerId, mode, fetchTechnicianBookings, setCurrentPage])
+
+  // Use realtime hook
+  useWorkQueueRealtime({
+    mode,
+    technicianId,
+    centerId,
+    workQueue,
+    currentPage,
+    fetchTechnicianBookings
+  })
 
   // Sort handlers
   const handleSort = (field: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate') => {
@@ -645,258 +197,51 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
 
   // Làm mới: reset tất cả filter về mặc định và refetch theo hôm nay
   const handleRefreshFilters = useCallback(() => {
+    const today = getCurrentDateString()
     setSearchTerm('')
     setStatusFilter('all')
     setServiceTypeFilter('all')
-    setDateFilterType('all') // Hiển thị tất cả trong dataset hiện có
+    setTimeSlotFilter('all')
     setSortBy('bookingId')
     setSortOrder('desc')
+    setShowAllStatusesToggle(false) // Reset về hiển thị "Quan trọng"
     setCurrentPage(1)
-    // Không refetch để giữ "tất cả" theo dataset hiện tại
-  }, [])
-
-  // Ensure selectedDate is always current date on mount
-  useEffect(() => {
-    const currentDateString = getCurrentDateString()
-    if (selectedDate !== currentDateString) {
-      setSelectedDate(currentDateString)
-    }
-  }, [])
+    // Refetch data cho ngày hiện tại (vì "Quan trọng" = ngày hiện tại)
+    fetchTechnicianBookings(today, 1)
+  }, [fetchTechnicianBookings])
 
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Chờ xác nhận'
-      case 'confirmed': return 'Đã xác nhận'
-      case 'in_progress': return 'Đang làm việc'
-      case 'completed': return 'Hoàn thành'
-      case 'paid': return 'Đã thanh toán'
-      case 'cancelled': return 'Đã hủy'
-      default: return status
-    }
-  }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return '#8b5cf6' // Tím
-      case 'confirmed': return '#F97316' // Cam
-      case 'in_progress': return '#3B82F6' // Xanh dương
-      case 'completed': return '#10B981' // Xanh lá
-      case 'paid': return '#3B82F6' // Xanh dương
-      case 'cancelled': return '#EF4444' // Đỏ
-      default: return '#6B7280' // Xám
-    }
-  }
+  // Use stats hook
+  const stats = useWorkQueueStats(workQueue)
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'low': return '#10b981'
-      case 'medium': return '#f59e0b'
-      case 'high': return '#ef4444'
-      default: return '#6b7280'
-    }
-  }
+  // Use actions hook
+  const actionsResult = useWorkQueueActions(
+    workQueue,
+    showAllStatusesToggle,
+    currentPage,
+    fetchTechnicianBookings
+  )
+  const { updatingStatus, handleStatusUpdate, handleCancelBooking, canTransitionTo } = actionsResult
 
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'low': return 'Thấp'
-      case 'medium': return 'Trung bình'
-      case 'high': return 'Cao'
-      default: return priority
-    }
-  }
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high': return <AlertTriangle size={12} />
-      case 'medium': return <Clock size={12} />
-      case 'low': return <CheckCircle2 size={12} />
-      default: return <AlertTriangle size={12} />
-    }
-  }
-
-  // Tính toán stats từ workQueue với useMemo để tối ưu performance
-  const stats = useMemo(() => {
-    const statsData = [
-    {
-      label: 'Chờ xác nhận',
-      value: workQueue.filter(w => w.status === 'pending').length,
-      color: '#8b5cf6',
-        icon: Clock,
-        bgColor: 'rgba(139, 92, 246, 0.1)'
-    },
-    {
-      label: 'Đã xác nhận',
-      value: workQueue.filter(w => w.status === 'confirmed').length,
-      color: '#3b82f6',
-        icon: CheckCircle2,
-        bgColor: 'rgba(59, 130, 246, 0.1)'
-    },
-    {
-      label: 'Đang làm việc',
-      value: workQueue.filter(w => w.status === 'in_progress').length,
-      color: '#8b5cf6',
-        icon: Wrench,
-        bgColor: 'rgba(139, 92, 246, 0.1)'
-    },
-    {
-      label: 'Hoàn thành',
-      value: workQueue.filter(w => w.status === 'completed').length,
-      color: '#10b981',
-        icon: CheckCircle,
-        bgColor: 'rgba(16, 185, 129, 0.1)'
-    },
-    {
-      label: 'Đã thanh toán',
-      value: workQueue.filter(w => w.status === 'paid').length,
-      color: '#059669',
-        icon: Package,
-        bgColor: 'rgba(5, 150, 105, 0.1)'
-    },
-    {
-      label: 'Đã hủy',
-      value: workQueue.filter(w => w.status === 'cancelled').length,
-      color: '#ef4444',
-        icon: XCircle,
-        bgColor: 'rgba(239, 68, 68, 0.1)'
-    }
-  ]
-    return statsData
-  }, [workQueue])
-
-  const handleStatusUpdate = async (e: React.MouseEvent, workId: number, newStatus: string) => {
-    e.stopPropagation()
-      setUpdatingStatus(prev => new Set(prev).add(workId))
+  // Handler để mở payment modal
+  const handleOpenPayment = async (bookingId: number) => {
+    setLoadingPayment(true)
     try {
-      // Xác nhận bằng toast tùy biến thay cho window.confirm
-      const confirmViaToast = (message: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-          const id = toast.custom((t) => (
-            <div style={{
-              background: '#111827',
-              color: '#fff',
-              padding: '12px',
-              borderRadius: 10,
-              border: '1px solid #374151',
-              boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
-              minWidth: 280
-            }}>
-              <div style={{ fontSize: 14, marginBottom: 10 }}>{message}</div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => { toast.dismiss(id); resolve(false) }}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: 8,
-                    background: '#374151',
-                    color: '#E5E7EB',
-                    border: '1px solid #4B5563',
-                    cursor: 'pointer',
-                    fontSize: 12
-                  }}
-                >Hủy</button>
-                <button
-                  onClick={() => { toast.dismiss(id); resolve(true) }}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: 8,
-                    background: '#10B981',
-                    color: '#0B1220',
-                    border: '1px solid #34D399',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600
-                  }}
-                >Xác nhận</button>
-              </div>
-            </div>
-          ), { duration: Infinity })
-        })
+      const detail = await BookingService.getBookingDetail(bookingId)
+      if (detail?.success && detail?.data) {
+        setPaymentTotalAmount(detail.data.totalAmount || 0)
+        setPaymentBookingId(bookingId)
+        setShowPaymentModal(true)
+        } else {
+        toast.error('Không thể lấy thông tin booking')
       }
-
-      if (newStatus === 'in_progress') {
-        const ok = await confirmViaToast('Bắt đầu làm việc cho booking này?')
-        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
-      }
-      if (newStatus === 'completed') {
-        const ok = await confirmViaToast('Hoàn thành công việc? Hãy đảm bảo checklist và phụ tùng đã được xác nhận.')
-        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
-      }
-      if (newStatus === 'cancelled') {
-        const ok = await confirmViaToast('Hủy booking này? Hành động không thể hoàn tác.')
-        if (!ok) { setUpdatingStatus(prev => { const s = new Set(prev); s.delete(workId); return s }) ; return }
-      }
-      const response = await api.put(`/Booking/${workId}/status`, {
-        status: mapStatusToApi(newStatus)
-      })
-
-      if (response.data) {
-        toast.success(`Cập nhật trạng thái thành công!`)
-        // Refresh the list after successful update
-        fetchTechnicianBookings(selectedDate, true) // Preserve current page
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể tải thông tin thanh toán'
+      toast.error(message)
     } finally {
-      setUpdatingStatus(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(workId)
-        return newSet
-      })
+      setLoadingPayment(false)
     }
-  }
-
-  const handleCancelBooking = async (e: React.MouseEvent, workId: number) => {
-    e.stopPropagation()
-    setUpdatingStatus(prev => new Set(prev).add(workId))
-    try {
-      const response = await api.put(`/Booking/${workId}/cancel`)
-
-      if (response.data) {
-        toast.success(`Hủy booking thành công!`)
-        // Refresh the list after successful update
-        fetchTechnicianBookings(selectedDate, true) // Preserve current page
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy booking.')
-    } finally {
-      setUpdatingStatus(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(workId)
-        return newSet
-      })
-    }
-  }
-
-  // Helper function để map status từ UI sang API format
-  const mapStatusToApi = (uiStatus: string): string => {
-    const statusMap: { [key: string]: string } = {
-      'pending': 'PENDING',
-      'confirmed': 'CONFIRMED',
-      'in_progress': 'IN_PROGRESS',
-      'completed': 'COMPLETED',
-      'paid': 'PAID',
-      'cancelled': 'CANCELLED'
-    }
-    return statusMap[uiStatus] || 'PENDING'
-  }
-
-  // Helper function để kiểm tra trạng thái có thể chuyển được không
-  const canTransitionTo = (currentStatus: string, targetStatus: string): boolean => {
-    // Dùng chữ HOA để khớp với mapStatusToApi và dữ liệu từ backend
-    const validTransitions: { [key: string]: string[] } = {
-      'PENDING': ['CONFIRMED', 'CANCELLED'],
-      'CONFIRMED': ['IN_PROGRESS', 'CANCELLED'],
-      'IN_PROGRESS': ['COMPLETED', 'CANCELLED'],
-      'COMPLETED': ['PAID'],
-      'PAID': [],
-      'CANCELLED': []
-    }
-
-    const currentApiStatus = mapStatusToApi(currentStatus)
-    const targetApiStatus = mapStatusToApi(targetStatus)
-
-    return validTransitions[currentApiStatus]?.includes(targetApiStatus) || false
   }
 
 
@@ -919,225 +264,26 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
       `}</style>
 
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div>
-          <h2 style={{
-            fontSize: '28px',
-            fontWeight: '600',
-            color: 'var(--text-primary)',
-            margin: '0 0 8px 0',
-            background: 'linear-gradient(135deg, var(--primary-500), var(--primary-600))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Hàng đợi công việc
-          </h2>
-          <p style={{
-            fontSize: '16px',
-            color: 'var(--text-secondary)',
-            margin: '0'
-          }}>
-            Quản lý và theo dõi công việc được giao
-          </p>
-        </div>
-            </div>
+      <WorkQueueHeader />
 
       {/* Stats Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-        gap: '12px',
-        marginBottom: '16px'
-      }}>
-        {stats.map((stat, index) => {
-          const Icon = stat.icon
-          return (
-            <div
-              key={index}
-              style={{
-                background: '#fff',
-                border: `1px solid ${stat.color}20`,
-                borderRadius: '8px',
-                padding: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                transition: 'all 0.3s ease',
-                cursor: 'default',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)'
-              }}
-            >
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: stat.bgColor || 'rgba(139, 92, 246, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: stat.color,
-                flexShrink: 0
-              }}>
-                <Icon size={16} />
-                </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '20px',
-                  fontWeight: '700',
-                  color: 'var(--text-primary)',
-                  lineHeight: '1.2',
-                  marginBottom: '2px'
-                }}>
-                  {stat.value}
-                    </div>
-                <div style={{
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
-                  fontWeight: '500'
-                }}>
-                  {stat.label}
-                    </div>
-                    </div>
-                      </div>
-          )
-        })}
-                    </div>
+      <WorkQueueStats stats={stats as any} />
 
       {/* Toolbar giống Admin Users */}
-      <div className="users-toolbar" style={{
-        background: 'var(--bg-card)',
-        padding: '12px 16px',
-        borderRadius: '12px',
-        border: 'none',
-        marginBottom: '16px'
-      }}>
-        {/* Row 1: Tabs + Search + Actions */}
-        <div className="toolbar-top" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Tabs with icons */}
-            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid transparent', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <LayoutGrid size={14} /> Bảng
-            </button>
-            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid transparent', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <ChevronsRight size={14} /> Bảng điều khiển
-            </button>
-            <button type="button" style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--border-primary)', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <List size={14} /> Danh sách
-            </button>
-          </div>
-          {/* Middle: Search */}
-          <div className="toolbar-search" style={{ flex: 1, minWidth: '320px' }}>
-            <div className="search-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={14} className="icon" style={{ position: 'absolute', left: '12px', color: '#9CA3AF', pointerEvents: 'none' }} />
-              <input
-                placeholder="Tìm kiếm theo tên, biển số, SĐT..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px 8px 36px', border: 'none', borderBottom: '1px solid transparent', background: 'transparent', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s ease' }}
-                onFocus={(e) => { e.currentTarget.style.borderBottomColor = '#FFD875' }}
-                onBlur={(e) => { e.currentTarget.style.borderBottomColor = 'transparent' }}
-              />
-            </div>
-          </div>
-          {/* Right: Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <button type="button" style={{ height: '32px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <EyeOff size={14} /> Ẩn
-            </button>
-            <button type="button" style={{ height: '32px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Sliders size={14} /> Tùy chỉnh
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAllStatusesToggle(v => !v)}
-              style={{ height: '32px', padding: '0 12px', border: '1px solid #FFD875', borderRadius: '8px', background: showAllStatusesToggle ? '#FFF6D1' : '#FFFFFF', color: '#111827', fontSize: '13px' }}
-            >{showAllStatusesToggle ? 'Hiển thị: Tất cả' : 'Hiển thị: Quan trọng'}</button>
-          </div>
-        </div>
-        {/* Row 2: Filters */}
-        <div className="toolbar-filters" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Custom dropdown: Vai trò (dịch vụ) */}
-          <div style={{ position: 'relative' }}>
-            <button type="button" onClick={() => { setShowRoleMenu(!showRoleMenu); if (!showRoleMenu) setShowStatusMenu(false) }}
-              style={{ height: '36px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <Wrench size={14} /> {getServiceTypeLabel(serviceTypeFilter)}
-              <ChevronDown size={14} />
-            </button>
-            {showRoleMenu && (
-              <div style={{ position: 'absolute', zIndex: 20, marginTop: '6px', minWidth: '200px', background: '#fff', border: '1px solid var(--border-primary)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
-                {[
-                  { value: 'all', label: 'Tất cả vai trò' },
-                  { value: 'maintenance', label: 'Bảo dưỡng' },
-                  { value: 'repair', label: 'Sửa chữa' },
-                  { value: 'inspection', label: 'Kiểm tra' }
-                ].map(opt => (
-                  <button key={opt.value} type="button" onClick={() => { setServiceTypeFilter(opt.value); setShowRoleMenu(false) }}
-                    style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {/* Custom dropdown: Trạng thái */}
-          <div style={{ position: 'relative' }}>
-            <button type="button" onClick={() => { setShowStatusMenu(!showStatusMenu); if (!showStatusMenu) setShowRoleMenu(false) }}
-              style={{ height: '36px', padding: '0 12px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-primary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <Filter size={14} /> {getStatusLabel(statusFilter)}
-              <ChevronDown size={14} />
-            </button>
-            {showStatusMenu && (
-              <div style={{ position: 'absolute', zIndex: 20, marginTop: '6px', minWidth: '220px', background: '#fff', border: '1px solid var(--border-primary)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
-                {[
-                  { value: 'all', label: 'Tất cả trạng thái' },
-                  { value: 'PENDING', label: 'Chờ xác nhận' },
-                  { value: 'CONFIRMED', label: 'Đã xác nhận' },
-                  { value: 'IN_PROGRESS', label: 'Đang làm việc' },
-                  { value: 'COMPLETED', label: 'Hoàn thành' },
-                  { value: 'PAID', label: 'Đã thanh toán' },
-                  { value: 'CANCELLED', label: 'Đã hủy' }
-                ].map(opt => (
-                  <button key={opt.value} type="button" onClick={() => { setStatusFilter(opt.value); setShowStatusMenu(false) }}
-                    style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {/* Add filter (like Admin) */}
-          <div style={{ position: 'relative' }}>
-            <button type="button"
-              onClick={() => setShowAddFilterMenu((v) => !v)}
-              style={{ height: '36px', padding: '0 12px', border: '1px dashed var(--border-primary)', borderRadius: '8px', background: '#fff', color: 'var(--text-secondary)', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Plus size={14} /> Thêm bộ lọc
-            </button>
-            {showAddFilterMenu && (
-              <div style={{ position: 'absolute', zIndex: 25, marginTop: '6px', minWidth: '180px', background: '#fff', border: '1px solid var(--border-primary)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
-                <button type="button" onClick={() => { setShowAddFilterMenu(false); setShowRoleMenu(true); setShowStatusMenu(false) }}
-                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>Dịch vụ</button>
-                <button type="button" onClick={() => { setShowAddFilterMenu(false); setShowStatusMenu(true); setShowRoleMenu(false) }}
-                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>Trạng thái</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <WorkQueueToolbar
+        searchTerm={searchTerm}
+        onSearchChange={(v) => setSearchTerm(v)}
+        serviceTypeFilter={serviceTypeFilter}
+        onServiceTypeChange={(v) => setServiceTypeFilter(v)}
+        statusFilter={statusFilter}
+        onStatusChange={(v) => setStatusFilter(v)}
+        timeSlotFilter={timeSlotFilter}
+        onTimeSlotChange={(v) => setTimeSlotFilter(v)}
+        availableTimeSlots={Array.from(new Set(workQueue.map(w => w.slotLabel || w.scheduledTime || '').filter(Boolean))).sort()}
+        showAllStatusesToggle={showAllStatusesToggle}
+        onToggleShowAll={() => setShowAllStatusesToggle(v => !v)}
+        onResetFilters={handleRefreshFilters}
+      />
 
       {/* Work Table */}
       <div style={{
@@ -1172,20 +318,34 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                             </div>
                           ) : (
           <>
-            <div style={{ display:'flex', justifyContent:'flex-end', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
-              Tổng số công việc: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>{filteredWork.length}</strong>
-                    </div>
+             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin: '8px 0 6px', color:'var(--text-secondary)', fontSize: 13 }}>
+               <div>
+                 Tổng số công việc: <strong style={{ marginLeft: 6, color:'var(--text-primary)' }}>
+                   {apiPagination ? apiPagination.totalItems : filteredWork.length}
+                 </strong>
+                 {totalPages > 1 && (
+                   <span style={{ marginLeft: 12 }}>
+                     (Trang {currentPage}/{totalPages})
+                   </span>
+                 )}
+                 {apiPagination && (
+                   <span style={{ marginLeft: 12, color: 'var(--text-tertiary)' }}>
+                     Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, apiPagination.totalItems)} / {apiPagination.totalItems}
+                   </span>
+                 )}
+               </div>
+             </div>
       <div
         ref={virtContainerRef}
         onScroll={useVirtualization ? handleVirtScroll : undefined}
-        style={{ overflow: 'auto', maxHeight: useVirtualization ? `${VIEWPORT_HEIGHT}px` : undefined }}
+        style={{ overflow: 'auto', maxHeight: useVirtualization ? `520px` : undefined }}
       >
               <table className="work-queue-table" style={{
                 width: '100%',
                 borderCollapse: 'separate',
                 borderSpacing: 0,
                 background: 'var(--bg-card)',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 overflow: 'hidden',
                 boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
                 border: 'none'
@@ -1217,7 +377,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                 type="checkbox"
                                 className="tq-id-checkbox-input"
                                 checked={allSel}
-                                onChange={(e) => toggleAllSelected(e.target.checked)}
+                                onChange={(e) => toggleAllSelected(paginatedWork.map(w => w.id), e.target.checked)}
                                 style={{ width: 16, height: 16, appearance: 'auto', accentColor: '#9CA3AF', margin: 0 }}
                               />
                             </span>
@@ -1320,7 +480,6 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                       setWorkIdToChecklist(prev => ({ ...prev, [work.id]: [] }))
                                     }
                                   })()
-                                  setWorkIdToRating(prev => ({ ...prev, [work.id]: prev[work.id] || 0 }))
                                 }}
                                 style={{
                                   borderBottom: '1px solid var(--border-primary)',
@@ -1372,7 +531,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     color: getStatusColor(work.status),
                                     borderColor: getStatusColor(work.status),
                                     padding: '4px 8px',
-                                    borderRadius: '6px',
+                                    borderRadius: '10px',
                                     fontSize: '12px',
                                     fontWeight: '500',
                                     display: 'inline-flex',
@@ -1419,6 +578,40 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     justifyContent: 'flex-start',
                                     alignItems: 'center'
                                   }}>
+                                    {/* Xác nhận (chỉ dành cho staff, từ pending -> confirmed) */}
+                                    {mode === 'staff' && (() => {
+                                      const isDisabled = updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed');
+                                      return (
+                                      <button type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          if (!isDisabled) {
+                                            handleStatusUpdate(e, work.id, 'confirmed');
+                                          }
+                                        }}
+                                        disabled={isDisabled}
+                                        style={{
+                                          padding: '8px',
+                                          border: '2px solid var(--border-primary)',
+                                          borderRadius: '10px',
+                                          background: '#F97316',
+                                          color: '#ffffff',
+                                          cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed')) ? 'not-allowed' : 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          transition: 'all 0.2s ease',
+                                          width: '36px',
+                                          height: '36px',
+                                          opacity: !canTransitionTo(work.status, 'confirmed') ? 0.5 : 1
+                                        }}
+                                        title={canTransitionTo(work.status, 'confirmed') ? 'Xác nhận booking' : 'Không khả dụng'}
+                                      >
+                                        {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                      </button>
+                                      );
+                                    })()}
                                     {/* Bắt đầu */}
                                   <button type="button"
                                     onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
@@ -1426,7 +619,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     style={{
                                       padding: '8px',
                                       border: '2px solid var(--border-primary)',
-                                      borderRadius: '8px',
+                                      borderRadius: '10px',
                                       background: '#6D28D9',
                                       color: '#ffffff',
                                       cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')) ? 'not-allowed' : 'pointer',
@@ -1449,7 +642,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     style={{
                                       padding: '8px',
                                       border: '2px solid var(--border-primary)',
-                                      borderRadius: '8px',
+                                      borderRadius: '10px',
                                       background: '#059669',
                                       color: '#ffffff',
                                       cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'completed')) ? 'not-allowed' : 'pointer',
@@ -1465,6 +658,34 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   >
                                     {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />}
                                   </button>
+                                  {/* Thanh toán */}
+                                  {mode === 'staff' && work.bookingId && (
+                                    <button type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenPayment(work.bookingId || work.id)
+                                      }}
+                                      disabled={loadingPayment}
+                                      style={{
+                                        padding: '8px',
+                                        border: '2px solid var(--border-primary)',
+                                        borderRadius: '10px',
+                                        background: '#3B82F6',
+                                        color: '#ffffff',
+                                        cursor: loadingPayment ? 'not-allowed' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s ease',
+                                        width: '36px',
+                                        height: '36px',
+                                        opacity: loadingPayment ? 0.5 : 1
+                                      }}
+                                      title="Thanh toán"
+                                    >
+                                      {loadingPayment ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                                    </button>
+                                  )}
                                   {/* Hủy */}
                                   <button type="button"
                                     onClick={(e) => { e.stopPropagation(); handleCancelBooking(e, work.id); }}
@@ -1472,7 +693,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     style={{
                                       padding: '8px',
                                       border: '2px solid var(--border-primary)',
-                                      borderRadius: '8px',
+                                      borderRadius: '10px',
                                       background: '#DC2626',
                                       color: '#ffffff',
                                       cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'cancelled')) ? 'not-allowed' : 'pointer',
@@ -1498,12 +719,17 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   centerId={work.centerId}
                                   status={work.status}
                                   items={workIdToChecklist[work.id] || []}
+                                  technicianName={work.technicianName}
+                                  technicianPhone={work.technicianPhone}
+                                  slotLabel={work.slotLabel || work.scheduledTime}
+                                  workDate={work.workDate || work.scheduledDate}
+                                  mode={mode}
                                   onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                     try {
                                       const response = await TechnicianService.updateMaintenanceChecklistItem(
-                                        work.bookingId || work.id, 
-                                        resultId, 
-                                        newResult, 
+                                        work.bookingId || work.id,
+                                        resultId,
+                                        newResult,
                                         notes,
                                         replacementInfo
                                       )
@@ -1528,11 +754,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                     } catch { toast.error('Lỗi khi xác nhận checklist') }
                                   }}
                                   onConfirmParts={async () => {
-                                    try {
-                                      const res = await WorkOrderPartService.confirm(work.bookingId || work.id)
-                                      if ((res as any)?.success === false) toast.error((res as any)?.message || 'Xác nhận phụ tùng phát sinh thất bại')
-                                      else toast.success('Đã xác nhận phụ tùng phát sinh')
-                                    } catch { toast.error('Lỗi khi xác nhận phụ tùng phát sinh') }
+                                    toast.success('Đã lưu phụ tùng phát sinh')
                                   }}
                                 />
                               )}
@@ -1579,7 +801,6 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   setWorkIdToChecklist(prev => ({ ...prev, [work.id]: [] }))
                                 }
                               })()
-                              setWorkIdToRating(prev => ({ ...prev, [work.id]: prev[work.id] || 0 }))
                             }}
                                     style={{
                               borderBottom: '1px solid var(--border-primary)',
@@ -1679,6 +900,40 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                 justifyContent: 'flex-start',
                                 alignItems: 'center'
                               }}>
+                                {/* Xác nhận (chỉ dành cho staff, từ pending -> confirmed) */}
+                                {mode === 'staff' && (() => {
+                                  const isDisabled = updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed');
+                                  return (
+                                  <button type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      if (!isDisabled) {
+                                        handleStatusUpdate(e, work.id, 'confirmed');
+                                      }
+                                    }}
+                                    disabled={isDisabled}
+                                    style={{
+                                      padding: '8px',
+                                      border: '2px solid var(--border-primary)',
+                                      borderRadius: '10px',
+                                      background: '#F97316',
+                                      color: '#ffffff',
+                                      cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed')) ? 'not-allowed' : 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.2s ease',
+                                      width: '36px',
+                                      height: '36px',
+                                      opacity: !canTransitionTo(work.status, 'confirmed') ? 0.5 : 1
+                                    }}
+                                    title={canTransitionTo(work.status, 'confirmed') ? 'Xác nhận booking' : 'Không khả dụng'}
+                                  >
+                                    {updatingStatus.has(work.id) ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                  </button>
+                                  );
+                                })()}
                                 {/* Bắt đầu */}
                                 <button type="button"
                                   onClick={(e) => { e.stopPropagation(); handleStatusUpdate(e, work.id, 'in_progress'); }}
@@ -1686,7 +941,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   style={{
                                     padding: '8px',
                                     border: '2px solid var(--border-primary)',
-                                    borderRadius: '8px',
+                                    borderRadius: '10px',
                                     background: '#6D28D9',
                                     color: '#ffffff',
                                     cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'in_progress')) ? 'not-allowed' : 'pointer',
@@ -1709,7 +964,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   style={{
                                     padding: '8px',
                                     border: '2px solid var(--border-primary)',
-                                    borderRadius: '8px',
+                                    borderRadius: '10px',
                                     background: '#059669',
                                     color: '#ffffff',
                                     cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'completed')) ? 'not-allowed' : 'pointer',
@@ -1732,7 +987,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   style={{
                                     padding: '8px',
                                     border: '2px solid var(--border-primary)',
-                                    borderRadius: '8px',
+                                    borderRadius: '10px',
                                     background: '#DC2626',
                                     color: '#ffffff',
                                     cursor: (updatingStatus.has(work.id) || !canTransitionTo(work.status, 'cancelled')) ? 'not-allowed' : 'pointer',
@@ -1758,12 +1013,17 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                               centerId={work.centerId}
                               status={work.status}
                               items={workIdToChecklist[work.id] || []}
+                              technicianName={work.technicianName}
+                              technicianPhone={work.technicianPhone}
+                              slotLabel={work.slotLabel || work.scheduledTime}
+                              workDate={work.workDate || work.scheduledDate}
+                              mode={mode}
                               onSetItemResult={async (resultId, partId, newResult, notes, replacementInfo) => {
                                 try {
                                   const response = await TechnicianService.updateMaintenanceChecklistItem(
-                                    work.bookingId || work.id, 
-                                    resultId, 
-                                    newResult, 
+                                    work.bookingId || work.id,
+                                    resultId,
+                                    newResult,
                                     notes,
                                     replacementInfo
                                   )
@@ -1787,13 +1047,7 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
                                   else toast.error(res?.message || 'Xác nhận checklist thất bại')
                                 } catch { toast.error('Lỗi khi xác nhận checklist') }
                               }}
-                              onConfirmParts={async () => {
-                                try {
-                                  const res = await WorkOrderPartService.confirm(work.bookingId || work.id)
-                                  if ((res as any)?.success === false) toast.error((res as any)?.message || 'Xác nhận phụ tùng phát sinh thất bại')
-                                  else toast.success('Đã xác nhận phụ tùng phát sinh')
-                                } catch { toast.error('Lỗi khi xác nhận phụ tùng phát sinh') }
-                              }}
+                              onConfirmParts={async () => { toast.success('Đã lưu phụ tùng phát sinh') }}
                             />
                           )}
                         </React.Fragment>
@@ -1814,67 +1068,34 @@ export default function WorkQueue({ onViewDetails, onViewBookingDetail }: WorkQu
           </div>
 
       {/* Pagination (ẩn khi dùng virtualization) */}
-      {!loading && filteredWork.length > 0 && !useVirtualization && (
-        <div style={{
-          marginTop: '16px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          background: 'transparent',
-          padding: '8px 0'
-        }}>
-          <div className="pagination-info">
-            <span className="pagination-label">Hiển thị</span>
-            <span className="pagination-range">
-              {startIndex + 1}–{Math.min(endIndex, filteredWork.length)} trong {filteredWork.length} kết quả
-            </span>
-          </div>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <button type="button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(1)}
-              className={`pager-btn ${currentPage === 1 ? 'is-disabled' : ''}`}
-            >
-              <ChevronsLeft size={16} />
-            </button>
-            <button type="button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => p - 1)}
-              className={`pager-btn ${currentPage === 1 ? 'is-disabled' : ''}`}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div className="pager-pages">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`pager-btn ${currentPage === page ? 'is-active' : ''}`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <button type="button"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((p) => p + 1)}
-              className={`pager-btn ${currentPage === totalPages ? 'is-disabled' : ''}`}
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button type="button"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(totalPages)}
-              className={`pager-btn ${currentPage === totalPages ? 'is-disabled' : ''}`}
-            >
-              <ChevronsRight size={16} />
-            </button>
-          </div>
+      {!loading && (filteredWork.length > 0 || (apiPagination && apiPagination.totalItems > 0)) && !useVirtualization && totalPages > 1 && (
+        <div style={{ marginTop: '24px', padding: '16px 0' }}>
+          <WorkQueuePagination currentPage={currentPage} totalPages={totalPages} onChange={handlePageChange} />
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentBookingId && (
+        <PaymentModal
+          bookingId={paymentBookingId}
+          totalAmount={paymentTotalAmount}
+          open={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setPaymentBookingId(null)
+          }}
+          onPaymentSuccess={() => {
+            // Refetch data sau khi thanh toán thành công
+            if (!showAllStatusesToggle) {
+              // "Quan trọng": fetch booking ngày hiện tại
+              const today = getCurrentDateString()
+              fetchTechnicianBookings(today, currentPage)
+            } else {
+              // "Tất cả": fetch tất cả booking
+              fetchTechnicianBookings(undefined, currentPage)
+            }
+          }}
+        />
       )}
     </div>
   )

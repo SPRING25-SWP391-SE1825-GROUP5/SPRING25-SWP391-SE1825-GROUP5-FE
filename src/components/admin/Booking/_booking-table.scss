@@ -151,7 +151,125 @@
         }
       }
     }
+
+    // Hiển thị ngay hàng mở rộng (không áp dụng animation opacity:0)
+    tr.expanded-row {
+      opacity: 1 !important;
+      cursor: default;
+      background: #fafafa;
+    }
   }
+}
+
+.order-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+
+  thead th {
+    background: #f9fafb;
+    color: var(--text-secondary);
+    font-weight: 500;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    text-align: left;
+    font-size: 13px;
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  &.is-loading thead th span {
+    color: #d1d5db;
+  }
+
+  tbody tr {
+    opacity: 1 !important;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  tbody td {
+    color: var(--text-primary);
+    font-size: 13px;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    vertical-align: middle;
+  }
+
+  .skeleton-bar {
+    height: 10px;
+    width: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%);
+    background-size: 400% 100%;
+    animation: skeleton-loading 1.4s ease infinite;
+  }
+
+  &:not(.is-loading) .skeleton-bar {
+    display: none;
+  }
+}
+
+.order-items-empty {
+  text-align: center;
+  padding: 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.order-item-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-item-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.order-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.order-item-title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.order-item-rating {
+  font-size: 11px;
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.order-item-number,
+.order-item-brand {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.order-item-center {
+  font-weight: 500;
+  color: #059669;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 
 .booking-id-cell {
@@ -260,6 +378,16 @@
     }
   }
 
+  &--checked-in {
+    background: #D1FAE5;
+    color: #10B981;
+    border: 1px solid #10B981;
+
+    .dot {
+      background: #10B981;
+    }
+  }
+
   &--in-progress {
     background: #FEF3C7;
     color: #F59E0B;
@@ -309,5 +437,45 @@
       background: #6B7280;
     }
   }
+}
+
+.admin-bookings .orders-items-grid,
+.admin-booking .orders-items-grid,
+.orders-items-grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+
+  thead th {
+    background: #f9fafb;
+    color: var(--text-secondary) !important;
+    font-weight: 600;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    text-align: left;
+    font-size: 13px;
+  }
+
+  &.is-loading thead th span { color: #d1d5db !important; }
+
+  tbody tr {
+    opacity: 1 !important;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  tbody td { color: var(--text-primary) !important; font-size: 13px; padding: 8px; border: 1px solid #e5e7eb; vertical-align: middle; }
+
+  .skeleton-bar { height: 10px; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%); background-size: 400% 100%; animation: skeleton-loading 1.4s ease infinite; }
+  &:not(.is-loading) .skeleton-bar { display: none; }
+
+  .order-item-name { display: flex; align-items: center; gap: 8px; }
+  .order-item-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; background: #f3f4f6; border: 1px solid #e5e7eb; }
+  .order-item-text { display: flex; flex-direction: column; gap: 2px; }
+  .order-item-title { font-weight: 500; color: var(--text-primary) !important; }
+  .order-item-rating { font-size: 11px; color: #f59e0b; display: flex; align-items: center; gap: 4px; }
+  .order-item-number, .order-item-brand { font-size: 12px; color: #6b7280 !important; }
+  .order-item-center { font-weight: 600; color: #059669 !important; }
 }
 

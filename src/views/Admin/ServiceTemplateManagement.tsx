@@ -1,39 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import {
   FileText,
-  Edit,
-  X,
   Plus,
   CheckCircle,
   Search,
-  Eye,
-  Settings,
   List,
   BarChart2,
   Download,
   EyeOff,
   SlidersHorizontal,
-  RefreshCw,
   Calendar,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ToggleLeft,
-  ToggleRight,
-  Circle,
-  AlertCircle,
-  Trash2,
-  Power,
-  ChevronDown,
-  ChevronUp,
+  Settings,
 } from 'lucide-react'
 import { ServiceChecklistTemplateService, ServiceChecklistTemplate, GetItemsResponse, TemplateItemDto } from '@/services/serviceChecklistTemplateService'
-import { ServiceManagementService } from '@/services/serviceManagementService'
-import { PartService, Part } from '@/services/partService'
+import { PartService, type Part } from '@/services/partService'
 import toast from 'react-hot-toast'
 import TemplateFormModal from '@/components/admin/TemplateFormModal'
+import ConfirmModal from '@/components/chat/ConfirmModal'
+import { TemplateRow, AddPartsModal } from '@/components/admin/ServiceTemplate'
 import './ServiceTemplateManagement.scss'
 
 export default function ServiceTemplateManagement() {
@@ -58,6 +46,10 @@ export default function ServiceTemplateManagement() {
   const [selectedTemplate, setSelectedTemplate] = useState<ServiceChecklistTemplate | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [activating, setActivating] = useState<number | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDeletePartsModal, setShowDeletePartsModal] = useState(false)
+  const [partsToDelete, setPartsToDelete] = useState<number[]>([])
+  const [templateIdForDeleteParts, setTemplateIdForDeleteParts] = useState<number | null>(null)
 
   // Expanded rows for detail view
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
@@ -235,18 +227,22 @@ export default function ServiceTemplateManagement() {
   }
 
   // Handler for delete template
-  const handleDelete = async (template: ServiceChecklistTemplate) => {
-    const templateId = template.templateID || template.templateId
-    if (!templateId) return
+  const handleDelete = (template: ServiceChecklistTemplate) => {
+    setSelectedTemplate(template)
+    setShowDeleteModal(true)
+  }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa template "${template.templateName}"?`)) {
-      return
-    }
+  const confirmDeleteTemplate = async () => {
+    if (!selectedTemplate) return
+    const templateId = selectedTemplate.templateID || selectedTemplate.templateId
+    if (!templateId) return
 
     try {
       setDeleting(true)
       await ServiceChecklistTemplateService.deleteTemplate(templateId)
       toast.success('Đã xóa template thành công')
+      setShowDeleteModal(false)
+      setSelectedTemplate(null)
       await loadTemplates()
     } catch (err: any) {
       toast.error('Không thể xóa template: ' + (err.message || 'Unknown error'))
@@ -304,8 +300,9 @@ export default function ServiceTemplateManagement() {
           setLoadingParts(prev => ({ ...prev, [templateId]: true }))
           const response = await PartService.getPartAvailability({ pageSize: 1000 })
           // Filter out parts that are already in the template
-          const existingPartIds = new Set(templateItemsMap[templateId]?.items.map(i => i.partId) || [])
-          const filteredParts = response.data.filter(p => !existingPartIds.has(p.partId))
+          const existingPartIds = new Set(templateItemsMap[templateId]?.items?.map(i => i.partId) || [])
+          const partsData = Array.isArray(response.data) ? response.data : []
+          const filteredParts = partsData.filter(p => !existingPartIds.has(p.partId))
           setAvailablePartsForTemplate(prev => ({ ...prev, [templateId]: filteredParts }))
         } catch (err: any) {
           toast.error('Không thể tải danh sách phụ tùng: ' + (err.message || 'Unknown error'))
@@ -327,8 +324,9 @@ export default function ServiceTemplateManagement() {
       setLoadingParts(prev => ({ ...prev, [templateId]: true }))
       const response = await PartService.getPartAvailability({ pageSize: 1000 })
       // Filter out parts that are already in the template
-      const existingPartIds = new Set(templateItemsMap[templateId]?.items.map(i => i.partId) || [])
-      const filteredParts = response.data.filter(p => !existingPartIds.has(p.partId))
+      const existingPartIds = new Set(templateItemsMap[templateId]?.items?.map(i => i.partId) || [])
+      const partsData = Array.isArray(response.data) ? response.data : []
+      const filteredParts = partsData.filter(p => !existingPartIds.has(p.partId))
       setAvailableParts(filteredParts)
     } catch (err: any) {
       toast.error('Không thể tải danh sách phụ tùng: ' + (err.message || 'Unknown error'))
@@ -420,36 +418,44 @@ export default function ServiceTemplateManagement() {
   }
 
   // Handler for removing parts batch
-  const handleRemovePartsBatch = async (templateId: number, partIds: number[]) => {
+  const handleRemovePartsBatch = (templateId: number, partIds: number[]) => {
     if (partIds.length === 0) {
       toast.error('Vui lòng chọn ít nhất một phụ tùng để xóa')
       return
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${partIds.length} phụ tùng?`)) {
-      return
+    setTemplateIdForDeleteParts(templateId)
+    setPartsToDelete(partIds)
+    setShowDeletePartsModal(true)
     }
 
+  const confirmDeleteParts = async () => {
+    if (!templateIdForDeleteParts || partsToDelete.length === 0) return
+
     try {
-      setRemovingParts(prev => ({ ...prev, [templateId]: true }))
-      const response = await ServiceChecklistTemplateService.removePartsBatch(templateId, partIds)
+      setRemovingParts(prev => ({ ...prev, [templateIdForDeleteParts]: true }))
+      const response = await ServiceChecklistTemplateService.removePartsBatch(templateIdForDeleteParts, partsToDelete)
 
       if (response.errors && response.errors.length > 0) {
-        toast.error(`Đã xóa ${response.results.filter((r: any) => r.success).length}/${partIds.length} phụ tùng. Một số phụ tùng không thể xóa.`)
+        toast.error(`Đã xóa ${response.results.filter((r: any) => r.success).length}/${partsToDelete.length} phụ tùng. Một số phụ tùng không thể xóa.`)
       } else {
-        toast.success(`Đã xóa ${partIds.length} phụ tùng thành công`)
+        toast.success(`Đã xóa ${partsToDelete.length} phụ tùng thành công`)
       }
 
       // Refresh items
-      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateId)
-      setTemplateItemsMap(prev => ({ ...prev, [templateId]: itemsResponse }))
+      const itemsResponse = await ServiceChecklistTemplateService.getTemplateItemsResponse(templateIdForDeleteParts)
+      setTemplateItemsMap(prev => ({ ...prev, [templateIdForDeleteParts]: itemsResponse }))
 
       // Clear selections
-      setSelectedPartIds(prev => ({ ...prev, [templateId]: new Set() }))
+      setSelectedPartIds(prev => ({ ...prev, [templateIdForDeleteParts]: new Set() }))
+
+      setShowDeletePartsModal(false)
+      setTemplateIdForDeleteParts(null)
+      setPartsToDelete([])
     } catch (err: any) {
       toast.error('Không thể xóa phụ tùng: ' + (err.message || 'Unknown error'))
     } finally {
-      setRemovingParts(prev => ({ ...prev, [templateId]: false }))
+      setRemovingParts(prev => ({ ...prev, [templateIdForDeleteParts]: false }))
     }
   }
 
@@ -470,9 +476,9 @@ export default function ServiceTemplateManagement() {
   // Handler for selecting all parts in a template
   const handleSelectAllParts = (templateId: number) => {
     const items = templateItemsMap[templateId]
-    if (!items || items.items.length === 0) return
+    if (!items || !items.items || items.items.length === 0) return
 
-    const allPartIds = new Set(items.items.map(i => i.partId))
+    const allPartIds = new Set((items.items || []).map(i => i.partId))
     setSelectedPartIds(prev => ({ ...prev, [templateId]: allPartIds }))
   }
 
@@ -502,10 +508,8 @@ export default function ServiceTemplateManagement() {
       <div className="users-toolbar">
         <div className="toolbar-top">
           <div className="toolbar-left">
-            <button type="button" className="toolbar-chip"><List size={14}/> Bảng</button>
-            <button type="button" className="toolbar-chip is-active"><BarChart2 size={14}/> Bảng điều khiển</button>
-            <button type="button" className="toolbar-chip"><FileText size={14}/> Danh sách</button>
-            <div className="toolbar-sep"></div>
+            {/* removed view mode buttons */}
+            {/* removed dashboard chip */}
           </div>
           <div className="toolbar-right">
             <div className="toolbar-search">
@@ -520,9 +524,7 @@ export default function ServiceTemplateManagement() {
               <span className="search-underline"></span>
             </div>
             <div className="toolbar-actions" style={{marginLeft:'auto'}}>
-              <button type="button" className="toolbar-btn"><EyeOff size={14}/> Ẩn</button>
-              <button type="button" className="toolbar-btn"><SlidersHorizontal size={14}/> Tuỳ chỉnh</button>
-              <button type="button" className="toolbar-btn"><Download size={14}/> Xuất</button>
+              {/* removed hide/customize/export buttons */}
               <button type="button" className="accent-button" onClick={() => setShowCreateModal(true)}><Plus size={16}/> Thêm mẫu checklist</button>
             </div>
           </div>
@@ -613,210 +615,33 @@ export default function ServiceTemplateManagement() {
                   const isLoading = loadingItems[templateId]
 
                   return (
-                    <React.Fragment key={templateId}>
-                      <tr
-                        onClick={() => handleToggleRow(template)}
-                        style={{ cursor: 'pointer' }}
-                        className="service-template-management__row"
-                      >
-                        <td className="service-template-management__table td">
-                          <div className="service-template-management__template-info" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {isExpanded ? (
-                              <ChevronUp size={16} style={{ color: '#6b7280' }} />
-                            ) : (
-                              <ChevronDown size={16} style={{ color: '#6b7280' }} />
-                            )}
-                            <span className="service-template-management__template-name" style={{ fontWeight: 400 }}>
-                              {template.templateName}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="service-template-management__table td service-template-management__table td--secondary">
-                          <div className="service-template-management__template-description">
-                            {template.description || 'Không có mô tả'}
-                          </div>
-                        </td>
-                        <td className="service-template-management__table td service-template-management__table td--center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleToggleActive(template)
-                            }}
-                            disabled={activating === templateId}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: activating === templateId ? 'wait' : 'pointer',
-                              padding: 0
-                            }}
-                          >
-                            <div className={`status-badge ${template.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
-                              <span className="dot" /> {template.isActive ? 'Hoạt động' : 'Không hoạt động'}
-                            </div>
-                          </button>
-                        </td>
-                        <td className="service-template-management__table td service-template-management__table td--secondary">
-                          {formatDate(template.createdAt)}
-                        </td>
-                        <td className="service-template-management__table td">
-                          <div className="service-template-management__actions" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => handleEdit(template)}
-                              className="service-template-management__action-button"
-                              title="Sửa mẫu"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleToggleActive(template)
-                              }}
-                              className="service-template-management__action-button"
-                              title={template.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
-                              disabled={activating === templateId}
-                            >
-                              <Power size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDelete(template)
-                              }}
-                              className="service-template-management__action-button"
-                              title="Xóa mẫu"
-                              disabled={deleting}
-                              style={{ color: '#ef4444' }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={5} style={{ padding: '0', backgroundColor: '#f9fafb' }}>
-                            <div style={{ padding: '20px' }}>
-                              {isLoading ? (
-                                <div style={{ textAlign: 'center', padding: '20px' }}>
-                                  <p>Đang tải danh sách phụ tùng...</p>
-                                </div>
-                              ) : items && items.items.length > 0 ? (
-                                <div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                    <h4 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>
-                                      Danh sách phụ tùng ({items.items.length})
-                                    </h4>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                      {selectedPartIds[templateId] && selectedPartIds[templateId].size > 0 && (
-                                        <>
-                                          <button
-                                            onClick={() => {
-                                              const partIds = Array.from(selectedPartIds[templateId])
-                                              handleRemovePartsBatch(templateId, partIds)
-                                            }}
-                                            disabled={removingParts[templateId]}
-                                            style={{
-                                              padding: '6px 12px',
-                                              fontSize: '13px',
-                                              background: '#ef4444',
-                                              color: '#fff',
-                                              border: 'none',
-                                              borderRadius: '6px',
-                                              cursor: removingParts[templateId] ? 'wait' : 'pointer',
-                                              opacity: removingParts[templateId] ? 0.6 : 1
-                                            }}
-                                          >
-                                            {removingParts[templateId] ? 'Đang xóa...' : `Xóa đã chọn (${selectedPartIds[templateId].size})`}
-                                          </button>
-                                          <button
-                                            onClick={() => handleClearPartSelection(templateId)}
-                                            style={{
-                                              padding: '6px 12px',
-                                              fontSize: '13px',
-                                              background: '#e5e7eb',
-                                              color: '#1a1a1a',
-                                              border: 'none',
-                                              borderRadius: '6px',
-                                              cursor: 'pointer'
-                                            }}
-                                          >
-                                            Bỏ chọn
-                                          </button>
-                                        </>
-                                      )}
-                                      <button
-                                        onClick={() => handleToggleAddRow(templateId)}
-                                        style={{
-                                          padding: '6px 12px',
-                                          fontSize: '13px',
-                                          background: showAddRowForTemplate === templateId ? '#ef4444' : '#fde68a',
-                                          color: '#1a1a1a',
-                                          border: 'none',
-                                          borderRadius: '6px',
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '4px'
-                                        }}
-                                      >
-                                        <Plus size={14} /> {showAddRowForTemplate === templateId ? 'Đóng' : 'Thêm phụ tùng'}
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                      <thead style={{ background: '#f9fafb' }}>
-                                        <tr>
-                                          <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb', width: '40px' }}>
-                                            <input
-                                              type="checkbox"
-                                              checked={selectedPartIds[templateId]?.size === items.items.length && items.items.length > 0}
-                                              onChange={(e) => {
-                                                if (e.target.checked) {
-                                                  handleSelectAllParts(templateId)
-                                                } else {
-                                                  handleClearPartSelection(templateId)
-                                                }
-                                              }}
-                                              style={{ cursor: 'pointer' }}
-                                            />
-                                          </th>
-                                          <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
-                                          <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Mã số</th>
-                                          <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Thương hiệu</th>
-                                          <th style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Giá</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {items.items.map((item, index) => (
-                                          <tr key={item.itemId} style={{ borderBottom: index < items.items.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
-                                            <td style={{ padding: '12px' }}>
-                                              <input
-                                                type="checkbox"
-                                                checked={selectedPartIds[templateId]?.has(item.partId) || false}
-                                                onChange={() => handleTogglePartSelection(templateId, item.partId)}
-                                                style={{ cursor: 'pointer' }}
-                                              />
-                                            </td>
-                                            <td style={{ padding: '12px', fontSize: '14px' }}>{item.partName || 'N/A'}</td>
-                                            <td style={{ padding: '12px', fontSize: '14px' }}>{item.partNumber || 'N/A'}</td>
-                                            <td style={{ padding: '12px', fontSize: '14px' }}>{item.brand || 'N/A'}</td>
-                                            <td style={{ padding: '12px', fontSize: '14px', textAlign: 'right' }}>
-                                              {item.price ? `${item.price.toLocaleString('vi-VN')} VND` : 'N/A'}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                        {/* Inline Add Row */}
-                                        {showAddRowForTemplate === templateId && (
-                                          <InlineAddPartsRow
+                    <TemplateRow
+                      key={templateId}
+                      template={template}
                                             templateId={templateId}
-                                            availableParts={availablePartsForTemplate[templateId] || []}
-                                            loading={loadingParts[templateId] || false}
-                                            adding={addingRowTemplateId === templateId}
-                                            searchTerm={searchPartsTerm[templateId] || ''}
+                      isExpanded={isExpanded}
+                      items={items}
+                      isLoading={isLoading}
+                      activating={activating}
+                      deleting={deleting}
+                      selectedPartIds={selectedPartIds[templateId] || new Set()}
+                      removingParts={removingParts[templateId] || false}
+                      showAddRowForTemplate={showAddRowForTemplate}
+                      availablePartsForTemplate={availablePartsForTemplate[templateId] || []}
+                      loadingParts={loadingParts[templateId] || false}
+                      addingRowTemplateId={addingRowTemplateId}
+                      searchPartsTerm={searchPartsTerm[templateId] || ''}
+                      selectedPartsForRow={selectedPartsForRow[templateId] || new Set()}
+                      onToggleRow={() => handleToggleRow(template)}
+                      onEdit={() => handleEdit(template)}
+                      onDelete={() => handleDelete(template)}
+                      onToggleActive={() => handleToggleActive(template)}
+                      onRemoveParts={(partIds) => handleRemovePartsBatch(templateId, partIds)}
+                      onClearSelection={() => handleClearPartSelection(templateId)}
+                      onToggleAddRow={() => handleToggleAddRow(templateId)}
+                      onTogglePartSelection={(partId) => handleTogglePartSelection(templateId, partId)}
+                      onSelectAllParts={() => handleSelectAllParts(templateId)}
                                             onSearchChange={(term) => setSearchPartsTerm(prev => ({ ...prev, [templateId]: term }))}
-                                            selectedParts={selectedPartsForRow[templateId] || new Set()}
                                             onTogglePart={(partId) => {
                                               setSelectedPartsForRow(prev => {
                                                 const current = prev[templateId] || new Set()
@@ -832,11 +657,11 @@ export default function ServiceTemplateManagement() {
                                             onSelectAll={() => {
                                               const filteredParts = (availablePartsForTemplate[templateId] || []).filter(part =>
                                                 (searchPartsTerm[templateId] || '').trim() === '' ||
-                                                part.partName.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
-                                                part.partNumber.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
-                                                part.brand.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase())
-                                              )
-                                              const allPartIds = new Set(filteredParts.map(p => p.partId))
+                          part.partName?.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
+                          part.partNumber?.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
+                          part.brand?.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase())
+                        )
+                        const allPartIds = new Set((filteredParts || []).map(p => p.partId))
                                               setSelectedPartsForRow(prev => ({ ...prev, [templateId]: allPartIds }))
                                             }}
                                             onAdd={(partIds) => handleAddPartsBatchInline(templateId, partIds)}
@@ -847,105 +672,10 @@ export default function ServiceTemplateManagement() {
                                                 updated.add(partId)
                                                 return { ...prev, [templateId]: updated }
                                               })
-                                              // Auto-add single part on drop
                                               handleAddPartsBatchInline(templateId, [partId])
                                             }}
-                                          />
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div>
-                                  <div style={{ textAlign: 'center', padding: '20px' }}>
-                                    <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '16px' }}>
-                                      Chưa có phụ tùng nào trong mẫu này
-                                    </p>
-                                    <button
-                                      onClick={() => handleToggleAddRow(templateId)}
-                                      style={{
-                                        padding: '8px 16px',
-                                        fontSize: '13px',
-                                        background: '#fde68a',
-                                        color: '#1a1a1a',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}
-                                    >
-                                      <Plus size={14} /> Thêm phụ tùng
-                                    </button>
-                                  </div>
-                                  {showAddRowForTemplate === templateId && (
-                                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead style={{ background: '#f9fafb' }}>
-                                          <tr>
-                                            <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb', width: '40px' }}></th>
-                                            <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
-                                            <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Mã số</th>
-                                            <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Thương hiệu</th>
-                                            <th style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Giá</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          <InlineAddPartsRow
-                                            templateId={templateId}
-                                            availableParts={availablePartsForTemplate[templateId] || []}
-                                            loading={loadingParts[templateId] || false}
-                                            adding={addingRowTemplateId === templateId}
-                                            searchTerm={searchPartsTerm[templateId] || ''}
-                                            onSearchChange={(term) => setSearchPartsTerm(prev => ({ ...prev, [templateId]: term }))}
-                                            selectedParts={selectedPartsForRow[templateId] || new Set()}
-                                            onTogglePart={(partId) => {
-                                              setSelectedPartsForRow(prev => {
-                                                const current = prev[templateId] || new Set()
-                                                const updated = new Set(current)
-                                                if (updated.has(partId)) {
-                                                  updated.delete(partId)
-                                                } else {
-                                                  updated.add(partId)
-                                                }
-                                                return { ...prev, [templateId]: updated }
-                                              })
-                                            }}
-                                            onSelectAll={() => {
-                                              const filteredParts = (availablePartsForTemplate[templateId] || []).filter(part =>
-                                                (searchPartsTerm[templateId] || '').trim() === '' ||
-                                                part.partName.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
-                                                part.partNumber.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase()) ||
-                                                part.brand.toLowerCase().includes((searchPartsTerm[templateId] || '').toLowerCase())
-                                              )
-                                              const allPartIds = new Set(filteredParts.map(p => p.partId))
-                                              setSelectedPartsForRow(prev => ({ ...prev, [templateId]: allPartIds }))
-                                            }}
-                                            onAdd={(partIds) => handleAddPartsBatchInline(templateId, partIds)}
-                                            onDropPart={(partId) => {
-                                              setSelectedPartsForRow(prev => {
-                                                const current = prev[templateId] || new Set()
-                                                const updated = new Set(current)
-                                                updated.add(partId)
-                                                return { ...prev, [templateId]: updated }
-                                              })
-                                              // Auto-add single part on drop
-                                              handleAddPartsBatchInline(templateId, [partId])
-                                            }}
-                                          />
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                      formatDate={formatDate}
+                    />
                   )
                 })}
               </tbody>
@@ -1078,805 +808,35 @@ export default function ServiceTemplateManagement() {
           onSearchChange={(term) => setSearchPartsTerm(prev => ({ ...prev, [currentTemplateId]: term }))}
         />
       )}
-    </div>
-  )
-}
 
-// Inline Add Parts Row Component
-interface InlineAddPartsRowProps {
-  templateId: number
-  availableParts: Part[]
-  loading: boolean
-  adding: boolean
-  searchTerm: string
-  onSearchChange: (term: string) => void
-  selectedParts: Set<number>
-  onTogglePart: (partId: number) => void
-  onSelectAll: () => void
-  onAdd: (partIds: number[]) => void
-  onDropPart: (partId: number) => void
-}
-
-const InlineAddPartsRow: React.FC<InlineAddPartsRowProps> = ({
-  availableParts,
-  loading,
-  adding,
-  searchTerm,
-  onSearchChange,
-  selectedParts,
-  onTogglePart,
-  onSelectAll,
-  onAdd,
-  onDropPart
-}) => {
-  const [showDropdown, setShowDropdown] = useState(false)
-  const dropdownContainerRef = useRef<HTMLDivElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const dropZoneRef = useRef<HTMLTableCellElement>(null)
-  const [draggedPartId, setDraggedPartId] = useState<number | null>(null)
-  const [isDraggingOver, setIsDraggingOver] = useState(false)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
-
-
-  useEffect(() => {
-    if (!showDropdown) return
-
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node
-
-      // Don't close if clicking inside dropdown
-      if (dropdownRef.current && dropdownRef.current.contains(target)) {
-        return
-      }
-
-      // Don't close if clicking button
-      if (buttonRef.current && buttonRef.current.contains(target)) {
-        return
-      }
-
-      // Don't close if clicking container
-      if (dropdownContainerRef.current && dropdownContainerRef.current.contains(target)) {
-        return
-      }
-
-      setShowDropdown(false)
-      setDropdownPosition(null)
-    }
-
-    function updateDropdownPosition() {
-      if (buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect()
-        const dropdownWidth = 600
-        const padding = 8
-
-        // Luôn đặt dropdown bên dưới button
-        const top = rect.bottom + padding
-
-        // Căn chỉnh dropdown với cạnh phải của button, mở rộng về bên trái
-        let left = rect.right - dropdownWidth
-
-        // Nếu không đủ chỗ về bên trái, điều chỉnh để không vượt ra ngoài màn hình
-        if (left < padding) {
-          left = padding
-        }
-
-        // Nếu dropdown vẫn quá rộng, đặt sao cho cạnh phải của dropdown align với cạnh phải của button
-        if (rect.right < dropdownWidth) {
-          left = rect.right - dropdownWidth
-          if (left < padding) {
-            left = padding
-          }
-        }
-
-        setDropdownPosition({
-          top: top,
-          left: left
-        })
-      }
-    }
-
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside, true)
-    }, 300)
-
-    // Update position on scroll/resize
-    window.addEventListener('scroll', updateDropdownPosition, true)
-    window.addEventListener('resize', updateDropdownPosition)
-    updateDropdownPosition()
-
-    return () => {
-      clearTimeout(timeoutId)
-      document.removeEventListener('click', handleClickOutside, true)
-      window.removeEventListener('scroll', updateDropdownPosition, true)
-      window.removeEventListener('resize', updateDropdownPosition)
-    }
-  }, [showDropdown])
-
-  const filteredParts = availableParts.filter(part =>
-    searchTerm.trim() === '' ||
-    part.partName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    part.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    part.brand.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const handleDragStart = (e: React.DragEvent, partId: number) => {
-    setDraggedPartId(partId)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', partId.toString())
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.cursor = 'grabbing'
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setIsDraggingOver(true)
-  }
-
-  const handleDragLeave = () => {
-    setIsDraggingOver(false)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDraggingOver(false)
-
-    const partId = parseInt(e.dataTransfer.getData('text/plain'))
-    if (partId && draggedPartId === partId) {
-      onDropPart(partId)
-      setDraggedPartId(null)
-    }
-  }
-
-  const handleDragEnd = () => {
-    setDraggedPartId(null)
-  }
-
-  const handleSelectAllClick = () => {
-    onSelectAll()
-    // Auto-add after select all
-    const allPartIds = new Set(filteredParts.map(p => p.partId))
-    if (allPartIds.size > 0) {
-      setTimeout(() => {
-        onAdd(Array.from(allPartIds))
-      }, 300)
-    }
-  }
-
-  const handleTogglePartWithAutoAdd = (partId: number) => {
-    const isCurrentlySelected = selectedParts.has(partId)
-    onTogglePart(partId)
-
-    // Auto-add single part immediately when selected (not when unselected)
-    if (!isCurrentlySelected) {
-      // Part is being selected, auto-add it after a small delay
-      setTimeout(() => {
-        onAdd([partId])
-      }, 150)
-    }
-  }
-
-  const handleAddClick = () => {
-    if (selectedParts.size > 0) {
-      onAdd(Array.from(selectedParts))
-    } else {
-      toast.error('Vui lòng chọn ít nhất một phụ tùng')
-    }
-  }
-
-  return (
-    <tr style={{
-      backgroundColor: isDraggingOver ? '#fef3c7' : adding ? '#f3f4f6' : '#fef9e7',
-      borderBottom: '2px dashed #fde68a'
-    }}>
-      <td style={{ padding: '12px', textAlign: 'center' }}>
-        {adding ? (
-          <div style={{ fontSize: '12px', color: '#6b7280' }}>Đang thêm...</div>
-        ) : (
-          <div style={{ fontSize: '12px', color: '#6b7280' }}>⬇️</div>
-        )}
-      </td>
-      <td colSpan={3}
-        ref={dropZoneRef}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        style={{
-          padding: '12px',
-          textAlign: 'center',
-          color: isDraggingOver ? '#92400e' : '#6b7280',
-          fontSize: '14px',
-          border: isDraggingOver ? '2px dashed #fde68a' : 'none',
-          borderRadius: '4px'
+      {/* Delete Template Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        message={selectedTemplate ? `Bạn có chắc chắn muốn xóa template "${selectedTemplate.templateName}"? Hành động này không thể hoàn tác.` : ''}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={confirmDeleteTemplate}
+        onCancel={() => {
+          setShowDeleteModal(false)
+          setSelectedTemplate(null)
         }}
-      >
-        {isDraggingOver ? 'Thả phụ tùng vào đây' : 'Kéo thả phụ tùng vào đây hoặc chọn từ dropdown'}
-      </td>
-      <td style={{ padding: '12px', position: 'relative', overflow: 'visible' }}>
-        <div ref={dropdownContainerRef} style={{ position: 'relative', zIndex: 1001 }}>
-          <button
-            ref={buttonRef}
-            type="button"
-            onMouseDown={(e) => {
-              e.stopPropagation()
-            }}
-            onClick={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
+        type="delete"
+      />
 
-              if (e.nativeEvent) {
-                e.nativeEvent.stopImmediatePropagation()
-              }
-
-              if (!showDropdown) {
-                if (buttonRef.current) {
-                  const rect = buttonRef.current.getBoundingClientRect()
-                  const dropdownWidth = 600
-                  const padding = 8
-
-                  // Luôn đặt dropdown bên dưới button (tính từ cạnh trên của màn hình)
-                  const top = rect.bottom + padding
-
-                  // Căn chỉnh dropdown với cạnh phải của button, mở rộng về bên trái
-                  // Bắt đầu từ cạnh phải của button
-                  let left = rect.right - dropdownWidth
-
-                  // Nếu không đủ chỗ về bên trái, điều chỉnh để không vượt ra ngoài màn hình
-                  if (left < padding) {
-                    left = padding
-                  }
-
-                  // Nếu dropdown vẫn quá rộng, đặt sao cho cạnh phải của dropdown align với cạnh phải của button
-                  if (rect.right < dropdownWidth) {
-                    left = rect.right - dropdownWidth
-                    if (left < padding) {
-                      left = padding
-                    }
-                  }
-
-                  const newPosition = {
-                    top: top,
-                    left: left
-                  }
-
-                  setDropdownPosition(newPosition)
-                  setTimeout(() => {
-                    setShowDropdown(true)
-                  }, 10)
-                }
-              } else {
-                setShowDropdown(false)
-                setDropdownPosition(null)
-              }
-            }}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              fontSize: '13px',
-              background: '#fde68a',
-              color: '#1a1a1a',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px'
-            }}
-          >
-            <Settings size={14} />
-            Chọn phụ tùng
-            <ChevronDown size={14} />
-          </button>
-
-          {showDropdown && dropdownPosition && typeof document !== 'undefined' && createPortal(
-            <div
-              ref={(el) => {
-                dropdownRef.current = el
-              }}
-              className="inline-parts-dropdown"
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                position: 'fixed',
-                left: `${dropdownPosition.left}px`,
-                top: `${dropdownPosition.top}px`,
-                width: '600px',
-                maxHeight: '500px',
-                backgroundColor: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '12px',
-                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.15)',
-                zIndex: 10050,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden'
-              }}>
-              <div style={{ padding: '16px', background: 'linear-gradient(135deg, #fde68a 0%, #fef3c7 100%)', borderBottom: '1px solid #e5e7eb' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1a1a1a' }}>Chọn phụ tùng</h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setShowDropdown(false)
-                      setDropdownPosition(null)
-                    }}
-                    style={{
-                      background: 'rgba(0, 0, 0, 0.1)',
-                      border: 'none',
-                      borderRadius: '6px',
-                      width: '28px',
-                      height: '28px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      color: '#1a1a1a'
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+      {/* Delete Parts Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeletePartsModal}
+        message={`Bạn có chắc chắn muốn xóa ${partsToDelete.length} phụ tùng? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={confirmDeleteParts}
+        onCancel={() => {
+          setShowDeletePartsModal(false)
+          setTemplateIdForDeleteParts(null)
+          setPartsToDelete([])
+        }}
+        type="delete"
+      />
               </div>
-              <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Search size={18} style={{ position: 'absolute', left: '14px', color: '#9ca3af', zIndex: 1 }} />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm phụ tùng..."
-                    value={searchTerm}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 42px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      background: '#fff',
-                      transition: 'all 0.2s',
-                      outline: 'none'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#fde68a'
-                      e.target.style.boxShadow = '0 0 0 3px rgba(253, 230, 138, 0.2)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#d1d5db'
-                      e.target.style.boxShadow = 'none'
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-              </div>
-
-              <div style={{
-                padding: '12px 16px',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                background: '#fff'
-              }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleSelectAllClick()
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    background: '#f3f4f6',
-                    color: '#374151',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#e5e7eb'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f3f4f6'
-                  }}
-                >
-                  Chọn hết ({filteredParts.length})
-                </button>
-                <span style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  fontWeight: '500',
-                  flex: 1,
-                  textAlign: 'right'
-                }}>
-                  Đã chọn: <strong style={{ color: '#fde68a' }}>{selectedParts.size}</strong>
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleAddClick()
-                  }}
-                  disabled={adding || selectedParts.size === 0}
-                  style={{
-                    padding: '8px 20px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    background: '#fde68a',
-                    color: '#1a1a1a',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: (adding || selectedParts.size === 0) ? 'not-allowed' : 'pointer',
-                    opacity: (adding || selectedParts.size === 0) ? 0.5 : 1,
-                    transition: 'all 0.2s',
-                    boxShadow: (adding || selectedParts.size === 0) ? 'none' : '0 2px 4px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!adding && selectedParts.size > 0) {
-                      e.currentTarget.style.background = '#fef3c7'
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!adding && selectedParts.size > 0) {
-                      e.currentTarget.style.background = '#fde68a'
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }
-                  }}
-                >
-                  {adding ? 'Đang thêm...' : 'Thêm'}
-                </button>
-              </div>
-
-              <div style={{ flex: 1, overflow: 'auto', maxHeight: '320px', background: '#fff' }}>
-                {loading ? (
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
-                    <p style={{ fontSize: '13px', color: '#6b7280' }}>Đang tải...</p>
-                  </div>
-                ) : filteredParts.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
-                    <p style={{ fontSize: '13px', color: '#6b7280' }}>Không tìm thấy phụ tùng nào</p>
-                  </div>
-                ) : (
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    fontSize: '13px'
-                  }}>
-                    <thead style={{
-                      background: '#f9fafb',
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 10,
-                      borderBottom: '2px solid #e5e7eb'
-                    }}>
-                      <tr>
-                        <th style={{
-                          padding: '12px',
-                          textAlign: 'left',
-                          width: '40px',
-                          fontWeight: '600',
-                          color: '#374151'
-                        }}></th>
-                        <th style={{
-                          padding: '12px',
-                          textAlign: 'left',
-                          fontWeight: '600',
-                          color: '#374151'
-                        }}>Tên</th>
-                        <th style={{
-                          padding: '12px',
-                          textAlign: 'left',
-                          fontWeight: '600',
-                          color: '#374151'
-                        }}>Mã số</th>
-                        <th style={{
-                          padding: '12px',
-                          textAlign: 'left',
-                          fontWeight: '600',
-                          color: '#374151'
-                        }}>Thương hiệu</th>
-                        <th style={{
-                          padding: '12px',
-                          textAlign: 'right',
-                          fontWeight: '600',
-                          color: '#374151'
-                        }}>Giá</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredParts.map((part, index) => (
-                        <tr
-                          key={part.partId}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, part.partId)}
-                          onDragEnd={handleDragEnd}
-                          style={{
-                            cursor: draggedPartId === part.partId ? 'grabbing' : 'grab',
-                            borderBottom: '1px solid #f3f4f6',
-                            backgroundColor: selectedParts.has(part.partId) ? '#fef3c7' : 'transparent',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!selectedParts.has(part.partId)) {
-                              e.currentTarget.style.backgroundColor = '#f9fafb'
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!selectedParts.has(part.partId)) {
-                              e.currentTarget.style.backgroundColor = 'transparent'
-                            }
-                          }}
-                        >
-                          <td style={{ padding: '12px' }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedParts.has(part.partId)}
-                              onChange={() => handleTogglePartWithAutoAdd(part.partId)}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                cursor: 'pointer',
-                                width: '18px',
-                                height: '18px',
-                                accentColor: '#fde68a'
-                              }}
-                            />
-                          </td>
-                          <td style={{ padding: '12px', fontWeight: '500', color: '#1f2937' }}>
-                            {part.partName}
-                          </td>
-                          <td style={{ padding: '12px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px' }}>
-                            {part.partNumber}
-                          </td>
-                          <td style={{ padding: '12px', color: '#6b7280' }}>
-                            {part.brand}
-                          </td>
-                          <td style={{
-                            padding: '12px',
-                            textAlign: 'right',
-                            fontWeight: '600',
-                            color: '#059669'
-                          }}>
-                            {part.unitPrice ? `${part.unitPrice.toLocaleString('vi-VN')} VND` : 'N/A'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>,
-            document.body
-          )}
-        </div>
-      </td>
-    </tr>
   )
 }
-
-// Add Parts Modal Component
-interface AddPartsModalProps {
-  open: boolean
-  onClose: () => void
-  onAdd: (partIds: number[]) => void
-  availableParts: Part[]
-  loading: boolean
-  adding: boolean
-  searchTerm: string
-  onSearchChange: (term: string) => void
-}
-
-const AddPartsModal: React.FC<AddPartsModalProps> = ({
-  open,
-  onClose,
-  onAdd,
-  availableParts,
-  loading,
-  adding,
-  searchTerm,
-  onSearchChange
-}) => {
-  const [selectedParts, setSelectedParts] = useState<Set<number>>(new Set())
-
-  useEffect(() => {
-    if (open) {
-      setSelectedParts(new Set())
-    }
-  }, [open])
-
-  const filteredParts = availableParts.filter(part =>
-    part.partName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    part.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    part.brand.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const handleTogglePart = (partId: number) => {
-    setSelectedParts(prev => {
-      const updated = new Set(prev)
-      if (updated.has(partId)) {
-        updated.delete(partId)
-      } else {
-        updated.add(partId)
-      }
-      return updated
-    })
-  }
-
-  const handleSelectAll = () => {
-    if (selectedParts.size === filteredParts.length) {
-      setSelectedParts(new Set())
-    } else {
-      setSelectedParts(new Set(filteredParts.map(p => p.partId)))
-    }
-  }
-
-  const handleSubmit = () => {
-    if (selectedParts.size === 0) {
-      toast.error('Vui lòng chọn ít nhất một phụ tùng')
-      return
-    }
-    onAdd(Array.from(selectedParts))
-  }
-
-  if (!open) return null
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }} onClick={onClose}>
-      <div style={{
-        backgroundColor: '#fff',
-        borderRadius: '12px',
-        padding: '24px',
-        width: '90%',
-        maxWidth: '800px',
-        maxHeight: '90vh',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-      }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>
-            Chọn phụ tùng để thêm
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm phụ tùng..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px 10px 36px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '14px'
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ flex: 1, overflow: 'auto', marginBottom: '16px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <p>Đang tải danh sách phụ tùng...</p>
-            </div>
-          ) : filteredParts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <p style={{ color: '#6b7280' }}>Không tìm thấy phụ tùng nào</p>
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ background: '#f9fafb', position: 'sticky', top: 0 }}>
-                <tr>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb', width: '40px' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedParts.size === filteredParts.length && filteredParts.length > 0}
-                      onChange={handleSelectAll}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Tên phụ tùng</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Mã số</th>
-                  <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Thương hiệu</th>
-                  <th style={{ padding: '12px', textAlign: 'right', fontSize: '14px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Giá</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredParts.map((part, index) => (
-                  <tr key={part.partId} style={{ borderBottom: index < filteredParts.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
-                    <td style={{ padding: '12px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedParts.has(part.partId)}
-                        onChange={() => handleTogglePart(part.partId)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </td>
-                    <td style={{ padding: '12px', fontSize: '14px' }}>{part.partName}</td>
-                    <td style={{ padding: '12px', fontSize: '14px' }}>{part.partNumber}</td>
-                    <td style={{ padding: '12px', fontSize: '14px' }}>{part.brand}</td>
-                    <td style={{ padding: '12px', fontSize: '14px', textAlign: 'right' }}>
-                      {part.unitPrice ? `${part.unitPrice.toLocaleString('vi-VN')} VND` : 'N/A'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
-          <span style={{ fontSize: '14px', color: '#6b7280' }}>
-            Đã chọn: {selectedParts.size} phụ tùng
-          </span>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={onClose}
-              disabled={adding}
-              style={{
-                padding: '10px 20px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                background: '#fff',
-                cursor: adding ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                opacity: adding ? 0.6 : 1
-              }}
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={adding || selectedParts.size === 0}
-              style={{
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: '8px',
-                background: '#fde68a',
-                color: '#1a1a1a',
-                cursor: (adding || selectedParts.size === 0) ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                opacity: (adding || selectedParts.size === 0) ? 0.6 : 1
-              }}
-            >
-              {adding ? 'Đang thêm...' : `Thêm ${selectedParts.size} phụ tùng`}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-

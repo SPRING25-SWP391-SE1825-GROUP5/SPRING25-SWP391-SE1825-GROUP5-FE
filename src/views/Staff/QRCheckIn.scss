@@ -1,0 +1,485 @@
+.qr-checkin-page {
+  padding: 0;
+  min-height: 100%;
+}
+
+.qr-checkin-header {
+  background: white;
+  border-bottom: none;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.qr-checkin-header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  svg {
+    color: var(--primary-500);
+    flex-shrink: 0;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  p {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 300;
+  }
+}
+
+.qr-checkin-content {
+  padding: 0 24px 24px;
+}
+
+.qr-checkin-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  align-items: start;
+}
+
+.qr-left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.qr-camera-card,
+.qr-manual-card {
+  background: white;
+  border: none;
+  border-radius: 0;
+  padding: 24px;
+  box-shadow: none;
+
+  h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.qr-manual-card {
+  padding: 16px;
+
+  h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+  }
+}
+
+.qr-camera-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+  background: #1a1a1a;
+  border-radius: 0;
+  overflow: hidden;
+
+  #qr-video {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+    display: block !important;
+    background: #1a1a1a;
+  }
+}
+
+.qr-camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #888;
+  background: #1a1a1a;
+
+  svg {
+    animation: pulse 2s ease-in-out infinite;
+    opacity: 0.5;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 300;
+    color: #aaa;
+  }
+}
+
+.qr-toggle-camera-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--primary-500);
+  color: white;
+  border: none;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--primary-600);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.qr-scan-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.qr-corner {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-color: var(--primary-500);
+
+  &.qr-tl {
+    top: 20%;
+    left: 20%;
+    border-top: 4px solid;
+    border-left: 4px solid;
+    border-top-left-radius: 0;
+  }
+
+  &.qr-tr {
+    top: 20%;
+    right: 20%;
+    border-top: 4px solid;
+    border-right: 4px solid;
+    border-top-right-radius: 0;
+  }
+
+  &.qr-bl {
+    bottom: 20%;
+    left: 20%;
+    border-bottom: 4px solid;
+    border-left: 4px solid;
+    border-bottom-left-radius: 0;
+  }
+
+  &.qr-br {
+    bottom: 20%;
+    right: 20%;
+    border-bottom: 4px solid;
+    border-right: 4px solid;
+    border-bottom-right-radius: 0;
+  }
+}
+
+.qr-scan-text {
+  position: absolute;
+  bottom: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 14px;
+  font-weight: 300;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 16px;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
+.qr-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 0;
+  margin-bottom: 12px;
+  font-size: 12px;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    width: 16px;
+    height: 16px;
+  }
+
+  p {
+    margin: 0;
+    font-weight: 500;
+    font-size: 12px;
+  }
+
+  small {
+    display: block;
+    margin-top: 2px;
+    opacity: 0.8;
+    font-size: 11px;
+  }
+}
+
+.qr-error {
+  background: #fee;
+  color: #c33;
+  border: none;
+}
+
+.qr-success {
+  background: #efe;
+  color: #373;
+  border: none;
+}
+
+.qr-input-group {
+  margin-bottom: 0;
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  input {
+    width: 70%;
+    padding: 8px 12px;
+    border: none;
+    background: #f5f5f5;
+    border-radius: 0;
+    font-size: 13px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+
+    &:focus {
+      outline: none;
+      background: #e5e7eb;
+      box-shadow: none;
+    }
+
+    &:disabled {
+      background: #f5f5f5;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &::placeholder {
+      color: #aaa;
+    }
+  }
+}
+
+.qr-submit-btn {
+  width: 70%;
+  padding: 8px 16px;
+  background: var(--primary-500);
+  color: white;
+  border: none;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-600);
+    transform: translateY(-1px);
+    box-shadow: none;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.qr-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.qr-checkedin-list {
+  background: white;
+  border: none;
+  border-radius: 0;
+  padding: 24px;
+  box-shadow: none;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+
+  h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.qr-list-loading,
+.qr-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 12px;
+  color: var(--text-secondary);
+
+  svg {
+    opacity: 0.5;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+.qr-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qr-booking-item {
+  border: none;
+  border-radius: 0;
+  padding: 12px;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: none;
+    background: #f3f4f6;
+  }
+}
+
+.qr-booking-id {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-500);
+  margin-bottom: 8px;
+}
+
+.qr-booking-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.qr-booking-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  svg {
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.qr-booking-service {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.qr-booking-status {
+  display: inline-block;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 0;
+  background: var(--primary-50);
+  color: var(--primary-600);
+  font-weight: 500;
+}
+
+// Responsive
+@media (max-width: 1024px) {
+  .qr-checkin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-checkedin-list {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 640px) {
+  .qr-checkin-header {
+    padding: 20px;
+  }
+
+  .qr-checkin-content {
+    padding: 0 20px 20px;
+  }
+
+  .qr-camera-card,
+  .qr-manual-card {
+    padding: 20px;
+  }
+
+  .qr-checkin-header-content h1 {
+    font-size: 18px;
+  }
+
+  .qr-checkin-header-content p {
+    font-size: 13px;
+  }
+}
