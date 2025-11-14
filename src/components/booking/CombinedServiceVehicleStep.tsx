@@ -88,7 +88,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [modelImages, setModelImages] = useState<Record<number, string>>({})
   // Map vehicleId -> modelId (dùng khi API danh sách xe không có modelId)
   const [vehicleModelMap, setVehicleModelMap] = useState<Record<number, number>>({})
-  
+
   // Category states
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
@@ -112,7 +112,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     if (!vehicles || vehicles.length === 0) return
     setVehicleIndex((prev) => (prev + 1) % vehicles.length)
   }
-  
+
   // Recommendation states
   const [recommendedServices, setRecommendedServices] = useState<ServiceChecklistTemplate[]>([])
   const [recommendationLoading, setRecommendationLoading] = useState(false)
@@ -124,22 +124,22 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   const [loadingDetailService, setLoadingDetailService] = useState(false)
   // Ràng buộc nhập liệu cho Km gần đây
   const [recentMileageError, setRecentMileageError] = useState<string | null>(null)
-  
+
   // Get selected category name
   const selectedCategory = categories.find(c => c.categoryId === selectedCategoryId)
-  
+
   // Check if user has selected an existing vehicle (read-only mode)
   const isVehicleSelected = !!selectedVehicleId
-  
+
   // Hàm tính điểm phù hợp cho dịch vụ
   const calculateServiceScore = useCallback((template: ServiceChecklistTemplate, currentKm: number, daysSinceMaintenance: number): number => {
     let score = 0
-    
+
     // Điểm dựa trên minKm (ưu tiên dịch vụ có minKm gần với currentKm nhất)
     if (template.minKm !== undefined) {
       if (template.minKm <= currentKm) {
         // Dịch vụ phù hợp: minKm <= currentKm
-        
+
         // Ưu tiên dịch vụ có minKm cao hơn khi currentKm cao
         // Ví dụ: với currentKm = 99999, dịch vụ có minKm = 5000 sẽ phù hợp hơn minKm = 0
         if (currentKm > 10000) {
@@ -164,7 +164,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         score -= 5000 // Trừ điểm lớn để đẩy xuống cuối
       }
     }
-    
+
     // Điểm dựa trên maxDate (dịch vụ có maxDate >= daysSinceMaintenance và gần daysSinceMaintenance nhất)
     if (template.maxDate !== undefined) {
       if (template.maxDate >= daysSinceMaintenance) {
@@ -177,26 +177,26 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         score -= 2000 // Trừ điểm để đẩy xuống
       }
     }
-    
+
     // Ưu tiên recommendationRank từ backend nếu có (rank cao hơn = điểm cao hơn)
     if (template.recommendationRank !== undefined) {
       score += (100 - template.recommendationRank) * 10 // Rank 1 = +900 điểm, Rank 2 = +800 điểm, ...
     }
-    
+
     return score
   }, [])
-  
+
   // Sắp xếp lại danh sách đề xuất: dịch vụ được chọn sẽ lên đầu, sau đó sắp xếp theo logic phù hợp
   const sortedRecommendedServices = useMemo(() => {
     if (!recommendedServices.length) return []
-    
+
     // Lấy thông tin km và ngày để tính toán
     const mileageToUse = vehicleData.recentMileage || vehicleData.mileage
     const currentKm = mileageToUse ? parseInt(mileageToUse) : 0
-    const dateToUse = vehicleData.hasMaintenanceHistory 
-      ? vehicleData.lastMaintenanceDate 
+    const dateToUse = vehicleData.hasMaintenanceHistory
+      ? vehicleData.lastMaintenanceDate
       : vehicleData.purchaseDate
-    
+
     // Tính số ngày đã trôi qua từ ngày bảo dưỡng cuối/ngày mua xe
     let daysSinceMaintenance = 0
     if (dateToUse) {
@@ -206,10 +206,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       lastDate.setHours(0, 0, 0, 0)
       daysSinceMaintenance = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
     }
-    
+
     // Tạo bản sao để sắp xếp
     const servicesToSort = [...recommendedServices]
-    
+
     // Sắp xếp theo logic phù hợp:
     // 1. Dịch vụ có minKm <= currentKm và gần currentKm nhất (ưu tiên dịch vụ phù hợp với km hiện tại)
     // 2. Dịch vụ có maxDate >= daysSinceMaintenance và gần daysSinceMaintenance nhất
@@ -218,11 +218,11 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       // Tính điểm phù hợp cho từng dịch vụ
       const scoreA = calculateServiceScore(a, currentKm, daysSinceMaintenance)
       const scoreB = calculateServiceScore(b, currentKm, daysSinceMaintenance)
-      
+
       // Sắp xếp giảm dần theo điểm (điểm cao hơn = phù hợp hơn)
       return scoreB - scoreA
     })
-    
+
     // Nếu có dịch vụ được chọn, đưa lên đầu
     const selectedServiceId = serviceData.services[0] ? Number(serviceData.services[0]) : null
     if (selectedServiceId) {
@@ -230,10 +230,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       const others = servicesToSort.filter(t => t.serviceId !== selectedServiceId)
       return selected ? [selected, ...others] : servicesToSort
     }
-    
+
     return servicesToSort
   }, [recommendedServices, serviceData.services, vehicleData.recentMileage, vehicleData.mileage, vehicleData.hasMaintenanceHistory, vehicleData.lastMaintenanceDate, vehicleData.purchaseDate, calculateServiceScore])
-  
+
   // Validate lại recentMileage khi mileage thay đổi
   useEffect(() => {
     if (isVehicleSelected && vehicleData.recentMileage) {
@@ -255,11 +255,16 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       setCategoriesLoading(true)
       try {
         const cats = await ServiceCategoryService.getActiveCategories()
-        setCategories(cats)
-        
+        // Lọc bỏ category "Sửa chữa"
+        const filteredCats = cats.filter(cat =>
+          !cat.categoryName?.toLowerCase().includes('sửa chữa') &&
+          !cat.categoryName?.toLowerCase().includes('repair')
+        )
+        setCategories(filteredCats)
+
         // Tự động chọn category "bảo dưỡng" làm mặc định
-        if (cats.length > 0) {
-          const maintenanceCategory = cats.find(cat => 
+        if (filteredCats.length > 0) {
+          const maintenanceCategory = filteredCats.find(cat =>
             cat.categoryName?.toLowerCase().includes('bảo dưỡng')
           )
           if (maintenanceCategory) {
@@ -282,9 +287,9 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
     const loadServices = async () => {
       setServicesLoading(true)
       try {
-        const res = await ServiceManagementService.getActiveServices({ 
+        const res = await ServiceManagementService.getActiveServices({
           pageSize: 100,
-          categoryId: selectedCategoryId 
+          categoryId: selectedCategoryId
         })
         setServices(res.services || [])
       } catch (_e) {
@@ -302,14 +307,14 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
       setPackagesLoading(true)
       try {
         const res = await ServiceManagementService.getActiveServicePackages({ pageSize: 100 })
-        
+
         // Filter packages by category
         let filteredPackages = res.packages || []
         if (selectedCategoryId) {
           // Get services for this category
-          const categoryServices = await ServiceManagementService.getActiveServices({ 
+          const categoryServices = await ServiceManagementService.getActiveServices({
             pageSize: 100,
-            categoryId: selectedCategoryId 
+            categoryId: selectedCategoryId
           })
           const serviceIds = categoryServices.services.map(s => s.id)
           filteredPackages = filteredPackages.filter(pkg => {
@@ -452,13 +457,13 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
   // Function to get recommended services
   const getRecommendedServices = async () => {
     // Use lastMaintenanceDate if has maintenance history, otherwise use purchaseDate
-    const dateToUse = vehicleData.hasMaintenanceHistory 
-      ? vehicleData.lastMaintenanceDate 
+    const dateToUse = vehicleData.hasMaintenanceHistory
+      ? vehicleData.lastMaintenanceDate
       : vehicleData.purchaseDate
-    
+
     // Ưu tiên sử dụng recentMileage nếu có, nếu không thì dùng mileage
     const mileageToUse = vehicleData.recentMileage || vehicleData.mileage
-    
+
     if (!mileageToUse || !dateToUse || !selectedCategoryId) {
       return
     }
@@ -475,7 +480,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         lastMaintenanceDate: dateToUse,
         categoryId: selectedCategoryId
       })
-      
+
       setRecommendedServices(response.data)
       setShowRecommendations(true)
     } catch (error) {
@@ -510,13 +515,13 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         return false
       }
     }
-    
+
     // Kiểm tra yêu cầu cho dịch vụ bảo dưỡng
     const isMaintenanceCategory = selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng')
     if (isMaintenanceCategory) {
       // Nếu đã chọn loại dịch vụ bảo dưỡng, phải trả lời câu hỏi và nhập ngày tương ứng
       if (vehicleData.hasMaintenanceHistory === undefined) return false
-      
+
       if (vehicleData.hasMaintenanceHistory) {
         if (!vehicleData.lastMaintenanceDate) return false
         // Kiểm tra ngày bảo dưỡng không được là hôm nay hoặc tương lai
@@ -528,7 +533,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         const todayStr = today.toISOString().split('T')[0]
         if (vehicleData.lastMaintenanceDate >= todayStr) return false
       }
-      
+
       if (!vehicleData.hasMaintenanceHistory) {
         if (!vehicleData.purchaseDate) return false
         // Kiểm tra ngày mua xe không được là tương lai
@@ -536,7 +541,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         if (vehicleData.purchaseDate > todayStr) return false
       }
     }
-    
+
     return (
       (serviceData.services.length > 0 || serviceData.packageId) &&
       !!vehicleData.carModel &&
@@ -704,13 +709,13 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 )}
                 </>
               )}
-              <button 
-                type="button" 
-                className="btn-secondary" 
+              <button
+                type="button"
+                className="btn-secondary"
                 onClick={() => {
                   setOpenCreate(true)
                   setSelectedVehicleId(undefined)
-                }} 
+                }}
                 style={{ marginTop: 8 }}
               >
                 + Tạo xe mới
@@ -738,7 +743,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                   const val = e.target.value.trim()
                   const base = Number(vehicleData.mileage || 0)
                   const num = Number(val)
-                  
+
                   // Kiểm tra validation: không được nhỏ hơn km hiện tại
                   if (val === '') {
                     // Nếu xóa giá trị, clear error và cập nhật
@@ -819,7 +824,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       name="hasMaintenanceHistory"
                       checked={vehicleData.hasMaintenanceHistory === true}
                       onChange={() => {
-                        onUpdateVehicle({ 
+                        onUpdateVehicle({
                           hasMaintenanceHistory: true,
                           purchaseDate: undefined // Clear purchase date when selecting "yes"
                         })
@@ -834,7 +839,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       name="hasMaintenanceHistory"
                       checked={vehicleData.hasMaintenanceHistory === false}
                       onChange={() => {
-                        onUpdateVehicle({ 
+                        onUpdateVehicle({
                           hasMaintenanceHistory: false,
                           lastMaintenanceDate: undefined // Clear maintenance date when selecting "no"
                         })
@@ -1010,10 +1015,10 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               )}
 
               {/* Recommendation Section for Maintenance Category - Only show when vehicle info is complete */}
-              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               (vehicleData.recentMileage || vehicleData.mileage) && 
+              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') &&
+               (vehicleData.recentMileage || vehicleData.mileage) &&
                vehicleData.hasMaintenanceHistory !== undefined &&
-               ((vehicleData.hasMaintenanceHistory && vehicleData.lastMaintenanceDate) || 
+               ((vehicleData.hasMaintenanceHistory && vehicleData.lastMaintenanceDate) ||
                 (!vehicleData.hasMaintenanceHistory && vehicleData.purchaseDate)) && (
                 <div className="recommendation-section">
                   <div className="recommendation-header">
@@ -1023,8 +1028,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       className="btn-recommend"
                       onClick={getRecommendedServices}
                       disabled={
-                        recommendationLoading || 
-                        !(vehicleData.recentMileage || vehicleData.mileage) || 
+                        recommendationLoading ||
+                        !(vehicleData.recentMileage || vehicleData.mileage) ||
                         (vehicleData.hasMaintenanceHistory ? !vehicleData.lastMaintenanceDate : !vehicleData.purchaseDate)
                       }
                     >
@@ -1042,7 +1047,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                       ) : (
                         <div className="recommended-services">
                           <p className="recommendation-message">
-                            Dựa trên số km {vehicleData.recentMileage ? 'gần đây khi mang xe đến' : 'hiện tại'} ({vehicleData.recentMileage || vehicleData.mileage} km) và {vehicleData.hasMaintenanceHistory ? 'ngày bảo dưỡng cuối' : 'ngày mua xe'} ({vehicleData.hasMaintenanceHistory ? vehicleData.lastMaintenanceDate : vehicleData.purchaseDate}), 
+                            Dựa trên số km {vehicleData.recentMileage ? 'gần đây khi mang xe đến' : 'hiện tại'} ({vehicleData.recentMileage || vehicleData.mileage} km) và {vehicleData.hasMaintenanceHistory ? 'ngày bảo dưỡng cuối' : 'ngày mua xe'} ({vehicleData.hasMaintenanceHistory ? vehicleData.lastMaintenanceDate : vehicleData.purchaseDate}),
                             chúng tôi gợi ý các dịch vụ sau:
                           </p>
                           {sortedRecommendedServices.map((template, index) => {
@@ -1059,7 +1064,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                                     <p className="template-name">{template.templateName}</p>
                                   </div>
                                 </div>
-                                
+
                                 {/* Thông tin tóm tắt - luôn hiển thị */}
                                 <div className="recommendation-summary">
                                   {template.minKm && (
@@ -1088,7 +1093,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                                   {template.recommendationReason}
                                 </div>
                               )}
-                                
+
                                 <div className="recommended-service-actions">
                                   <button
                                     type="button"
@@ -1131,8 +1136,8 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
               )}
 
               {/* Show instruction when maintenance category is selected but vehicle info is incomplete */}
-              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') && 
-               (!(vehicleData.recentMileage || vehicleData.mileage) || 
+              {selectedCategory?.categoryName?.toLowerCase().includes('bảo dưỡng') &&
+               (!(vehicleData.recentMileage || vehicleData.mileage) ||
                 vehicleData.hasMaintenanceHistory === undefined ||
                 (vehicleData.hasMaintenanceHistory && !vehicleData.lastMaintenanceDate) ||
                 (!vehicleData.hasMaintenanceHistory && !vehicleData.purchaseDate)) && (
@@ -1212,27 +1217,27 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           onClose={() => setOpenCreate(false)}
           onCreated={(veh, customerId) => {
             setVehicles((list) => [veh, ...list])
-            
+
             // Reset selected vehicle (since new vehicle was created)
             setSelectedVehicleId(undefined)
-            
+
             // Auto-fill vehicle information from the created vehicle
             // Note: Vehicle interface has: licensePlate, vin, color, currentMileage
             // VehicleInfo interface expects: carModel, mileage, licensePlate, year?, color?, brand?
-            onUpdateVehicle({ 
-              licensePlate: veh.licensePlate, 
+            onUpdateVehicle({
+              licensePlate: veh.licensePlate,
               carModel: veh.vin, // Map VIN to carModel field
               mileage: veh.currentMileage?.toString() || '',
               color: veh.color || '',
               modelId: veh.modelId || undefined
               // year and brand are not available in Vehicle interface
             })
-            
+
             // Nếu có customerId từ guest, truyền về ServiceBookingForm
             if (customerId && onGuestCustomerCreated) {
               onGuestCustomerCreated(customerId)
             }
-            
+
             setOpenCreate(false)
           }}
           guestCustomerInfo={customerInfo}
@@ -1267,14 +1272,14 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                 <h4>{selectedServiceDetail.serviceName}</h4>
                 <p className="modal-template-name">{selectedServiceDetail.templateName}</p>
               </div>
-              
+
               {selectedServiceDetail.description && (
                 <div className="modal-section">
                   <h5>Mô tả</h5>
                   <p className="modal-description">{selectedServiceDetail.description}</p>
                 </div>
               )}
-              
+
               <div className="modal-section">
                 <h5>Tiêu chí</h5>
                 <div className="modal-criteria">
@@ -1298,7 +1303,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                   )}
                 </div>
               </div>
-              
+
               {selectedServiceDetail.warnings && selectedServiceDetail.warnings.length > 0 && (
                 <div className="modal-section">
                   <h5>Cảnh báo</h5>
@@ -1311,7 +1316,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {selectedServiceDetail.recommendationReason && (
                 <div className="modal-section">
                   <h5>Lý do gợi ý</h5>
@@ -1370,11 +1375,11 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .csv-subheading { margin: 0 0 1rem 0; color: var(--csv-muted); }
         .csv-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1.25rem; align-items: start; margin-top: 1.25rem; }
         .category-section { margin-bottom: 1.25rem; }
-        .card { 
+        .card {
           background: rgba(255, 255, 255, 0.6);
           border: 1px solid rgba(255, 255, 255, 0.45);
-          border-radius: 16px; 
-          padding: 1.25rem; 
+          border-radius: 16px;
+          padding: 1.25rem;
           box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
           backdrop-filter: blur(18px) saturate(160%);
           -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -1421,7 +1426,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
           opacity: 0.6;
           cursor: not-allowed;
         }
-        .pkg-card { 
+        .pkg-card {
           background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
           border: 1px solid var(--border-primary);
           border-radius: 12px;
@@ -1443,14 +1448,14 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         @media (max-width: 768px) { .pkg-grid { grid-template-columns: 1fr; } }
         .form-group { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; }
         .form-group label { font-weight: 700; color: var(--csv-text); }
-        .form-group input[type="text"], .form-group select, .form-group textarea { 
-          width: 100%; 
+        .form-group input[type="text"], .form-group select, .form-group textarea {
+          width: 100%;
           box-sizing: border-box;
-          background: var(--csv-surface); 
-          border: 1px solid var(--csv-border); 
-          color: var(--csv-text); 
-          border-radius: 10px; 
-          padding: .7rem .85rem; 
+          background: var(--csv-surface);
+          border: 1px solid var(--csv-border);
+          color: var(--csv-text);
+          border-radius: 10px;
+          padding: .7rem .85rem;
           max-width: 100%;
           transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
         }
@@ -1460,14 +1465,14 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
         .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--csv-shadow-hover); }
         .btn-secondary { background: #fff; color: var(--csv-text); border: 1px solid var(--csv-border); border-radius: 10px; padding: .75rem 1.1rem; font-weight: 700; }
-        
+
         /* Recommendation Instruction Styles */
         .recommendation-instruction { margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; }
         .instruction-content h4 { margin: 0 0 0.75rem 0; color: var(--text-primary); }
         .instruction-content p { margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem; }
         .instruction-content ul { margin: 0.5rem 0; padding-left: 1.5rem; color: var(--text-secondary); }
         .instruction-content li { margin: 0.25rem 0; font-size: 0.9rem; }
-        
+
         /* Recommendation Styles */
         .recommendation-section { margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; }
         .recommendation-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap; }
@@ -1493,7 +1498,7 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .btn-select-recommended:hover { background: #16a34a; transform: translateY(-1px); }
         .btn-select-recommended.selected-btn { background: #16a34a; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3); cursor: default; }
         .btn-select-recommended.selected-btn:hover { background: #16a34a; transform: none; }
-        
+
         /* Modal Styles */
         .service-detail-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
         .service-detail-modal { background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
@@ -1524,14 +1529,14 @@ const CombinedServiceVehicleStep: React.FC<CombinedServiceVehicleStepProps> = ({
         .recommendation-warnings { margin: 0.5rem 0; padding: 0.6rem 0.75rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; }
         .warning-item { margin: 0.2rem 0; font-size: 0.75rem; line-height: 1.3; color: #92400e; font-weight: 600; }
         .recommendation-reason { margin: 0.5rem 0; padding: 0.6rem 0.75rem; background: #ecfdf5; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; font-size: 0.75rem; line-height: 1.35; color: #047857; font-weight: 600; }
-        
+
         @media (max-width: 768px) {
           .recommended-services { grid-template-columns: 1fr; }
         }
         .required-star { color: #ef4444; margin-left: 4px; }
-        
-        @media (max-width: 768px) { 
-          .csv-grid { grid-template-columns: 1fr; } 
+
+        @media (max-width: 768px) {
+          .csv-grid { grid-template-columns: 1fr; }
           .form-actions { justify-content: stretch; }
           .recommendation-header { flex-direction: column; align-items: stretch; gap: 0.5rem; }
           .recommendation-criteria { flex-direction: column; }

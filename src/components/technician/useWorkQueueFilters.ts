@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { mapBookingStatus, getDateRange, getDateFromString } from './workQueueHelpers'
+import { mapBookingStatus, getDateRange, getDateFromString, getCurrentDateString } from './workQueueHelpers'
 import type { WorkOrder } from './workQueueTypes'
 
 export const useWorkQueueFilters = (
@@ -31,9 +31,10 @@ export const useWorkQueueFilters = (
           matchesStatus = work.status === mappedStatus
         }
         // Toggle to hide less-important statuses by default
+        // Chỉ ẩn booking khi status là PAID hoặc CANCELLED, không ẩn COMPLETED
         if (!showAllStatusesToggle) {
-          const keep = work.status === 'pending' || work.status === 'in_progress' || work.status === 'confirmed' || work.status === 'checked_in'
-          matchesStatus = matchesStatus && keep
+          const hide = work.status === 'paid' || work.status === 'cancelled'
+          matchesStatus = matchesStatus && !hide
         }
 
         // Service type filter
@@ -58,7 +59,11 @@ export const useWorkQueueFilters = (
           const workDate = work.workDate || work.scheduledDate || work.createdAt
           const workDateStr = workDate ? getDateFromString(workDate) : null
 
-          if (dateFilterType === 'custom' && workDateStr) {
+          if (dateFilterType === 'today') {
+            // Filter theo ngày hiện tại
+            const today = getCurrentDateString()
+            matchesDate = workDateStr === today
+          } else if (dateFilterType === 'custom' && workDateStr) {
             matchesDate = workDateStr === selectedDate
           } else if (dateFilterType === 'thisWeek' && dateRange && workDateStr) {
             if (dateRange.startDate && dateRange.endDate) {
