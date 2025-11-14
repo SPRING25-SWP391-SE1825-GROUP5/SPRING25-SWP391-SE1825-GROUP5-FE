@@ -141,7 +141,7 @@ export const canTransitionTo = (currentStatus: string, targetStatus: string): bo
 }
 
 export const getDateRange = (
-  filterType: 'custom' | 'today' | 'thisWeek' | 'all',
+  filterType: 'today' | 'tomorrow' | 'thisWeek' | 'nextWeek' | 'all',
   selectedDate?: string
 ): { startDate?: string; endDate?: string } | null => {
   const now = new Date()
@@ -151,19 +151,39 @@ export const getDateRange = (
     case 'today':
       const todayStr = getCurrentDateString()
       return { startDate: todayStr, endDate: todayStr }
+    case 'tomorrow':
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`
+      return { startDate: tomorrowStr, endDate: tomorrowStr }
     case 'thisWeek':
-      const weekStart = new Date(today)
-      weekStart.setDate(today.getDate() - today.getDay()) // Chủ nhật đầu tuần
-      const weekEnd = new Date(today)
-      weekEnd.setDate(weekStart.getDate() + 6) // Thứ bảy cuối tuần
+      // Tuần này: từ thứ 2 đến thứ 6 của tuần hiện tại
+      const thisWeekStart = new Date(today)
+      const dayOfWeek = today.getDay() // 0=CN, 1=T2, ..., 6=T7
+      // Tính thứ 2 của tuần này
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // Nếu CN thì lùi 6 ngày, nếu T2 thì 0, ...
+      thisWeekStart.setDate(today.getDate() - daysFromMonday)
+      const thisWeekEnd = new Date(thisWeekStart)
+      thisWeekEnd.setDate(thisWeekStart.getDate() + 4) // Thứ 6 (T2 + 4 ngày)
       return {
-        startDate: `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`,
-        endDate: `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`
+        startDate: `${thisWeekStart.getFullYear()}-${String(thisWeekStart.getMonth() + 1).padStart(2, '0')}-${String(thisWeekStart.getDate()).padStart(2, '0')}`,
+        endDate: `${thisWeekEnd.getFullYear()}-${String(thisWeekEnd.getMonth() + 1).padStart(2, '0')}-${String(thisWeekEnd.getDate()).padStart(2, '0')}`
+      }
+    case 'nextWeek':
+      // Tuần sau: từ thứ 2 đến thứ 6 của tuần tiếp theo
+      const nextWeekStart = new Date(today)
+      const dayOfWeekNext = today.getDay()
+      const daysFromMondayNext = dayOfWeekNext === 0 ? 6 : dayOfWeekNext - 1
+      // Thứ 2 tuần sau = thứ 2 tuần này + 7 ngày
+      nextWeekStart.setDate(today.getDate() - daysFromMondayNext + 7)
+      const nextWeekEnd = new Date(nextWeekStart)
+      nextWeekEnd.setDate(nextWeekStart.getDate() + 4) // Thứ 6
+      return {
+        startDate: `${nextWeekStart.getFullYear()}-${String(nextWeekStart.getMonth() + 1).padStart(2, '0')}-${String(nextWeekStart.getDate()).padStart(2, '0')}`,
+        endDate: `${nextWeekEnd.getFullYear()}-${String(nextWeekEnd.getMonth() + 1).padStart(2, '0')}-${String(nextWeekEnd.getDate()).padStart(2, '0')}`
       }
     case 'all':
       return null // Không filter theo ngày
-    case 'custom':
-      return selectedDate ? { startDate: selectedDate, endDate: selectedDate } : null
     default:
       return null
   }

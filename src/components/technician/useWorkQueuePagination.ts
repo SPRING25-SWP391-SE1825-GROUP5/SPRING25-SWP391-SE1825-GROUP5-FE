@@ -14,11 +14,9 @@ interface UseWorkQueuePaginationParams {
     hasNextPage: boolean
     hasPreviousPage: boolean
   } | null
-  dateFilterType: 'custom' | 'today' | 'thisWeek' | 'all'
-  selectedDate: string
   statusFilter: string
   serviceTypeFilter: string
-  fetchTechnicianBookings: (date?: string, page: number) => Promise<void>
+  fetchTechnicianBookings: (date?: string, page?: number) => Promise<void>
 }
 
 const ROW_HEIGHT = 64
@@ -31,8 +29,6 @@ export const useWorkQueuePagination = (params: UseWorkQueuePaginationParams) => 
     filteredWork,
     itemsPerPage,
     apiPagination,
-    dateFilterType,
-    selectedDate,
     statusFilter,
     serviceTypeFilter,
     fetchTechnicianBookings
@@ -97,30 +93,18 @@ export const useWorkQueuePagination = (params: UseWorkQueuePaginationParams) => 
   // Handle page change - fetch new data from API
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage)
-    const today = getCurrentDateString()
-    if (dateFilterType === 'today') {
-      fetchTechnicianBookings(today, newPage)
-    } else if (dateFilterType === 'custom') {
-      fetchTechnicianBookings(selectedDate, newPage)
-    } else {
-      fetchTechnicianBookings(undefined, newPage)
-    }
-  }, [dateFilterType, selectedDate, fetchTechnicianBookings])
+    // Fetch tất cả booking (không filter theo ngày ở đây, filter sẽ được xử lý ở client-side)
+    fetchTechnicianBookings(undefined, newPage)
+  }, [fetchTechnicianBookings])
 
   // Reset to first page and refetch when filters change (chỉ cho staff mode với API pagination)
   useEffect(() => {
     if (mode === 'staff' && (statusFilter !== 'all' || serviceTypeFilter !== 'all')) {
       setCurrentPage(1)
-      const today = getCurrentDateString()
-      if (dateFilterType === 'today') {
-        fetchTechnicianBookings(today, 1)
-      } else if (dateFilterType === 'custom') {
-        fetchTechnicianBookings(selectedDate, 1)
-      } else {
-        fetchTechnicianBookings(undefined, 1)
-      }
+      // Fetch tất cả booking (filter sẽ được xử lý ở client-side)
+      fetchTechnicianBookings(undefined, 1)
     }
-  }, [statusFilter, serviceTypeFilter, mode, dateFilterType, selectedDate, fetchTechnicianBookings])
+  }, [statusFilter, serviceTypeFilter, mode, fetchTechnicianBookings])
 
   return {
     currentPage,

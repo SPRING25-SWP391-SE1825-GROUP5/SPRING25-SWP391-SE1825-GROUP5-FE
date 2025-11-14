@@ -11,7 +11,6 @@ interface UseWorkQueueDataFetchParams {
   technicianId: number | null
   centerId: number | null
   itemsPerPage: number
-  dateFilterType: 'custom' | 'today' | 'thisWeek' | 'all'
   statusFilter: string
   sortBy: string
   sortOrder: 'asc' | 'desc'
@@ -27,7 +26,7 @@ interface ApiPagination {
 }
 
 export const useWorkQueueDataFetch = (params: UseWorkQueueDataFetchParams) => {
-  const { mode, technicianId, centerId, itemsPerPage, dateFilterType, statusFilter, sortBy, sortOrder } = params
+  const { mode, technicianId, centerId, itemsPerPage, statusFilter, sortBy, sortOrder } = params
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,11 +65,7 @@ export const useWorkQueueDataFetch = (params: UseWorkQueueDataFetchParams) => {
               sortOrder: sortOrder
             }
 
-            // Chỉ thêm date filter khi là 'custom' date
-            if (dateFilterType === 'custom' && date) {
-              apiParams.fromDate = date
-              apiParams.toDate = date
-            }
+            // Không filter theo ngày ở API level, filter sẽ được xử lý ở client-side
 
             // Chỉ thêm status filter khi không phải 'all'
             if (statusFilter !== 'all') {
@@ -205,7 +200,7 @@ export const useWorkQueueDataFetch = (params: UseWorkQueueDataFetchParams) => {
     } finally {
       setLoading(false)
     }
-  }, [mode, technicianId, centerId, itemsPerPage, dateFilterType, statusFilter, sortBy, sortOrder])
+  }, [mode, technicianId, centerId, itemsPerPage, statusFilter, sortBy, sortOrder])
 
   return {
     loading,

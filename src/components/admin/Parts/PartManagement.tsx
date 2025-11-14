@@ -29,7 +29,7 @@ import {
   Hash,
   Building2
 } from 'lucide-react'
-import api from '../../services/api'
+import api from '@/services/api'
 import './PartManagement.scss'
 import PartsFormModal from './PartsFormModal'
 
@@ -693,7 +693,7 @@ export default function PartManagement() {
                   setEditingPart(null)
           setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
         }}
-        onSuccess={() => {
+        onSubmit={() => {
           loadParts()
         }}
         editingPart={editingPart}

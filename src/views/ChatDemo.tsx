@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import './ChatDemo.scss'
+// import './ChatDemo.scss' // File không tồn tại
 
 const ChatDemo: React.FC = () => {
   return (

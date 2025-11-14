@@ -686,7 +686,7 @@ export default function Profile() {
   }
 
   const handleLogout = () => {
-k    // Clear user data from localStorage
+    // Clear user data from localStorage
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('refreshToken')

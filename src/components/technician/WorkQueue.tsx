@@ -45,8 +45,6 @@ import { BookingService } from '@/services/bookingService'
 
 export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   const [statusFilter, setStatusFilter] = useState('all')
-  const [selectedDate, setSelectedDate] = useState(getCurrentDateString())
-  const [dateFilterType, setDateFilterType] = useState<'custom' | 'today' | 'thisWeek' | 'all'>('today')
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
@@ -83,9 +81,8 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   } = useWorkQueueDataFetch({
     mode,
     technicianId,
-              centerId,
+    centerId,
     itemsPerPage,
-    dateFilterType,
     statusFilter,
     sortBy,
     sortOrder
@@ -99,8 +96,6 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
     statusFilter,
     serviceTypeFilter,
     timeSlotFilter,
-    dateFilterType,
-    selectedDate,
     showAllStatusesToggle,
     sortBy,
     sortOrder
@@ -112,8 +107,6 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
     filteredWork,
     itemsPerPage,
     apiPagination,
-    dateFilterType,
-    selectedDate,
     statusFilter,
     serviceTypeFilter,
     fetchTechnicianBookings
@@ -137,32 +130,27 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
     ROW_HEIGHT
   } = paginationResult
 
-  // Load data khi component mount và khi date filter thay đổi
+  // Load data khi component mount và khi filter thay đổi
   useEffect(() => {
     // Reset về trang 1 khi filter thay đổi
     setCurrentPage(1)
-    // Khi dateFilterType là 'today', 'custom' thì fetch data theo ngày cụ thể
-    // Còn 'thisWeek', 'all' thì chỉ filter ở client-side (data đã có)
-    if (dateFilterType === 'today') {
+    // Fetch data: nếu "Quan trọng" thì fetch ngày hiện tại, nếu "Tất cả" thì fetch tất cả
+    if (!showAllStatusesToggle) {
+      // "Quan trọng": fetch booking ngày hiện tại
       const today = getCurrentDateString()
       fetchTechnicianBookings(today, 1)
-    } else if (dateFilterType === 'custom') {
-      fetchTechnicianBookings(selectedDate, 1)
-    } else if (dateFilterType === 'all') {
-      // Với 'all', vẫn fetch với page 1
+    } else {
+      // "Tất cả": fetch tất cả booking
       fetchTechnicianBookings(undefined, 1)
     }
-    // 'thisWeek' không fetch, chỉ filter client-side với data đã có
-  }, [fetchTechnicianBookings, dateFilterType, selectedDate, statusFilter, sortBy, sortOrder, setCurrentPage])
+  }, [fetchTechnicianBookings, showAllStatusesToggle, statusFilter, sortBy, sortOrder, setCurrentPage])
 
   // Initial load: when technicianId/centerId is resolved, fetch today's data
   useEffect(() => {
     if (!idsResolved) return // Wait for IDs to be resolved
 
-    // Always fetch today's data on initial load
+    // Always fetch today's data on initial load (vì mặc định là "Quan trọng" = ngày hiện tại)
     const today = getCurrentDateString()
-    setSelectedDate(today)
-    setDateFilterType('today')
     setCurrentPage(1)
 
     // For technician mode: only fetch when technicianId is available
@@ -186,8 +174,6 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
     technicianId,
     centerId,
     workQueue,
-    dateFilterType,
-    selectedDate,
     currentPage,
     fetchTechnicianBookings
   })
@@ -216,23 +202,14 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
     setStatusFilter('all')
     setServiceTypeFilter('all')
     setTimeSlotFilter('all')
-    setDateFilterType('today') // Reset về ngày hiện tại
-    setSelectedDate(today)
     setSortBy('bookingId')
     setSortOrder('desc')
     setShowAllStatusesToggle(false) // Reset về hiển thị "Quan trọng"
     setCurrentPage(1)
-    // Refetch data cho ngày hiện tại
+    // Refetch data cho ngày hiện tại (vì "Quan trọng" = ngày hiện tại)
     fetchTechnicianBookings(today, 1)
   }, [fetchTechnicianBookings])
 
-  // Ensure selectedDate is always current date on mount
-  useEffect(() => {
-    const currentDateString = getCurrentDateString()
-    if (selectedDate !== currentDateString) {
-      setSelectedDate(currentDateString)
-    }
-  }, [])
 
 
   // Use stats hook
@@ -241,8 +218,7 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
   // Use actions hook
   const actionsResult = useWorkQueueActions(
     workQueue,
-    dateFilterType,
-    selectedDate,
+    showAllStatusesToggle,
     currentPage,
     fetchTechnicianBookings
   )
@@ -605,28 +581,14 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                                     {/* Xác nhận (chỉ dành cho staff, từ pending -> confirmed) */}
                                     {mode === 'staff' && (() => {
                                       const isDisabled = updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed');
-                                      console.log('Duyệt button render:', {
-                                        workId: work.id,
-                                        status: work.status,
-                                        canTransition: canTransitionTo(work.status, 'confirmed'),
-                                        isUpdating: updatingStatus.has(work.id),
-                                        isDisabled,
-                                        mode
-                                      });
                                       return (
                                       <button type="button"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           e.preventDefault();
-                                          console.log('Duyệt button clicked:', { workId: work.id, status: work.status, canTransition: canTransitionTo(work.status, 'confirmed') });
                                           if (!isDisabled) {
                                             handleStatusUpdate(e, work.id, 'confirmed');
-                                          } else {
-                                            console.warn('Duyệt button is disabled, cannot proceed');
                                           }
-                                        }}
-                                        onMouseDown={() => {
-                                          console.log('Duyệt button mouseDown:', { workId: work.id, isDisabled });
                                         }}
                                         disabled={isDisabled}
                                         style={{
@@ -941,28 +903,14 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
                                 {/* Xác nhận (chỉ dành cho staff, từ pending -> confirmed) */}
                                 {mode === 'staff' && (() => {
                                   const isDisabled = updatingStatus.has(work.id) || !canTransitionTo(work.status, 'confirmed');
-                                  console.log('Duyệt button render (non-grouping):', {
-                                    workId: work.id,
-                                    status: work.status,
-                                    canTransition: canTransitionTo(work.status, 'confirmed'),
-                                    isUpdating: updatingStatus.has(work.id),
-                                    isDisabled,
-                                    mode
-                                  });
                                   return (
                                   <button type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      console.log('Duyệt button clicked (non-grouping):', { workId: work.id, status: work.status, canTransition: canTransitionTo(work.status, 'confirmed') });
                                       if (!isDisabled) {
                                         handleStatusUpdate(e, work.id, 'confirmed');
-                                      } else {
-                                        console.warn('Duyệt button is disabled (non-grouping), cannot proceed');
                                       }
-                                    }}
-                                    onMouseDown={() => {
-                                      console.log('Duyệt button mouseDown (non-grouping):', { workId: work.id, isDisabled });
                                     }}
                                     disabled={isDisabled}
                                     style={{
@@ -1137,7 +1085,15 @@ export default function WorkQueue({ mode = 'technician' }: WorkQueueProps) {
             setPaymentBookingId(null)
           }}
           onPaymentSuccess={() => {
-            fetchTechnicianBookings(selectedDate, currentPage)
+            // Refetch data sau khi thanh toán thành công
+            if (!showAllStatusesToggle) {
+              // "Quan trọng": fetch booking ngày hiện tại
+              const today = getCurrentDateString()
+              fetchTechnicianBookings(today, currentPage)
+            } else {
+              // "Tất cả": fetch tất cả booking
+              fetchTechnicianBookings(undefined, currentPage)
+            }
           }}
         />
       )}

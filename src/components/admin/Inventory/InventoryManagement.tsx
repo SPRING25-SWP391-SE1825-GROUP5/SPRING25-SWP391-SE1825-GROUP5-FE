@@ -17,7 +17,7 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
 import { InventoryService, InventoryListItem } from '@/services/inventoryService';
 import { CenterService, Center } from '@/services/centerService';
-import InventoryPartsModal from './Inventory/InventoryPartsModal';
+import InventoryPartsModal from './InventoryPartsModal';
 import './InventoryManagement.scss';
 
 export default function InventoryManagement() {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { mapBookingStatus, getDateRange, getDateFromString, getCurrentDateString } from './workQueueHelpers'
+import { mapBookingStatus, getDateFromString, getCurrentDateString } from './workQueueHelpers'
 import type { WorkOrder } from './workQueueTypes'
 
 export const useWorkQueueFilters = (
@@ -8,8 +8,6 @@ export const useWorkQueueFilters = (
   statusFilter: string,
   serviceTypeFilter: string,
   timeSlotFilter: string,
-  dateFilterType: 'custom' | 'today' | 'thisWeek' | 'all',
-  selectedDate: string,
   showAllStatusesToggle: boolean,
   sortBy: 'bookingId' | 'customer' | 'serviceName' | 'status' | 'createdAt' | 'scheduledDate' | 'licensePlate',
   sortOrder: 'asc' | 'desc'
@@ -30,12 +28,7 @@ export const useWorkQueueFilters = (
           const mappedStatus = mapBookingStatus(statusFilter)
           matchesStatus = work.status === mappedStatus
         }
-        // Toggle to hide less-important statuses by default
-        // Chỉ ẩn booking khi status là PAID hoặc CANCELLED, không ẩn COMPLETED
-        if (!showAllStatusesToggle) {
-          const hide = work.status === 'paid' || work.status === 'cancelled'
-          matchesStatus = matchesStatus && !hide
-        }
+        // Logic "Quan trọng" đã được chuyển sang filter theo ngày (xem phần Date filter)
 
         // Service type filter
         let matchesServiceType = true
@@ -53,24 +46,19 @@ export const useWorkQueueFilters = (
         }
 
         // Date filter
+        // Logic:
+        // - "Quan trọng" (showAllStatusesToggle = false): chỉ hiển thị booking của ngày hiện tại
+        // - "Tất cả" (showAllStatusesToggle = true): hiển thị tất cả booking
         let matchesDate = true
-        if (dateFilterType !== 'all') {
-          const dateRange = getDateRange(dateFilterType, selectedDate)
-          const workDate = work.workDate || work.scheduledDate || work.createdAt
-          const workDateStr = workDate ? getDateFromString(workDate) : null
+        const workDate = work.workDate || work.scheduledDate || work.createdAt
+        const workDateStr = workDate ? getDateFromString(workDate) : null
 
-          if (dateFilterType === 'today') {
-            // Filter theo ngày hiện tại
-            const today = getCurrentDateString()
-            matchesDate = workDateStr === today
-          } else if (dateFilterType === 'custom' && workDateStr) {
-            matchesDate = workDateStr === selectedDate
-          } else if (dateFilterType === 'thisWeek' && dateRange && workDateStr) {
-            if (dateRange.startDate && dateRange.endDate) {
-              matchesDate = workDateStr >= dateRange.startDate && workDateStr <= dateRange.endDate
-            }
-          }
+        if (!showAllStatusesToggle) {
+          // "Quan trọng": chỉ hiển thị booking của ngày hiện tại
+          const today = getCurrentDateString()
+          matchesDate = workDateStr === today
         }
+        // Nếu showAllStatusesToggle = true thì matchesDate = true (hiển thị tất cả)
 
         return matchesSearch && matchesStatus && matchesServiceType && matchesTimeSlot && matchesDate
       })
@@ -118,7 +106,7 @@ export const useWorkQueueFilters = (
           return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
         }
       })
-  }, [workQueue, searchTerm, statusFilter, serviceTypeFilter, timeSlotFilter, dateFilterType, selectedDate, showAllStatusesToggle, sortBy, sortOrder])
+  }, [workQueue, searchTerm, statusFilter, serviceTypeFilter, timeSlotFilter, showAllStatusesToggle, sortBy, sortOrder])
 
   return filteredWork
 }

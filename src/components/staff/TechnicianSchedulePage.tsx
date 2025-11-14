@@ -7,7 +7,7 @@ import { TechnicianTimeSlotService } from '@/services/technicianTimeSlotService'
 import { TechnicianService, TimeSlotService } from '@/services/technicianService'
 import { CenterService } from '@/services/centerService'
 import { StaffService } from '@/services/staffService'
-import AvailableDatePicker from './AvailableDatePicker'
+// import AvailableDatePicker from './AvailableDatePicker' // File không tồn tại
 
 type FormState = {
   mode: 'ngay' | 'tuan'
@@ -394,7 +394,8 @@ export default function TechnicianSchedulePage() {
           ? (data as any)
           : []
 
-      const items = (raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots)) ? flattenDaily(raw) : raw
+      // Response structure không có timeSlots, chỉ có workDate
+      const items = raw
 
       // Với chế độ nhiều ngày, không chỉ kiểm tra phần tử đầu tiên
       const hasAnySlots = Array.isArray(raw)
@@ -507,10 +508,6 @@ export default function TechnicianSchedulePage() {
     loadSchedule()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.technicianId, form.mode, form.workDate, form.startDate, form.endDate])
-
-  useEffect(() => {
-    loadAvailableDatesForTechnician()
-  }, [loadAvailableDatesForTechnician])
 
   useEffect(() => {
     if (viewMode !== 'technician' || viewRange !== 'day') {
@@ -654,7 +651,8 @@ export default function TechnicianSchedulePage() {
     try {
       const response = await TechnicianTimeSlotService.getTechnicianScheduleByCenter(technicianId, resolvedCenterId)
       const raw = Array.isArray(response?.data) ? response.data : []
-      const flattened = raw.length && (raw[0]?.timeSlots || raw[0]?.TimeSlots) ? flattenDaily(raw) : raw
+      // Response structure không có timeSlots, chỉ có workDate
+      const flattened = raw
       const dates = Array.from(new Set(flattened.map((item: any) => toLocalDateOnly(item.workDate)).filter(Boolean))).sort()
       setAvailableDates(dates)
     } catch {

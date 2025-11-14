@@ -6,10 +6,9 @@ import type { WorkOrder } from './workQueueTypes'
 
 export const useWorkQueueActions = (
   workQueue: WorkOrder[],
-  dateFilterType: 'custom' | 'today' | 'thisWeek' | 'all',
-  selectedDate: string,
+  showAllStatusesToggle: boolean,
   currentPage: number,
-  fetchTechnicianBookings: (date?: string, page: number) => Promise<void>
+  fetchTechnicianBookings: (date?: string, page?: number) => Promise<void>
 ): {
   updatingStatus: Set<number>
   handleStatusUpdate: (e: React.MouseEvent, workId: number, newStatus: string) => Promise<void>
@@ -104,12 +103,13 @@ export const useWorkQueueActions = (
 
       if (response.data) {
         toast.success(`Cập nhật trạng thái thành công!`)
-        const today = getCurrentDateString()
-        if (dateFilterType === 'today') {
+        // Refetch data sau khi cập nhật status
+        if (!showAllStatusesToggle) {
+          // "Quan trọng": fetch booking ngày hiện tại
+          const today = getCurrentDateString()
           fetchTechnicianBookings(today, currentPage)
-        } else if (dateFilterType === 'custom') {
-          fetchTechnicianBookings(selectedDate, currentPage)
         } else {
+          // "Tất cả": fetch tất cả booking
           fetchTechnicianBookings(undefined, currentPage)
         }
       }
@@ -128,7 +128,7 @@ export const useWorkQueueActions = (
         return newSet
       })
     }
-  }, [workQueue, dateFilterType, selectedDate, currentPage, fetchTechnicianBookings])
+  }, [workQueue, showAllStatusesToggle, currentPage, fetchTechnicianBookings])
 
   const handleCancelBooking = useCallback(async (e: React.MouseEvent, workId: number) => {
     e.stopPropagation()
@@ -138,12 +138,13 @@ export const useWorkQueueActions = (
 
       if (response.data) {
         toast.success(`Hủy booking thành công!`)
-        const today = getCurrentDateString()
-        if (dateFilterType === 'today') {
+        // Refetch data sau khi cập nhật status
+        if (!showAllStatusesToggle) {
+          // "Quan trọng": fetch booking ngày hiện tại
+          const today = getCurrentDateString()
           fetchTechnicianBookings(today, currentPage)
-        } else if (dateFilterType === 'custom') {
-          fetchTechnicianBookings(selectedDate, currentPage)
         } else {
+          // "Tất cả": fetch tất cả booking
           fetchTechnicianBookings(undefined, currentPage)
         }
       }
@@ -156,7 +157,7 @@ export const useWorkQueueActions = (
         return newSet
       })
     }
-  }, [dateFilterType, selectedDate, currentPage, fetchTechnicianBookings])
+  }, [showAllStatusesToggle, currentPage, fetchTechnicianBookings])
 
   return {
     updatingStatus,

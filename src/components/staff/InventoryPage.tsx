@@ -36,7 +36,7 @@ export default function InventoryPage() {
 
             try {
               const detail = await InventoryService.getInventoryById(inventory.inventoryId)
-              const parts = detail?.data?.parts ?? detail?.data?.inventoryParts ?? []
+              const parts = detail?.data?.parts ?? []
               return { ...inventory, inventoryParts: parts }
             } catch (detailError) {
               console.error('Không thể tải chi tiết kho:', inventory.inventoryId, detailError)

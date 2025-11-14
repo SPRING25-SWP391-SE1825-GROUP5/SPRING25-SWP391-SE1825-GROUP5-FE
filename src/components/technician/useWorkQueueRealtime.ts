@@ -8,14 +8,12 @@ interface UseWorkQueueRealtimeParams {
   technicianId: number | null
   centerId: number | null
   workQueue: WorkOrder[]
-  dateFilterType: 'custom' | 'today' | 'thisWeek' | 'all'
-  selectedDate: string
   currentPage: number
-  fetchTechnicianBookings: (date?: string, page: number) => Promise<void>
+  fetchTechnicianBookings: (date?: string, page?: number) => Promise<void>
 }
 
 export const useWorkQueueRealtime = (params: UseWorkQueueRealtimeParams) => {
-  const { mode, technicianId, centerId, workQueue, dateFilterType, selectedDate, currentPage, fetchTechnicianBookings } = params
+  const { mode, technicianId, centerId, workQueue, currentPage, fetchTechnicianBookings } = params
 
   useEffect(() => {
     let isMounted = true
@@ -37,18 +35,12 @@ export const useWorkQueueRealtime = (params: UseWorkQueueRealtimeParams) => {
     const handleBookingUpdate = () => {
       if (!isMounted) return
 
-      // Refresh data với đúng page và date filter
-      const refreshDate = dateFilterType === 'today'
-        ? getCurrentDateString()
-        : dateFilterType === 'custom'
-        ? selectedDate
-        : undefined
-
+      // Refresh data: fetch tất cả booking (filter sẽ được xử lý ở client-side)
       // Trong staff mode, chỉ refresh khi có centerId
       if (mode === 'staff' && centerId) {
-        fetchTechnicianBookings(refreshDate, currentPage)
+        fetchTechnicianBookings(undefined, currentPage)
       } else if (mode === 'technician' && technicianId) {
-        fetchTechnicianBookings(refreshDate, currentPage)
+        fetchTechnicianBookings(undefined, currentPage)
       }
     }
 
@@ -59,6 +51,6 @@ export const useWorkQueueRealtime = (params: UseWorkQueueRealtimeParams) => {
       isMounted = false
       bookingRealtimeService.setOnBookingUpdated(() => {}) // Clear callback
     }
-  }, [workQueue.length, selectedDate, mode, technicianId, centerId, dateFilterType, currentPage, fetchTechnicianBookings])
+  }, [workQueue.length, mode, technicianId, centerId, currentPage, fetchTechnicianBookings])
 }
 
