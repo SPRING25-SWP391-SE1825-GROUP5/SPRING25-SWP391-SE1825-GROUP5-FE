@@ -104,8 +104,6 @@ export type {
   PaymentRequest,
   PaymentResponse,
   PaymentStatusResponse,
-  VNPayPaymentRequest,
-  VNPayPaymentResponse,
   QRPaymentRequest,
   QRPaymentResponse
 } from './paymentService'

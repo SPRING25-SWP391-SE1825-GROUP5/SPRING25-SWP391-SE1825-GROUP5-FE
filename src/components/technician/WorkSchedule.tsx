@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Calendar as CalendarIcon } from 'lucide-react'
-import WorkScheduleCalendar from './WorkScheduleCalendar'
 import WorkScheduleCalendarNew from './WorkScheduleCalendarNew'
 import { useAppSelector } from '@/store/hooks'
 import './WorkSchedule.scss'
@@ -42,15 +41,15 @@ export default function WorkSchedule({}: WorkScheduleProps) {
     const loadScheduleData = async () => {
       setLoading(true)
       setError(null)
-      
+
       try {
         // TODO: Replace with actual API call to get technician's appointments
         // For now, return empty array to indicate no mock data
-        
+
         // This would be replaced with actual API call:
         // const response = await BookingService.getTechnicianAppointments(user?.id)
         // setScheduleData(response.data)
-        
+
         setScheduleData([]) // Empty array - no mock data
       } catch (error: any) {
 
@@ -74,7 +73,7 @@ export default function WorkSchedule({}: WorkScheduleProps) {
 
   return (
     <div className="work-schedule">
-      
+
       {/* Loading State */}
       {loading && (
         <div className="work-schedule__loading">

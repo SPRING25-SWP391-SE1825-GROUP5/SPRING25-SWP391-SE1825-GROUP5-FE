@@ -13,7 +13,6 @@ import {
   ChevronRight,
   BarChart3,
   Wrench,
-  Bell,
   Menu,
   LogOut,
   Globe,
@@ -36,8 +35,7 @@ import {
   Save,
   UserCheck,
   DollarSign,
-  Activity,
-  Brain
+  Activity
 } from 'lucide-react'
 import {
   AreaChart,
@@ -55,22 +53,18 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import './admin.scss'
-import UsersComponent from './Users'
 import ServicesManagement from '../../components/manager/ServicesManagement'
 import ServicesManagementAdmin from '../../components/admin/ServicesManagementAdmin'
 import CenterManagement from '../../components/admin/CenterManagement'
 import StaffManagement from '../../components/admin/StaffManagement'
 import PromotionManagement from '../../components/admin/PromotionManagement'
-import ServicePackageManagement from '../../components/admin/ServicePackageManagement'
 import PartManagement from '../../components/admin/PartManagement'
 import { useAppSelector } from '@/store/hooks'
 import TimeSlotManagement from './TimeSlotManagement'
 import SystemSettings from './SystemSettings'
 import ServiceTemplateManagement from './ServiceTemplateManagement'
-import RagIngest from './RagIngest'
 import InventoryManagement from '../../components/admin/InventoryManagement'
 import BookingManagement from '../../components/admin/BookingManagement'
-import ReminderManagement from '../../components/admin/ReminderManagement'
 import FeedbackManagement from '../../components/admin/FeedbackManagement'
 import OrdersManagement from '../../components/admin/OrdersManagement'
 import VehicleModelManagement from '../../components/admin/VehicleModelManagement'
@@ -121,14 +115,6 @@ export default function AdminDashboard() {
       color: '#6366f1'
     },
     {
-      title: 'Quản lý người dùng',
-      description: 'Quản lý tài khoản khách hàng',
-      icon: Users,
-      page: 'users',
-      route: '/admin/users',
-      color: 'var(--warning-500)'
-    },
-    {
       title: 'Mẫu Checklist bảo trì',
       description: 'Quản lý mẫu checklist bảo trì',
       icon: FileText,
@@ -146,12 +132,9 @@ export default function AdminDashboard() {
       '/admin/': 'dashboard',
       '/admin/orders': 'orders',
       '/admin/bookings': 'bookings',
-      '/admin/reminders': 'reminders',
       '/admin/feedback': 'feedback',
-      '/admin/users': 'users',
       '/admin/staff': 'staff',
       '/admin/services': 'services',
-      '/admin/service-packages': 'service-packages',
       '/admin/parts-management': 'parts',
       '/admin/inventory': 'inventory',
       '/admin/service-centers': 'service-centers',
@@ -160,8 +143,7 @@ export default function AdminDashboard() {
       '/admin/maintenance-checklist': 'maintenance-checklist',
       '/admin/promotions': 'promotions',
       '/admin/reports': 'reports',
-      '/admin/settings': 'settings',
-      '/admin/rag-ingest': 'rag-ingest'
+      '/admin/settings': 'settings'
     }
 
     if (routeMap[pathname]) {
@@ -175,12 +157,9 @@ export default function AdminDashboard() {
         const routeToPage: Record<string, string> = {
           'orders': 'orders',
           'bookings': 'bookings',
-          'reminders': 'reminders',
           'feedback': 'feedback',
-          'users': 'users',
           'staff': 'staff',
           'services': 'services',
-          'service-packages': 'service-packages',
           'parts-management': 'parts',
           'inventory': 'inventory',
           'service-centers': 'service-centers',
@@ -189,8 +168,7 @@ export default function AdminDashboard() {
           'maintenance-checklist': 'maintenance-checklist',
           'promotions': 'promotions',
           'reports': 'reports',
-          'settings': 'settings',
-          'rag-ingest': 'rag-ingest'
+          'settings': 'settings'
         }
         if (routeToPage[routeName]) {
           setActivePage(routeToPage[routeName])
@@ -834,12 +812,8 @@ export default function AdminDashboard() {
         return <OrdersManagement />
       case 'bookings':
         return <BookingManagement />
-      case 'reminders':
-        return <ReminderManagement />
       case 'feedback':
         return <FeedbackManagement />
-      case 'users':
-        return <UsersComponent />
       case 'staff':
         return <StaffManagement />
       case 'parts':
@@ -856,8 +830,6 @@ export default function AdminDashboard() {
         return <CenterManagement />
       case 'promotions':
         return <PromotionManagement />
-      case 'service-packages':
-        return <ServicePackageManagement />
       case 'reports':
         return (
           <div>
@@ -880,8 +852,6 @@ export default function AdminDashboard() {
         return <SystemSettings />
       case 'maintenance-checklist':
         return <ServiceTemplateManagement />
-      case 'rag-ingest':
-        return <RagIngest />
       case 'dashboard':
         return renderDashboardContent()
       default:
@@ -1033,13 +1003,6 @@ export default function AdminDashboard() {
         route: '/admin/settings',
         color: '#6366f1'
       },
-      {
-        title: 'Quản lý người dùng',
-        description: 'Quản lý tài khoản khách hàng',
-        icon: Users,
-        page: 'users',
-        color: 'var(--warning-500)'
-      }
     ]
 
     return (
@@ -1762,18 +1725,6 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ position: 'relative' }}>
-            <Bell size={20} style={{ color: 'var(--text-tertiary)' }} />
-            <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              width: '8px',
-              height: '8px',
-              background: 'var(--error-500)',
-              borderRadius: '50%'
-            }} />
-          </div>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1882,14 +1833,10 @@ export default function AdminDashboard() {
                 // Quản lý đơn hàng & lịch hẹn
                 { icon: ShoppingCart, label: 'Đơn hàng', page: 'orders', route: '/admin/orders' },
                 { icon: CalendarCheck, label: 'Đặt lịch', page: 'bookings', route: '/admin/bookings' },
-                { icon: Bell, label: 'Nhắc nhở', page: 'reminders', route: '/admin/reminders' },
                 { icon: MessageSquare, label: 'Phản hồi', page: 'feedback', route: '/admin/feedback' },
-                // Quản lý người dùng
-                { icon: Users, label: 'Người dùng', page: 'users', route: '/admin/users' },
                 { icon: UserCheck, label: 'Nhân sự', page: 'staff', route: '/admin/staff' },
                 // Quản lý dịch vụ
                 { icon: Wrench, label: 'Dịch vụ', page: 'services', route: '/admin/services' },
-                { icon: Package2, label: 'Gói dịch vụ', page: 'service-packages', route: '/admin/service-packages' },
                 // Quản lý sản phẩm & kho
                 { icon: Package, label: 'Phụ tùng', page: 'parts', route: '/admin/parts-management' },
                 { icon: Warehouse, label: 'Kho hàng', page: 'inventory', route: '/admin/inventory' },
@@ -1900,8 +1847,6 @@ export default function AdminDashboard() {
                 // Quản lý khác
                 { icon: FileText, label: 'Mẫu Checklist bảo trì', page: 'maintenance-checklist', route: '/admin/maintenance-checklist' },
                 { icon: Gift, label: 'Khuyến mãi', page: 'promotions', route: '/admin/promotions' },
-                // AI & RAG
-                { icon: Brain, label: 'RAG Ingest', page: 'rag-ingest', route: '/admin/rag-ingest' },
                 // Cài đặt
                 { icon: Settings, label: 'Cài đặt hệ thống', page: 'settings', route: '/admin/settings' }
               ].map((item, index) => (

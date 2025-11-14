@@ -4,25 +4,16 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
   StarIcon,
-  ShoppingCartIcon,
-  HeartIcon,
-  EyeIcon,
-  AdjustmentsHorizontalIcon,
-  PlusIcon,
-  BoltIcon
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { PartService, Part, PartFilters, OrderService, CustomerService, CartService, CenterService, InventoryService } from '@/services'
+import { PartService, Part, PartFilters, CenterService, InventoryService } from '@/services'
 import type { Center } from '@/services/centerService'
 import type { InventoryPart } from '@/services/inventoryService'
 import toast from 'react-hot-toast'
 import './products.scss'
-import { addToCart, setCartId } from '@/store/cartSlice'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
 
 export default function Products() {
-  const dispatch = useAppDispatch()
-  const user = useAppSelector((s) => s.auth.user)
   const { category, subcategory } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
@@ -41,16 +32,10 @@ export default function Products() {
   const [selectedBrand, setSelectedBrand] = useState('Tất cả thương hiệu')
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [showMoreBrands, setShowMoreBrands] = useState(false)
-  const [priceRange, setPriceRange] = useState([0, 30000000])
   const [sortBy, setSortBy] = useState('newest')
   const [showFilters, setShowFilters] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 9
-  const [buyingId, setBuyingId] = useState<number | null>(null)
-  const [minPrice, setMinPrice] = useState(0)
-  const [maxPrice, setMaxPrice] = useState(30000000)
-  const [minPriceInput, setMinPriceInput] = useState('0')
-  const [maxPriceInput, setMaxPriceInput] = useState('30.000.000')
 
   // State cho inventory
   const [centers, setCenters] = useState<Center[]>([])
@@ -66,7 +51,7 @@ export default function Products() {
   // Load parts khi filters thay đổi
   useEffect(() => {
     loadPartsData()
-  }, [searchTerm, selectedCategory, selectedBrand, priceRange])
+  }, [searchTerm, selectedCategory, selectedBrand])
 
   // Load categories và brands khi parts data thay đổi
   useEffect(() => {
@@ -189,8 +174,6 @@ export default function Products() {
         searchTerm: searchTerm || undefined,
         // khi chọn nhiều brand sẽ lọc client-side, không gửi brand lên API
         brand: selectedBrands.length === 1 ? selectedBrands[0] : (selectedBrand !== 'Tất cả thương hiệu' && selectedBrands.length === 0 ? selectedBrand : undefined),
-        minPrice: minPrice > 0 ? minPrice : undefined,
-        maxPrice: maxPrice < 30000000 ? maxPrice : undefined,
         inStock: true, // Chỉ hiển thị phụ tùng có sẵn
         pageSize: 100 // Load nhiều để có thể filter local
       }
@@ -210,17 +193,6 @@ export default function Products() {
     } finally {
       setLoading(false)
     }
-  }
-  // Keep input string in sync when slider changes
-  useEffect(() => {
-    const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
-    setMinPriceInput(fmt(minPrice))
-    setMaxPriceInput(fmt(maxPrice))
-  }, [minPrice, maxPrice])
-
-  const parseNumber = (s: string): number => {
-    const digits = s.replace(/[^0-9]/g, '')
-    return digits ? Number(digits) : 0
   }
 
   const loadCategoriesAndBrands = () => {
@@ -341,89 +313,6 @@ export default function Products() {
     )
   }
 
-  // Xử lý thêm vào giỏ hàng
-  const handleAddToCart = async (part: Part, e: React.MouseEvent) => {
-    e.stopPropagation()
-    dispatch(addToCart({
-      item: {
-        id: String(part.partId),
-        name: part.partName,
-        price: part.unitPrice,
-        image: part.imageUrl || '',
-        brand: part.brand,
-        category: '', // Nếu part có category, gán vào đây.
-        inStock: !part.isOutOfStock
-      },
-      userId: user?.id ?? null
-    }))
-    toast.success(`Đã thêm ${part.partName} vào giỏ hàng`)
-
-    // Sync BE cart: lấy cartId theo customer -> thêm item
-    try {
-      const userId = user?.id
-      const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
-      const storedCartId = (typeof localStorage !== 'undefined' && localStorage.getItem(cartIdKey)) || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cartIdKey))
-      let cartId: number | null = storedCartId ? Number(storedCartId) : null
-
-      if (!cartId && user?.customerId) {
-        const resp = await CartService.getCartByCustomer(Number(user.customerId))
-        const id = (resp?.data as any)?.cartId
-        if (id) {
-          cartId = Number(id)
-          dispatch(setCartId({ cartId, userId: user?.id ?? null }))
-        }
-      }
-
-      if (user?.customerId) {
-        await CartService.addItem(Number(user.customerId), { partId: part.partId, quantity: 1 })
-      }
-    } catch (_) {
-      // Silently ignore BE sync errors to keep UX smooth
-    }
-  }
-
-  // Xử lý mua ngay
-  const handleBuyNow = async (part: Part, e: React.MouseEvent) => {
-    e.stopPropagation()
-    try {
-      if (!user?.id) {
-        toast.error('Vui lòng đăng nhập để mua ngay')
-        navigate('/auth/login')
-        return
-      }
-
-      setBuyingId(part.partId)
-
-      // Lấy đúng customerId từ BE (map từ User)
-      const me = await CustomerService.getCurrentCustomer()
-      const customerId = me?.data?.customerId
-      if (!customerId) {
-        toast.error('Không tìm thấy hồ sơ khách hàng')
-        return
-      }
-
-      const resp = await OrderService.createQuickOrder(Number(customerId), {
-        items: [
-          { partId: part.partId, quantity: 1 },
-        ],
-      })
-
-      const orderId = (resp?.data as any)?.orderId ?? (resp?.data as any)?.OrderId ?? (resp?.data as any)?.id
-      if (resp?.success && orderId) {
-        toast.success('Tạo đơn hàng tạm thành công')
-        sessionStorage.setItem('currentOrderId', String(orderId))
-        navigate(`/confirm-order`, { state: { orderId } })
-      } else {
-        toast.error(resp?.message || 'Không thể tạo đơn hàng')
-      }
-    } catch (err: any) {
-      toast.error(err?.userMessage || err?.message || 'Có lỗi khi tạo đơn hàng')
-    }
-    finally {
-      setBuyingId(null)
-    }
-  }
-
   // Filter và sort parts
   const filteredParts = parts.filter(part => {
     // Tìm kiếm theo tên sản phẩm
@@ -437,12 +326,7 @@ export default function Products() {
       (selectedBrands.length === 0 && (selectedBrand === 'Tất cả thương hiệu' || part.brand === selectedBrand)) ||
       (selectedBrands.length > 0 && selectedBrands.includes(part.brand))
 
-    // Lọc theo giá
-    const low = Number.isFinite(minPrice) ? minPrice : 0
-    const high = Number.isFinite(maxPrice) ? maxPrice : Number.MAX_SAFE_INTEGER
-    const matchesPrice = part.unitPrice >= low && part.unitPrice <= high
-
-    return matchesSearch && matchesBrand && matchesPrice
+    return matchesSearch && matchesBrand
   })
 
   const sortedParts = [...filteredParts].sort((a, b) => {
@@ -479,7 +363,7 @@ export default function Products() {
   // Reset về trang 1 khi filters thay đổi
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchTerm, selectedCategory, selectedBrand, minPrice, maxPrice, sortBy])
+  }, [debouncedSearchTerm, selectedCategory, selectedBrand, sortBy])
 
   return (
     <div className="products-page">
@@ -487,73 +371,6 @@ export default function Products() {
         <div className="products-container">
         {/* Sidebar */}
         <aside className="products-sidebar">
-          <div className="sidebar-section">
-            <div className="sidebar-title">Giá</div>
-            <div className="price-slider">
-              <div className="slider-track">
-                <input
-                  type="range"
-                  min={0}
-                  max={30000000}
-                  step={50000}
-                  value={minPrice}
-                  onChange={(e) => {
-                    const v = Math.min(Number(e.target.value), maxPrice)
-                    setMinPrice(v)
-                  }}
-                />
-                <input
-                  type="range"
-                  min={0}
-                  max={30000000}
-                  step={50000}
-                  value={maxPrice}
-                  onChange={(e) => {
-                    const v = Math.max(Number(e.target.value), minPrice)
-                    setMaxPrice(v)
-                  }}
-                />
-              </div>
-            </div>
-            {/* Manual price inputs */}
-            <div className="price-row" style={{ marginTop: 8 }}>
-              <input
-                type="text"
-                className="price-input"
-                min={0}
-                value={minPriceInput}
-                onChange={(e) => {
-                  setMinPriceInput(e.target.value)
-                  const num = parseNumber(e.target.value)
-                  if (!Number.isNaN(num)) setMinPrice(Math.min(num, maxPrice))
-                }}
-                onBlur={() => {
-                  if (minPrice > maxPrice) setMinPrice(maxPrice)
-                  setMinPriceInput(new Intl.NumberFormat('vi-VN').format(minPrice))
-                }}
-                placeholder="Từ"
-              />
-              <span className="price-sep">-</span>
-              <input
-                type="text"
-                className="price-input"
-                min={0}
-                value={maxPriceInput}
-                onChange={(e) => {
-                  setMaxPriceInput(e.target.value)
-                  const num = parseNumber(e.target.value)
-                  if (!Number.isNaN(num)) setMaxPrice(Math.max(num, minPrice))
-                }}
-                onBlur={() => {
-                  if (maxPrice < minPrice) setMaxPrice(minPrice)
-                  setMaxPriceInput(new Intl.NumberFormat('vi-VN').format(maxPrice))
-                }}
-                placeholder="Đến"
-              />
-            </div>
-            <button className="btn-apply" onClick={loadPartsData}>Áp dụng</button>
-          </div>
-
           <div className="sidebar-section">
             <div className="sidebar-title">Thương hiệu</div>
             <div className="brand-list">
@@ -660,7 +477,6 @@ export default function Products() {
                     onClick={() => {
                       setSearchTerm('')
                       setSelectedBrand('Tất cả thương hiệu')
-                      setPriceRange([0, 30000000])
                     }}
                   >
                     Xóa bộ lọc
@@ -699,81 +515,6 @@ export default function Products() {
                         </div>
                         <div className="product-rating">
                           {renderStars(part.rating)}
-                        </div>
-                        <div className="product-stock" style={{
-                          fontSize: '13px',
-                          color: '#666',
-                          marginTop: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          <span>Số lượng:</span>
-                          <span style={{
-                            fontWeight: 600,
-                            color: (() => {
-                              if (loadingInventory) return '#999'
-                              const maxStock = partMaxStock.get(part.partId) ?? 0
-                              return maxStock > 0 ? '#155724' : '#721c24'
-                            })()
-                          }}>
-                            {loadingInventory ? (
-                              <span style={{ color: '#999' }}>Đang tải...</span>
-                            ) : (
-                              (() => {
-                                const maxStock = partMaxStock.get(part.partId) ?? 0
-                                return maxStock > 0
-                                  ? `${maxStock.toLocaleString('vi-VN')} sản phẩm`
-                                  : 'Hết hàng'
-                              })()
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="product-actions">
-                          {(() => {
-                            const maxStock = partMaxStock.get(part.partId) ?? 0
-                            const isOutOfStock = maxStock === 0
-
-                            return (
-                              <>
-                                <button
-                                  className="action-btn add-to-cart-btn"
-                                  onClick={(e) => handleAddToCart(part, e)}
-                                  disabled={isOutOfStock}
-                                  title={isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ hàng'}
-                                  style={{
-                                    opacity: isOutOfStock ? 0.5 : 1,
-                                    cursor: isOutOfStock ? 'not-allowed' : 'pointer'
-                                  }}
-                                >
-                                  <PlusIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
-                                  <span>{isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}</span>
-                                </button>
-
-                                <button
-                                  className="action-btn buy-now-btn"
-                                  onClick={(e) => handleBuyNow(part, e)}
-                                  disabled={isOutOfStock || buyingId === part.partId}
-                                  title={isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Mua ngay'}
-                                  style={{
-                                    opacity: isOutOfStock ? 0.5 : 1,
-                                    cursor: isOutOfStock ? 'not-allowed' : 'pointer'
-                                  }}
-                                >
-                                  <BoltIcon className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
-                                  <span>
-                                    {buyingId === part.partId
-                                      ? 'Đang tạo...'
-                                      : isOutOfStock
-                                        ? 'Hết hàng'
-                                        : 'Mua ngay'
-                                    }
-                                  </span>
-                                </button>
-                              </>
-                            )
-                          })()}
                         </div>
                       </div>
                     </div>

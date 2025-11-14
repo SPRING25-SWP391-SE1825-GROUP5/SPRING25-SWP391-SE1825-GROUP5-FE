@@ -130,7 +130,7 @@ export default function WorkQueueRowExpansion({
         }))
 
         // 2. Load checklist từ API để lấy thông tin replacement parts (chỉ với quyền KTV)
-        let replacementParts: WorkOrderPartItem[] = []
+        const replacementParts: WorkOrderPartItem[] = []
         try {
           const checklistRes = await TechnicianService.getMaintenanceChecklist(bookingId)
           const checklistItems = checklistRes?.items || checklistRes?.data?.items || checklistRes?.data?.results || []
@@ -288,7 +288,7 @@ export default function WorkQueueRowExpansion({
           }))
 
           // Load replacement parts từ checklist
-          let replacementParts: WorkOrderPartItem[] = []
+          const replacementParts: WorkOrderPartItem[] = []
           try {
             const checklistRes = await TechnicianService.getMaintenanceChecklist(bookingId)
             const checklistItems = checklistRes?.items || checklistRes?.data?.items || checklistRes?.data?.results || []
@@ -426,12 +426,18 @@ export default function WorkQueueRowExpansion({
               canApproveCustomerParts={canApproveCustomerParts}
               onApproveCustomerPart={async (partId) => {
                 try {
-                  const res = await BookingService.approveBookingPart(bookingId, partId)
+                  setApprovingPartId(partId)
+                  // Gỡ API customer-approve, gắn API approve-and-consume
+                  const res = await WorkOrderPartService.staffApproveAndConsume(bookingId, partId)
                   if (res?.success === false) throw new Error(res?.message || 'Không thể duyệt')
-                  setParts(prev => prev.map(p => p.id === partId ? { ...p, status: 'CONSUMED' } : p))
-                  toast.success('Đã duyệt phụ tùng')
+                  // Reload parts sau khi duyệt
+                  const updated = await WorkOrderPartService.list(bookingId)
+                  setParts(updated)
+                  toast.success('Đã duyệt và tiêu phụ phụ tùng')
                 } catch (e: any) {
                   toast.error(e?.message || 'Không thể duyệt phụ tùng')
+                } finally {
+                  setApprovingPartId(null)
                 }
               }}
               onApprovePart={async (partId) => {

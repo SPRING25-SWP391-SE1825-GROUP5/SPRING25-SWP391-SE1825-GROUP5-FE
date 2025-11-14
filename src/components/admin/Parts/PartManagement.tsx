@@ -29,7 +29,7 @@ import {
   Hash,
   Building2
 } from 'lucide-react'
-import api from '../../services/api'
+import api from '@/services/api'
 import './PartManagement.scss'
 import PartsFormModal from './PartsFormModal'
 
@@ -58,6 +58,7 @@ export default function PartManagement() {
 
   const mapApiPartToUi = (p: any) => ({
     id: String(p.partId),
+    partId: p.partId,
     partNumber: p.partNumber,
     name: p.partName,
     category: p.brand,
@@ -66,7 +67,8 @@ export default function PartManagement() {
     supplier: p.brand,
     status: p.isActive ? 'Còn hàng' : 'Hết hàng',
     isActive: p.isActive,
-    lastUpdated: new Date(p.createdAt).toLocaleDateString('vi-VN')
+    lastUpdated: new Date(p.createdAt).toLocaleDateString('vi-VN'),
+    rating: typeof p.rating === 'number' ? p.rating : null
   })
 
   const appendNewApiPartAtEnd = (apiPart: any) => {
@@ -560,7 +562,7 @@ export default function PartManagement() {
                   <td className="cell-name">{part.name}</td>
                   <td className="cell-supplier">{part.supplier}</td>
                   <td className="cell-price">{formatPrice(part.price)}</td>
-                  <td className="cell-rating">—</td>
+                  <td className="cell-rating">{typeof part.rating === 'number' ? part.rating.toFixed(1) : '—'}</td>
                   <td className="cell-status">
                     <div className={`status-badge ${part.isActive ? 'status-badge--active' : 'status-badge--inactive'}`}>
                       <div className="dot"></div>
@@ -691,7 +693,7 @@ export default function PartManagement() {
                   setEditingPart(null)
           setNewPart({ partNumber: '', partName: '', brand: '', unitPrice: 0, isActive: true })
         }}
-        onSuccess={() => {
+        onSubmit={() => {
           loadParts()
         }}
         editingPart={editingPart}

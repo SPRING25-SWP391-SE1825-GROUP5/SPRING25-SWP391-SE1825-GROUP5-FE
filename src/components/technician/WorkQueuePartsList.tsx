@@ -11,10 +11,11 @@ interface Props {
   canApproveCustomerParts?: boolean
   onApproveCustomerPart?: (partId: number) => Promise<void> | void
   onApprovePart?: (partId: number) => Promise<void> | void
+  onRejectPart?: (partId: number) => Promise<void> | void
   approvingPartId?: number | null
 }
 
-export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDelete, deletingPartId, availabilityByPartId = {}, canApproveCustomerParts, onApproveCustomerPart, onApprovePart, approvingPartId }: Props) {
+export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDelete, deletingPartId, availabilityByPartId = {}, canApproveCustomerParts, onApproveCustomerPart, onApprovePart, onRejectPart, approvingPartId }: Props) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
@@ -62,19 +63,19 @@ export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDe
                     {canEdit && onDelete && (
                       <button onClick={() => onDelete(p.id)} disabled={deletingPartId === p.id} style={{ padding: '6px 12px', border: '1px solid #EF4444', borderRadius: 6, background: deletingPartId === p.id ? '#f3f4f6' : '#FFFFFF', color: deletingPartId === p.id ? '#9ca3af' : '#EF4444', cursor: deletingPartId === p.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s ease' }}> {deletingPartId === p.id ? 'Đang xóa...' : 'Xóa'} </button>
                     )}
-                    {/* Nút Duyệt cho phụ tùng phát sinh (status DRAFT) - để xác nhận sẽ dùng và tiêu phụ phụ tùng */}
+                    {/* Nút Duyệt cho phụ tùng phát sinh (status DRAFT) - gọi API approve-and-consume */}
                     {isInProgress && !isApproved && !isReplacementPart && (approvalStatus === 'DRAFT' || !approvalStatus) && onApprovePart && (
-                      <button 
-                        onClick={() => onApprovePart(p.id)} 
+                      <button
+                        onClick={() => onApprovePart(p.id)}
                         disabled={approvingPartId === p.id}
-                        style={{ 
-                          padding: '6px 12px', 
-                          border: '1px solid #10B981', 
-                          borderRadius: 6, 
-                          background: approvingPartId === p.id ? '#f3f4f6' : '#ECFDF5', 
-                          color: approvingPartId === p.id ? '#9ca3af' : '#065F46', 
-                          cursor: approvingPartId === p.id ? 'not-allowed' : 'pointer', 
-                          fontSize: 13, 
+                        style={{
+                          padding: '6px 12px',
+                          border: '1px solid #10B981',
+                          borderRadius: 6,
+                          background: approvingPartId === p.id ? '#f3f4f6' : '#ECFDF5',
+                          color: approvingPartId === p.id ? '#9ca3af' : '#065F46',
+                          cursor: approvingPartId === p.id ? 'not-allowed' : 'pointer',
+                          fontSize: 13,
                           fontWeight: 600,
                           transition: 'all 0.2s ease'
                         }}
@@ -82,9 +83,44 @@ export default function WorkQueuePartsList({ parts, centerId, isInProgress, onDe
                         {approvingPartId === p.id ? 'Đang duyệt...' : 'Duyệt'}
                       </button>
                     )}
+                    {/* Nút Từ chối cho phụ tùng phát sinh (status DRAFT) */}
+                    {isInProgress && !isApproved && !isReplacementPart && (approvalStatus === 'DRAFT' || !approvalStatus) && onRejectPart && (
+                      <button
+                        onClick={() => onRejectPart(p.id)}
+                        disabled={approvingPartId === p.id}
+                        style={{
+                          padding: '6px 12px',
+                          border: '1px solid #EF4444',
+                          borderRadius: 6,
+                          background: approvingPartId === p.id ? '#f3f4f6' : '#FEF2F2',
+                          color: approvingPartId === p.id ? '#9ca3af' : '#991B1B',
+                          cursor: approvingPartId === p.id ? 'not-allowed' : 'pointer',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {approvingPartId === p.id ? 'Đang xử lý...' : 'Từ chối'}
+                      </button>
+                    )}
                     {/* Nút Duyệt cho phụ tùng cần customer approval (status PENDING_CUSTOMER_APPROVAL) */}
                     {canApproveCustomerParts && (approvalStatus === 'PENDING_CUSTOMER_APPROVAL') && onApproveCustomerPart && (
-                      <button onClick={() => onApproveCustomerPart(p.id)} style={{ padding: '6px 12px', border: '1px solid #10B981', borderRadius: 6, background: '#ECFDF5', color: '#065F46', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Duyệt</button>
+                      <button
+                        onClick={() => onApproveCustomerPart(p.id)}
+                        disabled={approvingPartId === p.id}
+                        style={{
+                          padding: '6px 12px',
+                          border: '1px solid #10B981',
+                          borderRadius: 6,
+                          background: approvingPartId === p.id ? '#f3f4f6' : '#ECFDF5',
+                          color: approvingPartId === p.id ? '#9ca3af' : '#065F46',
+                          cursor: approvingPartId === p.id ? 'not-allowed' : 'pointer',
+                          fontSize: 13,
+                          fontWeight: 600
+                        }}
+                      >
+                        {approvingPartId === p.id ? 'Đang duyệt...' : 'Duyệt'}
+                      </button>
                     )}
                   </div>
                 </td>

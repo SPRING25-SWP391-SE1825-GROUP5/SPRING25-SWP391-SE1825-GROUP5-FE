@@ -55,7 +55,6 @@ const MapDemo = lazy(() => import('@/views/MapDemo'))
 const NotFound = lazy(() => import('@/views/NotFound'))
 const ServiceTemplateManagement = lazy(() => import('@/views/Admin/ServiceTemplateManagement'))
 const SystemSettings = lazy(() => import('@/views/Admin/SystemSettings'))
-const RagIngest = lazy(() => import('@/views/Admin/RagIngest'))
 
 const suspense = (el: ReactElement) => <Suspense fallback={<div />}>{el}</Suspense>
 
@@ -89,7 +88,6 @@ const router = createBrowserRouter([
       { path: 'payment/success', element: suspense(<PaymentSuccess />) },
       { path: 'payment/error', element: suspense(<PaymentSuccess />) },
       { path: 'payment/failed', element: suspense(<PaymentSuccess />) },
-      { path: 'payment/cancelled', element: suspense(<PaymentSuccess />) },
       { path: 'chat-demo', element: suspense(<ChatDemo />) },
       { path: 'avatar-demo', element: suspense(<AvatarIconDemo />) },
       { path: 'map-demo', element: suspense(<MapDemo />) },
@@ -141,15 +139,12 @@ const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: suspense(<AdminDashboard />) },
-      { path: 'rag-ingest', element: suspense(<RagIngest />) },
       { path: 'orders', element: suspense(<AdminDashboard />) },
       { path: 'bookings', element: suspense(<AdminDashboard />) },
       { path: 'reminders', element: suspense(<AdminDashboard />) },
       { path: 'feedback', element: suspense(<AdminDashboard />) },
-      { path: 'users', element: suspense(<AdminDashboard />) },
       { path: 'staff', element: suspense(<AdminDashboard />) },
       { path: 'services', element: suspense(<AdminDashboard />) },
-      { path: 'service-packages', element: suspense(<AdminDashboard />) },
       { path: 'parts-management', element: suspense(<AdminDashboard />) },
       { path: 'inventory', element: suspense(<AdminDashboard />) },
       { path: 'service-centers', element: suspense(<AdminDashboard />) },

@@ -70,7 +70,7 @@
 
 .qr-manual-card {
   padding: 16px;
-  
+
   h3 {
     margin: 0 0 12px 0;
     font-size: 14px;
@@ -80,19 +80,21 @@
 .qr-camera-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  min-height: 300px;
   background: #1a1a1a;
   border-radius: 0;
   overflow: hidden;
+
+  #qr-video {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+    display: block !important;
+    background: #1a1a1a;
+  }
 }
 
-.qr-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.qr-camera-loading {
+.qr-camera-placeholder {
   position: absolute;
   inset: 0;
   display: flex;
@@ -101,15 +103,46 @@
   justify-content: center;
   gap: 12px;
   color: #888;
+  background: #1a1a1a;
 
   svg {
     animation: pulse 2s ease-in-out infinite;
+    opacity: 0.5;
   }
 
   p {
     margin: 0;
     font-size: 14px;
     font-weight: 300;
+    color: #aaa;
+  }
+}
+
+.qr-toggle-camera-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--primary-500);
+  color: white;
+  border: none;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--primary-600);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
   }
 }
 

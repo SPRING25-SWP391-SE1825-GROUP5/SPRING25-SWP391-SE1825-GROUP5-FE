@@ -3,7 +3,6 @@ import api from './api'
 // Payment Types and Interfaces
 export const PaymentMethod = {
     CASH: 'CASH',
-    VNPAY: 'VNPAY',
     QR_CODE: 'QR_CODE',
     BANK_TRANSFER: 'BANK_TRANSFER',
     CREDIT_CARD: 'CREDIT_CARD'
@@ -45,25 +44,6 @@ export interface PaymentResponse {
     }
 }
 
-export interface VNPayPaymentRequest {
-    bookingId: number
-    amount: number
-    description?: string
-    returnUrl?: string
-    cancelUrl?: string
-}
-
-export interface VNPayPaymentResponse {
-    success: boolean
-    message: string
-    paymentUrl?: string
-    data?: {
-        paymentUrl: string
-        orderCode: string
-        amount: number
-    }
-}
-
 export interface QRPaymentRequest {
     bookingId: number
     amount: number
@@ -90,22 +70,6 @@ export class PaymentService {
     static async createPayment(request: PaymentRequest): Promise<PaymentResponse> {
         const response = await api.post('/Payment/create', request)
         return response.data
-    }
-
-    /**
-     * Tạo thanh toán VNPay
-     */
-    static async createVNPayPayment(request: VNPayPaymentRequest): Promise<VNPayPaymentResponse> {
-        const response = await api.post('/Payment/vnpay/create', request)
-        return response.data
-    }
-
-    /**
-     * Tạo link thanh toán VNPay cho Booking (theo spec mới)
-     */
-    static async createBookingVNPayLink(bookingId: number): Promise<{ success: boolean; message: string; vnp_Url?: string }> {
-        const { data } = await api.post(`/Payment/booking/${bookingId}/vnpay-link`)
-        return data
     }
 
     /**

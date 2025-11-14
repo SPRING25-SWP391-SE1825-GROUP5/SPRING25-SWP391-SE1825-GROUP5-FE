@@ -30,7 +30,7 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
 import { PromotionService } from '@/services/promotionService';
 import type { Promotion, CreatePromotionRequest, UpdatePromotionRequest } from '@/types/promotion';
-import PromotionFormModal from './Promotion/PromotionFormModal';
+import PromotionFormModal from './PromotionFormModal';
 import './PromotionManagement.scss';
 
 export default function PromotionManagement() {
@@ -58,7 +58,7 @@ export default function PromotionManagement() {
     expired: 0,
   });
   const [selectedPromotionIds, setSelectedPromotionIds] = useState<number[]>([]);
-  
+
   const [openStatusMenu, setOpenStatusMenu] = useState(false);
   const [openTypeMenu, setOpenTypeMenu] = useState(false);
   const [openPageSizeMenu, setOpenPageSizeMenu] = useState(false);

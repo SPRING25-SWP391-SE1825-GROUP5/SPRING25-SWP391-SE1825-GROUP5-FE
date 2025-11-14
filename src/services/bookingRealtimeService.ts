@@ -14,7 +14,10 @@ class BookingRealtimeService {
 
   private ensureConnection() {
     if (this.connection) return
-    const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'https://localhost:5001'
+    // Get base URL and remove /api suffix if present (SignalR hubs are mapped at root level, not under /api)
+    let baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'https://localhost:5001'
+    // Remove /api suffix if present
+    baseUrl = baseUrl.replace(/\/api\/?$/, '').replace(/\/$/, '')
     const hubUrl = `${baseUrl}/hubs/booking`
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {

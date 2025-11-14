@@ -1,78 +1,58 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { addToCart, updateQuantity, removeFromCart } from '@/store/cartSlice'
-import { PartService, Part, CartService, InventoryService, CenterService } from '@/services'
-import type { InventoryData, InventoryPart } from '@/services/inventoryService'
+import { addToCart, updateQuantity } from '@/store/cartSlice'
+import { PartService, Part, CartService, InventoryService, CenterService, OrderService, CustomerService } from '@/services'
+import type { InventoryPart } from '@/services/inventoryService'
 import type { Center } from '@/services/centerService'
 import toast from 'react-hot-toast'
 import {
   ShoppingCartIcon,
   StarIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   MapPinIcon,
   BuildingStorefrontIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import './product-detail.scss'
 
-// Sử dụng Part interface từ API thay vì Product interface
 type Product = Part & {
-  // Thêm các thuộc tính bổ sung cho UI
   id: string
   name: string
   price: number
-  originalPrice?: number
   category: string
   description?: string
   specifications?: {
     [key: string]: string
   }
   images?: string[]
-  features?: string[]
-  reviewCount?: number
   inStock?: boolean
 }
 
-// Function to convert Part to Product with additional UI properties
-const convertPartToProduct = (part: any): Product => {
-  // Xử lý giá linh hoạt - có thể là unitPrice, UnitPrice, price, hoặc Price
-  const unitPrice = part.unitPrice ?? part.UnitPrice ?? part.price ?? part.Price ?? 0
-  const totalStock = part.totalStock ?? part.TotalStock ?? part.stock ?? part.Stock ?? 0
+const convertPartToProduct = (part: Part): Product => {
+    const unitPrice = part.unitPrice ?? 0
+    const totalStock = part.totalStock ?? 0
 
-  console.log('[ProductDetail] Converting part - unitPrice:', unitPrice, 'from:', {
-    unitPrice: part.unitPrice,
-    UnitPrice: part.UnitPrice,
-    price: part.price,
-    Price: part.Price
-  })
-
-  return {
-    ...part,
-    // Map Part properties to Product properties
-    id: (part.partId ?? part.PartId ?? part.id ?? '').toString(),
-    name: part.partName ?? part.PartName ?? part.name ?? '',
-    price: unitPrice,
-    unitPrice: unitPrice, // Đảm bảo có unitPrice
-    originalPrice: unitPrice > 0 ? unitPrice * 1.2 : undefined, // Chỉ hiển thị nếu có giá
-    brand: part.brand ?? part.Brand ?? '',
-    category: part.brand ?? part.Brand ?? '', // Using brand as category for now
-    rating: part.rating ?? part.Rating ?? 0,
-    inStock: !(part.isOutOfStock ?? part.IsOutOfStock ?? false),
-    totalStock: totalStock,
-    // Add UI-specific properties
-    description: `${part.partName ?? part.PartName ?? ''} - ${part.brand ?? part.Brand ?? ''}`,
-    reviewCount: Math.floor(Math.random() * 200) + 50, // Mock review count
-    images: [part.imageUrl ?? part.ImageUrl ?? `https://picsum.photos/seed/${part.partId ?? part.PartId ?? 0}/400/400`],
-    features: ['Chất lượng cao', 'Bền bỉ', 'Đáng tin cậy'],
-    specifications: {
-      'Thương hiệu': part.brand ?? part.Brand ?? '',
-      'Danh mục': part.brand ?? part.Brand ?? '',
-      'Tình trạng': (part.isOutOfStock ?? part.IsOutOfStock) ? 'Hết hàng' : 'Còn hàng'
+    return {
+      ...part,
+      partId: part.partId,
+      id: String(part.partId),
+      name: part.partName,
+      price: unitPrice,
+      unitPrice,
+      brand: part.brand ?? '',
+      category: part.brand ?? '',
+      rating: part.rating ?? 0,
+      inStock: !(part.isOutOfStock ?? false),
+      totalStock,
+      description: `${part.partName ?? ''} - ${part.brand ?? ''}`,
+      images: part.imageUrl ? [part.imageUrl] : [],
+      specifications: {
+        'Thương hiệu': part.brand ?? '',
+        'Danh mục': part.brand ?? '',
+        'Tình trạng': (part.isOutOfStock ?? false) ? 'Hết hàng' : 'Còn hàng'
+      }
     }
   }
-}
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -93,8 +73,43 @@ export default function ProductDetail() {
   const [loadingInventory, setLoadingInventory] = useState(false)
   const [loadingCenters, setLoadingCenters] = useState(false)
   const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null)
+  const [availableCenters, setAvailableCenters] = useState<Center[]>([])
 
-  // Load product details from API
+  const recalcAvailableCenters = (inventoryMap: Map<number, InventoryPart | null>, centersList: Center[]) => {
+    const available = centersList.filter(center => {
+      const part = inventoryMap.get(center.centerId)
+      if (!part) return false
+      const stock = part.currentStock ?? 0
+      const isOutOfStock = part.isOutOfStock === true || stock <= 0
+      return !isOutOfStock
+    })
+
+    setAvailableCenters(available)
+
+    setSelectedCenterId((prevSelected) => {
+      if (available.length === 0) {
+        return null
+      }
+
+      if (prevSelected && available.some(center => center.centerId === prevSelected)) {
+        return prevSelected
+      }
+
+      let bestCenterId: number | null = null
+      let bestStock = -1
+
+      available.forEach(center => {
+        const stock = inventoryMap.get(center.centerId)?.currentStock ?? 0
+        if (stock > bestStock) {
+          bestStock = stock
+          bestCenterId = center.centerId
+        }
+      })
+
+      return bestCenterId ?? available[0].centerId
+    })
+  }
+
   useEffect(() => {
     const loadProduct = async () => {
       if (!id) return
@@ -103,33 +118,22 @@ export default function ProductDetail() {
         setLoading(true)
         setError(null)
 
-        // Load all parts first to get related products
         const allPartsResponse = await PartService.getPartAvailability()
         if (allPartsResponse.success) {
           setAllParts(allPartsResponse.data)
         }
 
-        // Load specific product details
         const productId = parseInt(id)
         const response = await PartService.getPartById(productId)
 
-        console.log('[ProductDetail] API Response:', response)
-        console.log('[ProductDetail] Response data:', response.data)
-
         if (response.success && response.data) {
           const partData = response.data
-          console.log('[ProductDetail] Part data unitPrice:', partData.unitPrice)
-          console.log('[ProductDetail] Part data keys:', Object.keys(partData))
-
           const productData = convertPartToProduct(partData)
-          console.log('[ProductDetail] Converted product data:', productData)
-          console.log('[ProductDetail] Product unitPrice:', productData.unitPrice)
           setProduct(productData)
         } else {
           setError('Không tìm thấy sản phẩm')
         }
-      } catch (err) {
-
+      } catch {
         setError('Có lỗi xảy ra khi tải sản phẩm')
       } finally {
         setLoading(false)
@@ -139,19 +143,14 @@ export default function ProductDetail() {
     loadProduct()
   }, [id])
 
-  // Load active centers (separate from inventory to enable dropdown immediately)
   useEffect(() => {
     const loadCenters = async () => {
       try {
         setLoadingCenters(true)
-        console.log('[ProductDetail] Loading active centers...')
-        // Sử dụng API /api/Center/active để chỉ lấy các chi nhánh đang hoạt động
         const centersResponse = await CenterService.getActiveCenters({ pageSize: 100 })
         const centersList = centersResponse.centers || []
-        console.log('[ProductDetail] Active centers loaded:', centersList.length, centersList)
         setCenters(centersList)
-      } catch (error) {
-        console.error('[ProductDetail] Error loading active centers:', error)
+      } catch {
         setCenters([])
       } finally {
         setLoadingCenters(false)
@@ -161,7 +160,6 @@ export default function ProductDetail() {
     loadCenters()
   }, [])
 
-  // Load inventory for all centers and set default to center with highest stock
   useEffect(() => {
     const loadAllInventories = async () => {
       if (!product?.partId || centers.length === 0) {
@@ -170,17 +168,12 @@ export default function ProductDetail() {
 
       try {
         setLoadingInventory(true)
-        console.log(`[ProductDetail] Loading inventory for all ${centers.length} centers...`)
-
-        // Load inventory for all centers in parallel
         const inventoryMap = new Map<number, InventoryPart | null>()
 
         await Promise.allSettled(
           centers.map(async (center) => {
             try {
               const inventoryId = center.centerId
-              console.log(`[ProductDetail] Loading inventory for center ${inventoryId}...`)
-
               const partsResponse = await InventoryService.getInventoryParts(inventoryId)
 
               if (partsResponse.success && partsResponse.data) {
@@ -189,16 +182,16 @@ export default function ProductDetail() {
                 if (Array.isArray(partsResponse.data)) {
                   partsArray = partsResponse.data
                 } else if (partsResponse.data && typeof partsResponse.data === 'object') {
-                  const dataObj = partsResponse.data as any
+                  const dataObj = partsResponse.data as Record<string, unknown>
                   for (const key in dataObj) {
-                    if (Array.isArray(dataObj[key])) {
-                      partsArray = dataObj[key]
+                    const value = dataObj[key]
+                    if (Array.isArray(value)) {
+                      partsArray = value as InventoryPart[]
                       break
                     }
                   }
                 }
 
-                // Tìm part trong inventory
                 let partInInventory: InventoryPart | null = null
                 if (partsArray.length > 0) {
                   partInInventory = partsArray.find(
@@ -207,42 +200,20 @@ export default function ProductDetail() {
                 }
 
                 inventoryMap.set(center.centerId, partInInventory)
-                console.log(`[ProductDetail] Center ${inventoryId}: stock = ${partInInventory?.currentStock ?? 0}`)
               } else {
                 inventoryMap.set(center.centerId, null)
               }
-            } catch (error: any) {
-              console.error(`[ProductDetail] Error loading inventory for center ${center.centerId}:`, error)
+            } catch (error) {
+              console.error('[ProductDetail] Không thể tải tồn kho cho chi nhánh', center.centerId, error)
               inventoryMap.set(center.centerId, null)
             }
           })
         )
 
         setInventoryByCenter(inventoryMap)
-
-        // Tìm center có stock cao nhất và set làm mặc định
-        let maxStock = -1
-        let bestCenterId: number | null = null
-
-        inventoryMap.forEach((part, centerId) => {
-          const stock = part?.currentStock ?? 0
-          if (stock > maxStock) {
-            maxStock = stock
-            bestCenterId = centerId
-          }
-        })
-
-        // Nếu không có center nào có stock, chọn center đầu tiên
-        if (bestCenterId === null && centers.length > 0) {
-          bestCenterId = centers[0].centerId
-        }
-
-        if (bestCenterId !== null && !selectedCenterId) {
-          console.log(`[ProductDetail] Setting default center to ${bestCenterId} (stock: ${maxStock})`)
-          setSelectedCenterId(bestCenterId)
-        }
-      } catch (error: any) {
-        console.error(`[ProductDetail] Error loading all inventories:`, error)
+        recalcAvailableCenters(inventoryMap, centers)
+      } catch (error) {
+        console.error('[ProductDetail] Không thể tải tồn kho cho tất cả chi nhánh:', error)
       } finally {
         setLoadingInventory(false)
       }
@@ -251,29 +222,21 @@ export default function ProductDetail() {
     if (product?.partId && centers.length > 0) {
       loadAllInventories()
     }
-  }, [product?.partId, centers.length])
+  }, [product?.partId, centers])
 
-  // Load inventory data when user manually selects a center (if not already loaded)
   useEffect(() => {
     const loadInventoryForSelectedCenter = async () => {
       if (!product?.partId || !selectedCenterId) {
         return
       }
 
-      // Kiểm tra xem đã load chưa
       if (inventoryByCenter.has(selectedCenterId)) {
-        console.log(`[ProductDetail] Inventory for center ${selectedCenterId} already loaded`)
         return
       }
 
       try {
         setLoadingInventory(true)
-        console.log(`[ProductDetail] Loading inventory for center ${selectedCenterId}...`)
-
-        // inventoryId chính là centerId (1-1 mapping)
         const inventoryId = selectedCenterId
-
-        // Gọi API GET /api/Inventory/{inventoryId}/parts
         const partsResponse = await InventoryService.getInventoryParts(inventoryId)
 
         if (partsResponse.success && partsResponse.data) {
@@ -282,16 +245,16 @@ export default function ProductDetail() {
           if (Array.isArray(partsResponse.data)) {
             partsArray = partsResponse.data
           } else if (partsResponse.data && typeof partsResponse.data === 'object') {
-            const dataObj = partsResponse.data as any
+            const dataObj = partsResponse.data as Record<string, unknown>
             for (const key in dataObj) {
-              if (Array.isArray(dataObj[key])) {
-                partsArray = dataObj[key]
+              const value = dataObj[key]
+              if (Array.isArray(value)) {
+                partsArray = value as InventoryPart[]
                 break
               }
             }
           }
 
-          // Tìm part trong inventory
           let partInInventory: InventoryPart | null = null
           if (partsArray.length > 0) {
             partInInventory = partsArray.find(
@@ -299,24 +262,26 @@ export default function ProductDetail() {
             ) || null
           }
 
-          // Cập nhật map
           setInventoryByCenter(prev => {
             const newMap = new Map(prev)
             newMap.set(selectedCenterId, partInInventory)
+            recalcAvailableCenters(newMap, centers)
             return newMap
           })
         } else {
           setInventoryByCenter(prev => {
             const newMap = new Map(prev)
             newMap.set(selectedCenterId, null)
+            recalcAvailableCenters(newMap, centers)
             return newMap
           })
         }
-      } catch (error: any) {
-        console.error(`[ProductDetail] Error loading parts for inventory ${selectedCenterId}:`, error)
+      } catch (error) {
+        console.error('[ProductDetail] Không thể tải tồn kho cho chi nhánh', selectedCenterId, error)
         setInventoryByCenter(prev => {
           const newMap = new Map(prev)
           newMap.set(selectedCenterId, null)
+          recalcAvailableCenters(newMap, centers)
           return newMap
         })
       } finally {
@@ -325,30 +290,31 @@ export default function ProductDetail() {
     }
 
     if (product?.partId && selectedCenterId && centers.length > 0) {
-      // Chỉ load nếu chưa có trong map
       const hasData = inventoryByCenter.has(selectedCenterId)
       if (!hasData) {
         loadInventoryForSelectedCenter()
       }
     }
-  }, [product?.partId, selectedCenterId, centers.length])
+  }, [product?.partId, selectedCenterId, centers, inventoryByCenter])
 
-  // Get related products based on same brand
   const getRelatedProducts = (): Product[] => {
     if (!product || allParts.length === 0) return []
 
     return allParts
-      .filter(p => p.partId !== product.partId) // Exclude current product
-      .filter(p => p.brand === product.brand) // Same brand
-      .slice(0, 8) // Limit to 8 products
+      .filter(p => p.partId !== product.partId)
+      .filter(p => p.brand === product.brand)
+      .slice(0, 8)
       .map(convertPartToProduct)
   }
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (silent: boolean = false) => {
     if (!product) return
 
-    // Không yêu cầu chọn center khi add to cart - sẽ chọn sau ở confirm order
-    // Chỉ validate stock nếu đã chọn center (optional)
+    if (availableCenters.length === 0) {
+      toast.error('Sản phẩm đã hết hàng tại tất cả chi nhánh')
+      return
+    }
+
     if (selectedCenterId) {
       const inventoryPart = inventoryByCenter.get(selectedCenterId)
       const stock = inventoryPart?.currentStock ?? 0
@@ -359,39 +325,34 @@ export default function ProductDetail() {
         return
       }
 
-      // Validate stock đủ cho quantity
       if (stock < quantity) {
         toast.error(`Không đủ hàng tại chi nhánh đã chọn. Hiện có: ${stock}, bạn cần: ${quantity}`)
         return
       }
     }
 
-    // Add to cart with quantity (không bắt buộc fulfillmentCenterId)
     const itemId = product.partId.toString()
     const productPrice = product.unitPrice ?? product.price ?? 0
     const cartItem = {
       id: itemId,
       name: product.partName,
       price: productPrice,
-      image: product.images?.[0] || `https://picsum.photos/seed/${product.partId}/400/400`,
+      image: product.images?.[0] || '',
       brand: product.brand,
       category: product.category,
       inStock: product.inStock || true,
-      fulfillmentCenterId: selectedCenterId ?? undefined  // Optional - có thể không có
+      fulfillmentCenterId: selectedCenterId ?? undefined
     }
 
-    // Check if item already exists in cart
     const existingItem = cart.items.find(item => item.id === itemId)
 
     if (existingItem) {
-      // Update quantity if item exists (không cần kiểm tra center vì sẽ chọn sau)
       dispatch(updateQuantity({
         id: itemId,
         quantity: existingItem.quantity + quantity,
         userId: user?.id ?? null
       }))
     } else {
-      // Add new item, then update quantity
       dispatch(addToCart({
         item: cartItem,
         userId: user?.id ?? null
@@ -405,26 +366,134 @@ export default function ProductDetail() {
       }
     }
 
-    toast.success(`Đã thêm ${quantity} "${product.partName}" vào giỏ hàng!`)
+    if (!silent) {
+      toast.success(`Đã thêm ${quantity} "${product.partName}" vào giỏ hàng!`)
+    }
 
-    // Best-effort sync to backend cart
     try {
-      const userId = user?.id
-      const cartIdKey = userId ? `cartId_${userId}` : 'cartId_guest'
       if (!user?.customerId) return
-      await CartService.addItem(Number(user.customerId), { partId: product.partId, quantity: quantity })
-    } catch (_) { /* ignore */ }
+      await CartService.addItem(Number(user.customerId), { partId: product.partId, quantity })
+    } catch (error) {
+      console.error('[ProductDetail] Không thể đồng bộ giỏ hàng với máy chủ:', error)
+    }
   }
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!product) return
 
-    // Add to cart first
-    handleAddToCart()
-    // Navigate to cart
-    setTimeout(() => {
-      navigate('/cart')
-    }, 100)
+    if (availableCenters.length === 0) {
+      toast.error('Sản phẩm đã hết hàng tại tất cả chi nhánh')
+      return
+    }
+
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để tiếp tục')
+      navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
+      return
+    }
+
+    if (selectedCenterId) {
+      const inventoryPart = inventoryByCenter.get(selectedCenterId)
+      const stock = inventoryPart?.currentStock ?? 0
+      const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
+
+      if (isOutOfStock) {
+        toast.error('Sản phẩm đã hết hàng tại chi nhánh này')
+        return
+      }
+
+      if (stock < quantity) {
+        toast.error(`Không đủ hàng tại chi nhánh đã chọn. Hiện có: ${stock}, bạn cần: ${quantity}`)
+        return
+      }
+    }
+
+    try {
+      await handleAddToCart(true)
+
+      let customerId = user.customerId
+      if (!customerId) {
+        try {
+          const me = await CustomerService.getCurrentCustomer()
+          if (me?.success && me?.data?.customerId) {
+            customerId = me.data.customerId
+          } else {
+            toast.error('Không tìm thấy thông tin khách hàng. Vui lòng đăng nhập lại.')
+            navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
+            return
+          }
+        } catch (customerError: unknown) {
+          const responseStatus =
+            typeof customerError === 'object' && customerError !== null && 'response' in customerError
+              ? (customerError as { response?: { status?: number }; isAuthError?: boolean }).response?.status
+              : undefined
+          const isAuthError =
+            typeof customerError === 'object' && customerError !== null && 'isAuthError' in customerError
+              ? Boolean((customerError as { isAuthError?: boolean }).isAuthError)
+              : false
+
+          if (responseStatus === 401 || isAuthError) {
+            toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+            navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
+            return
+          }
+          toast.error('Không thể lấy thông tin khách hàng. Vui lòng thử lại.')
+          return
+        }
+      }
+
+      const response = await OrderService.createOrder(Number(customerId), {
+        items: [{
+          partId: product.partId,
+          quantity: quantity
+        }],
+        fulfillmentCenterId: selectedCenterId ?? undefined
+      })
+
+      if (response.success) {
+        const orderId = response.data?.orderId ?? response.data?.OrderId ?? response.data?.id
+        if (orderId) {
+          navigate('/confirm-order', { state: { orderId: Number(orderId) }, replace: true })
+        } else {
+          toast.error('Không thể lấy mã đơn hàng từ phản hồi')
+        }
+      } else {
+        toast.error(response.message || 'Không thể tạo đơn hàng')
+      }
+    } catch (error: unknown) {
+      const responseStatus =
+        typeof error === 'object' && error !== null && 'response' in error
+          ? (error as { response?: { status?: number }; isAuthError?: boolean }).response?.status
+          : undefined
+      const isAuthError =
+        typeof error === 'object' && error !== null && 'isAuthError' in error
+          ? Boolean((error as { isAuthError?: boolean }).isAuthError)
+          : false
+
+      if (responseStatus === 401 || isAuthError) {
+        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+        navigate('/auth/login', { state: { redirect: `/product/${product.partId}` } })
+        return
+      }
+
+      const errorMessage =
+        typeof error === 'object' && error !== null && 'response' in error && (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : typeof error === 'object' && error !== null && 'userMessage' in error
+            ? String((error as { userMessage?: string }).userMessage)
+            : error instanceof Error
+              ? error.message
+              : 'Có lỗi khi tạo đơn hàng'
+
+      if (errorMessage.includes('Không đủ hàng') ||
+          errorMessage.includes('không đủ stock') ||
+          errorMessage.includes('hết hàng')) {
+        toast.error('Sản phẩm đã hết hàng. Vui lòng chọn chi nhánh khác hoặc thử lại sau.')
+        return
+      }
+
+      toast.error(errorMessage)
+    }
   }
 
   const formatPrice = (price: number | null | undefined) => {
@@ -439,8 +508,7 @@ export default function ProductDetail() {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
       }).format(price)
-    } catch (error) {
-      console.error('[ProductDetail] Error formatting price:', price, error)
+    } catch {
       return `${Number(price).toLocaleString('vi-VN')} ₫`
     }
   }
@@ -499,7 +567,6 @@ export default function ProductDetail() {
   return (
     <div className="product-detail">
       <div className="container">
-        {/* Breadcrumb */}
         <div className="breadcrumb">
           <button onClick={() => navigate('/products')} className="breadcrumb-link">
             Sản phẩm
@@ -508,12 +575,11 @@ export default function ProductDetail() {
           <span className="breadcrumb-current">{product.partName}</span>
         </div>
 
-        {/* Main Product Section */}
         <div className="product-main">
           <div className="product-gallery">
             <div className="main-image">
               <img
-                src={product.images?.[selectedImage] || `https://picsum.photos/seed/${product.partId}/600/600`}
+                src={product.images?.[selectedImage] || ''}
                 alt={product.partName}
               />
             </div>
@@ -539,7 +605,6 @@ export default function ProductDetail() {
               <div className="product-meta">
                 <div className="product-rating">
                   {renderStars(product.rating)}
-                  <span className="review-count">({product.reviewCount} đánh giá)</span>
                 </div>
                 <div className="product-brand">
                   <span className="brand-label">Thương hiệu:</span>
@@ -552,11 +617,6 @@ export default function ProductDetail() {
               <div className="price-current">
                 {formatPrice(product.unitPrice ?? product.price ?? 0)}
               </div>
-              {product.originalPrice && product.originalPrice > (product.unitPrice ?? product.price ?? 0) && (
-                <div className="price-original">
-                  {formatPrice(product.originalPrice)}
-                </div>
-              )}
             </div>
 
             <div className="product-availability">
@@ -567,19 +627,22 @@ export default function ProductDetail() {
                 <select
                   id="center-select"
                   className="center-select"
-                  value={selectedCenterId || ''}
+                  value={selectedCenterId ?? ''}
                   onChange={(e) => {
                     const value = e.target.value
-                    console.log('[ProductDetail] Center selected:', value)
                     setSelectedCenterId(value ? Number(value) : null)
                   }}
-                  disabled={loadingCenters}
+                  disabled={loadingCenters || availableCenters.length === 0}
                 >
-                  {centers.map((center) => (
-                    <option key={center.centerId} value={center.centerId}>
-                      {center.centerName}
-                    </option>
-                  ))}
+                  {availableCenters.length === 0 ? (
+                    <option value="">Không có chi nhánh còn hàng</option>
+                  ) : (
+                    availableCenters.map((center) => (
+                      <option key={center.centerId} value={center.centerId}>
+                        {center.centerName}
+                      </option>
+                    ))
+                  )}
                 </select>
                 {loadingCenters && (
                   <span style={{ fontSize: '12px', color: '#666', marginLeft: '8px' }}>
@@ -605,27 +668,12 @@ export default function ProductDetail() {
                     </div>
                   ) : (() => {
                     const inventoryPart = inventoryByCenter.get(selectedCenterId)
-                    console.log('[ProductDetail] Rendering stock info for center', selectedCenterId, 'inventoryPart:', inventoryPart)
-
-                    // Kiểm tra xem có part trong inventory không
-                    // Nếu inventoryPart là undefined, có nghĩa là chưa load hoặc không có
-                    // Nếu là null, có nghĩa là đã load nhưng không tìm thấy
                     const hasLoaded = inventoryByCenter.has(selectedCenterId)
                     const hasPart = inventoryPart !== null && inventoryPart !== undefined
                     const stock = inventoryPart?.currentStock ?? 0
                     const isLowStock = inventoryPart?.isLowStock ?? false
-                    // Chỉ coi là hết hàng nếu isOutOfStock = true HOẶC stock = 0
                     const isOutOfStock = inventoryPart?.isOutOfStock === true || (hasPart && stock === 0)
                     const selectedCenter = centers.find(c => c.centerId === selectedCenterId)
-
-                    console.log('[ProductDetail] Stock info:', {
-                      hasLoaded,
-                      hasPart,
-                      stock,
-                      isLowStock,
-                      isOutOfStock,
-                      inventoryPart
-                    })
 
                     return (
                       <>
@@ -674,7 +722,11 @@ export default function ProductDetail() {
                 </div>
               ) : (
                 <div className="stock-placeholder">
-                  <p>Vui lòng chọn chi nhánh để xem tồn kho</p>
+                  <p>
+                    {availableCenters.length === 0
+                      ? 'Sản phẩm hiện không còn hàng tại bất kỳ chi nhánh nào.'
+                      : 'Vui lòng chọn chi nhánh để xem tồn kho'}
+                  </p>
                 </div>
               )}
             </div>
@@ -684,15 +736,16 @@ export default function ProductDetail() {
                 <label>Số lượng:</label>
                 <div className="quantity-controls">
                   {(() => {
-                    // Kiểm tra stock của chi nhánh đã chọn
-                    let isDisabled = false
-                    if (selectedCenterId) {
-                      const inventoryPart = inventoryByCenter.get(selectedCenterId)
-                      const stock = inventoryPart?.currentStock ?? 0
-                      const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-                      isDisabled = isOutOfStock
-                    } else {
-                      isDisabled = !product.inStock
+                    let isDisabled = availableCenters.length === 0
+                    if (!isDisabled) {
+                      if (selectedCenterId) {
+                        const inventoryPart = inventoryByCenter.get(selectedCenterId)
+                        const stock = inventoryPart?.currentStock ?? 0
+                        const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
+                        isDisabled = isOutOfStock
+                      } else {
+                        isDisabled = true
+                      }
                     }
 
                     return (
@@ -718,22 +771,23 @@ export default function ProductDetail() {
 
               <div className="action-buttons">
                 {(() => {
-                  // Kiểm tra stock của chi nhánh đã chọn
-                  let isDisabled = false
-                  if (selectedCenterId) {
-                    const inventoryPart = inventoryByCenter.get(selectedCenterId)
-                    const stock = inventoryPart?.currentStock ?? 0
-                    const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
-                    isDisabled = isOutOfStock
-                  } else {
-                    isDisabled = !product.inStock
+                  let isDisabled = availableCenters.length === 0
+                  if (!isDisabled) {
+                    if (selectedCenterId) {
+                      const inventoryPart = inventoryByCenter.get(selectedCenterId)
+                      const stock = inventoryPart?.currentStock ?? 0
+                      const isOutOfStock = inventoryPart?.isOutOfStock === true || stock === 0
+                      isDisabled = isOutOfStock
+                    } else {
+                      isDisabled = true
+                    }
                   }
 
                   return (
                     <>
                       <button
                         className="btn btn-primary"
-                        onClick={handleAddToCart}
+                        onClick={() => handleAddToCart()}
                         disabled={isDisabled}
                       >
                         <ShoppingCartIcon className="w-5 h-5" />
@@ -756,7 +810,6 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Product Details Tabs */}
         <div className="product-tabs">
           <div className="tab-headers">
             <button
@@ -795,7 +848,6 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Related Products Section */}
         {relatedProducts.length > 0 && (
           <div className="related-products">
             <div className="related-header">
@@ -817,7 +869,7 @@ export default function ProductDetail() {
                 >
                   <div className="product-image">
                     <img
-                      src={relatedProduct.images?.[0] || `https://picsum.photos/seed/${relatedProduct.partId}/300/300`}
+                      src={relatedProduct.images?.[0] || ''}
                       alt={relatedProduct.partName}
                     />
                   </div>
